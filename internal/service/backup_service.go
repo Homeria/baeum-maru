@@ -18,14 +18,20 @@ type BackupService struct {
 	db           *sql.DB
 	databasePath string
 	dir          string
+	keepDays     int
 	now          func() time.Time
 }
 
-func NewBackupService(db *sql.DB, databasePath string, dir string) *BackupService {
+func NewBackupService(db *sql.DB, databasePath string, dir string, keepDays ...int) *BackupService {
+	retentionDays := 0
+	if len(keepDays) > 0 {
+		retentionDays = keepDays[0]
+	}
 	return &BackupService{
 		db:           db,
 		databasePath: databasePath,
 		dir:          dir,
+		keepDays:     retentionDays,
 		now:          time.Now,
 	}
 }
@@ -40,6 +46,61 @@ func (s *BackupService) CreateBackup(ctx context.Context) (domain.BackupFile, er
 		return domain.BackupFile{}, err
 	}
 	return backupFileFromPath(path)
+}
+
+func (s *BackupService) Status(ctx context.Context) (domain.BackupStatus, error) {
+	files, err := s.ListBackups(ctx)
+	if err != nil {
+		return domain.BackupStatus{}, err
+	}
+	status := domain.BackupStatus{
+		TotalCount:  len(files),
+		KeepDays:    s.keepDays,
+		RetentionOn: s.keepDays > 0,
+	}
+	if len(files) > 0 {
+		latest := files[0]
+		status.Latest = &latest
+	}
+	for _, file := range files {
+		status.TotalBytes += file.SizeBytes
+	}
+	return status, nil
+}
+
+func (s *BackupService) PruneOldBackups(context.Context) (domain.BackupCleanup, error) {
+	if s.keepDays <= 0 {
+		return domain.BackupCleanup{}, nil
+	}
+	entries, err := os.ReadDir(s.dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return domain.BackupCleanup{}, nil
+		}
+		return domain.BackupCleanup{}, fmt.Errorf("read backup directory for cleanup: %w", err)
+	}
+
+	cutoff := s.now().AddDate(0, 0, -s.keepDays)
+	cleanup := domain.BackupCleanup{}
+	for _, entry := range entries {
+		if entry.IsDir() || strings.ToLower(filepath.Ext(entry.Name())) != ".db" {
+			continue
+		}
+		path := filepath.Join(s.dir, entry.Name())
+		info, err := os.Stat(path)
+		if err != nil {
+			return domain.BackupCleanup{}, fmt.Errorf("stat backup file for cleanup: %w", err)
+		}
+		if !info.ModTime().Before(cutoff) {
+			continue
+		}
+		if err := os.Remove(path); err != nil {
+			return domain.BackupCleanup{}, fmt.Errorf("delete old backup %s: %w", entry.Name(), err)
+		}
+		cleanup.DeletedCount++
+		cleanup.DeletedFiles = append(cleanup.DeletedFiles, entry.Name())
+	}
+	return cleanup, nil
 }
 
 func (s *BackupService) ListBackups(context.Context) ([]domain.BackupFile, error) {

@@ -15,6 +15,7 @@ type backupsPageData struct {
 	Version     string
 	Message     string
 	Error       string
+	Status      domain.BackupStatus
 	Backups     []domain.BackupFile
 }
 
@@ -53,6 +54,25 @@ var backupsTemplate = template.Must(template.New("backups").Funcs(uiTemplateFunc
     {{if .Message}}<p class="alert success" role="status">{{.Message}}</p>{{end}}
     {{if .Error}}<p class="alert error" role="alert">{{.Error}}</p>{{end}}
     <section class="panel">
+      <h2>백업 상태</h2>
+      <div class="actions">
+        {{if .Status.Latest}}
+          <span class="badge completed">최근 백업 {{.Status.Latest.FileName}}</span>
+          <span class="badge">{{humanBytes .Status.Latest.SizeBytes}}</span>
+          <span class="badge">{{.Status.Latest.CreatedAt}}</span>
+        {{else}}
+          <span class="badge failed">백업 없음</span>
+        {{end}}
+        <span class="badge">전체 {{.Status.TotalCount}}개</span>
+        <span class="badge">총 {{humanBytes .Status.TotalBytes}}</span>
+        {{if .Status.RetentionOn}}
+          <span class="badge">보관 {{.Status.KeepDays}}일</span>
+        {{else}}
+          <span class="badge">자동 정리 꺼짐</span>
+        {{end}}
+      </div>
+    </section>
+    <section class="panel">
       <div class="table-wrap">
         <table>
           <thead>
@@ -62,7 +82,7 @@ var backupsTemplate = template.Must(template.New("backups").Funcs(uiTemplateFunc
             {{range .Backups}}
               <tr>
                 <td>{{.FileName}}</td>
-                <td>{{.SizeBytes}}</td>
+                <td>{{humanBytes .SizeBytes}}</td>
                 <td>{{.CreatedAt}}</td>
                 <td>
                   <div class="actions">
@@ -119,6 +139,14 @@ func createBackupHandler(opts RouterOptions) http.HandlerFunc {
 			return
 		}
 		message := "백업을 생성했습니다: " + created.FileName
+		cleanup, err := opts.Backups.PruneOldBackups(r.Context())
+		if err != nil {
+			renderBackups(w, r, opts, message, err.Error())
+			return
+		}
+		if cleanup.DeletedCount > 0 {
+			message += " / 오래된 백업 " + fmt.Sprint(cleanup.DeletedCount) + "개 정리"
+		}
 		http.Redirect(w, r, "/admin/backups?message="+url.QueryEscape(message), http.StatusSeeOther)
 	}
 }
@@ -180,6 +208,10 @@ func renderBackups(w http.ResponseWriter, r *http.Request, opts RouterOptions, m
 	if err != nil {
 		errorMessage = err.Error()
 	}
+	status, err := opts.Backups.Status(r.Context())
+	if err != nil {
+		errorMessage = err.Error()
+	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := backupsTemplate.Execute(w, backupsPageData{
@@ -187,6 +219,7 @@ func renderBackups(w http.ResponseWriter, r *http.Request, opts RouterOptions, m
 		Version:     opts.Version,
 		Message:     message,
 		Error:       errorMessage,
+		Status:      status,
 		Backups:     backups,
 	}); err != nil {
 		opts.Logger.Error("render backups failed", "error", err)
