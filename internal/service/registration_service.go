@@ -14,6 +14,7 @@ type RegistrationRepository interface {
 	ListByMember(context.Context, int64) ([]domain.Registration, error)
 	ListByOffering(context.Context, int64) ([]domain.Registration, error)
 	ListRecent(context.Context, int) ([]domain.Registration, error)
+	ListActiveRuleItemsByMember(context.Context, int64) ([]domain.RegistrationRuleItem, error)
 }
 
 type MemberLookup interface {
@@ -28,6 +29,7 @@ type RegistrationService struct {
 	registrations RegistrationRepository
 	members       MemberLookup
 	courses       CourseOfferingLookup
+	rules         RegistrationRuleSet
 }
 
 type RegistrationInput struct {
@@ -36,10 +38,21 @@ type RegistrationInput struct {
 }
 
 func NewRegistrationService(registrations RegistrationRepository, members MemberLookup, courses CourseOfferingLookup) *RegistrationService {
+	rules := DefaultRegistrationRuleSet(registrations, courses)
 	return &RegistrationService{
 		registrations: registrations,
 		members:       members,
 		courses:       courses,
+		rules:         rules,
+	}
+}
+
+func NewRegistrationServiceWithRules(registrations RegistrationRepository, members MemberLookup, courses CourseOfferingLookup, rules RegistrationRuleSet) *RegistrationService {
+	return &RegistrationService{
+		registrations: registrations,
+		members:       members,
+		courses:       courses,
+		rules:         rules,
 	}
 }
 
@@ -54,6 +67,9 @@ func (s *RegistrationService) Create(ctx context.Context, input RegistrationInpu
 		return domain.Registration{}, err
 	}
 	if _, err := s.courses.GetOffering(ctx, input.OfferingID); err != nil {
+		return domain.Registration{}, err
+	}
+	if err := s.rules.Check(ctx, input); err != nil {
 		return domain.Registration{}, err
 	}
 
