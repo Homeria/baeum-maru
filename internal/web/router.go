@@ -4,6 +4,7 @@ package web
 import (
 	"context"
 	"html/template"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -21,6 +22,7 @@ type RouterOptions struct {
 	Registrations RegistrationService
 	Lotteries     LotteryService
 	Exports       ExportService
+	Imports       ImportService
 	Backups       BackupService
 	Attendance    AttendanceService
 }
@@ -51,6 +53,13 @@ type ExportService interface {
 	ExportLotteryResults(context.Context, int64) (service.ExportResult, error)
 	ExportAttendanceSession(context.Context, int64) (service.ExportResult, error)
 	ExportAttendanceOffering(context.Context, int64) (service.ExportResult, error)
+}
+
+type ImportService interface {
+	ImportMembers(context.Context, io.Reader) (service.ImportResult, error)
+	ImportCourseOfferings(context.Context, io.Reader) (service.ImportResult, error)
+	MemberTemplate() (service.ImportTemplate, error)
+	CourseOfferingTemplate() (service.ImportTemplate, error)
 }
 
 type LotteryService interface {
@@ -97,6 +106,7 @@ var pageTemplate = template.Must(template.New("page").Funcs(uiTemplateFuncs(nil)
       <a href="/admin/courses">강좌 관리</a>
       <a href="/admin/registrations">신청 현황</a>
       <a href="/admin/lottery">추첨</a>
+      <a href="/admin/imports">엑셀 가져오기</a>
       <a href="/admin/exports">엑셀 내보내기</a>
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
@@ -112,6 +122,7 @@ var pageTemplate = template.Must(template.New("page").Funcs(uiTemplateFuncs(nil)
     <section class="panel">
       <div class="actions">
         <a class="button" href="/reception">접수 화면</a>
+        <a class="button secondary" href="/admin/imports">엑셀 가져오기</a>
         <a class="button secondary" href="/admin/registrations">신청 현황</a>
         <a class="button secondary" href="/admin/lottery">추첨 관리</a>
         <a class="button secondary" href="/admin/backups">백업 관리</a>
@@ -159,6 +170,11 @@ func NewRouter(opts RouterOptions) http.Handler {
 	mux.HandleFunc("/admin/exports/lottery-results", exportLotteryResultsHandler(opts))
 	mux.HandleFunc("/admin/exports/attendance-session", exportAttendanceSessionHandler(opts))
 	mux.HandleFunc("/admin/exports/attendance-offering", exportAttendanceOfferingHandler(opts))
+	mux.HandleFunc("/admin/imports", importsHandler(opts))
+	mux.HandleFunc("/admin/imports/members", importMembersHandler(opts))
+	mux.HandleFunc("/admin/imports/courses", importCoursesHandler(opts))
+	mux.HandleFunc("/admin/imports/members/template", memberImportTemplateHandler(opts))
+	mux.HandleFunc("/admin/imports/courses/template", courseImportTemplateHandler(opts))
 	mux.HandleFunc("/admin/backups", backupsHandler(opts))
 	mux.HandleFunc("/admin/backups/create", createBackupHandler(opts))
 	mux.HandleFunc("/admin/backups/download", downloadBackupHandler(opts))
@@ -220,6 +236,7 @@ var membersTemplate = template.Must(template.New("members").Funcs(uiTemplateFunc
       <a href="/admin/courses">강좌 관리</a>
       <a href="/admin/registrations">신청 현황</a>
       <a href="/admin/lottery">추첨</a>
+      <a href="/admin/imports">엑셀 가져오기</a>
       <a href="/admin/exports">엑셀 내보내기</a>
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
@@ -370,6 +387,7 @@ var coursesTemplate = template.Must(template.New("courses").Funcs(uiTemplateFunc
       <a href="/admin/courses">강좌 관리</a>
       <a href="/admin/registrations">신청 현황</a>
       <a href="/admin/lottery">추첨</a>
+      <a href="/admin/imports">엑셀 가져오기</a>
       <a href="/admin/exports">엑셀 내보내기</a>
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>

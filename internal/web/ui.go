@@ -2,6 +2,10 @@ package web
 
 import "html/template"
 
+func templateMust(name string, content string) *template.Template {
+	return template.Must(template.New(name).Funcs(uiTemplateFuncs(nil)).Parse(content))
+}
+
 func uiTemplateFuncs(extra template.FuncMap) template.FuncMap {
 	funcs := template.FuncMap{
 		"appStyles":   appStyles,

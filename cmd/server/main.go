@@ -30,6 +30,7 @@ func main() {
 		Registrations: runtime.Registrations,
 		Lotteries:     runtime.Lotteries,
 		Exports:       runtime.Exports,
+		Imports:       runtime.Imports,
 		Backups:       runtime.Backups,
 		Attendance:    runtime.Attendance,
 	})
