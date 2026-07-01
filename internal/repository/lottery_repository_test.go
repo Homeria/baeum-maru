@@ -77,6 +77,17 @@ func TestLotteryRepositoryListsCandidatesAndSavesRun(t *testing.T) {
 	if results[0].Result != "selected" || results[0].MemberName != "김배움" {
 		t.Fatalf("first result = %+v, want selected 김배움", results[0])
 	}
+
+	latest, ok, err := lotteries.LatestRunByOffering(ctx, offering.ID)
+	if err != nil {
+		t.Fatalf("LatestRunByOffering() error = %v", err)
+	}
+	if !ok {
+		t.Fatal("LatestRunByOffering() ok = false, want true")
+	}
+	if latest.ID != runID || latest.OfferingID != offering.ID {
+		t.Fatalf("latest = %+v, want saved run for offering", latest)
+	}
 }
 
 func createLotteryRegistration(t *testing.T, ctx context.Context, members *MemberRepository, registrations *RegistrationRepository, offeringID int64, name string) domain.Registration {

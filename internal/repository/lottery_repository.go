@@ -156,6 +156,55 @@ LIMIT ?;
 	return runs, nil
 }
 
+func (r *LotteryRepository) LatestRunByOffering(ctx context.Context, offeringID int64) (domain.LotteryRun, bool, error) {
+	row := r.db.QueryRowContext(ctx, `
+SELECT lr.id,
+       lr.term_id,
+       t.name,
+       lr.seed,
+       lr.status,
+       lr.started_at,
+       COALESCE(lr.completed_at, ''),
+       co.id,
+       c.title,
+       COUNT(lres.id),
+       COALESCE(SUM(CASE WHEN lres.result = 'selected' THEN 1 ELSE 0 END), 0),
+       COALESCE(SUM(CASE WHEN lres.result = 'waitlisted' THEN 1 ELSE 0 END), 0)
+FROM lottery_runs lr
+JOIN terms t ON t.id = lr.term_id
+JOIN lottery_results lres ON lres.lottery_run_id = lr.id
+JOIN registrations r ON r.id = lres.registration_id
+JOIN course_offerings co ON co.id = r.offering_id
+JOIN courses c ON c.id = co.course_id
+WHERE co.id = ?
+GROUP BY lr.id, co.id
+ORDER BY lr.completed_at DESC, lr.started_at DESC, lr.id DESC
+LIMIT 1;
+`, offeringID)
+
+	var run domain.LotteryRun
+	if err := row.Scan(
+		&run.ID,
+		&run.TermID,
+		&run.TermName,
+		&run.Seed,
+		&run.Status,
+		&run.StartedAt,
+		&run.CompletedAt,
+		&run.OfferingID,
+		&run.CourseTitle,
+		&run.TotalCount,
+		&run.SelectedCount,
+		&run.WaitlistedCount,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return domain.LotteryRun{}, false, nil
+		}
+		return domain.LotteryRun{}, false, fmt.Errorf("read latest lottery run by offering: %w", err)
+	}
+	return run, true, nil
+}
+
 func (r *LotteryRepository) ListResultsByRun(ctx context.Context, runID int64) ([]domain.LotteryResultRow, error) {
 	rows, err := r.db.QueryContext(ctx, `
 SELECT lr.id,

@@ -317,7 +317,7 @@ func TestRouterServesLotteryPage(t *testing.T) {
 			offerings: []domain.CourseOffering{{ID: 1, CourseTitle: "요가 기초", Capacity: 1, RegistrationCount: 2, Weekday: 1, StartTime: "09:00", EndTime: "10:00"}},
 		},
 		Lotteries: &fakeLotteryService{
-			runs: []domain.LotteryRun{{ID: 7, TermName: "2026 여름", CourseTitle: "요가 기초", TotalCount: 2, SelectedCount: 1, WaitlistedCount: 1}},
+			runs: []domain.LotteryRun{{ID: 7, TermName: "2026 여름", OfferingID: 1, CourseTitle: "요가 기초", TotalCount: 2, SelectedCount: 1, WaitlistedCount: 1}},
 		},
 	})
 	req := httptest.NewRequest(http.MethodGet, "/admin/lottery", nil)
@@ -333,6 +333,9 @@ func TestRouterServesLotteryPage(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "/admin/exports/lottery-results?run_id=7") {
 		t.Fatalf("body = %q, want lottery export link", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "재추첨 확인") {
+		t.Fatalf("body = %q, want rerun confirmation", rec.Body.String())
 	}
 }
 
@@ -357,6 +360,27 @@ func TestRouterRunsLottery(t *testing.T) {
 	}
 	if location := rec.Header().Get("Location"); !strings.Contains(location, "/admin/lottery?message=") {
 		t.Fatalf("Location = %q, want lottery redirect", location)
+	}
+}
+
+func TestRouterRunsForcedLotteryRerun(t *testing.T) {
+	lotteries := &fakeLotteryService{}
+	router := NewRouter(RouterOptions{
+		Courses:   &fakeCourseService{},
+		Lotteries: lotteries,
+	})
+	form := url.Values{"offering_id": {"7"}, "force_rerun": {"true"}, "confirm_rerun": {"true"}}
+	req := httptest.NewRequest(http.MethodPost, "/admin/lottery/run", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if !lotteries.forceRerun {
+		t.Fatal("forceRerun = false, want true")
 	}
 }
 
@@ -784,11 +808,15 @@ func (f *fakeRegistrationService) ListRecent(_ context.Context, _ int) ([]domain
 
 type fakeLotteryService struct {
 	offeringID int64
+	forceRerun bool
 	runs       []domain.LotteryRun
 }
 
-func (f *fakeLotteryService) RunOfferingLottery(_ context.Context, offeringID int64) (domain.LotteryRunSummary, error) {
+func (f *fakeLotteryService) RunOfferingLottery(_ context.Context, offeringID int64, options ...service.LotteryRunOptions) (domain.LotteryRunSummary, error) {
 	f.offeringID = offeringID
+	if len(options) > 0 {
+		f.forceRerun = options[0].ForceRerun
+	}
 	return domain.LotteryRunSummary{
 		OfferingID:      offeringID,
 		CourseTitle:     "요가 기초",

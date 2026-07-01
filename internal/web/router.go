@@ -63,7 +63,7 @@ type ImportService interface {
 }
 
 type LotteryService interface {
-	RunOfferingLottery(context.Context, int64) (domain.LotteryRunSummary, error)
+	RunOfferingLottery(context.Context, int64, ...service.LotteryRunOptions) (domain.LotteryRunSummary, error)
 	ListRuns(context.Context, int) ([]domain.LotteryRun, error)
 }
 

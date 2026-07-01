@@ -1,12 +1,14 @@
 package web
 
 import (
+	"errors"
 	"html/template"
 	"net/http"
 	"net/url"
 	"strconv"
 
 	"github.com/Homeria/baeum-maru/internal/domain"
+	"github.com/Homeria/baeum-maru/internal/service"
 )
 
 type lotteryPageData struct {
@@ -14,8 +16,13 @@ type lotteryPageData struct {
 	Version     string
 	Message     string
 	Error       string
-	Offerings   []domain.CourseOffering
+	Offerings   []lotteryOfferingRow
 	Runs        []domain.LotteryRun
+}
+
+type lotteryOfferingRow struct {
+	Offering  domain.CourseOffering
+	LatestRun *domain.LotteryRun
 }
 
 var lotteryTemplate = template.Must(template.New("lottery").Funcs(uiTemplateFuncs(template.FuncMap{
@@ -57,26 +64,45 @@ var lotteryTemplate = template.Must(template.New("lottery").Funcs(uiTemplateFunc
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>ID</th><th>회차</th><th>강좌명</th><th>정원</th><th>신청</th><th>시간</th><th>작업</th></tr>
+            <tr><th>ID</th><th>회차</th><th>강좌명</th><th>정원</th><th>신청</th><th>시간</th><th>최근 추첨</th><th>작업</th></tr>
           </thead>
           <tbody>
             {{range .Offerings}}
               <tr>
-                <td>{{.ID}}</td>
-                <td>{{.TermName}}</td>
-                <td>{{.CourseTitle}}</td>
-                <td>{{.Capacity}}</td>
-                <td><span class="badge">{{.RegistrationCount}}</span></td>
-                <td>{{weekdayLabel .Weekday}} {{.StartTime}}-{{.EndTime}}</td>
+                <td>{{.Offering.ID}}</td>
+                <td>{{.Offering.TermName}}</td>
+                <td>{{.Offering.CourseTitle}}</td>
+                <td>{{.Offering.Capacity}}</td>
+                <td><span class="badge">{{.Offering.RegistrationCount}}</span></td>
+                <td>{{weekdayLabel .Offering.Weekday}} {{.Offering.StartTime}}-{{.Offering.EndTime}}</td>
                 <td>
-                  <form class="inline-form" method="post" action="/admin/lottery/run">
-                    <input type="hidden" name="offering_id" value="{{.ID}}">
-                    <button type="submit">추첨 실행</button>
-                  </form>
+                  {{if .LatestRun}}
+                    <span class="badge completed">완료 #{{.LatestRun.ID}}</span>
+                  {{else}}
+                    <span class="badge pending">없음</span>
+                  {{end}}
+                </td>
+                <td>
+                  {{if .LatestRun}}
+                    <form class="inline-form" method="post" action="/admin/lottery/run">
+                      <input type="hidden" name="offering_id" value="{{.Offering.ID}}">
+                      <input type="hidden" name="force_rerun" value="true">
+                      <label style="display:inline-flex;grid-template-columns:auto 1fr;align-items:center;gap:6px;">
+                        <input name="confirm_rerun" type="checkbox" value="true" required style="width:auto;min-height:auto;">
+                        재추첨 확인
+                      </label>
+                      <button class="danger" type="submit">재추첨</button>
+                    </form>
+                  {{else}}
+                    <form class="inline-form" method="post" action="/admin/lottery/run">
+                      <input type="hidden" name="offering_id" value="{{.Offering.ID}}">
+                      <button type="submit">추첨 실행</button>
+                    </form>
+                  {{end}}
                 </td>
               </tr>
             {{else}}
-              <tr><td class="empty" colspan="7">강좌가 없습니다.</td></tr>
+              <tr><td class="empty" colspan="8">강좌가 없습니다.</td></tr>
             {{end}}
           </tbody>
         </table>
@@ -150,12 +176,22 @@ func runLotteryHandler(opts RouterOptions) http.HandlerFunc {
 			renderLottery(w, r, opts, "", "강좌 선택이 올바르지 않습니다.")
 			return
 		}
-		summary, err := opts.Lotteries.RunOfferingLottery(r.Context(), offeringID)
+		forceRerun := r.FormValue("force_rerun") == "true" && r.FormValue("confirm_rerun") == "true"
+		summary, err := opts.Lotteries.RunOfferingLottery(r.Context(), offeringID, service.LotteryRunOptions{ForceRerun: forceRerun})
 		if err != nil {
+			var rerunErr *service.LotteryRerunRequiredError
+			if errors.As(err, &rerunErr) {
+				message := "이미 추첨 이력이 있습니다. 강좌 행의 재추첨 확인을 체크한 뒤 다시 실행하세요."
+				http.Redirect(w, r, "/admin/lottery?message="+url.QueryEscape(message), http.StatusSeeOther)
+				return
+			}
 			renderLottery(w, r, opts, "", err.Error())
 			return
 		}
 		message := "추첨 완료: " + summary.CourseTitle + " / 선정 " + strconv.Itoa(summary.SelectedCount) + "명 / 대기 " + strconv.Itoa(summary.WaitlistedCount) + "명"
+		if summary.Rerun {
+			message = "재추첨 완료: " + summary.CourseTitle + " / 이전 추첨 #" + strconv.FormatInt(summary.PreviousRunID, 10) + " 보존 / 선정 " + strconv.Itoa(summary.SelectedCount) + "명 / 대기 " + strconv.Itoa(summary.WaitlistedCount) + "명"
+		}
 		http.Redirect(w, r, "/admin/lottery?message="+url.QueryEscape(message), http.StatusSeeOther)
 	}
 }
@@ -176,6 +212,7 @@ func renderLottery(w http.ResponseWriter, r *http.Request, opts RouterOptions, m
 			errorMessage = err.Error()
 		}
 	}
+	offeringRows := buildLotteryOfferingRows(offerings, runs)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := lotteryTemplate.Execute(w, lotteryPageData{
@@ -183,9 +220,31 @@ func renderLottery(w http.ResponseWriter, r *http.Request, opts RouterOptions, m
 		Version:     opts.Version,
 		Message:     message,
 		Error:       errorMessage,
-		Offerings:   offerings,
+		Offerings:   offeringRows,
 		Runs:        runs,
 	}); err != nil {
 		opts.Logger.Error("render lottery failed", "error", err)
 	}
+}
+
+func buildLotteryOfferingRows(offerings []domain.CourseOffering, runs []domain.LotteryRun) []lotteryOfferingRow {
+	latestByOffering := make(map[int64]domain.LotteryRun)
+	for _, run := range runs {
+		if run.OfferingID <= 0 {
+			continue
+		}
+		if _, exists := latestByOffering[run.OfferingID]; !exists {
+			latestByOffering[run.OfferingID] = run
+		}
+	}
+	rows := make([]lotteryOfferingRow, 0, len(offerings))
+	for _, offering := range offerings {
+		row := lotteryOfferingRow{Offering: offering}
+		if run, exists := latestByOffering[offering.ID]; exists {
+			runCopy := run
+			row.LatestRun = &runCopy
+		}
+		rows = append(rows, row)
+	}
+	return rows
 }

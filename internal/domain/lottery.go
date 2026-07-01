@@ -26,6 +26,8 @@ type LotteryRunSummary struct {
 	TotalCount      int
 	SelectedCount   int
 	WaitlistedCount int
+	Rerun           bool
+	PreviousRunID   int64
 }
 
 type LotteryRun struct {
