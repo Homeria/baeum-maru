@@ -1,0 +1,24 @@
+# build
+/build/
+/dist/
+*.exe
+*.zip
+
+# runtime data
+/data/
+/backups/
+/exports/
+/imports/
+/logs/
+
+# local config
+config.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+*.test
+coverage.out
+
