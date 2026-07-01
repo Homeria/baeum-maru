@@ -25,6 +25,8 @@ func main() {
 		DisplayName: runtime.Config.App.DisplayName,
 		Version:     app.Version,
 		Logger:      runtime.Logger.Logger,
+		Members:     runtime.Members,
+		Courses:     runtime.Courses,
 	})
 	httpServer := server.New(server.Options{
 		Host:    runtime.Config.Server.Host,
