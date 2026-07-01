@@ -39,6 +39,30 @@ func TestLoadReadsSavedConfig(t *testing.T) {
 	}
 }
 
+func TestLoadFillsMissingExportConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	data := []byte(`{
+  "app": {"display_name": "배움마루", "english_name": "Baeum-Maru", "mode": "portable"},
+  "server": {"host": "0.0.0.0", "port": 18080},
+  "database": {"path": "./data/center.db"},
+  "backup": {"path": "./backups", "keep_days": 30},
+  "logging": {"path": "./logs/app.log", "level": "info"},
+  "ui": {"open_browser_on_start": true}
+}
+`)
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Export.Path != "./exports" {
+		t.Fatalf("Export.Path = %q, want ./exports", cfg.Export.Path)
+	}
+}
+
 func TestValidateRejectsInvalidPort(t *testing.T) {
 	cfg := Default()
 	cfg.Server.Port = 70000
@@ -66,6 +90,7 @@ func TestEnsureRuntimeDirsCreatesDirectories(t *testing.T) {
 	cfg := Default()
 	cfg.Database.Path = filepath.Join(root, "data", "center.db")
 	cfg.Backup.Path = filepath.Join(root, "backups")
+	cfg.Export.Path = filepath.Join(root, "exports")
 	cfg.Logging.Path = filepath.Join(root, "logs", "app.log")
 
 	if err := EnsureRuntimeDirs(cfg); err != nil {

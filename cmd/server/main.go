@@ -28,6 +28,7 @@ func main() {
 		Members:       runtime.Members,
 		Courses:       runtime.Courses,
 		Registrations: runtime.Registrations,
+		Exports:       runtime.Exports,
 	})
 	httpServer := server.New(server.Options{
 		Host:    runtime.Config.Server.Host,

@@ -30,6 +30,9 @@ func Validate(cfg Config) error {
 	if cfg.Backup.KeepDays < 0 {
 		return fmt.Errorf("config backup.keep_days must be zero or greater: %d", cfg.Backup.KeepDays)
 	}
+	if cfg.Export.Path == "" {
+		return errors.New("config export.path is required")
+	}
 	if cfg.Logging.Path == "" {
 		return errors.New("config logging.path is required")
 	}

@@ -127,8 +127,11 @@ ORDER BY m.name, r.id;
 }
 
 func (r *RegistrationRepository) ListRecent(ctx context.Context, limit int) ([]domain.Registration, error) {
-	if limit <= 0 || limit > 300 {
+	if limit <= 0 {
 		limit = 100
+	}
+	if limit > 10000 {
+		limit = 10000
 	}
 
 	rows, err := r.db.QueryContext(ctx, registrationSelectSQL()+`

@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -255,6 +257,50 @@ func TestRouterServesRegistrationManagement(t *testing.T) {
 	}
 }
 
+func TestRouterServesExportsPage(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		DisplayName: "배움마루",
+		Version:     "test",
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/exports", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "엑셀 내보내기") {
+		t.Fatalf("body = %q, want export page", rec.Body.String())
+	}
+}
+
+func TestRouterDownloadsMemberExport(t *testing.T) {
+	filePath := filepath.Join(t.TempDir(), "members.xlsx")
+	if err := os.WriteFile(filePath, []byte("xlsx"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	router := NewRouter(RouterOptions{
+		Exports: &fakeExportService{
+			members: service.ExportResult{Path: filePath, FileName: "members.xlsx"},
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/exports/members", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if got := rec.Header().Get("Content-Disposition"); got != `attachment; filename="members.xlsx"` {
+		t.Fatalf("Content-Disposition = %q, want attachment", got)
+	}
+	if rec.Body.String() != "xlsx" {
+		t.Fatalf("body = %q, want file contents", rec.Body.String())
+	}
+}
+
 type fakeMemberService struct {
 	created service.MemberInput
 	members []domain.Member
@@ -306,4 +352,22 @@ func (f *fakeRegistrationService) ListByMember(_ context.Context, _ int64) ([]do
 
 func (f *fakeRegistrationService) ListRecent(_ context.Context, _ int) ([]domain.Registration, error) {
 	return f.recent, nil
+}
+
+type fakeExportService struct {
+	members       service.ExportResult
+	courses       service.ExportResult
+	registrations service.ExportResult
+}
+
+func (f *fakeExportService) ExportMembers(context.Context) (service.ExportResult, error) {
+	return f.members, nil
+}
+
+func (f *fakeExportService) ExportCourseOfferings(context.Context) (service.ExportResult, error) {
+	return f.courses, nil
+}
+
+func (f *fakeExportService) ExportRegistrations(context.Context) (service.ExportResult, error) {
+	return f.registrations, nil
 }

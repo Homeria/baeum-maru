@@ -24,6 +24,7 @@ func Load(path string) (Config, error) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return Config{}, fmt.Errorf("parse config: %w", err)
 	}
+	applyMissingDefaults(&cfg)
 	if err := Validate(cfg); err != nil {
 		return Config{}, err
 	}
@@ -77,7 +78,7 @@ func EnsureRuntimeDirs(cfg Config) error {
 	dirs := []string{
 		filepath.Dir(cfg.Database.Path),
 		cfg.Backup.Path,
-		"./exports",
+		cfg.Export.Path,
 		"./imports",
 		filepath.Dir(cfg.Logging.Path),
 	}
@@ -91,4 +92,11 @@ func EnsureRuntimeDirs(cfg Config) error {
 		}
 	}
 	return nil
+}
+
+func applyMissingDefaults(cfg *Config) {
+	defaults := Default()
+	if cfg.Export.Path == "" {
+		cfg.Export.Path = defaults.Export.Path
+	}
 }

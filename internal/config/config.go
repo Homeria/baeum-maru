@@ -6,6 +6,7 @@ type Config struct {
 	Server   ServerConfig   `json:"server"`
 	Database DatabaseConfig `json:"database"`
 	Backup   BackupConfig   `json:"backup"`
+	Export   ExportConfig   `json:"export"`
 	Logging  LoggingConfig  `json:"logging"`
 	UI       UIConfig       `json:"ui"`
 }
@@ -28,6 +29,10 @@ type DatabaseConfig struct {
 type BackupConfig struct {
 	Path     string `json:"path"`
 	KeepDays int    `json:"keep_days"`
+}
+
+type ExportConfig struct {
+	Path string `json:"path"`
 }
 
 type LoggingConfig struct {

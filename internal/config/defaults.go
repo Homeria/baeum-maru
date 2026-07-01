@@ -18,6 +18,9 @@ func Default() Config {
 			Path:     "./backups",
 			KeepDays: 30,
 		},
+		Export: ExportConfig{
+			Path: "./exports",
+		},
 		Logging: LoggingConfig{
 			Path:  "./logs/app.log",
 			Level: "info",
