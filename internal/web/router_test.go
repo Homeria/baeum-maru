@@ -257,6 +257,51 @@ func TestRouterServesRegistrationManagement(t *testing.T) {
 	}
 }
 
+func TestRouterServesLotteryPage(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		DisplayName: "배움마루",
+		Version:     "test",
+		Courses: &fakeCourseService{
+			offerings: []domain.CourseOffering{{ID: 1, CourseTitle: "요가 기초", Capacity: 1, RegistrationCount: 2, Weekday: 1, StartTime: "09:00", EndTime: "10:00"}},
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/lottery", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "요가 기초") {
+		t.Fatalf("body = %q, want course title", rec.Body.String())
+	}
+}
+
+func TestRouterRunsLottery(t *testing.T) {
+	lotteries := &fakeLotteryService{}
+	router := NewRouter(RouterOptions{
+		Courses:   &fakeCourseService{},
+		Lotteries: lotteries,
+	})
+	form := url.Values{"offering_id": {"7"}}
+	req := httptest.NewRequest(http.MethodPost, "/admin/lottery/run", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if lotteries.offeringID != 7 {
+		t.Fatalf("offeringID = %d, want 7", lotteries.offeringID)
+	}
+	if location := rec.Header().Get("Location"); !strings.Contains(location, "/admin/lottery?message=") {
+		t.Fatalf("Location = %q, want lottery redirect", location)
+	}
+}
+
 func TestRouterServesExportsPage(t *testing.T) {
 	router := NewRouter(RouterOptions{
 		DisplayName: "배움마루",
@@ -352,6 +397,20 @@ func (f *fakeRegistrationService) ListByMember(_ context.Context, _ int64) ([]do
 
 func (f *fakeRegistrationService) ListRecent(_ context.Context, _ int) ([]domain.Registration, error) {
 	return f.recent, nil
+}
+
+type fakeLotteryService struct {
+	offeringID int64
+}
+
+func (f *fakeLotteryService) RunOfferingLottery(_ context.Context, offeringID int64) (domain.LotteryRunSummary, error) {
+	f.offeringID = offeringID
+	return domain.LotteryRunSummary{
+		OfferingID:      offeringID,
+		CourseTitle:     "요가 기초",
+		SelectedCount:   1,
+		WaitlistedCount: 1,
+	}, nil
 }
 
 type fakeExportService struct {

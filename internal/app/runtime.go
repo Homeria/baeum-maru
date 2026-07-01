@@ -20,6 +20,7 @@ type Runtime struct {
 	Members       *service.MemberService
 	Courses       *service.CourseService
 	Registrations *service.RegistrationService
+	Lotteries     *service.LotteryService
 	Exports       *service.ExportService
 }
 
@@ -55,10 +56,12 @@ func Bootstrap(configPath string) (*Runtime, error) {
 	memberRepository := repository.NewMemberRepository(db)
 	courseRepository := repository.NewCourseRepository(db)
 	registrationRepository := repository.NewRegistrationRepository(db)
+	lotteryRepository := repository.NewLotteryRepository(db)
 
 	memberService := service.NewMemberService(memberRepository)
 	courseService := service.NewCourseService(courseRepository)
 	registrationService := service.NewRegistrationService(registrationRepository, memberRepository, courseRepository)
+	lotteryService := service.NewLotteryService(lotteryRepository, courseRepository)
 
 	return &Runtime{
 		Config:        cfg,
@@ -67,6 +70,7 @@ func Bootstrap(configPath string) (*Runtime, error) {
 		Members:       memberService,
 		Courses:       courseService,
 		Registrations: registrationService,
+		Lotteries:     lotteryService,
 		Exports:       service.NewExportService(memberService, courseService, registrationService, cfg.Export.Path),
 	}, nil
 }
