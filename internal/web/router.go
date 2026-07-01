@@ -36,6 +36,8 @@ type CourseService interface {
 type RegistrationService interface {
 	Create(context.Context, service.RegistrationInput) (domain.Registration, error)
 	Cancel(context.Context, int64) (domain.Registration, error)
+	Confirm(context.Context, int64) (domain.Registration, error)
+	CancelWithPromotion(context.Context, int64) (domain.RegistrationStatusChange, error)
 	ListByMember(context.Context, int64) ([]domain.Registration, error)
 	ListRecent(context.Context, int) ([]domain.Registration, error)
 }
@@ -110,6 +112,7 @@ func NewRouter(opts RouterOptions) http.Handler {
 	mux.HandleFunc("/admin/members", membersHandler(opts))
 	mux.HandleFunc("/admin/courses", coursesHandler(opts))
 	mux.HandleFunc("/admin/registrations", registrationsHandler(opts))
+	mux.HandleFunc("/admin/registrations/status", registrationStatusHandler(opts))
 	mux.HandleFunc("/admin/lottery", lotteryHandler(opts))
 	mux.HandleFunc("/admin/lottery/run", runLotteryHandler(opts))
 	mux.HandleFunc("/admin/exports", exportsHandler(opts))

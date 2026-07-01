@@ -11,6 +11,8 @@ import (
 type RegistrationRepository interface {
 	Create(context.Context, repository.CreateRegistrationParams) (domain.Registration, error)
 	Cancel(context.Context, int64) (domain.Registration, error)
+	Confirm(context.Context, int64) (domain.Registration, error)
+	CancelAndPromote(context.Context, int64) (domain.RegistrationStatusChange, error)
 	ListByMember(context.Context, int64) ([]domain.Registration, error)
 	ListByOffering(context.Context, int64) ([]domain.Registration, error)
 	ListRecent(context.Context, int) ([]domain.Registration, error)
@@ -80,10 +82,25 @@ func (s *RegistrationService) Create(ctx context.Context, input RegistrationInpu
 }
 
 func (s *RegistrationService) Cancel(ctx context.Context, id int64) (domain.Registration, error) {
+	change, err := s.CancelWithPromotion(ctx, id)
+	if err != nil {
+		return domain.Registration{}, err
+	}
+	return change.Registration, nil
+}
+
+func (s *RegistrationService) Confirm(ctx context.Context, id int64) (domain.Registration, error) {
 	if id <= 0 {
 		return domain.Registration{}, errors.New("registration id is required")
 	}
-	return s.registrations.Cancel(ctx, id)
+	return s.registrations.Confirm(ctx, id)
+}
+
+func (s *RegistrationService) CancelWithPromotion(ctx context.Context, id int64) (domain.RegistrationStatusChange, error) {
+	if id <= 0 {
+		return domain.RegistrationStatusChange{}, errors.New("registration id is required")
+	}
+	return s.registrations.CancelAndPromote(ctx, id)
 }
 
 func (s *RegistrationService) ListByMember(ctx context.Context, memberID int64) ([]domain.Registration, error) {

@@ -232,6 +232,7 @@ func cancelRegistrationHandler(opts RouterOptions) http.HandlerFunc {
 type registrationsPageData struct {
 	DisplayName   string
 	Version       string
+	Message       string
 	Error         string
 	Registrations []domain.Registration
 }
@@ -247,9 +248,10 @@ var registrationsTemplate = template.Must(template.New("registrations").Parse(`<
   <main>
     <nav><a href="/admin">관리</a> <a href="/reception">접수 화면</a></nav>
     <h1>신청 현황</h1>
+    {{if .Message}}<p role="status">{{.Message}}</p>{{end}}
     {{if .Error}}<p role="alert">{{.Error}}</p>{{end}}
     <table>
-      <thead><tr><th>ID</th><th>회원</th><th>회원번호</th><th>회차</th><th>강좌</th><th>상태</th><th>신청일</th></tr></thead>
+      <thead><tr><th>ID</th><th>회원</th><th>회원번호</th><th>회차</th><th>강좌</th><th>상태</th><th>신청일</th><th>작업</th></tr></thead>
       <tbody>
         {{range .Registrations}}
           <tr>
@@ -260,9 +262,25 @@ var registrationsTemplate = template.Must(template.New("registrations").Parse(`<
             <td>{{.CourseTitle}}</td>
             <td>{{.Status}}</td>
             <td>{{.CreatedAt}}</td>
+            <td>
+              {{if eq .Status "selected"}}
+                <form method="post" action="/admin/registrations/status">
+                  <input type="hidden" name="registration_id" value="{{.ID}}">
+                  <input type="hidden" name="action" value="confirm">
+                  <button type="submit">확정</button>
+                </form>
+              {{end}}
+              {{if ne .Status "cancelled"}}
+                <form method="post" action="/admin/registrations/status">
+                  <input type="hidden" name="registration_id" value="{{.ID}}">
+                  <input type="hidden" name="action" value="cancel">
+                  <button type="submit">취소</button>
+                </form>
+              {{end}}
+            </td>
           </tr>
         {{else}}
-          <tr><td colspan="7">신청 내역이 없습니다.</td></tr>
+          <tr><td colspan="8">신청 내역이 없습니다.</td></tr>
         {{end}}
       </tbody>
     </table>
@@ -294,10 +312,56 @@ func registrationsHandler(opts RouterOptions) http.HandlerFunc {
 		if err := registrationsTemplate.Execute(w, registrationsPageData{
 			DisplayName:   opts.DisplayName,
 			Version:       opts.Version,
+			Message:       r.URL.Query().Get("message"),
 			Error:         message,
 			Registrations: registrations,
 		}); err != nil {
 			opts.Logger.Error("render registrations failed", "error", err)
+		}
+	}
+}
+
+func registrationStatusHandler(opts RouterOptions) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if opts.Registrations == nil {
+			http.Error(w, "registration service is not configured", http.StatusServiceUnavailable)
+			return
+		}
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+		registrationID, err := strconv.ParseInt(r.FormValue("registration_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid registration id", http.StatusBadRequest)
+			return
+		}
+
+		switch r.FormValue("action") {
+		case "confirm":
+			if _, err := opts.Registrations.Confirm(r.Context(), registrationID); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			http.Redirect(w, r, "/admin/registrations?message="+url.QueryEscape("신청을 확정했습니다."), http.StatusSeeOther)
+		case "cancel":
+			change, err := opts.Registrations.CancelWithPromotion(r.Context(), registrationID)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			message := "신청을 취소했습니다."
+			if change.Promoted != nil {
+				message = "신청을 취소하고 대기자를 선정으로 승격했습니다."
+			}
+			http.Redirect(w, r, "/admin/registrations?message="+url.QueryEscape(message), http.StatusSeeOther)
+		default:
+			http.Error(w, "unsupported registration action", http.StatusBadRequest)
 		}
 	}
 }

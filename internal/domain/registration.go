@@ -14,6 +14,11 @@ type Registration struct {
 	CancelledAt string
 }
 
+type RegistrationStatusChange struct {
+	Registration Registration
+	Promoted     *Registration
+}
+
 type RegistrationRuleItem struct {
 	ID         int64
 	MemberID   int64
