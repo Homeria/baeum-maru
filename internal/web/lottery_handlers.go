@@ -18,70 +18,97 @@ type lotteryPageData struct {
 	Runs        []domain.LotteryRun
 }
 
-var lotteryTemplate = template.Must(template.New("lottery").Funcs(template.FuncMap{
+var lotteryTemplate = template.Must(template.New("lottery").Funcs(uiTemplateFuncs(template.FuncMap{
 	"weekdayLabel": weekdayLabel,
-}).Parse(`<!doctype html>
+})).Parse(`<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>추첨 - {{.DisplayName}}</title>
+  <style>{{appStyles}}</style>
 </head>
 <body>
-  <main>
-    <nav><a href="/admin">관리</a> <a href="/admin/courses">강좌 관리</a> <a href="/admin/registrations">신청 현황</a></nav>
-    <h1>추첨</h1>
-    {{if .Message}}<p role="status">{{.Message}}</p>{{end}}
-    {{if .Error}}<p role="alert">{{.Error}}</p>{{end}}
-    <table>
-      <thead>
-        <tr><th>ID</th><th>회차</th><th>강좌명</th><th>정원</th><th>신청</th><th>시간</th><th>작업</th></tr>
-      </thead>
-      <tbody>
-        {{range .Offerings}}
-          <tr>
-            <td>{{.ID}}</td>
-            <td>{{.TermName}}</td>
-            <td>{{.CourseTitle}}</td>
-            <td>{{.Capacity}}</td>
-            <td>{{.RegistrationCount}}</td>
-            <td>{{weekdayLabel .Weekday}} {{.StartTime}}-{{.EndTime}}</td>
-            <td>
-              <form method="post" action="/admin/lottery/run">
-                <input type="hidden" name="offering_id" value="{{.ID}}">
-                <button type="submit">추첨 실행</button>
-              </form>
-            </td>
-          </tr>
-        {{else}}
-          <tr><td colspan="7">강좌가 없습니다.</td></tr>
-        {{end}}
-      </tbody>
-    </table>
-    <h2>추첨 실행 이력</h2>
-    <table>
-      <thead>
-        <tr><th>ID</th><th>회차</th><th>강좌명</th><th>상태</th><th>전체</th><th>선정</th><th>대기</th><th>완료일</th><th>파일</th></tr>
-      </thead>
-      <tbody>
-        {{range .Runs}}
-          <tr>
-            <td>{{.ID}}</td>
-            <td>{{.TermName}}</td>
-            <td>{{.CourseTitle}}</td>
-            <td>{{.Status}}</td>
-            <td>{{.TotalCount}}</td>
-            <td>{{.SelectedCount}}</td>
-            <td>{{.WaitlistedCount}}</td>
-            <td>{{.CompletedAt}}</td>
-            <td><a href="/admin/exports/lottery-results?run_id={{.ID}}">결과 다운로드</a></td>
-          </tr>
-        {{else}}
-          <tr><td colspan="9">추첨 실행 이력이 없습니다.</td></tr>
-        {{end}}
-      </tbody>
-    </table>
-    <small>{{.DisplayName}} {{.Version}}</small>
+  <header class="topbar">
+    <a class="brand" href="/admin">{{.DisplayName}}</a>
+    <nav class="topnav">
+      <a href="/admin/members">회원 관리</a>
+      <a href="/admin/courses">강좌 관리</a>
+      <a href="/admin/registrations">신청 현황</a>
+      <a href="/admin/lottery">추첨</a>
+      <a href="/admin/exports">엑셀 내보내기</a>
+      <a href="/admin/backups">백업</a>
+      <a href="/admin/attendance">출석</a>
+      <a href="/reception">접수 화면</a>
+    </nav>
+  </header>
+  <main class="page">
+    <section class="page-header">
+      <div>
+        <h1>추첨</h1>
+      </div>
+      <a class="button secondary" href="/admin/backups">추첨 전 백업</a>
+    </section>
+    {{if .Message}}<p class="alert success" role="status">{{.Message}}</p>{{end}}
+    {{if .Error}}<p class="alert error" role="alert">{{.Error}}</p>{{end}}
+    <section class="panel">
+      <h2>강좌별 추첨</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>회차</th><th>강좌명</th><th>정원</th><th>신청</th><th>시간</th><th>작업</th></tr>
+          </thead>
+          <tbody>
+            {{range .Offerings}}
+              <tr>
+                <td>{{.ID}}</td>
+                <td>{{.TermName}}</td>
+                <td>{{.CourseTitle}}</td>
+                <td>{{.Capacity}}</td>
+                <td><span class="badge">{{.RegistrationCount}}</span></td>
+                <td>{{weekdayLabel .Weekday}} {{.StartTime}}-{{.EndTime}}</td>
+                <td>
+                  <form class="inline-form" method="post" action="/admin/lottery/run">
+                    <input type="hidden" name="offering_id" value="{{.ID}}">
+                    <button type="submit">추첨 실행</button>
+                  </form>
+                </td>
+              </tr>
+            {{else}}
+              <tr><td class="empty" colspan="7">강좌가 없습니다.</td></tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>추첨 실행 이력</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>회차</th><th>강좌명</th><th>상태</th><th>전체</th><th>선정</th><th>대기</th><th>완료일</th><th>파일</th></tr>
+          </thead>
+          <tbody>
+            {{range .Runs}}
+              <tr>
+                <td>{{.ID}}</td>
+                <td>{{.TermName}}</td>
+                <td>{{.CourseTitle}}</td>
+                <td><span class="badge {{statusClass .Status}}">{{statusLabel .Status}}</span></td>
+                <td>{{.TotalCount}}</td>
+                <td>{{.SelectedCount}}</td>
+                <td>{{.WaitlistedCount}}</td>
+                <td>{{.CompletedAt}}</td>
+                <td><a class="button secondary" href="/admin/exports/lottery-results?run_id={{.ID}}">결과 다운로드</a></td>
+              </tr>
+            {{else}}
+              <tr><td class="empty" colspan="9">추첨 실행 이력이 없습니다.</td></tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <footer class="footer">{{.DisplayName}} {{.Version}}</footer>
   </main>
 </body>
 </html>
