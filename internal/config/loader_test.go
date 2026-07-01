@@ -50,7 +50,18 @@ func TestValidateRejectsInvalidPort(t *testing.T) {
 
 func TestEnsureRuntimeDirsCreatesDirectories(t *testing.T) {
 	root := t.TempDir()
-	t.Chdir(root)
+	previousWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error = %v", err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("Chdir() error = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(previousWD); err != nil {
+			t.Fatalf("restore working directory: %v", err)
+		}
+	})
 
 	cfg := Default()
 	cfg.Database.Path = filepath.Join(root, "data", "center.db")
