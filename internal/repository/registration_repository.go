@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/Homeria/baeum-maru/internal/database"
 	"github.com/Homeria/baeum-maru/internal/domain"
 )
 
@@ -65,29 +66,97 @@ WHERE member_id = ? AND offering_id = ? AND status = 'cancelled';
 }
 
 func (r *RegistrationRepository) Cancel(ctx context.Context, id int64) (domain.Registration, error) {
-	result, err := r.db.ExecContext(ctx, `
+	change, err := r.CancelAndPromote(ctx, id)
+	if err != nil {
+		return domain.Registration{}, err
+	}
+	return change.Registration, nil
+}
+
+func (r *RegistrationRepository) Confirm(ctx context.Context, id int64) (domain.Registration, error) {
+	var confirmed domain.Registration
+	err := database.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		if err := updateRegistrationStatus(ctx, tx, id, "selected", "confirmed", "registration_confirmed"); err != nil {
+			return err
+		}
+
+		registration, err := r.getWithTx(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		confirmed = registration
+		return nil
+	})
+	if err != nil {
+		return domain.Registration{}, err
+	}
+	return confirmed, nil
+}
+
+func (r *RegistrationRepository) CancelAndPromote(ctx context.Context, id int64) (domain.RegistrationStatusChange, error) {
+	var change domain.RegistrationStatusChange
+	err := database.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		var fromStatus string
+		var offeringID int64
+		if err := tx.QueryRowContext(ctx, "SELECT status, offering_id FROM registrations WHERE id = ?;", id).Scan(&fromStatus, &offeringID); err != nil {
+			return fmt.Errorf("read registration for cancellation: %w", err)
+		}
+		if fromStatus == "cancelled" {
+			return sql.ErrNoRows
+		}
+
+		result, err := tx.ExecContext(ctx, `
 UPDATE registrations
 SET status = 'cancelled',
     cancelled_at = CURRENT_TIMESTAMP,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ? AND status != 'cancelled';
 `, id)
-	if err != nil {
-		return domain.Registration{}, fmt.Errorf("cancel registration %d: %w", id, err)
-	}
+		if err != nil {
+			return fmt.Errorf("cancel registration %d: %w", id, err)
+		}
 
-	affected, err := result.RowsAffected()
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("read affected registration rows: %w", err)
+		}
+		if affected == 0 {
+			return sql.ErrNoRows
+		}
+		if err := insertRegistrationStatusHistory(ctx, tx, id, fromStatus, "cancelled", "registration_cancelled"); err != nil {
+			return err
+		}
+
+		cancelled, err := r.getWithTx(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		change.Registration = cancelled
+
+		if fromStatus == "selected" || fromStatus == "confirmed" {
+			promoted, err := promoteNextWaitlisted(ctx, tx, offeringID, id)
+			if err != nil {
+				return err
+			}
+			change.Promoted = promoted
+		}
+		return nil
+	})
 	if err != nil {
-		return domain.Registration{}, fmt.Errorf("read affected registration rows: %w", err)
+		return domain.RegistrationStatusChange{}, err
 	}
-	if affected == 0 {
-		return domain.Registration{}, sql.ErrNoRows
-	}
-	return r.Get(ctx, id)
+	return change, nil
 }
 
 func (r *RegistrationRepository) Get(ctx context.Context, id int64) (domain.Registration, error) {
 	row := r.db.QueryRowContext(ctx, registrationSelectSQL()+`
+WHERE r.id = ?;
+`, id)
+	return scanRegistration(row)
+}
+
+func (r *RegistrationRepository) getWithTx(ctx context.Context, tx *sql.Tx, id int64) (domain.Registration, error) {
+	row := tx.QueryRowContext(ctx, registrationSelectSQL()+`
 WHERE r.id = ?;
 `, id)
 	return scanRegistration(row)
@@ -236,4 +305,66 @@ func scanRegistration(scanner interface{ Scan(dest ...any) error }) (domain.Regi
 		return domain.Registration{}, fmt.Errorf("scan registration: %w", err)
 	}
 	return registration, nil
+}
+
+func updateRegistrationStatus(ctx context.Context, tx *sql.Tx, id int64, fromStatus string, toStatus string, reason string) error {
+	result, err := tx.ExecContext(ctx, `
+UPDATE registrations
+SET status = ?,
+    cancelled_at = CASE WHEN ? = 'cancelled' THEN CURRENT_TIMESTAMP ELSE cancelled_at END,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ? AND status = ?;
+`, toStatus, toStatus, id, fromStatus)
+	if err != nil {
+		return fmt.Errorf("update registration status: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read affected registration rows: %w", err)
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return insertRegistrationStatusHistory(ctx, tx, id, fromStatus, toStatus, reason)
+}
+
+func promoteNextWaitlisted(ctx context.Context, tx *sql.Tx, offeringID int64, cancelledRegistrationID int64) (*domain.Registration, error) {
+	var promotedID int64
+	err := tx.QueryRowContext(ctx, `
+SELECT r.id
+FROM registrations r
+LEFT JOIN lottery_results lr ON lr.registration_id = r.id
+WHERE r.offering_id = ?
+  AND r.status = 'waitlisted'
+ORDER BY COALESCE(lr.result_order, r.id), r.created_at, r.id
+LIMIT 1;
+`, offeringID).Scan(&promotedID)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find next waitlisted registration: %w", err)
+	}
+	if err := updateRegistrationStatus(ctx, tx, promotedID, "waitlisted", "selected", fmt.Sprintf("waitlist_promoted_after_cancel:%d", cancelledRegistrationID)); err != nil {
+		return nil, err
+	}
+
+	row := tx.QueryRowContext(ctx, registrationSelectSQL()+`
+WHERE r.id = ?;
+`, promotedID)
+	promoted, err := scanRegistration(row)
+	if err != nil {
+		return nil, err
+	}
+	return &promoted, nil
+}
+
+func insertRegistrationStatusHistory(ctx context.Context, tx *sql.Tx, registrationID int64, fromStatus string, toStatus string, reason string) error {
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO registration_status_history (registration_id, from_status, to_status, reason)
+VALUES (?, ?, ?, ?);
+`, registrationID, fromStatus, toStatus, reason); err != nil {
+		return fmt.Errorf("insert registration status history: %w", err)
+	}
+	return nil
 }

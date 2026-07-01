@@ -12,6 +12,7 @@ import (
 type fakeRegistrationRepository struct {
 	created     repository.CreateRegistrationParams
 	cancelledID int64
+	confirmedID int64
 	activeItems []domain.RegistrationRuleItem
 }
 
@@ -23,6 +24,18 @@ func (f *fakeRegistrationRepository) Create(_ context.Context, params repository
 func (f *fakeRegistrationRepository) Cancel(_ context.Context, id int64) (domain.Registration, error) {
 	f.cancelledID = id
 	return domain.Registration{ID: id, Status: "cancelled"}, nil
+}
+
+func (f *fakeRegistrationRepository) Confirm(_ context.Context, id int64) (domain.Registration, error) {
+	f.confirmedID = id
+	return domain.Registration{ID: id, Status: "confirmed"}, nil
+}
+
+func (f *fakeRegistrationRepository) CancelAndPromote(_ context.Context, id int64) (domain.RegistrationStatusChange, error) {
+	f.cancelledID = id
+	return domain.RegistrationStatusChange{
+		Registration: domain.Registration{ID: id, Status: "cancelled"},
+	}, nil
 }
 
 func (f *fakeRegistrationRepository) ListByMember(_ context.Context, memberID int64) ([]domain.Registration, error) {
@@ -106,6 +119,22 @@ func TestRegistrationServiceCancelsRegistration(t *testing.T) {
 	}
 	if repo.cancelledID != 7 {
 		t.Fatalf("cancelledID = %d, want 7", repo.cancelledID)
+	}
+}
+
+func TestRegistrationServiceConfirmsRegistration(t *testing.T) {
+	repo := &fakeRegistrationRepository{}
+	service := NewRegistrationService(repo, fakeMemberLookup{}, fakeCourseOfferingLookup{})
+
+	confirmed, err := service.Confirm(context.Background(), 7)
+	if err != nil {
+		t.Fatalf("Confirm() error = %v", err)
+	}
+	if confirmed.Status != "confirmed" {
+		t.Fatalf("Status = %q, want confirmed", confirmed.Status)
+	}
+	if repo.confirmedID != 7 {
+		t.Fatalf("confirmedID = %d, want 7", repo.confirmedID)
 	}
 }
 
