@@ -38,6 +38,7 @@ var importsTemplate = templateMust("imports", `<!doctype html>
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
       <a href="/admin/settings">설정</a>
+      <a href="/admin/audit-logs">감사 로그</a>
       <a href="/reception">접수 화면</a>
     </nav>
   </header>
@@ -150,6 +151,7 @@ func importUploadHandler(opts RouterOptions, importWorkbook func(ImportService, 
 			return
 		}
 		message := fmt.Sprintf("%s 가져오기를 처리했습니다.", result.Kind)
+		recordAudit(r, opts, "excel.import", "import", 0, fmt.Sprintf("%s 가져오기 성공 %d건 오류 %d건", result.Kind, result.CreatedCount, len(result.Errors)))
 		renderImports(w, opts, message, "", &result)
 	}
 }

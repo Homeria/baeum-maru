@@ -35,6 +35,7 @@ func main() {
 		Backups:       runtime.Backups,
 		Attendance:    runtime.Attendance,
 		Settings:      runtime.Settings,
+		Audits:        runtime.Audits,
 	})
 	httpServer := server.New(server.Options{
 		Host:    runtime.Config.Server.Host,

@@ -40,6 +40,7 @@ var backupsTemplate = template.Must(template.New("backups").Funcs(uiTemplateFunc
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
       <a href="/admin/settings">설정</a>
+      <a href="/admin/audit-logs">감사 로그</a>
       <a href="/reception">접수 화면</a>
     </nav>
   </header>
@@ -148,6 +149,7 @@ func createBackupHandler(opts RouterOptions) http.HandlerFunc {
 		if cleanup.DeletedCount > 0 {
 			message += " / 오래된 백업 " + fmt.Sprint(cleanup.DeletedCount) + "개 정리"
 		}
+		recordAudit(r, opts, "backup.create", "backup", 0, "백업 생성: "+created.FileName)
 		http.Redirect(w, r, "/admin/backups?message="+url.QueryEscape(message), http.StatusSeeOther)
 	}
 }
@@ -196,6 +198,7 @@ func restoreBackupHandler(opts RouterOptions) http.HandlerFunc {
 			return
 		}
 		message := "복원을 예약했습니다: " + plan.FileName + " / 앱 재시작 후 적용"
+		recordAudit(r, opts, "backup.restore_queue", "backup", 0, "백업 복원 예약: "+plan.FileName)
 		http.Redirect(w, r, "/admin/backups?message="+url.QueryEscape(message), http.StatusSeeOther)
 	}
 }

@@ -100,8 +100,10 @@ func TestRouterServesMemberManagement(t *testing.T) {
 
 func TestRouterCreatesMember(t *testing.T) {
 	members := &fakeMemberService{}
+	audits := &fakeAuditService{}
 	router := NewRouter(RouterOptions{
 		Members: members,
+		Audits:  audits,
 	})
 	form := url.Values{"name": {"김배움"}}
 	req := httptest.NewRequest(http.MethodPost, "/admin/members", strings.NewReader(form.Encode()))
@@ -115,6 +117,9 @@ func TestRouterCreatesMember(t *testing.T) {
 	}
 	if members.created.Name != "김배움" {
 		t.Fatalf("created.Name = %q, want 김배움", members.created.Name)
+	}
+	if len(audits.events) != 1 || audits.events[0].Action != "member.create" {
+		t.Fatalf("audit events = %+v, want member.create", audits.events)
 	}
 }
 
@@ -656,6 +661,30 @@ func TestRouterUpdatesSettings(t *testing.T) {
 	}
 }
 
+func TestRouterServesAuditLogsPage(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		DisplayName: "배움마루",
+		Version:     "test",
+		Audits: &fakeAuditService{
+			logs: []domain.AuditLog{{ID: 1, Action: "member.create", EntityType: "member", EntityID: 7, Summary: "회원 등록 #7", CreatedAt: "2026-07-01 10:00:00"}},
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/audit-logs", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "member.create") {
+		t.Fatalf("body = %q, want audit action", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "회원 등록 #7") {
+		t.Fatalf("body = %q, want audit summary", rec.Body.String())
+	}
+}
+
 func TestRouterServesAttendancePage(t *testing.T) {
 	router := NewRouter(RouterOptions{
 		DisplayName: "배움마루",
@@ -1020,6 +1049,20 @@ func (f *fakeSettingsService) Update(_ context.Context, input service.SettingsIn
 	f.cfg.Backup.KeepDays = input.BackupKeepDays
 	f.cfg.UI.OpenBrowserOnStart = input.OpenBrowserOnStart
 	return f.cfg, nil
+}
+
+type fakeAuditService struct {
+	events []service.AuditEvent
+	logs   []domain.AuditLog
+}
+
+func (f *fakeAuditService) Record(_ context.Context, event service.AuditEvent) error {
+	f.events = append(f.events, event)
+	return nil
+}
+
+func (f *fakeAuditService) ListRecent(context.Context, int) ([]domain.AuditLog, error) {
+	return f.logs, nil
 }
 
 type fakeAttendanceService struct {

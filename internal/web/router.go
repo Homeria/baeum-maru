@@ -27,6 +27,7 @@ type RouterOptions struct {
 	Backups       BackupService
 	Attendance    AttendanceService
 	Settings      SettingsService
+	Audits        AuditService
 }
 
 type MemberService interface {
@@ -91,6 +92,11 @@ type SettingsService interface {
 	Update(context.Context, service.SettingsInput) (config.Config, error)
 }
 
+type AuditService interface {
+	Record(context.Context, service.AuditEvent) error
+	ListRecent(context.Context, int) ([]domain.AuditLog, error)
+}
+
 type pageData struct {
 	Title       string
 	DisplayName string
@@ -120,6 +126,7 @@ var pageTemplate = template.Must(template.New("page").Funcs(uiTemplateFuncs(nil)
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
       <a href="/admin/settings">설정</a>
+      <a href="/admin/audit-logs">감사 로그</a>
       <a href="/reception">접수 화면</a>
     </nav>
   </header>
@@ -136,6 +143,7 @@ var pageTemplate = template.Must(template.New("page").Funcs(uiTemplateFuncs(nil)
         <a class="button secondary" href="/admin/registrations">신청 현황</a>
         <a class="button secondary" href="/admin/lottery">추첨 관리</a>
         <a class="button secondary" href="/admin/backups">백업 관리</a>
+        <a class="button secondary" href="/admin/audit-logs">감사 로그</a>
       </div>
     </section>
     <footer class="footer">{{.DisplayName}} {{.Version}}</footer>
@@ -193,6 +201,7 @@ func NewRouter(opts RouterOptions) http.Handler {
 	mux.HandleFunc("/admin/attendance/session", createAttendanceSessionHandler(opts))
 	mux.HandleFunc("/admin/attendance/record", saveAttendanceRecordHandler(opts))
 	mux.HandleFunc("/admin/settings", settingsHandler(opts))
+	mux.HandleFunc("/admin/audit-logs", auditLogsHandler(opts))
 	mux.HandleFunc("/reception/cancel", cancelRegistrationHandler(opts))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -252,6 +261,7 @@ var membersTemplate = template.Must(template.New("members").Funcs(uiTemplateFunc
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
       <a href="/admin/settings">설정</a>
+      <a href="/admin/audit-logs">감사 로그</a>
       <a href="/reception">접수 화면</a>
     </nav>
   </header>
@@ -335,7 +345,7 @@ func membersHandler(opts RouterOptions) http.HandlerFunc {
 				http.Error(w, "invalid form", http.StatusBadRequest)
 				return
 			}
-			_, err := opts.Members.Create(r.Context(), service.MemberInput{
+			created, err := opts.Members.Create(r.Context(), service.MemberInput{
 				MemberNo:   r.FormValue("member_no"),
 				Name:       r.FormValue("name"),
 				GenderCode: r.FormValue("gender_code"),
@@ -347,6 +357,7 @@ func membersHandler(opts RouterOptions) http.HandlerFunc {
 				renderMembers(w, r, opts, err.Error())
 				return
 			}
+			recordAudit(r, opts, "member.create", "member", created.ID, "회원 등록 #"+strconv.FormatInt(created.ID, 10))
 			http.Redirect(w, r, "/admin/members", http.StatusSeeOther)
 		default:
 			w.Header().Set("Allow", "GET, POST")
@@ -404,6 +415,7 @@ var coursesTemplate = template.Must(template.New("courses").Funcs(uiTemplateFunc
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
       <a href="/admin/settings">설정</a>
+      <a href="/admin/audit-logs">감사 로그</a>
       <a href="/reception">접수 화면</a>
     </nav>
   </header>
@@ -501,7 +513,7 @@ func coursesHandler(opts RouterOptions) http.HandlerFunc {
 				renderCourses(w, r, opts, "요일 값이 올바르지 않습니다.")
 				return
 			}
-			_, err = opts.Courses.CreateOffering(r.Context(), service.CourseOfferingInput{
+			created, err := opts.Courses.CreateOffering(r.Context(), service.CourseOfferingInput{
 				TermName:       r.FormValue("term_name"),
 				CategoryName:   r.FormValue("category_name"),
 				CourseTitle:    r.FormValue("course_title"),
@@ -517,6 +529,7 @@ func coursesHandler(opts RouterOptions) http.HandlerFunc {
 				renderCourses(w, r, opts, err.Error())
 				return
 			}
+			recordAudit(r, opts, "course.create", "course_offering", created.ID, "강좌 개설 등록 #"+strconv.FormatInt(created.ID, 10))
 			http.Redirect(w, r, "/admin/courses", http.StatusSeeOther)
 		default:
 			w.Header().Set("Allow", "GET, POST")

@@ -46,6 +46,7 @@ var attendanceTemplate = template.Must(template.New("attendance").Funcs(uiTempla
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
       <a href="/admin/settings">설정</a>
+      <a href="/admin/audit-logs">감사 로그</a>
       <a href="/reception">접수 화면</a>
     </nav>
   </header>
@@ -217,6 +218,7 @@ func createAttendanceSessionHandler(opts RouterOptions) http.HandlerFunc {
 			renderAttendance(w, r, opts, "", err.Error())
 			return
 		}
+		recordAudit(r, opts, "attendance.session.create", "attendance_session", session.ID, "출석 회차 생성 #"+strconv.FormatInt(session.ID, 10))
 		redirect := "/admin/attendance?offering_id=" + strconv.FormatInt(offeringID, 10) + "&session_id=" + strconv.FormatInt(session.ID, 10) + "&message=" + url.QueryEscape("출석 회차를 생성했습니다.")
 		http.Redirect(w, r, redirect, http.StatusSeeOther)
 	}
@@ -248,15 +250,17 @@ func saveAttendanceRecordHandler(opts RouterOptions) http.HandlerFunc {
 			http.Error(w, "invalid registration id", http.StatusBadRequest)
 			return
 		}
-		if _, err := opts.Attendance.SaveRecord(r.Context(), service.AttendanceRecordInput{
+		record, err := opts.Attendance.SaveRecord(r.Context(), service.AttendanceRecordInput{
 			SessionID:      sessionID,
 			RegistrationID: registrationID,
 			Status:         r.FormValue("status"),
 			Note:           r.FormValue("note"),
-		}); err != nil {
+		})
+		if err != nil {
 			renderAttendance(w, r, opts, "", err.Error())
 			return
 		}
+		recordAudit(r, opts, "attendance.record.save", "attendance_record", record.ID, "출석 저장 / 회차 #"+strconv.FormatInt(sessionID, 10)+" / 신청 #"+strconv.FormatInt(registrationID, 10))
 		redirect := "/admin/attendance?offering_id=" + strconv.FormatInt(offeringID, 10) + "&session_id=" + strconv.FormatInt(sessionID, 10) + "&message=" + url.QueryEscape("출석을 저장했습니다.")
 		http.Redirect(w, r, redirect, http.StatusSeeOther)
 	}
