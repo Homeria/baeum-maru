@@ -22,11 +22,12 @@ func main() {
 	defer runtime.Close()
 
 	router := web.NewRouter(web.RouterOptions{
-		DisplayName: runtime.Config.App.DisplayName,
-		Version:     app.Version,
-		Logger:      runtime.Logger.Logger,
-		Members:     runtime.Members,
-		Courses:     runtime.Courses,
+		DisplayName:   runtime.Config.App.DisplayName,
+		Version:       app.Version,
+		Logger:        runtime.Logger.Logger,
+		Members:       runtime.Members,
+		Courses:       runtime.Courses,
+		Registrations: runtime.Registrations,
 	})
 	httpServer := server.New(server.Options{
 		Host:    runtime.Config.Server.Host,
