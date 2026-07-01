@@ -9,12 +9,16 @@ import (
 	"github.com/Homeria/baeum-maru/internal/database"
 	"github.com/Homeria/baeum-maru/internal/logging"
 	"github.com/Homeria/baeum-maru/internal/migration"
+	"github.com/Homeria/baeum-maru/internal/repository"
+	"github.com/Homeria/baeum-maru/internal/service"
 )
 
 type Runtime struct {
-	Config config.Config
-	Logger *logging.Logger
-	DB     *sql.DB
+	Config  config.Config
+	Logger  *logging.Logger
+	DB      *sql.DB
+	Members *service.MemberService
+	Courses *service.CourseService
 }
 
 func Bootstrap(configPath string) (*Runtime, error) {
@@ -46,10 +50,15 @@ func Bootstrap(configPath string) (*Runtime, error) {
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
 
+	memberRepository := repository.NewMemberRepository(db)
+	courseRepository := repository.NewCourseRepository(db)
+
 	return &Runtime{
-		Config: cfg,
-		Logger: logger,
-		DB:     db,
+		Config:  cfg,
+		Logger:  logger,
+		DB:      db,
+		Members: service.NewMemberService(memberRepository),
+		Courses: service.NewCourseService(courseRepository),
 	}, nil
 }
 
