@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"net/http"
 	"path/filepath"
+	"strconv"
 
 	"github.com/Homeria/baeum-maru/internal/service"
 )
@@ -68,6 +69,16 @@ func exportCoursesHandler(opts RouterOptions) http.HandlerFunc {
 func exportRegistrationsHandler(opts RouterOptions) http.HandlerFunc {
 	return exportHandler(opts, func(exports ExportService, r *http.Request) (service.ExportResult, error) {
 		return exports.ExportRegistrations(r.Context())
+	})
+}
+
+func exportLotteryResultsHandler(opts RouterOptions) http.HandlerFunc {
+	return exportHandler(opts, func(exports ExportService, r *http.Request) (service.ExportResult, error) {
+		runID, err := strconv.ParseInt(r.URL.Query().Get("run_id"), 10, 64)
+		if err != nil {
+			return service.ExportResult{}, err
+		}
+		return exports.ExportLotteryResults(r.Context(), runID)
 	})
 }
 

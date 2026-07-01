@@ -15,6 +15,7 @@ type lotteryPageData struct {
 	Message     string
 	Error       string
 	Offerings   []domain.CourseOffering
+	Runs        []domain.LotteryRun
 }
 
 var lotteryTemplate = template.Must(template.New("lottery").Funcs(template.FuncMap{
@@ -54,6 +55,29 @@ var lotteryTemplate = template.Must(template.New("lottery").Funcs(template.FuncM
           </tr>
         {{else}}
           <tr><td colspan="7">강좌가 없습니다.</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+    <h2>추첨 실행 이력</h2>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>회차</th><th>강좌명</th><th>상태</th><th>전체</th><th>선정</th><th>대기</th><th>완료일</th><th>파일</th></tr>
+      </thead>
+      <tbody>
+        {{range .Runs}}
+          <tr>
+            <td>{{.ID}}</td>
+            <td>{{.TermName}}</td>
+            <td>{{.CourseTitle}}</td>
+            <td>{{.Status}}</td>
+            <td>{{.TotalCount}}</td>
+            <td>{{.SelectedCount}}</td>
+            <td>{{.WaitlistedCount}}</td>
+            <td>{{.CompletedAt}}</td>
+            <td><a href="/admin/exports/lottery-results?run_id={{.ID}}">결과 다운로드</a></td>
+          </tr>
+        {{else}}
+          <tr><td colspan="9">추첨 실행 이력이 없습니다.</td></tr>
         {{end}}
       </tbody>
     </table>
@@ -117,6 +141,13 @@ func renderLottery(w http.ResponseWriter, r *http.Request, opts RouterOptions, m
 	if err != nil {
 		errorMessage = err.Error()
 	}
+	var runs []domain.LotteryRun
+	if opts.Lotteries != nil {
+		runs, err = opts.Lotteries.ListRuns(r.Context(), 50)
+		if err != nil {
+			errorMessage = err.Error()
+		}
+	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := lotteryTemplate.Execute(w, lotteryPageData{
@@ -125,6 +156,7 @@ func renderLottery(w http.ResponseWriter, r *http.Request, opts RouterOptions, m
 		Message:     message,
 		Error:       errorMessage,
 		Offerings:   offerings,
+		Runs:        runs,
 	}); err != nil {
 		opts.Logger.Error("render lottery failed", "error", err)
 	}

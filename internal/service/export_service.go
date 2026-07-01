@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,10 +31,15 @@ type ExportRegistrationSource interface {
 	ListRecent(context.Context, int) ([]domain.Registration, error)
 }
 
+type ExportLotterySource interface {
+	ListResultsByRun(context.Context, int64) ([]domain.LotteryResultRow, error)
+}
+
 type ExportService struct {
 	members       ExportMemberSource
 	courses       ExportCourseSource
 	registrations ExportRegistrationSource
+	lotteries     ExportLotterySource
 	dir           string
 	now           func() time.Time
 }
@@ -43,14 +49,19 @@ func NewExportService(
 	courses ExportCourseSource,
 	registrations ExportRegistrationSource,
 	dir string,
+	lotteries ...ExportLotterySource,
 ) *ExportService {
-	return &ExportService{
+	service := &ExportService{
 		members:       members,
 		courses:       courses,
 		registrations: registrations,
 		dir:           dir,
 		now:           time.Now,
 	}
+	if len(lotteries) > 0 {
+		service.lotteries = lotteries[0]
+	}
+	return service
 }
 
 func (s *ExportService) ExportMembers(ctx context.Context) (ExportResult, error) {
@@ -149,6 +160,50 @@ func (s *ExportService) ExportRegistrations(ctx context.Context) (ExportResult, 
 	}
 
 	return s.save(file, "registrations")
+}
+
+func (s *ExportService) ExportLotteryResults(ctx context.Context, runID int64) (ExportResult, error) {
+	if runID <= 0 {
+		return ExportResult{}, errors.New("lottery run id is required")
+	}
+	if s.lotteries == nil {
+		return ExportResult{}, errors.New("lottery export source is not configured")
+	}
+	results, err := s.lotteries.ListResultsByRun(ctx, runID)
+	if err != nil {
+		return ExportResult{}, fmt.Errorf("list lottery results for export: %w", err)
+	}
+
+	file := excelize.NewFile()
+	defer file.Close()
+
+	sheet := "추첨 결과"
+	if err := setupSheet(file, sheet, []string{"추첨 ID", "회차", "강좌 ID", "강좌명", "결과", "순번", "신청 ID", "회원 ID", "회원번호", "회원명", "신청일", "완료일", "Seed"}); err != nil {
+		return ExportResult{}, err
+	}
+	for i, result := range results {
+		row := i + 2
+		values := []any{
+			result.RunID,
+			result.TermName,
+			result.OfferingID,
+			result.CourseTitle,
+			result.Result,
+			result.ResultOrder,
+			result.RegistrationID,
+			result.MemberID,
+			result.MemberNo,
+			result.MemberName,
+			result.RegistrationCreatedAt,
+			result.CompletedAt,
+			result.Seed,
+		}
+		if err := setRow(file, sheet, row, values); err != nil {
+			return ExportResult{}, err
+		}
+	}
+
+	return s.save(file, fmt.Sprintf("lottery-results-%d", runID))
 }
 
 func setupSheet(file *excelize.File, sheet string, headers []string) error {

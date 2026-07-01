@@ -27,3 +27,34 @@ type LotteryRunSummary struct {
 	SelectedCount   int
 	WaitlistedCount int
 }
+
+type LotteryRun struct {
+	ID              int64
+	TermID          int64
+	TermName        string
+	Seed            int64
+	Status          string
+	StartedAt       string
+	CompletedAt     string
+	OfferingID      int64
+	CourseTitle     string
+	TotalCount      int
+	SelectedCount   int
+	WaitlistedCount int
+}
+
+type LotteryResultRow struct {
+	RunID                 int64
+	Seed                  int64
+	CompletedAt           string
+	OfferingID            int64
+	CourseTitle           string
+	TermName              string
+	Result                string
+	ResultOrder           int
+	RegistrationID        int64
+	MemberID              int64
+	MemberNo              string
+	MemberName            string
+	RegistrationCreatedAt string
+}

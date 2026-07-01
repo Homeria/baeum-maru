@@ -93,6 +93,127 @@ VALUES (?, ?, 'completed', CURRENT_TIMESTAMP);
 	return runID, nil
 }
 
+func (r *LotteryRepository) ListRuns(ctx context.Context, limit int) ([]domain.LotteryRun, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+
+	rows, err := r.db.QueryContext(ctx, `
+SELECT lr.id,
+       lr.term_id,
+       t.name,
+       lr.seed,
+       lr.status,
+       lr.started_at,
+       COALESCE(lr.completed_at, ''),
+       COALESCE(co.id, 0),
+       COALESCE(c.title, ''),
+       COUNT(lres.id),
+       COALESCE(SUM(CASE WHEN lres.result = 'selected' THEN 1 ELSE 0 END), 0),
+       COALESCE(SUM(CASE WHEN lres.result = 'waitlisted' THEN 1 ELSE 0 END), 0)
+FROM lottery_runs lr
+JOIN terms t ON t.id = lr.term_id
+LEFT JOIN lottery_results lres ON lres.lottery_run_id = lr.id
+LEFT JOIN registrations r ON r.id = lres.registration_id
+LEFT JOIN course_offerings co ON co.id = r.offering_id
+LEFT JOIN courses c ON c.id = co.course_id
+GROUP BY lr.id, co.id
+ORDER BY lr.started_at DESC, lr.id DESC
+LIMIT ?;
+`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list lottery runs: %w", err)
+	}
+	defer rows.Close()
+
+	var runs []domain.LotteryRun
+	for rows.Next() {
+		var run domain.LotteryRun
+		if err := rows.Scan(
+			&run.ID,
+			&run.TermID,
+			&run.TermName,
+			&run.Seed,
+			&run.Status,
+			&run.StartedAt,
+			&run.CompletedAt,
+			&run.OfferingID,
+			&run.CourseTitle,
+			&run.TotalCount,
+			&run.SelectedCount,
+			&run.WaitlistedCount,
+		); err != nil {
+			return nil, fmt.Errorf("scan lottery run: %w", err)
+		}
+		runs = append(runs, run)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate lottery runs: %w", err)
+	}
+	return runs, nil
+}
+
+func (r *LotteryRepository) ListResultsByRun(ctx context.Context, runID int64) ([]domain.LotteryResultRow, error) {
+	rows, err := r.db.QueryContext(ctx, `
+SELECT lr.id,
+       lr.seed,
+       COALESCE(lr.completed_at, ''),
+       co.id,
+       c.title,
+       t.name,
+       lres.result,
+       lres.result_order,
+       r.id,
+       m.id,
+       COALESCE(m.member_no, ''),
+       m.name,
+       r.created_at
+FROM lottery_results lres
+JOIN lottery_runs lr ON lr.id = lres.lottery_run_id
+JOIN registrations r ON r.id = lres.registration_id
+JOIN members m ON m.id = r.member_id
+JOIN course_offerings co ON co.id = r.offering_id
+JOIN courses c ON c.id = co.course_id
+JOIN terms t ON t.id = co.term_id
+WHERE lr.id = ?
+ORDER BY lres.result_order, lres.id;
+`, runID)
+	if err != nil {
+		return nil, fmt.Errorf("list lottery results: %w", err)
+	}
+	defer rows.Close()
+
+	var results []domain.LotteryResultRow
+	for rows.Next() {
+		var result domain.LotteryResultRow
+		if err := rows.Scan(
+			&result.RunID,
+			&result.Seed,
+			&result.CompletedAt,
+			&result.OfferingID,
+			&result.CourseTitle,
+			&result.TermName,
+			&result.Result,
+			&result.ResultOrder,
+			&result.RegistrationID,
+			&result.MemberID,
+			&result.MemberNo,
+			&result.MemberName,
+			&result.RegistrationCreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan lottery result: %w", err)
+		}
+		results = append(results, result)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate lottery results: %w", err)
+	}
+	return results, nil
+}
+
 func saveLotteryAssignment(ctx context.Context, tx *sql.Tx, runID int64, assignment domain.LotteryAssignment) error {
 	var fromStatus string
 	if err := tx.QueryRowContext(ctx, "SELECT status FROM registrations WHERE id = ?;", assignment.RegistrationID).Scan(&fromStatus); err != nil {
