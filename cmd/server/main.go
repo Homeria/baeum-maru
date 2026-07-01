@@ -2,10 +2,19 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/Homeria/baeum-maru/internal/app"
 )
 
 func main() {
-	fmt.Printf("%s server skeleton (%s)\n", app.DisplayName, app.Version)
+	runtime, err := app.Bootstrap("")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "server startup failed: %v\n", err)
+		os.Exit(1)
+	}
+	defer runtime.Close()
+
+	runtime.Logger.Info("server skeleton started", "version", app.Version)
+	fmt.Printf("%s server skeleton (%s)\n", runtime.Config.App.DisplayName, app.Version)
 }
