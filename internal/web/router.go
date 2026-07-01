@@ -19,6 +19,7 @@ type RouterOptions struct {
 	Members       MemberService
 	Courses       CourseService
 	Registrations RegistrationService
+	Lotteries     LotteryService
 	Exports       ExportService
 }
 
@@ -45,6 +46,10 @@ type ExportService interface {
 	ExportRegistrations(context.Context) (service.ExportResult, error)
 }
 
+type LotteryService interface {
+	RunOfferingLottery(context.Context, int64) (domain.LotteryRunSummary, error)
+}
+
 type pageData struct {
 	Title       string
 	DisplayName string
@@ -67,6 +72,7 @@ var pageTemplate = template.Must(template.New("page").Parse(`<!doctype html>
     <nav>
       <a href="/admin/members">회원 관리</a>
       <a href="/admin/courses">강좌 관리</a>
+      <a href="/admin/lottery">추첨</a>
       <a href="/admin/exports">엑셀 내보내기</a>
       <a href="/reception">접수 화면</a>
     </nav>
@@ -102,6 +108,8 @@ func NewRouter(opts RouterOptions) http.Handler {
 	mux.HandleFunc("/admin/members", membersHandler(opts))
 	mux.HandleFunc("/admin/courses", coursesHandler(opts))
 	mux.HandleFunc("/admin/registrations", registrationsHandler(opts))
+	mux.HandleFunc("/admin/lottery", lotteryHandler(opts))
+	mux.HandleFunc("/admin/lottery/run", runLotteryHandler(opts))
 	mux.HandleFunc("/admin/exports", exportsHandler(opts))
 	mux.HandleFunc("/admin/exports/members", exportMembersHandler(opts))
 	mux.HandleFunc("/admin/exports/courses", exportCoursesHandler(opts))
