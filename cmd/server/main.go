@@ -30,6 +30,7 @@ func main() {
 		Registrations: runtime.Registrations,
 		Lotteries:     runtime.Lotteries,
 		Exports:       runtime.Exports,
+		Backups:       runtime.Backups,
 	})
 	httpServer := server.New(server.Options{
 		Host:    runtime.Config.Server.Host,

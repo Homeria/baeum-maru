@@ -428,6 +428,88 @@ func TestRouterDownloadsLotteryResultsExport(t *testing.T) {
 	}
 }
 
+func TestRouterServesBackupsPage(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		DisplayName: "배움마루",
+		Version:     "test",
+		Backups: &fakeBackupService{
+			files: []domain.BackupFile{{FileName: "backup.db", SizeBytes: 10, CreatedAt: "2026-07-01T10:00:00Z"}},
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/backups", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "backup.db") {
+		t.Fatalf("body = %q, want backup file", rec.Body.String())
+	}
+}
+
+func TestRouterCreatesBackup(t *testing.T) {
+	backups := &fakeBackupService{
+		created: domain.BackupFile{FileName: "backup.db"},
+	}
+	router := NewRouter(RouterOptions{
+		Backups: backups,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/admin/backups/create", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if !backups.createCalled {
+		t.Fatal("createCalled = false, want true")
+	}
+}
+
+func TestRouterDownloadsBackup(t *testing.T) {
+	filePath := filepath.Join(t.TempDir(), "backup.db")
+	if err := os.WriteFile(filePath, []byte("backup"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	router := NewRouter(RouterOptions{
+		Backups: &fakeBackupService{resolvedPath: filePath},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/backups/download?file=backup.db", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if rec.Body.String() != "backup" {
+		t.Fatalf("body = %q, want backup contents", rec.Body.String())
+	}
+}
+
+func TestRouterQueuesBackupRestore(t *testing.T) {
+	backups := &fakeBackupService{}
+	router := NewRouter(RouterOptions{
+		Backups: backups,
+	})
+	form := url.Values{"file": {"backup.db"}}
+	req := httptest.NewRequest(http.MethodPost, "/admin/backups/restore", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if backups.restoreFile != "backup.db" {
+		t.Fatalf("restoreFile = %q, want backup.db", backups.restoreFile)
+	}
+}
+
 type fakeMemberService struct {
 	created service.MemberInput
 	members []domain.Member
@@ -536,4 +618,30 @@ func (f *fakeExportService) ExportRegistrations(context.Context) (service.Export
 func (f *fakeExportService) ExportLotteryResults(_ context.Context, runID int64) (service.ExportResult, error) {
 	f.lotteryRunID = runID
 	return f.lotteryResults, nil
+}
+
+type fakeBackupService struct {
+	files        []domain.BackupFile
+	created      domain.BackupFile
+	createCalled bool
+	resolvedPath string
+	restoreFile  string
+}
+
+func (f *fakeBackupService) CreateBackup(context.Context) (domain.BackupFile, error) {
+	f.createCalled = true
+	return f.created, nil
+}
+
+func (f *fakeBackupService) ListBackups(context.Context) ([]domain.BackupFile, error) {
+	return f.files, nil
+}
+
+func (f *fakeBackupService) ResolveBackupPath(string) (string, error) {
+	return f.resolvedPath, nil
+}
+
+func (f *fakeBackupService) QueueRestore(_ context.Context, fileName string) (domain.RestorePlan, error) {
+	f.restoreFile = fileName
+	return domain.RestorePlan{FileName: fileName}, nil
 }
