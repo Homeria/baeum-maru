@@ -9,4 +9,3 @@ import (
 func main() {
 	fmt.Printf("%s server skeleton (%s)\n", app.DisplayName, app.Version)
 }
-
