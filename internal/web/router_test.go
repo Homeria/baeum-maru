@@ -1,7 +1,10 @@
 package web
 
 import (
+	"bytes"
 	"context"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -372,6 +375,69 @@ func TestRouterServesExportsPage(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "엑셀 내보내기") {
 		t.Fatalf("body = %q, want export page", rec.Body.String())
+	}
+}
+
+func TestRouterServesImportsPage(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		DisplayName: "배움마루",
+		Version:     "test",
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/imports", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "엑셀 가져오기") {
+		t.Fatalf("body = %q, want import page", rec.Body.String())
+	}
+}
+
+func TestRouterDownloadsMemberImportTemplate(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		Imports: &fakeImportService{
+			memberTemplate: service.ImportTemplate{FileName: "member-import-template.xlsx", Content: []byte("xlsx")},
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/imports/members/template", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if got := rec.Header().Get("Content-Disposition"); got != `attachment; filename="member-import-template.xlsx"` {
+		t.Fatalf("Content-Disposition = %q, want template attachment", got)
+	}
+	if rec.Body.String() != "xlsx" {
+		t.Fatalf("body = %q, want template contents", rec.Body.String())
+	}
+}
+
+func TestRouterImportsMembers(t *testing.T) {
+	imports := &fakeImportService{
+		memberResult: service.ImportResult{Kind: "회원", CreatedCount: 2},
+	}
+	router := NewRouter(RouterOptions{Imports: imports})
+	body, contentType := multipartBody(t, "members.xlsx", []byte("xlsx"))
+	req := httptest.NewRequest(http.MethodPost, "/admin/imports/members", body)
+	req.Header.Set("Content-Type", contentType)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !imports.memberImportCalled {
+		t.Fatal("member import was not called")
+	}
+	if !strings.Contains(rec.Body.String(), "성공 2건") {
+		t.Fatalf("body = %q, want import result", rec.Body.String())
 	}
 }
 
@@ -772,6 +838,50 @@ func (f *fakeExportService) ExportAttendanceSession(_ context.Context, sessionID
 func (f *fakeExportService) ExportAttendanceOffering(_ context.Context, offeringID int64) (service.ExportResult, error) {
 	f.attendanceOfferingID = offeringID
 	return f.attendanceOffering, nil
+}
+
+type fakeImportService struct {
+	memberResult       service.ImportResult
+	courseResult       service.ImportResult
+	memberTemplate     service.ImportTemplate
+	courseTemplate     service.ImportTemplate
+	memberImportCalled bool
+	courseImportCalled bool
+}
+
+func (f *fakeImportService) ImportMembers(context.Context, io.Reader) (service.ImportResult, error) {
+	f.memberImportCalled = true
+	return f.memberResult, nil
+}
+
+func (f *fakeImportService) ImportCourseOfferings(context.Context, io.Reader) (service.ImportResult, error) {
+	f.courseImportCalled = true
+	return f.courseResult, nil
+}
+
+func (f *fakeImportService) MemberTemplate() (service.ImportTemplate, error) {
+	return f.memberTemplate, nil
+}
+
+func (f *fakeImportService) CourseOfferingTemplate() (service.ImportTemplate, error) {
+	return f.courseTemplate, nil
+}
+
+func multipartBody(t *testing.T, fileName string, content []byte) (*bytes.Buffer, string) {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", fileName)
+	if err != nil {
+		t.Fatalf("CreateFormFile() error = %v", err)
+	}
+	if _, err := part.Write(content); err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	return &body, writer.FormDataContentType()
 }
 
 type fakeBackupService struct {

@@ -41,6 +41,7 @@ var attendanceTemplate = template.Must(template.New("attendance").Funcs(uiTempla
       <a href="/admin/courses">강좌 관리</a>
       <a href="/admin/registrations">신청 현황</a>
       <a href="/admin/lottery">추첨</a>
+      <a href="/admin/imports">엑셀 가져오기</a>
       <a href="/admin/exports">엑셀 내보내기</a>
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>

@@ -23,6 +23,7 @@ type Runtime struct {
 	Registrations *service.RegistrationService
 	Lotteries     *service.LotteryService
 	Exports       *service.ExportService
+	Imports       *service.ImportService
 	Backups       *service.BackupService
 	Attendance    *service.AttendanceService
 }
@@ -80,6 +81,7 @@ func Bootstrap(configPath string) (*Runtime, error) {
 		Registrations: registrationService,
 		Lotteries:     lotteryService,
 		Exports:       service.NewExportService(memberService, courseService, registrationService, cfg.Export.Path, lotteryService, attendanceService),
+		Imports:       service.NewImportService(memberService, courseService),
 		Backups:       service.NewBackupService(db, cfg.Database.Path, cfg.Backup.Path),
 		Attendance:    attendanceService,
 	}, nil
