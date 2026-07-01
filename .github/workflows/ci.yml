@@ -32,6 +32,9 @@ jobs:
         run: |
           test -z "$(gofmt -l $(find . -name '*.go' -not -path './.git/*'))"
 
+      - name: Vet
+        run: go vet ./...
+
       - name: Test
         run: go test ./...
 
