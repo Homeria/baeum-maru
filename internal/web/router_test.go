@@ -510,6 +510,86 @@ func TestRouterQueuesBackupRestore(t *testing.T) {
 	}
 }
 
+func TestRouterServesAttendancePage(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		DisplayName: "배움마루",
+		Version:     "test",
+		Courses: &fakeCourseService{
+			offerings: []domain.CourseOffering{{ID: 1, CourseTitle: "요가 기초", TermName: "2026 여름", Weekday: 1, StartTime: "09:00", EndTime: "10:00"}},
+		},
+		Attendance: &fakeAttendanceService{
+			sessions:  []domain.AttendanceSession{{ID: 2, OfferingID: 1, CourseTitle: "요가 기초", SessionDate: "2026-07-01"}},
+			confirmed: []domain.Registration{{ID: 3, MemberName: "김배움", Status: "confirmed"}},
+			records:   []domain.AttendanceRecord{{SessionID: 2, RegistrationID: 3, MemberName: "김배움", Status: "present"}},
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/attendance?offering_id=1&session_id=2", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "김배움") {
+		t.Fatalf("body = %q, want participant", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "출석 입력") {
+		t.Fatalf("body = %q, want attendance entry section", rec.Body.String())
+	}
+}
+
+func TestRouterCreatesAttendanceSession(t *testing.T) {
+	attendance := &fakeAttendanceService{}
+	router := NewRouter(RouterOptions{
+		Courses:    &fakeCourseService{},
+		Attendance: attendance,
+	})
+	form := url.Values{
+		"offering_id":  {"1"},
+		"session_date": {"2026-07-01"},
+		"note":         {"1회차"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/admin/attendance/session", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if attendance.createdSession.OfferingID != 1 || attendance.createdSession.SessionDate != "2026-07-01" {
+		t.Fatalf("createdSession = %+v, want offering/date", attendance.createdSession)
+	}
+}
+
+func TestRouterSavesAttendanceRecord(t *testing.T) {
+	attendance := &fakeAttendanceService{}
+	router := NewRouter(RouterOptions{
+		Courses:    &fakeCourseService{},
+		Attendance: attendance,
+	})
+	form := url.Values{
+		"offering_id":     {"1"},
+		"session_id":      {"2"},
+		"registration_id": {"3"},
+		"status":          {"present"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/admin/attendance/record", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if attendance.savedRecord.SessionID != 2 || attendance.savedRecord.RegistrationID != 3 || attendance.savedRecord.Status != "present" {
+		t.Fatalf("savedRecord = %+v, want session registration status", attendance.savedRecord)
+	}
+}
+
 type fakeMemberService struct {
 	created service.MemberInput
 	members []domain.Member
@@ -644,4 +724,34 @@ func (f *fakeBackupService) ResolveBackupPath(string) (string, error) {
 func (f *fakeBackupService) QueueRestore(_ context.Context, fileName string) (domain.RestorePlan, error) {
 	f.restoreFile = fileName
 	return domain.RestorePlan{FileName: fileName}, nil
+}
+
+type fakeAttendanceService struct {
+	createdSession service.AttendanceSessionInput
+	savedRecord    service.AttendanceRecordInput
+	sessions       []domain.AttendanceSession
+	confirmed      []domain.Registration
+	records        []domain.AttendanceRecord
+}
+
+func (f *fakeAttendanceService) CreateSession(_ context.Context, input service.AttendanceSessionInput) (domain.AttendanceSession, error) {
+	f.createdSession = input
+	return domain.AttendanceSession{ID: 2, OfferingID: input.OfferingID, SessionDate: input.SessionDate}, nil
+}
+
+func (f *fakeAttendanceService) ListSessions(context.Context, int64, int) ([]domain.AttendanceSession, error) {
+	return f.sessions, nil
+}
+
+func (f *fakeAttendanceService) ListConfirmedByOffering(context.Context, int64) ([]domain.Registration, error) {
+	return f.confirmed, nil
+}
+
+func (f *fakeAttendanceService) ListRecordsBySession(context.Context, int64) ([]domain.AttendanceRecord, error) {
+	return f.records, nil
+}
+
+func (f *fakeAttendanceService) SaveRecord(_ context.Context, input service.AttendanceRecordInput) (domain.AttendanceRecord, error) {
+	f.savedRecord = input
+	return domain.AttendanceRecord{SessionID: input.SessionID, RegistrationID: input.RegistrationID, Status: input.Status}, nil
 }
