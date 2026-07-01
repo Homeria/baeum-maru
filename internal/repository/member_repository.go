@@ -90,8 +90,11 @@ WHERE id = ?;
 }
 
 func (r *MemberRepository) Search(ctx context.Context, query string, limit int) ([]domain.Member, error) {
-	if limit <= 0 || limit > 100 {
+	if limit <= 0 {
 		limit = 50
+	}
+	if limit > 10000 {
+		limit = 10000
 	}
 
 	query = strings.TrimSpace(query)

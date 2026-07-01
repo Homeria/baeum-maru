@@ -92,8 +92,11 @@ LIMIT 1;
 }
 
 func (r *CourseRepository) ListOfferings(ctx context.Context, limit int) ([]domain.CourseOffering, error) {
-	if limit <= 0 || limit > 200 {
+	if limit <= 0 {
 		limit = 100
+	}
+	if limit > 10000 {
+		limit = 10000
 	}
 
 	rows, err := r.db.QueryContext(ctx, offeringSelectSQL()+`

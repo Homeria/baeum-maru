@@ -19,6 +19,7 @@ type RouterOptions struct {
 	Members       MemberService
 	Courses       CourseService
 	Registrations RegistrationService
+	Exports       ExportService
 }
 
 type MemberService interface {
@@ -36,6 +37,12 @@ type RegistrationService interface {
 	Cancel(context.Context, int64) (domain.Registration, error)
 	ListByMember(context.Context, int64) ([]domain.Registration, error)
 	ListRecent(context.Context, int) ([]domain.Registration, error)
+}
+
+type ExportService interface {
+	ExportMembers(context.Context) (service.ExportResult, error)
+	ExportCourseOfferings(context.Context) (service.ExportResult, error)
+	ExportRegistrations(context.Context) (service.ExportResult, error)
 }
 
 type pageData struct {
@@ -60,6 +67,7 @@ var pageTemplate = template.Must(template.New("page").Parse(`<!doctype html>
     <nav>
       <a href="/admin/members">회원 관리</a>
       <a href="/admin/courses">강좌 관리</a>
+      <a href="/admin/exports">엑셀 내보내기</a>
       <a href="/reception">접수 화면</a>
     </nav>
     <small>{{.DisplayName}} {{.Version}}</small>
@@ -94,6 +102,10 @@ func NewRouter(opts RouterOptions) http.Handler {
 	mux.HandleFunc("/admin/members", membersHandler(opts))
 	mux.HandleFunc("/admin/courses", coursesHandler(opts))
 	mux.HandleFunc("/admin/registrations", registrationsHandler(opts))
+	mux.HandleFunc("/admin/exports", exportsHandler(opts))
+	mux.HandleFunc("/admin/exports/members", exportMembersHandler(opts))
+	mux.HandleFunc("/admin/exports/courses", exportCoursesHandler(opts))
+	mux.HandleFunc("/admin/exports/registrations", exportRegistrationsHandler(opts))
 	mux.HandleFunc("/reception/cancel", cancelRegistrationHandler(opts))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
