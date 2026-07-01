@@ -44,10 +44,12 @@ type ExportService interface {
 	ExportMembers(context.Context) (service.ExportResult, error)
 	ExportCourseOfferings(context.Context) (service.ExportResult, error)
 	ExportRegistrations(context.Context) (service.ExportResult, error)
+	ExportLotteryResults(context.Context, int64) (service.ExportResult, error)
 }
 
 type LotteryService interface {
 	RunOfferingLottery(context.Context, int64) (domain.LotteryRunSummary, error)
+	ListRuns(context.Context, int) ([]domain.LotteryRun, error)
 }
 
 type pageData struct {
@@ -114,6 +116,7 @@ func NewRouter(opts RouterOptions) http.Handler {
 	mux.HandleFunc("/admin/exports/members", exportMembersHandler(opts))
 	mux.HandleFunc("/admin/exports/courses", exportCoursesHandler(opts))
 	mux.HandleFunc("/admin/exports/registrations", exportRegistrationsHandler(opts))
+	mux.HandleFunc("/admin/exports/lottery-results", exportLotteryResultsHandler(opts))
 	mux.HandleFunc("/reception/cancel", cancelRegistrationHandler(opts))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

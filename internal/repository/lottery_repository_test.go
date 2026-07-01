@@ -55,6 +55,28 @@ func TestLotteryRepositoryListsCandidatesAndSavesRun(t *testing.T) {
 	assertRegistrationStatus(t, db, first.ID, "selected")
 	assertRegistrationStatus(t, db, second.ID, "waitlisted")
 	assertLotteryResultCount(t, db, runID, 2)
+
+	runs, err := lotteries.ListRuns(ctx, 10)
+	if err != nil {
+		t.Fatalf("ListRuns() error = %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("len(runs) = %d, want 1", len(runs))
+	}
+	if runs[0].ID != runID || runs[0].SelectedCount != 1 || runs[0].WaitlistedCount != 1 {
+		t.Fatalf("run = %+v, want saved run counts", runs[0])
+	}
+
+	results, err := lotteries.ListResultsByRun(ctx, runID)
+	if err != nil {
+		t.Fatalf("ListResultsByRun() error = %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("len(results) = %d, want 2", len(results))
+	}
+	if results[0].Result != "selected" || results[0].MemberName != "김배움" {
+		t.Fatalf("first result = %+v, want selected 김배움", results[0])
+	}
 }
 
 func createLotteryRegistration(t *testing.T, ctx context.Context, members *MemberRepository, registrations *RegistrationRepository, offeringID int64, name string) domain.Registration {

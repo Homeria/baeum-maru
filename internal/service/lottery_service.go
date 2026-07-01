@@ -12,6 +12,8 @@ import (
 
 type LotteryRepository interface {
 	ListCandidatesByOffering(context.Context, int64) ([]domain.LotteryCandidate, error)
+	ListRuns(context.Context, int) ([]domain.LotteryRun, error)
+	ListResultsByRun(context.Context, int64) ([]domain.LotteryResultRow, error)
 	SaveRun(context.Context, repository.SaveLotteryRunParams) (int64, error)
 }
 
@@ -59,6 +61,17 @@ func (s *LotteryService) RunOfferingLottery(ctx context.Context, offeringID int6
 	}
 
 	return summarizeLotteryRun(runID, offering, seed, assignments), nil
+}
+
+func (s *LotteryService) ListRuns(ctx context.Context, limit int) ([]domain.LotteryRun, error) {
+	return s.lotteries.ListRuns(ctx, limit)
+}
+
+func (s *LotteryService) ListResultsByRun(ctx context.Context, runID int64) ([]domain.LotteryResultRow, error) {
+	if runID <= 0 {
+		return nil, errors.New("lottery run id is required")
+	}
+	return s.lotteries.ListResultsByRun(ctx, runID)
 }
 
 func assignLotteryResults(candidates []domain.LotteryCandidate, capacity int, seed int64) []domain.LotteryAssignment {

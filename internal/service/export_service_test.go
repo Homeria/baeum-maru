@@ -89,6 +89,32 @@ func TestExportServiceExportsRegistrationsWorkbook(t *testing.T) {
 	assertCell(t, workbook, "신청", "F2", "요가 기초")
 }
 
+func TestExportServiceExportsLotteryResultsWorkbook(t *testing.T) {
+	service := NewExportService(
+		&exportMemberSource{},
+		&exportCourseSource{},
+		&exportRegistrationSource{},
+		t.TempDir(),
+		&exportLotterySource{results: []domain.LotteryResultRow{{RunID: 7, Seed: 100, CompletedAt: "2026-07-01 09:00:00", OfferingID: 2, CourseTitle: "요가 기초", TermName: "2026 여름", Result: "selected", ResultOrder: 1, RegistrationID: 3, MemberID: 1, MemberNo: "M-001", MemberName: "김배움", RegistrationCreatedAt: "2026-07-01 08:30:00"}}},
+	)
+	service.now = func() time.Time { return time.Date(2026, 7, 1, 9, 33, 0, 0, time.Local) }
+
+	result, err := service.ExportLotteryResults(context.Background(), 7)
+	if err != nil {
+		t.Fatalf("ExportLotteryResults() error = %v", err)
+	}
+
+	workbook, err := excelize.OpenFile(result.Path)
+	if err != nil {
+		t.Fatalf("OpenFile() error = %v", err)
+	}
+	defer workbook.Close()
+
+	assertCell(t, workbook, "추첨 결과", "A2", "7")
+	assertCell(t, workbook, "추첨 결과", "D2", "요가 기초")
+	assertCell(t, workbook, "추첨 결과", "J2", "김배움")
+}
+
 func assertCell(t *testing.T, workbook *excelize.File, sheet string, cell string, want string) {
 	t.Helper()
 
@@ -123,4 +149,12 @@ type exportRegistrationSource struct {
 
 func (s *exportRegistrationSource) ListRecent(context.Context, int) ([]domain.Registration, error) {
 	return s.registrations, nil
+}
+
+type exportLotterySource struct {
+	results []domain.LotteryResultRow
+}
+
+func (s *exportLotterySource) ListResultsByRun(context.Context, int64) ([]domain.LotteryResultRow, error) {
+	return s.results, nil
 }

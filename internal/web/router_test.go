@@ -264,6 +264,9 @@ func TestRouterServesLotteryPage(t *testing.T) {
 		Courses: &fakeCourseService{
 			offerings: []domain.CourseOffering{{ID: 1, CourseTitle: "요가 기초", Capacity: 1, RegistrationCount: 2, Weekday: 1, StartTime: "09:00", EndTime: "10:00"}},
 		},
+		Lotteries: &fakeLotteryService{
+			runs: []domain.LotteryRun{{ID: 7, TermName: "2026 여름", CourseTitle: "요가 기초", TotalCount: 2, SelectedCount: 1, WaitlistedCount: 1}},
+		},
 	})
 	req := httptest.NewRequest(http.MethodGet, "/admin/lottery", nil)
 	rec := httptest.NewRecorder()
@@ -275,6 +278,9 @@ func TestRouterServesLotteryPage(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "요가 기초") {
 		t.Fatalf("body = %q, want course title", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "/admin/exports/lottery-results?run_id=7") {
+		t.Fatalf("body = %q, want lottery export link", rec.Body.String())
 	}
 }
 
@@ -346,6 +352,33 @@ func TestRouterDownloadsMemberExport(t *testing.T) {
 	}
 }
 
+func TestRouterDownloadsLotteryResultsExport(t *testing.T) {
+	filePath := filepath.Join(t.TempDir(), "lottery-results.xlsx")
+	if err := os.WriteFile(filePath, []byte("xlsx"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	exports := &fakeExportService{
+		lotteryResults: service.ExportResult{Path: filePath, FileName: "lottery-results.xlsx"},
+	}
+	router := NewRouter(RouterOptions{
+		Exports: exports,
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/exports/lottery-results?run_id=7", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if exports.lotteryRunID != 7 {
+		t.Fatalf("lotteryRunID = %d, want 7", exports.lotteryRunID)
+	}
+	if rec.Body.String() != "xlsx" {
+		t.Fatalf("body = %q, want file contents", rec.Body.String())
+	}
+}
+
 type fakeMemberService struct {
 	created service.MemberInput
 	members []domain.Member
@@ -401,6 +434,7 @@ func (f *fakeRegistrationService) ListRecent(_ context.Context, _ int) ([]domain
 
 type fakeLotteryService struct {
 	offeringID int64
+	runs       []domain.LotteryRun
 }
 
 func (f *fakeLotteryService) RunOfferingLottery(_ context.Context, offeringID int64) (domain.LotteryRunSummary, error) {
@@ -413,10 +447,16 @@ func (f *fakeLotteryService) RunOfferingLottery(_ context.Context, offeringID in
 	}, nil
 }
 
+func (f *fakeLotteryService) ListRuns(context.Context, int) ([]domain.LotteryRun, error) {
+	return f.runs, nil
+}
+
 type fakeExportService struct {
-	members       service.ExportResult
-	courses       service.ExportResult
-	registrations service.ExportResult
+	members        service.ExportResult
+	courses        service.ExportResult
+	registrations  service.ExportResult
+	lotteryResults service.ExportResult
+	lotteryRunID   int64
 }
 
 func (f *fakeExportService) ExportMembers(context.Context) (service.ExportResult, error) {
@@ -429,4 +469,9 @@ func (f *fakeExportService) ExportCourseOfferings(context.Context) (service.Expo
 
 func (f *fakeExportService) ExportRegistrations(context.Context) (service.ExportResult, error) {
 	return f.registrations, nil
+}
+
+func (f *fakeExportService) ExportLotteryResults(_ context.Context, runID int64) (service.ExportResult, error) {
+	f.lotteryRunID = runID
+	return f.lotteryResults, nil
 }

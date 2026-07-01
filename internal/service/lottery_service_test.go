@@ -74,6 +74,14 @@ func (f *fakeLotteryRepository) ListCandidatesByOffering(context.Context, int64)
 	return f.candidates, nil
 }
 
+func (f *fakeLotteryRepository) ListRuns(context.Context, int) ([]domain.LotteryRun, error) {
+	return []domain.LotteryRun{{ID: 7}}, nil
+}
+
+func (f *fakeLotteryRepository) ListResultsByRun(context.Context, int64) ([]domain.LotteryResultRow, error) {
+	return []domain.LotteryResultRow{{RunID: 7}}, nil
+}
+
 func (f *fakeLotteryRepository) SaveRun(_ context.Context, params repository.SaveLotteryRunParams) (int64, error) {
 	f.saved = params
 	return 7, nil
