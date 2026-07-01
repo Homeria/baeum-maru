@@ -37,6 +37,7 @@ var exportsTemplate = template.Must(template.New("exports").Funcs(uiTemplateFunc
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
       <a href="/admin/settings">설정</a>
+      <a href="/admin/audit-logs">감사 로그</a>
       <a href="/reception">접수 화면</a>
     </nav>
   </header>

@@ -44,6 +44,7 @@ var receptionTemplate = template.Must(template.New("reception").Funcs(uiTemplate
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
       <a href="/admin/settings">설정</a>
+      <a href="/admin/audit-logs">감사 로그</a>
       <a href="/reception">접수 화면</a>
     </nav>
   </header>
@@ -171,7 +172,7 @@ func receptionHandler(opts RouterOptions) http.HandlerFunc {
 				renderReception(w, r, opts, "강좌 선택이 올바르지 않습니다.")
 				return
 			}
-			_, err = opts.Registrations.Create(r.Context(), service.RegistrationInput{
+			created, err := opts.Registrations.Create(r.Context(), service.RegistrationInput{
 				MemberID:   memberID,
 				OfferingID: offeringID,
 			})
@@ -179,6 +180,7 @@ func receptionHandler(opts RouterOptions) http.HandlerFunc {
 				renderReception(w, r, opts, err.Error())
 				return
 			}
+			recordAudit(r, opts, "registration.create", "registration", created.ID, "수강신청 등록 #"+strconv.FormatInt(created.ID, 10))
 			http.Redirect(w, r, "/reception?member_id="+strconv.FormatInt(memberID, 10), http.StatusSeeOther)
 		default:
 			w.Header().Set("Allow", "GET, POST")
@@ -241,10 +243,12 @@ func cancelRegistrationHandler(opts RouterOptions) http.HandlerFunc {
 			http.Error(w, "invalid registration id", http.StatusBadRequest)
 			return
 		}
-		if _, err := opts.Registrations.Cancel(r.Context(), registrationID); err != nil {
+		cancelled, err := opts.Registrations.Cancel(r.Context(), registrationID)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		recordAudit(r, opts, "registration.cancel", "registration", cancelled.ID, "수강신청 취소 #"+strconv.FormatInt(cancelled.ID, 10))
 		redirect := "/reception?member_id=" + r.FormValue("member_id")
 		if q := r.FormValue("q"); q != "" {
 			redirect += "&q=" + url.QueryEscape(q)
@@ -282,6 +286,7 @@ var registrationsTemplate = template.Must(template.New("registrations").Funcs(ui
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
       <a href="/admin/settings">설정</a>
+      <a href="/admin/audit-logs">감사 로그</a>
       <a href="/reception">접수 화면</a>
     </nav>
   </header>
@@ -392,10 +397,12 @@ func registrationStatusHandler(opts RouterOptions) http.HandlerFunc {
 
 		switch r.FormValue("action") {
 		case "confirm":
-			if _, err := opts.Registrations.Confirm(r.Context(), registrationID); err != nil {
+			confirmed, err := opts.Registrations.Confirm(r.Context(), registrationID)
+			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+			recordAudit(r, opts, "registration.confirm", "registration", confirmed.ID, "수강신청 확정 #"+strconv.FormatInt(confirmed.ID, 10))
 			http.Redirect(w, r, "/admin/registrations?message="+url.QueryEscape("신청을 확정했습니다."), http.StatusSeeOther)
 		case "cancel":
 			change, err := opts.Registrations.CancelWithPromotion(r.Context(), registrationID)
@@ -407,6 +414,11 @@ func registrationStatusHandler(opts RouterOptions) http.HandlerFunc {
 			if change.Promoted != nil {
 				message = "신청을 취소하고 대기자를 선정으로 승격했습니다."
 			}
+			summary := "수강신청 취소 #" + strconv.FormatInt(change.Registration.ID, 10)
+			if change.Promoted != nil {
+				summary += ", 대기자 승격 #" + strconv.FormatInt(change.Promoted.ID, 10)
+			}
+			recordAudit(r, opts, "registration.cancel", "registration", change.Registration.ID, summary)
 			http.Redirect(w, r, "/admin/registrations?message="+url.QueryEscape(message), http.StatusSeeOther)
 		default:
 			http.Error(w, "unsupported registration action", http.StatusBadRequest)

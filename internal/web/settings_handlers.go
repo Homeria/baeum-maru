@@ -38,6 +38,7 @@ var settingsTemplate = templateMust("settings", `<!doctype html>
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
       <a href="/admin/settings">설정</a>
+      <a href="/admin/audit-logs">감사 로그</a>
       <a href="/reception">접수 화면</a>
     </nav>
   </header>
@@ -116,6 +117,7 @@ func settingsHandler(opts RouterOptions) http.HandlerFunc {
 				renderSettings(w, r, opts, "", err.Error())
 				return
 			}
+			recordAudit(r, opts, "settings.update", "settings", 0, "운영 설정 변경")
 			http.Redirect(w, r, "/admin/settings?message="+url.QueryEscape("설정을 저장했습니다. 일부 항목은 앱 재시작 후 적용됩니다."), http.StatusSeeOther)
 		default:
 			w.Header().Set("Allow", "GET, POST")

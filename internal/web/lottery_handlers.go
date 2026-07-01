@@ -48,6 +48,7 @@ var lotteryTemplate = template.Must(template.New("lottery").Funcs(uiTemplateFunc
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
       <a href="/admin/settings">설정</a>
+      <a href="/admin/audit-logs">감사 로그</a>
       <a href="/reception">접수 화면</a>
     </nav>
   </header>
@@ -193,6 +194,13 @@ func runLotteryHandler(opts RouterOptions) http.HandlerFunc {
 		if summary.Rerun {
 			message = "재추첨 완료: " + summary.CourseTitle + " / 이전 추첨 #" + strconv.FormatInt(summary.PreviousRunID, 10) + " 보존 / 선정 " + strconv.Itoa(summary.SelectedCount) + "명 / 대기 " + strconv.Itoa(summary.WaitlistedCount) + "명"
 		}
+		action := "lottery.run"
+		summaryText := "추첨 실행 #" + strconv.FormatInt(summary.RunID, 10) + " / 강좌 #" + strconv.FormatInt(summary.OfferingID, 10)
+		if summary.Rerun {
+			action = "lottery.rerun"
+			summaryText = "재추첨 실행 #" + strconv.FormatInt(summary.RunID, 10) + " / 이전 추첨 #" + strconv.FormatInt(summary.PreviousRunID, 10)
+		}
+		recordAudit(r, opts, action, "lottery_run", summary.RunID, summaryText)
 		http.Redirect(w, r, "/admin/lottery?message="+url.QueryEscape(message), http.StatusSeeOther)
 	}
 }
