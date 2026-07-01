@@ -22,6 +22,7 @@ type RouterOptions struct {
 	Lotteries     LotteryService
 	Exports       ExportService
 	Backups       BackupService
+	Attendance    AttendanceService
 }
 
 type MemberService interface {
@@ -62,6 +63,14 @@ type BackupService interface {
 	QueueRestore(context.Context, string) (domain.RestorePlan, error)
 }
 
+type AttendanceService interface {
+	CreateSession(context.Context, service.AttendanceSessionInput) (domain.AttendanceSession, error)
+	ListSessions(context.Context, int64, int) ([]domain.AttendanceSession, error)
+	ListConfirmedByOffering(context.Context, int64) ([]domain.Registration, error)
+	ListRecordsBySession(context.Context, int64) ([]domain.AttendanceRecord, error)
+	SaveRecord(context.Context, service.AttendanceRecordInput) (domain.AttendanceRecord, error)
+}
+
 type pageData struct {
 	Title       string
 	DisplayName string
@@ -87,6 +96,7 @@ var pageTemplate = template.Must(template.New("page").Parse(`<!doctype html>
       <a href="/admin/lottery">추첨</a>
       <a href="/admin/exports">엑셀 내보내기</a>
       <a href="/admin/backups">백업</a>
+      <a href="/admin/attendance">출석</a>
       <a href="/reception">접수 화면</a>
     </nav>
     <small>{{.DisplayName}} {{.Version}}</small>
@@ -133,6 +143,9 @@ func NewRouter(opts RouterOptions) http.Handler {
 	mux.HandleFunc("/admin/backups/create", createBackupHandler(opts))
 	mux.HandleFunc("/admin/backups/download", downloadBackupHandler(opts))
 	mux.HandleFunc("/admin/backups/restore", restoreBackupHandler(opts))
+	mux.HandleFunc("/admin/attendance", attendanceHandler(opts))
+	mux.HandleFunc("/admin/attendance/session", createAttendanceSessionHandler(opts))
+	mux.HandleFunc("/admin/attendance/record", saveAttendanceRecordHandler(opts))
 	mux.HandleFunc("/reception/cancel", cancelRegistrationHandler(opts))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
