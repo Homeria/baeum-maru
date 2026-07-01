@@ -35,11 +35,17 @@ type ExportLotterySource interface {
 	ListResultsByRun(context.Context, int64) ([]domain.LotteryResultRow, error)
 }
 
+type ExportAttendanceSource interface {
+	ListSessions(context.Context, int64, int) ([]domain.AttendanceSession, error)
+	ListRecordsBySession(context.Context, int64) ([]domain.AttendanceRecord, error)
+}
+
 type ExportService struct {
 	members       ExportMemberSource
 	courses       ExportCourseSource
 	registrations ExportRegistrationSource
 	lotteries     ExportLotterySource
+	attendance    ExportAttendanceSource
 	dir           string
 	now           func() time.Time
 }
@@ -49,7 +55,7 @@ func NewExportService(
 	courses ExportCourseSource,
 	registrations ExportRegistrationSource,
 	dir string,
-	lotteries ...ExportLotterySource,
+	optionalSources ...any,
 ) *ExportService {
 	service := &ExportService{
 		members:       members,
@@ -58,8 +64,13 @@ func NewExportService(
 		dir:           dir,
 		now:           time.Now,
 	}
-	if len(lotteries) > 0 {
-		service.lotteries = lotteries[0]
+	for _, source := range optionalSources {
+		switch typed := source.(type) {
+		case ExportLotterySource:
+			service.lotteries = typed
+		case ExportAttendanceSource:
+			service.attendance = typed
+		}
 	}
 	return service
 }
@@ -204,6 +215,89 @@ func (s *ExportService) ExportLotteryResults(ctx context.Context, runID int64) (
 	}
 
 	return s.save(file, fmt.Sprintf("lottery-results-%d", runID))
+}
+
+func (s *ExportService) ExportAttendanceSession(ctx context.Context, sessionID int64) (ExportResult, error) {
+	if sessionID <= 0 {
+		return ExportResult{}, errors.New("attendance session id is required")
+	}
+	if s.attendance == nil {
+		return ExportResult{}, errors.New("attendance export source is not configured")
+	}
+	records, err := s.attendance.ListRecordsBySession(ctx, sessionID)
+	if err != nil {
+		return ExportResult{}, fmt.Errorf("list attendance records for export: %w", err)
+	}
+
+	file := excelize.NewFile()
+	defer file.Close()
+
+	sheet := "출석"
+	if err := setupAttendanceSheet(file, sheet); err != nil {
+		return ExportResult{}, err
+	}
+	if err := writeAttendanceRecords(file, sheet, 2, records); err != nil {
+		return ExportResult{}, err
+	}
+	return s.save(file, fmt.Sprintf("attendance-session-%d", sessionID))
+}
+
+func (s *ExportService) ExportAttendanceOffering(ctx context.Context, offeringID int64) (ExportResult, error) {
+	if offeringID <= 0 {
+		return ExportResult{}, errors.New("course offering id is required")
+	}
+	if s.attendance == nil {
+		return ExportResult{}, errors.New("attendance export source is not configured")
+	}
+	sessions, err := s.attendance.ListSessions(ctx, offeringID, exportLimit)
+	if err != nil {
+		return ExportResult{}, fmt.Errorf("list attendance sessions for export: %w", err)
+	}
+
+	file := excelize.NewFile()
+	defer file.Close()
+
+	sheet := "출석"
+	if err := setupAttendanceSheet(file, sheet); err != nil {
+		return ExportResult{}, err
+	}
+	row := 2
+	for _, session := range sessions {
+		records, err := s.attendance.ListRecordsBySession(ctx, session.ID)
+		if err != nil {
+			return ExportResult{}, fmt.Errorf("list attendance records for session %d: %w", session.ID, err)
+		}
+		if err := writeAttendanceRecords(file, sheet, row, records); err != nil {
+			return ExportResult{}, err
+		}
+		row += len(records)
+	}
+	return s.save(file, fmt.Sprintf("attendance-offering-%d", offeringID))
+}
+
+func setupAttendanceSheet(file *excelize.File, sheet string) error {
+	return setupSheet(file, sheet, []string{"회차 ID", "강좌 ID", "수업일", "신청 ID", "회원 ID", "회원번호", "회원명", "출석 상태", "비고"})
+}
+
+func writeAttendanceRecords(file *excelize.File, sheet string, startRow int, records []domain.AttendanceRecord) error {
+	for i, record := range records {
+		row := startRow + i
+		values := []any{
+			record.SessionID,
+			record.OfferingID,
+			record.SessionDate,
+			record.RegistrationID,
+			record.MemberID,
+			record.MemberNo,
+			record.MemberName,
+			record.Status,
+			record.Note,
+		}
+		if err := setRow(file, sheet, row, values); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func setupSheet(file *excelize.File, sheet string, headers []string) error {

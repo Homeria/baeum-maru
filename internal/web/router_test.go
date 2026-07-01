@@ -537,6 +537,12 @@ func TestRouterServesAttendancePage(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), "출석 입력") {
 		t.Fatalf("body = %q, want attendance entry section", rec.Body.String())
 	}
+	if !strings.Contains(rec.Body.String(), "/admin/exports/attendance-session?session_id=2") {
+		t.Fatalf("body = %q, want attendance session export link", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "/admin/exports/attendance-offering?offering_id=1") {
+		t.Fatalf("body = %q, want attendance offering export link", rec.Body.String())
+	}
 }
 
 func TestRouterCreatesAttendanceSession(t *testing.T) {
@@ -587,6 +593,60 @@ func TestRouterSavesAttendanceRecord(t *testing.T) {
 	}
 	if attendance.savedRecord.SessionID != 2 || attendance.savedRecord.RegistrationID != 3 || attendance.savedRecord.Status != "present" {
 		t.Fatalf("savedRecord = %+v, want session registration status", attendance.savedRecord)
+	}
+}
+
+func TestRouterDownloadsAttendanceSessionExport(t *testing.T) {
+	filePath := filepath.Join(t.TempDir(), "attendance-session.xlsx")
+	if err := os.WriteFile(filePath, []byte("xlsx"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	exports := &fakeExportService{
+		attendanceSession: service.ExportResult{Path: filePath, FileName: "attendance-session.xlsx"},
+	}
+	router := NewRouter(RouterOptions{
+		Exports: exports,
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/exports/attendance-session?session_id=2", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if exports.attendanceSessionID != 2 {
+		t.Fatalf("attendanceSessionID = %d, want 2", exports.attendanceSessionID)
+	}
+	if rec.Body.String() != "xlsx" {
+		t.Fatalf("body = %q, want file contents", rec.Body.String())
+	}
+}
+
+func TestRouterDownloadsAttendanceOfferingExport(t *testing.T) {
+	filePath := filepath.Join(t.TempDir(), "attendance-offering.xlsx")
+	if err := os.WriteFile(filePath, []byte("xlsx"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	exports := &fakeExportService{
+		attendanceOffering: service.ExportResult{Path: filePath, FileName: "attendance-offering.xlsx"},
+	}
+	router := NewRouter(RouterOptions{
+		Exports: exports,
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/exports/attendance-offering?offering_id=1", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if exports.attendanceOfferingID != 1 {
+		t.Fatalf("attendanceOfferingID = %d, want 1", exports.attendanceOfferingID)
+	}
+	if rec.Body.String() != "xlsx" {
+		t.Fatalf("body = %q, want file contents", rec.Body.String())
 	}
 }
 
@@ -676,11 +736,15 @@ func (f *fakeLotteryService) ListRuns(context.Context, int) ([]domain.LotteryRun
 }
 
 type fakeExportService struct {
-	members        service.ExportResult
-	courses        service.ExportResult
-	registrations  service.ExportResult
-	lotteryResults service.ExportResult
-	lotteryRunID   int64
+	members              service.ExportResult
+	courses              service.ExportResult
+	registrations        service.ExportResult
+	lotteryResults       service.ExportResult
+	attendanceSession    service.ExportResult
+	attendanceOffering   service.ExportResult
+	lotteryRunID         int64
+	attendanceSessionID  int64
+	attendanceOfferingID int64
 }
 
 func (f *fakeExportService) ExportMembers(context.Context) (service.ExportResult, error) {
@@ -698,6 +762,16 @@ func (f *fakeExportService) ExportRegistrations(context.Context) (service.Export
 func (f *fakeExportService) ExportLotteryResults(_ context.Context, runID int64) (service.ExportResult, error) {
 	f.lotteryRunID = runID
 	return f.lotteryResults, nil
+}
+
+func (f *fakeExportService) ExportAttendanceSession(_ context.Context, sessionID int64) (service.ExportResult, error) {
+	f.attendanceSessionID = sessionID
+	return f.attendanceSession, nil
+}
+
+func (f *fakeExportService) ExportAttendanceOffering(_ context.Context, offeringID int64) (service.ExportResult, error) {
+	f.attendanceOfferingID = offeringID
+	return f.attendanceOffering, nil
 }
 
 type fakeBackupService struct {

@@ -115,6 +115,65 @@ func TestExportServiceExportsLotteryResultsWorkbook(t *testing.T) {
 	assertCell(t, workbook, "추첨 결과", "J2", "김배움")
 }
 
+func TestExportServiceExportsAttendanceSessionWorkbook(t *testing.T) {
+	service := NewExportService(
+		&exportMemberSource{},
+		&exportCourseSource{},
+		&exportRegistrationSource{},
+		t.TempDir(),
+		&exportAttendanceSource{recordsBySession: map[int64][]domain.AttendanceRecord{
+			2: {{SessionID: 2, OfferingID: 1, SessionDate: "2026-07-01", RegistrationID: 3, MemberID: 4, MemberNo: "M-001", MemberName: "김배움", Status: "present", Note: "출석"}},
+		}},
+	)
+	service.now = func() time.Time { return time.Date(2026, 7, 1, 9, 34, 0, 0, time.Local) }
+
+	result, err := service.ExportAttendanceSession(context.Background(), 2)
+	if err != nil {
+		t.Fatalf("ExportAttendanceSession() error = %v", err)
+	}
+
+	workbook, err := excelize.OpenFile(result.Path)
+	if err != nil {
+		t.Fatalf("OpenFile() error = %v", err)
+	}
+	defer workbook.Close()
+
+	assertCell(t, workbook, "출석", "A2", "2")
+	assertCell(t, workbook, "출석", "G2", "김배움")
+	assertCell(t, workbook, "출석", "H2", "present")
+}
+
+func TestExportServiceExportsAttendanceOfferingWorkbook(t *testing.T) {
+	service := NewExportService(
+		&exportMemberSource{},
+		&exportCourseSource{},
+		&exportRegistrationSource{},
+		t.TempDir(),
+		&exportAttendanceSource{
+			sessions: []domain.AttendanceSession{{ID: 2, OfferingID: 1, SessionDate: "2026-07-01"}},
+			recordsBySession: map[int64][]domain.AttendanceRecord{
+				2: {{SessionID: 2, OfferingID: 1, SessionDate: "2026-07-01", RegistrationID: 3, MemberID: 4, MemberNo: "M-001", MemberName: "김배움", Status: "absent"}},
+			},
+		},
+	)
+	service.now = func() time.Time { return time.Date(2026, 7, 1, 9, 35, 0, 0, time.Local) }
+
+	result, err := service.ExportAttendanceOffering(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("ExportAttendanceOffering() error = %v", err)
+	}
+
+	workbook, err := excelize.OpenFile(result.Path)
+	if err != nil {
+		t.Fatalf("OpenFile() error = %v", err)
+	}
+	defer workbook.Close()
+
+	assertCell(t, workbook, "출석", "C2", "2026-07-01")
+	assertCell(t, workbook, "출석", "G2", "김배움")
+	assertCell(t, workbook, "출석", "H2", "absent")
+}
+
 func assertCell(t *testing.T, workbook *excelize.File, sheet string, cell string, want string) {
 	t.Helper()
 
@@ -157,4 +216,17 @@ type exportLotterySource struct {
 
 func (s *exportLotterySource) ListResultsByRun(context.Context, int64) ([]domain.LotteryResultRow, error) {
 	return s.results, nil
+}
+
+type exportAttendanceSource struct {
+	sessions         []domain.AttendanceSession
+	recordsBySession map[int64][]domain.AttendanceRecord
+}
+
+func (s *exportAttendanceSource) ListSessions(context.Context, int64, int) ([]domain.AttendanceSession, error) {
+	return s.sessions, nil
+}
+
+func (s *exportAttendanceSource) ListRecordsBySession(_ context.Context, sessionID int64) ([]domain.AttendanceRecord, error) {
+	return s.recordsBySession[sessionID], nil
 }

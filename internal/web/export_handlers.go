@@ -82,6 +82,26 @@ func exportLotteryResultsHandler(opts RouterOptions) http.HandlerFunc {
 	})
 }
 
+func exportAttendanceSessionHandler(opts RouterOptions) http.HandlerFunc {
+	return exportHandler(opts, func(exports ExportService, r *http.Request) (service.ExportResult, error) {
+		sessionID, err := strconv.ParseInt(r.URL.Query().Get("session_id"), 10, 64)
+		if err != nil {
+			return service.ExportResult{}, err
+		}
+		return exports.ExportAttendanceSession(r.Context(), sessionID)
+	})
+}
+
+func exportAttendanceOfferingHandler(opts RouterOptions) http.HandlerFunc {
+	return exportHandler(opts, func(exports ExportService, r *http.Request) (service.ExportResult, error) {
+		offeringID, err := strconv.ParseInt(r.URL.Query().Get("offering_id"), 10, 64)
+		if err != nil {
+			return service.ExportResult{}, err
+		}
+		return exports.ExportAttendanceOffering(r.Context(), offeringID)
+	})
+}
+
 func exportHandler(opts RouterOptions, create func(ExportService, *http.Request) (service.ExportResult, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
