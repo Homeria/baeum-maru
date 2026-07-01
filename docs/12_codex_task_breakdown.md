@@ -244,19 +244,24 @@ go test ./...
 
 - 백업 파일로 이전 상태를 복구할 수 있음
 
-### Task 18 Fyne 런처
+### Task 18 콘솔형 포터블 런처
 
 목표:
 
-- 서버 시작/중지
-- 접속 주소 표시
-- 주소 복사
-- 관리/접수 화면 열기
-- 백업 버튼
+- `cmd/launcher`에서 앱 런타임 조립
+- HTTP 서버 시작
+- 기본 브라우저 열기
+- 종료 신호 수신 시 graceful shutdown
+- 패키징된 exe에서 같은 흐름 수행
 
 완료 기준:
 
-- 담당자 흐름을 런처에서 수행 가능
+- exe 실행 후 브라우저에서 관리자/접수 화면 접속 가능
+- 종료 시 서버가 정상 종료됨
+
+비고:
+
+- Fyne 기반 네이티브 런처는 후속 사용성 개선 후보로 둔다.
 
 ### Task 19 포터블 패키징
 
@@ -287,17 +292,40 @@ Task 11 신청 제한 규칙 중 동일 시간대 중복 신청 금지만 먼저
 ## 8. 커밋 메시지 예시
 
 ```text
-docs: expand project implementation plan
+docs: 현재 구현 상태 문서화
+- MVP 진행 상태 정리
+- 다음 브랜치 계획 추가
 ```
 
 ```text
-feat: add config loader
+feat: 설정 로더 추가
+- 기본 config 생성 지원
+- 설정 검증 테스트 추가
 ```
 
 ```text
-feat: add member registration flow
+feat: 회원 신청 흐름 추가
+- 회원 검색 후 강좌 신청 지원
+- 신청 목록 갱신 처리
 ```
 
 ```text
-test: cover registration rule checks
+test: 신청 제한 규칙 테스트 추가
+- 중복 신청 차단 검증
+- 시간대 충돌 차단 검증
 ```
+
+## 9. 현재 이후 권장 작업
+
+현재 구현 상태 기준 다음 브랜치 순서를 권장한다.
+
+1. `chore/docs-sync-current-state`
+2. `feat/admin-ui-polish`
+3. `feat/excel-import-basic`
+4. `feat/lottery-rerun-policy`
+5. `feat/backup-retention-status`
+6. `feat/settings-management`
+7. `feat/audit-log-basic`
+8. `test/mvp-workflow-simulation`
+9. `ci/release-package-windows`
+10. `chore/open-source-readiness`
