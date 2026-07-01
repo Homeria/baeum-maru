@@ -3,6 +3,7 @@ package web
 
 import (
 	"context"
+	"github.com/Homeria/baeum-maru/internal/config"
 	"html/template"
 	"io"
 	"log/slog"
@@ -25,6 +26,7 @@ type RouterOptions struct {
 	Imports       ImportService
 	Backups       BackupService
 	Attendance    AttendanceService
+	Settings      SettingsService
 }
 
 type MemberService interface {
@@ -84,6 +86,11 @@ type AttendanceService interface {
 	SaveRecord(context.Context, service.AttendanceRecordInput) (domain.AttendanceRecord, error)
 }
 
+type SettingsService interface {
+	Get(context.Context) (config.Config, error)
+	Update(context.Context, service.SettingsInput) (config.Config, error)
+}
+
 type pageData struct {
 	Title       string
 	DisplayName string
@@ -112,6 +119,7 @@ var pageTemplate = template.Must(template.New("page").Funcs(uiTemplateFuncs(nil)
       <a href="/admin/exports">엑셀 내보내기</a>
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
+      <a href="/admin/settings">설정</a>
       <a href="/reception">접수 화면</a>
     </nav>
   </header>
@@ -184,6 +192,7 @@ func NewRouter(opts RouterOptions) http.Handler {
 	mux.HandleFunc("/admin/attendance", attendanceHandler(opts))
 	mux.HandleFunc("/admin/attendance/session", createAttendanceSessionHandler(opts))
 	mux.HandleFunc("/admin/attendance/record", saveAttendanceRecordHandler(opts))
+	mux.HandleFunc("/admin/settings", settingsHandler(opts))
 	mux.HandleFunc("/reception/cancel", cancelRegistrationHandler(opts))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -242,6 +251,7 @@ var membersTemplate = template.Must(template.New("members").Funcs(uiTemplateFunc
       <a href="/admin/exports">엑셀 내보내기</a>
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
+      <a href="/admin/settings">설정</a>
       <a href="/reception">접수 화면</a>
     </nav>
   </header>
@@ -393,6 +403,7 @@ var coursesTemplate = template.Must(template.New("courses").Funcs(uiTemplateFunc
       <a href="/admin/exports">엑셀 내보내기</a>
       <a href="/admin/backups">백업</a>
       <a href="/admin/attendance">출석</a>
+      <a href="/admin/settings">설정</a>
       <a href="/reception">접수 화면</a>
     </nav>
   </header>

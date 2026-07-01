@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Homeria/baeum-maru/internal/config"
 	"github.com/Homeria/baeum-maru/internal/domain"
 	"github.com/Homeria/baeum-maru/internal/service"
 )
@@ -607,6 +608,54 @@ func TestRouterQueuesBackupRestore(t *testing.T) {
 	}
 }
 
+func TestRouterServesSettingsPage(t *testing.T) {
+	cfg := config.Default()
+	cfg.Backup.KeepDays = 14
+	router := NewRouter(RouterOptions{
+		DisplayName: "배움마루",
+		Version:     "test",
+		Settings:    &fakeSettingsService{cfg: cfg},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/settings", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "백업 보관 일수") {
+		t.Fatalf("body = %q, want settings form", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `value="14"`) {
+		t.Fatalf("body = %q, want current keep days", rec.Body.String())
+	}
+}
+
+func TestRouterUpdatesSettings(t *testing.T) {
+	settings := &fakeSettingsService{cfg: config.Default()}
+	router := NewRouter(RouterOptions{Settings: settings})
+	form := url.Values{
+		"backup_keep_days":      {"7"},
+		"open_browser_on_start": {"true"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/admin/settings", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if settings.input.BackupKeepDays != 7 {
+		t.Fatalf("BackupKeepDays = %d, want 7", settings.input.BackupKeepDays)
+	}
+	if !settings.input.OpenBrowserOnStart {
+		t.Fatal("OpenBrowserOnStart = false, want true")
+	}
+}
+
 func TestRouterServesAttendancePage(t *testing.T) {
 	router := NewRouter(RouterOptions{
 		DisplayName: "배움마루",
@@ -955,6 +1004,22 @@ func (f *fakeBackupService) ResolveBackupPath(string) (string, error) {
 func (f *fakeBackupService) QueueRestore(_ context.Context, fileName string) (domain.RestorePlan, error) {
 	f.restoreFile = fileName
 	return domain.RestorePlan{FileName: fileName}, nil
+}
+
+type fakeSettingsService struct {
+	cfg   config.Config
+	input service.SettingsInput
+}
+
+func (f *fakeSettingsService) Get(context.Context) (config.Config, error) {
+	return f.cfg, nil
+}
+
+func (f *fakeSettingsService) Update(_ context.Context, input service.SettingsInput) (config.Config, error) {
+	f.input = input
+	f.cfg.Backup.KeepDays = input.BackupKeepDays
+	f.cfg.UI.OpenBrowserOnStart = input.OpenBrowserOnStart
+	return f.cfg, nil
 }
 
 type fakeAttendanceService struct {

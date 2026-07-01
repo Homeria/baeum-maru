@@ -26,6 +26,7 @@ type Runtime struct {
 	Imports       *service.ImportService
 	Backups       *service.BackupService
 	Attendance    *service.AttendanceService
+	Settings      *service.SettingsService
 }
 
 func Bootstrap(configPath string) (*Runtime, error) {
@@ -84,6 +85,7 @@ func Bootstrap(configPath string) (*Runtime, error) {
 		Imports:       service.NewImportService(memberService, courseService),
 		Backups:       service.NewBackupService(db, cfg.Database.Path, cfg.Backup.Path, cfg.Backup.KeepDays),
 		Attendance:    attendanceService,
+		Settings:      service.NewSettingsService(configPath, cfg),
 	}, nil
 }
 

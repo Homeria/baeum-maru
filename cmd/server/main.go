@@ -33,6 +33,7 @@ func main() {
 		Imports:       runtime.Imports,
 		Backups:       runtime.Backups,
 		Attendance:    runtime.Attendance,
+		Settings:      runtime.Settings,
 	})
 	httpServer := server.New(server.Options{
 		Host:    runtime.Config.Server.Host,
