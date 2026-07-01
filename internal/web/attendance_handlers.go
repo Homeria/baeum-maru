@@ -52,6 +52,8 @@ var attendanceTemplate = template.Must(template.New("attendance").Funcs(template
     </form>
 
     {{if .OfferingID}}
+      <p><a href="/admin/exports/attendance-offering?offering_id={{.OfferingID}}">강좌 전체 출석 다운로드</a></p>
+
       <form method="post" action="/admin/attendance/session">
         <input type="hidden" name="offering_id" value="{{.OfferingID}}">
         <label>수업일 <input name="session_date" placeholder="YYYY-MM-DD" required></label>
@@ -69,7 +71,7 @@ var attendanceTemplate = template.Must(template.New("attendance").Funcs(template
               <td>{{.SessionDate}}</td>
               <td>{{.CourseTitle}}</td>
               <td>{{.Note}}</td>
-              <td><a href="/admin/attendance?offering_id={{.OfferingID}}&session_id={{.ID}}">출석 입력</a></td>
+              <td><a href="/admin/attendance?offering_id={{.OfferingID}}&session_id={{.ID}}">출석 입력</a> <a href="/admin/exports/attendance-session?session_id={{.ID}}">엑셀 다운로드</a></td>
             </tr>
           {{else}}
             <tr><td colspan="5">출석 회차가 없습니다.</td></tr>
@@ -92,6 +94,7 @@ var attendanceTemplate = template.Must(template.New("attendance").Funcs(template
 
     {{if .SessionID}}
       <h2>출석 입력</h2>
+      <p><a href="/admin/exports/attendance-session?session_id={{.SessionID}}">현재 회차 출석 다운로드</a></p>
       <table>
         <thead><tr><th>회원번호</th><th>회원명</th><th>상태</th><th>비고</th><th>저장</th></tr></thead>
         <tbody>

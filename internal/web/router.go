@@ -49,6 +49,8 @@ type ExportService interface {
 	ExportCourseOfferings(context.Context) (service.ExportResult, error)
 	ExportRegistrations(context.Context) (service.ExportResult, error)
 	ExportLotteryResults(context.Context, int64) (service.ExportResult, error)
+	ExportAttendanceSession(context.Context, int64) (service.ExportResult, error)
+	ExportAttendanceOffering(context.Context, int64) (service.ExportResult, error)
 }
 
 type LotteryService interface {
@@ -139,6 +141,8 @@ func NewRouter(opts RouterOptions) http.Handler {
 	mux.HandleFunc("/admin/exports/courses", exportCoursesHandler(opts))
 	mux.HandleFunc("/admin/exports/registrations", exportRegistrationsHandler(opts))
 	mux.HandleFunc("/admin/exports/lottery-results", exportLotteryResultsHandler(opts))
+	mux.HandleFunc("/admin/exports/attendance-session", exportAttendanceSessionHandler(opts))
+	mux.HandleFunc("/admin/exports/attendance-offering", exportAttendanceOfferingHandler(opts))
 	mux.HandleFunc("/admin/backups", backupsHandler(opts))
 	mux.HandleFunc("/admin/backups/create", createBackupHandler(opts))
 	mux.HandleFunc("/admin/backups/download", downloadBackupHandler(opts))
