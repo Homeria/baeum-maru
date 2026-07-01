@@ -14,6 +14,7 @@ type LotteryRepository interface {
 	ListCandidatesByOffering(context.Context, int64) ([]domain.LotteryCandidate, error)
 	ListRuns(context.Context, int) ([]domain.LotteryRun, error)
 	ListResultsByRun(context.Context, int64) ([]domain.LotteryResultRow, error)
+	LatestRunByOffering(context.Context, int64) (domain.LotteryRun, bool, error)
 	SaveRun(context.Context, repository.SaveLotteryRunParams) (int64, error)
 }
 
@@ -27,6 +28,18 @@ type LotteryService struct {
 	newSeed   func() int64
 }
 
+type LotteryRunOptions struct {
+	ForceRerun bool
+}
+
+type LotteryRerunRequiredError struct {
+	ExistingRun domain.LotteryRun
+}
+
+func (e *LotteryRerunRequiredError) Error() string {
+	return "이미 추첨 이력이 있습니다. 재추첨하려면 확인 후 다시 실행하세요."
+}
+
 func NewLotteryService(lotteries LotteryRepository, courses LotteryCourseLookup) *LotteryService {
 	return &LotteryService{
 		lotteries: lotteries,
@@ -35,14 +48,25 @@ func NewLotteryService(lotteries LotteryRepository, courses LotteryCourseLookup)
 	}
 }
 
-func (s *LotteryService) RunOfferingLottery(ctx context.Context, offeringID int64) (domain.LotteryRunSummary, error) {
+func (s *LotteryService) RunOfferingLottery(ctx context.Context, offeringID int64, options ...LotteryRunOptions) (domain.LotteryRunSummary, error) {
 	if offeringID <= 0 {
 		return domain.LotteryRunSummary{}, errors.New("course offering id is required")
+	}
+	option := LotteryRunOptions{}
+	if len(options) > 0 {
+		option = options[0]
 	}
 
 	offering, err := s.courses.GetOffering(ctx, offeringID)
 	if err != nil {
 		return domain.LotteryRunSummary{}, err
+	}
+	existingRun, exists, err := s.lotteries.LatestRunByOffering(ctx, offeringID)
+	if err != nil {
+		return domain.LotteryRunSummary{}, err
+	}
+	if exists && !option.ForceRerun {
+		return domain.LotteryRunSummary{}, &LotteryRerunRequiredError{ExistingRun: existingRun}
 	}
 	candidates, err := s.lotteries.ListCandidatesByOffering(ctx, offeringID)
 	if err != nil {
@@ -60,7 +84,12 @@ func (s *LotteryService) RunOfferingLottery(ctx context.Context, offeringID int6
 		return domain.LotteryRunSummary{}, err
 	}
 
-	return summarizeLotteryRun(runID, offering, seed, assignments), nil
+	summary := summarizeLotteryRun(runID, offering, seed, assignments)
+	if exists {
+		summary.Rerun = true
+		summary.PreviousRunID = existingRun.ID
+	}
+	return summary, nil
 }
 
 func (s *LotteryService) ListRuns(ctx context.Context, limit int) ([]domain.LotteryRun, error) {

@@ -65,9 +65,57 @@ func TestLotteryServiceWaitlistsOverCapacity(t *testing.T) {
 	}
 }
 
+func TestLotteryServiceRequiresForceForRerun(t *testing.T) {
+	lotteries := &fakeLotteryRepository{
+		existingRun: domain.LotteryRun{ID: 3, OfferingID: 10, CourseTitle: "요가 기초"},
+	}
+	service := NewLotteryService(lotteries, fakeLotteryCourseLookup{offering: domain.CourseOffering{
+		ID:          10,
+		TermID:      3,
+		CourseTitle: "요가 기초",
+		Capacity:    1,
+	}})
+
+	_, err := service.RunOfferingLottery(context.Background(), 10)
+	if err == nil {
+		t.Fatal("RunOfferingLottery() error = nil, want rerun required error")
+	}
+	if _, ok := err.(*LotteryRerunRequiredError); !ok {
+		t.Fatalf("error = %T, want *LotteryRerunRequiredError", err)
+	}
+	if len(lotteries.saved.Assignments) != 0 {
+		t.Fatalf("saved assignments = %d, want none", len(lotteries.saved.Assignments))
+	}
+}
+
+func TestLotteryServiceAllowsForcedRerun(t *testing.T) {
+	lotteries := &fakeLotteryRepository{
+		candidates:  []domain.LotteryCandidate{{RegistrationID: 1}},
+		existingRun: domain.LotteryRun{ID: 3, OfferingID: 10, CourseTitle: "요가 기초"},
+		nextRunID:   8,
+	}
+	service := NewLotteryService(lotteries, fakeLotteryCourseLookup{offering: domain.CourseOffering{
+		ID:          10,
+		TermID:      3,
+		CourseTitle: "요가 기초",
+		Capacity:    1,
+	}})
+	service.newSeed = func() int64 { return 100 }
+
+	summary, err := service.RunOfferingLottery(context.Background(), 10, LotteryRunOptions{ForceRerun: true})
+	if err != nil {
+		t.Fatalf("RunOfferingLottery() error = %v", err)
+	}
+	if !summary.Rerun || summary.PreviousRunID != 3 || summary.RunID != 8 {
+		t.Fatalf("summary = %+v, want rerun with previous run id", summary)
+	}
+}
+
 type fakeLotteryRepository struct {
-	candidates []domain.LotteryCandidate
-	saved      repository.SaveLotteryRunParams
+	candidates  []domain.LotteryCandidate
+	existingRun domain.LotteryRun
+	nextRunID   int64
+	saved       repository.SaveLotteryRunParams
 }
 
 func (f *fakeLotteryRepository) ListCandidatesByOffering(context.Context, int64) ([]domain.LotteryCandidate, error) {
@@ -82,8 +130,18 @@ func (f *fakeLotteryRepository) ListResultsByRun(context.Context, int64) ([]doma
 	return []domain.LotteryResultRow{{RunID: 7}}, nil
 }
 
+func (f *fakeLotteryRepository) LatestRunByOffering(context.Context, int64) (domain.LotteryRun, bool, error) {
+	if f.existingRun.ID == 0 {
+		return domain.LotteryRun{}, false, nil
+	}
+	return f.existingRun, true, nil
+}
+
 func (f *fakeLotteryRepository) SaveRun(_ context.Context, params repository.SaveLotteryRunParams) (int64, error) {
 	f.saved = params
+	if f.nextRunID != 0 {
+		return f.nextRunID, nil
+	}
 	return 7, nil
 }
 
