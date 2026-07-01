@@ -159,6 +159,102 @@ func TestRouterCreatesCourseOffering(t *testing.T) {
 	}
 }
 
+func TestRouterServesReceptionWithSelectedMember(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		DisplayName: "배움마루",
+		Version:     "test",
+		Members: &fakeMemberService{
+			members: []domain.Member{{ID: 1, Name: "김배움"}},
+		},
+		Courses: &fakeCourseService{
+			offerings: []domain.CourseOffering{{ID: 2, CourseTitle: "요가 기초", TermName: "기본 회차", Weekday: 1, StartTime: "09:00", EndTime: "10:00", Capacity: 20}},
+		},
+		Registrations: &fakeRegistrationService{
+			byMember: []domain.Registration{{ID: 3, MemberID: 1, CourseTitle: "요가 기초", Status: "applied"}},
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/reception?member_id=1", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "요가 기초") {
+		t.Fatalf("body = %q, want course title", rec.Body.String())
+	}
+}
+
+func TestRouterCreatesRegistration(t *testing.T) {
+	registrations := &fakeRegistrationService{}
+	router := NewRouter(RouterOptions{
+		Members:       &fakeMemberService{},
+		Courses:       &fakeCourseService{},
+		Registrations: registrations,
+	})
+	form := url.Values{
+		"member_id":   {"1"},
+		"offering_id": {"2"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/reception", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if registrations.created.MemberID != 1 || registrations.created.OfferingID != 2 {
+		t.Fatalf("created = %+v, want member 1 offering 2", registrations.created)
+	}
+}
+
+func TestRouterCancelsRegistration(t *testing.T) {
+	registrations := &fakeRegistrationService{}
+	router := NewRouter(RouterOptions{
+		Registrations: registrations,
+	})
+	form := url.Values{
+		"registration_id": {"3"},
+		"member_id":       {"1"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/reception/cancel", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if registrations.cancelledID != 3 {
+		t.Fatalf("cancelledID = %d, want 3", registrations.cancelledID)
+	}
+}
+
+func TestRouterServesRegistrationManagement(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		DisplayName: "배움마루",
+		Version:     "test",
+		Registrations: &fakeRegistrationService{
+			recent: []domain.Registration{{ID: 1, MemberName: "김배움", CourseTitle: "요가 기초", Status: "applied"}},
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/registrations", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "김배움") {
+		t.Fatalf("body = %q, want member name", rec.Body.String())
+	}
+}
+
 type fakeMemberService struct {
 	created service.MemberInput
 	members []domain.Member
@@ -185,4 +281,29 @@ func (f *fakeCourseService) CreateOffering(_ context.Context, input service.Cour
 
 func (f *fakeCourseService) ListOfferings(_ context.Context, _ int) ([]domain.CourseOffering, error) {
 	return f.offerings, nil
+}
+
+type fakeRegistrationService struct {
+	created     service.RegistrationInput
+	cancelledID int64
+	byMember    []domain.Registration
+	recent      []domain.Registration
+}
+
+func (f *fakeRegistrationService) Create(_ context.Context, input service.RegistrationInput) (domain.Registration, error) {
+	f.created = input
+	return domain.Registration{ID: 1, MemberID: input.MemberID, OfferingID: input.OfferingID, Status: "applied"}, nil
+}
+
+func (f *fakeRegistrationService) Cancel(_ context.Context, id int64) (domain.Registration, error) {
+	f.cancelledID = id
+	return domain.Registration{ID: id, Status: "cancelled"}, nil
+}
+
+func (f *fakeRegistrationService) ListByMember(_ context.Context, _ int64) ([]domain.Registration, error) {
+	return f.byMember, nil
+}
+
+func (f *fakeRegistrationService) ListRecent(_ context.Context, _ int) ([]domain.Registration, error) {
+	return f.recent, nil
 }

@@ -13,11 +13,12 @@ import (
 )
 
 type RouterOptions struct {
-	DisplayName string
-	Version     string
-	Logger      *slog.Logger
-	Members     MemberService
-	Courses     CourseService
+	DisplayName   string
+	Version       string
+	Logger        *slog.Logger
+	Members       MemberService
+	Courses       CourseService
+	Registrations RegistrationService
 }
 
 type MemberService interface {
@@ -28,6 +29,13 @@ type MemberService interface {
 type CourseService interface {
 	CreateOffering(context.Context, service.CourseOfferingInput) (domain.CourseOffering, error)
 	ListOfferings(context.Context, int) ([]domain.CourseOffering, error)
+}
+
+type RegistrationService interface {
+	Create(context.Context, service.RegistrationInput) (domain.Registration, error)
+	Cancel(context.Context, int64) (domain.Registration, error)
+	ListByMember(context.Context, int64) ([]domain.Registration, error)
+	ListRecent(context.Context, int) ([]domain.Registration, error)
 }
 
 type pageData struct {
@@ -82,13 +90,11 @@ func NewRouter(opts RouterOptions) http.Handler {
 		Heading:     "관리 화면",
 		Description: "회원, 강좌, 신청 현황, 추첨, 출력을 관리하는 화면입니다.",
 	})))
-	mux.HandleFunc("/reception", exactPath("/reception", renderPage(opts, pageData{
-		Title:       "접수",
-		Heading:     "접수 화면",
-		Description: "회원 검색과 수강신청 입력을 진행하는 화면입니다.",
-	})))
+	mux.HandleFunc("/reception", receptionHandler(opts))
 	mux.HandleFunc("/admin/members", membersHandler(opts))
 	mux.HandleFunc("/admin/courses", coursesHandler(opts))
+	mux.HandleFunc("/admin/registrations", registrationsHandler(opts))
+	mux.HandleFunc("/reception/cancel", cancelRegistrationHandler(opts))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", http.MethodGet)

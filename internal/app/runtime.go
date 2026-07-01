@@ -14,11 +14,12 @@ import (
 )
 
 type Runtime struct {
-	Config  config.Config
-	Logger  *logging.Logger
-	DB      *sql.DB
-	Members *service.MemberService
-	Courses *service.CourseService
+	Config        config.Config
+	Logger        *logging.Logger
+	DB            *sql.DB
+	Members       *service.MemberService
+	Courses       *service.CourseService
+	Registrations *service.RegistrationService
 }
 
 func Bootstrap(configPath string) (*Runtime, error) {
@@ -52,13 +53,15 @@ func Bootstrap(configPath string) (*Runtime, error) {
 
 	memberRepository := repository.NewMemberRepository(db)
 	courseRepository := repository.NewCourseRepository(db)
+	registrationRepository := repository.NewRegistrationRepository(db)
 
 	return &Runtime{
-		Config:  cfg,
-		Logger:  logger,
-		DB:      db,
-		Members: service.NewMemberService(memberRepository),
-		Courses: service.NewCourseService(courseRepository),
+		Config:        cfg,
+		Logger:        logger,
+		DB:            db,
+		Members:       service.NewMemberService(memberRepository),
+		Courses:       service.NewCourseService(courseRepository),
+		Registrations: service.NewRegistrationService(registrationRepository, memberRepository, courseRepository),
 	}, nil
 }
 
