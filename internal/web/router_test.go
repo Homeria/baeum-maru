@@ -523,7 +523,8 @@ func TestRouterServesBackupsPage(t *testing.T) {
 		DisplayName: "배움마루",
 		Version:     "test",
 		Backups: &fakeBackupService{
-			files: []domain.BackupFile{{FileName: "backup.db", SizeBytes: 10, CreatedAt: "2026-07-01T10:00:00Z"}},
+			files:  []domain.BackupFile{{FileName: "backup.db", SizeBytes: 10, CreatedAt: "2026-07-01T10:00:00Z"}},
+			status: domain.BackupStatus{Latest: &domain.BackupFile{FileName: "backup.db", SizeBytes: 10, CreatedAt: "2026-07-01T10:00:00Z"}, TotalCount: 1, TotalBytes: 10, KeepDays: 30, RetentionOn: true},
 		},
 	})
 	req := httptest.NewRequest(http.MethodGet, "/admin/backups", nil)
@@ -536,6 +537,9 @@ func TestRouterServesBackupsPage(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "backup.db") {
 		t.Fatalf("body = %q, want backup file", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "보관 30일") {
+		t.Fatalf("body = %q, want retention status", rec.Body.String())
 	}
 }
 
@@ -556,6 +560,9 @@ func TestRouterCreatesBackup(t *testing.T) {
 	}
 	if !backups.createCalled {
 		t.Fatal("createCalled = false, want true")
+	}
+	if !backups.pruneCalled {
+		t.Fatal("pruneCalled = false, want true")
 	}
 }
 
@@ -914,8 +921,11 @@ func multipartBody(t *testing.T, fileName string, content []byte) (*bytes.Buffer
 
 type fakeBackupService struct {
 	files        []domain.BackupFile
+	status       domain.BackupStatus
+	cleanup      domain.BackupCleanup
 	created      domain.BackupFile
 	createCalled bool
+	pruneCalled  bool
 	resolvedPath string
 	restoreFile  string
 }
@@ -927,6 +937,15 @@ func (f *fakeBackupService) CreateBackup(context.Context) (domain.BackupFile, er
 
 func (f *fakeBackupService) ListBackups(context.Context) ([]domain.BackupFile, error) {
 	return f.files, nil
+}
+
+func (f *fakeBackupService) Status(context.Context) (domain.BackupStatus, error) {
+	return f.status, nil
+}
+
+func (f *fakeBackupService) PruneOldBackups(context.Context) (domain.BackupCleanup, error) {
+	f.pruneCalled = true
+	return f.cleanup, nil
 }
 
 func (f *fakeBackupService) ResolveBackupPath(string) (string, error) {

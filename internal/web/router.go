@@ -70,6 +70,8 @@ type LotteryService interface {
 type BackupService interface {
 	CreateBackup(context.Context) (domain.BackupFile, error)
 	ListBackups(context.Context) ([]domain.BackupFile, error)
+	Status(context.Context) (domain.BackupStatus, error)
+	PruneOldBackups(context.Context) (domain.BackupCleanup, error)
 	ResolveBackupPath(string) (string, error)
 	QueueRestore(context.Context, string) (domain.RestorePlan, error)
 }

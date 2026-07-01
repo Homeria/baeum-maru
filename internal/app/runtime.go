@@ -82,7 +82,7 @@ func Bootstrap(configPath string) (*Runtime, error) {
 		Lotteries:     lotteryService,
 		Exports:       service.NewExportService(memberService, courseService, registrationService, cfg.Export.Path, lotteryService, attendanceService),
 		Imports:       service.NewImportService(memberService, courseService),
-		Backups:       service.NewBackupService(db, cfg.Database.Path, cfg.Backup.Path),
+		Backups:       service.NewBackupService(db, cfg.Database.Path, cfg.Backup.Path, cfg.Backup.KeepDays),
 		Attendance:    attendanceService,
 	}, nil
 }
