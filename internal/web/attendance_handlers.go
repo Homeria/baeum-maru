@@ -23,23 +23,40 @@ type attendancePageData struct {
 	Records     []domain.AttendanceRecord
 }
 
-var attendanceTemplate = template.Must(template.New("attendance").Funcs(template.FuncMap{
+var attendanceTemplate = template.Must(template.New("attendance").Funcs(uiTemplateFuncs(template.FuncMap{
 	"weekdayLabel": weekdayLabel,
-}).Parse(`<!doctype html>
+})).Parse(`<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>출석 - {{.DisplayName}}</title>
+  <style>{{appStyles}}</style>
 </head>
 <body>
-  <main>
-    <nav><a href="/admin">관리</a> <a href="/admin/courses">강좌 관리</a> <a href="/admin/registrations">신청 현황</a></nav>
-    <h1>출석</h1>
-    {{if .Message}}<p role="status">{{.Message}}</p>{{end}}
-    {{if .Error}}<p role="alert">{{.Error}}</p>{{end}}
+  <header class="topbar">
+    <a class="brand" href="/admin">{{.DisplayName}}</a>
+    <nav class="topnav">
+      <a href="/admin/members">회원 관리</a>
+      <a href="/admin/courses">강좌 관리</a>
+      <a href="/admin/registrations">신청 현황</a>
+      <a href="/admin/lottery">추첨</a>
+      <a href="/admin/exports">엑셀 내보내기</a>
+      <a href="/admin/backups">백업</a>
+      <a href="/admin/attendance">출석</a>
+      <a href="/reception">접수 화면</a>
+    </nav>
+  </header>
+  <main class="page">
+    <section class="page-header">
+      <div>
+        <h1>출석</h1>
+      </div>
+    </section>
+    {{if .Message}}<p class="alert success" role="status">{{.Message}}</p>{{end}}
+    {{if .Error}}<p class="alert error" role="alert">{{.Error}}</p>{{end}}
 
-    <form method="get" action="/admin/attendance">
+    <form class="panel form-grid" method="get" action="/admin/attendance">
       <label>강좌
         <select name="offering_id">
           <option value="">선택</option>
@@ -52,79 +69,103 @@ var attendanceTemplate = template.Must(template.New("attendance").Funcs(template
     </form>
 
     {{if .OfferingID}}
-      <p><a href="/admin/exports/attendance-offering?offering_id={{.OfferingID}}">강좌 전체 출석 다운로드</a></p>
+      <section class="panel">
+        <div class="page-header">
+          <div>
+            <h2>출석 회차</h2>
+          </div>
+          <a class="button secondary" href="/admin/exports/attendance-offering?offering_id={{.OfferingID}}">강좌 전체 출석 다운로드</a>
+        </div>
+        <form class="form-grid" method="post" action="/admin/attendance/session">
+          <input type="hidden" name="offering_id" value="{{.OfferingID}}">
+          <label>수업일 <input name="session_date" placeholder="YYYY-MM-DD" required></label>
+          <label>비고 <input name="note"></label>
+          <button type="submit">회차 생성</button>
+        </form>
 
-      <form method="post" action="/admin/attendance/session">
-        <input type="hidden" name="offering_id" value="{{.OfferingID}}">
-        <label>수업일 <input name="session_date" placeholder="YYYY-MM-DD" required></label>
-        <label>비고 <input name="note"></label>
-        <button type="submit">회차 생성</button>
-      </form>
+        <div class="table-wrap" style="margin-top: 14px;">
+          <table>
+            <thead><tr><th>ID</th><th>수업일</th><th>강좌</th><th>비고</th><th>작업</th></tr></thead>
+            <tbody>
+              {{range .Sessions}}
+                <tr>
+                  <td>{{.ID}}</td>
+                  <td>{{.SessionDate}}</td>
+                  <td>{{.CourseTitle}}</td>
+                  <td>{{.Note}}</td>
+                  <td>
+                    <div class="actions">
+                      <a class="button secondary" href="/admin/attendance?offering_id={{.OfferingID}}&session_id={{.ID}}">출석 입력</a>
+                      <a class="button secondary" href="/admin/exports/attendance-session?session_id={{.ID}}">엑셀 다운로드</a>
+                    </div>
+                  </td>
+                </tr>
+              {{else}}
+                <tr><td class="empty" colspan="5">출석 회차가 없습니다.</td></tr>
+              {{end}}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-      <h2>출석 회차</h2>
-      <table>
-        <thead><tr><th>ID</th><th>수업일</th><th>강좌</th><th>비고</th><th>작업</th></tr></thead>
-        <tbody>
-          {{range .Sessions}}
-            <tr>
-              <td>{{.ID}}</td>
-              <td>{{.SessionDate}}</td>
-              <td>{{.CourseTitle}}</td>
-              <td>{{.Note}}</td>
-              <td><a href="/admin/attendance?offering_id={{.OfferingID}}&session_id={{.ID}}">출석 입력</a> <a href="/admin/exports/attendance-session?session_id={{.ID}}">엑셀 다운로드</a></td>
-            </tr>
-          {{else}}
-            <tr><td colspan="5">출석 회차가 없습니다.</td></tr>
-          {{end}}
-        </tbody>
-      </table>
-
-      <h2>확정자</h2>
-      <table>
-        <thead><tr><th>신청 ID</th><th>회원번호</th><th>회원명</th><th>상태</th></tr></thead>
-        <tbody>
-          {{range .Confirmed}}
-            <tr><td>{{.ID}}</td><td>{{.MemberNo}}</td><td>{{.MemberName}}</td><td>{{.Status}}</td></tr>
-          {{else}}
-            <tr><td colspan="4">확정자가 없습니다.</td></tr>
-          {{end}}
-        </tbody>
-      </table>
+      <section class="panel">
+        <h2>확정자</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>신청 ID</th><th>회원번호</th><th>회원명</th><th>상태</th></tr></thead>
+            <tbody>
+              {{range .Confirmed}}
+                <tr><td>{{.ID}}</td><td>{{.MemberNo}}</td><td>{{.MemberName}}</td><td><span class="badge {{statusClass .Status}}">{{statusLabel .Status}}</span></td></tr>
+              {{else}}
+                <tr><td class="empty" colspan="4">확정자가 없습니다.</td></tr>
+              {{end}}
+            </tbody>
+          </table>
+        </div>
+      </section>
     {{end}}
 
     {{if .SessionID}}
-      <h2>출석 입력</h2>
-      <p><a href="/admin/exports/attendance-session?session_id={{.SessionID}}">현재 회차 출석 다운로드</a></p>
-      <table>
-        <thead><tr><th>회원번호</th><th>회원명</th><th>상태</th><th>비고</th><th>저장</th></tr></thead>
-        <tbody>
-          {{range .Records}}
-            <tr>
-              <td>{{.MemberNo}}</td>
-              <td>{{.MemberName}}</td>
-              <td>
-                <form method="post" action="/admin/attendance/record">
-                  <input type="hidden" name="offering_id" value="{{$.OfferingID}}">
-                  <input type="hidden" name="session_id" value="{{$.SessionID}}">
-                  <input type="hidden" name="registration_id" value="{{.RegistrationID}}">
-                  <select name="status" required>
-                    <option value="">선택</option>
-                    <option value="present" {{if eq .Status "present"}}selected{{end}}>출석</option>
-                    <option value="absent" {{if eq .Status "absent"}}selected{{end}}>결석</option>
-                    <option value="late" {{if eq .Status "late"}}selected{{end}}>지각</option>
-                    <option value="excused" {{if eq .Status "excused"}}selected{{end}}>공결</option>
-                  </select>
-              </td>
-              <td><input name="note" value="{{.Note}}"></td>
-              <td><button type="submit">저장</button></form></td>
-            </tr>
-          {{else}}
-            <tr><td colspan="5">출석 대상자가 없습니다.</td></tr>
-          {{end}}
-        </tbody>
-      </table>
+      <section class="panel">
+        <div class="page-header">
+          <div>
+            <h2>출석 입력</h2>
+          </div>
+          <a class="button secondary" href="/admin/exports/attendance-session?session_id={{.SessionID}}">현재 회차 출석 다운로드</a>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>회원번호</th><th>회원명</th><th>상태</th><th>비고</th><th>저장</th></tr></thead>
+            <tbody>
+              {{range .Records}}
+                <tr>
+                  <td>{{.MemberNo}}</td>
+                  <td>{{.MemberName}}</td>
+                  <td>
+                    <form class="inline-form" method="post" action="/admin/attendance/record">
+                      <input type="hidden" name="offering_id" value="{{$.OfferingID}}">
+                      <input type="hidden" name="session_id" value="{{$.SessionID}}">
+                      <input type="hidden" name="registration_id" value="{{.RegistrationID}}">
+                      <select name="status" required>
+                        <option value="">선택</option>
+                        <option value="present" {{if eq .Status "present"}}selected{{end}}>출석</option>
+                        <option value="absent" {{if eq .Status "absent"}}selected{{end}}>결석</option>
+                        <option value="late" {{if eq .Status "late"}}selected{{end}}>지각</option>
+                        <option value="excused" {{if eq .Status "excused"}}selected{{end}}>공결</option>
+                      </select>
+                  </td>
+                  <td><input name="note" value="{{.Note}}"></td>
+                  <td><button type="submit">저장</button></form></td>
+                </tr>
+              {{else}}
+                <tr><td class="empty" colspan="5">출석 대상자가 없습니다.</td></tr>
+              {{end}}
+            </tbody>
+          </table>
+        </div>
+      </section>
     {{end}}
-    <small>{{.DisplayName}} {{.Version}}</small>
+    <footer class="footer">{{.DisplayName}} {{.Version}}</footer>
   </main>
 </body>
 </html>

@@ -18,46 +18,69 @@ type backupsPageData struct {
 	Backups     []domain.BackupFile
 }
 
-var backupsTemplate = template.Must(template.New("backups").Parse(`<!doctype html>
+var backupsTemplate = template.Must(template.New("backups").Funcs(uiTemplateFuncs(nil)).Parse(`<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>백업 - {{.DisplayName}}</title>
+  <style>{{appStyles}}</style>
 </head>
 <body>
-  <main>
-    <nav><a href="/admin">관리</a> <a href="/admin/registrations">신청 현황</a> <a href="/admin/exports">엑셀 내보내기</a></nav>
-    <h1>백업</h1>
-    {{if .Message}}<p role="status">{{.Message}}</p>{{end}}
-    {{if .Error}}<p role="alert">{{.Error}}</p>{{end}}
-    <form method="post" action="/admin/backups/create">
-      <button type="submit">백업 생성</button>
-    </form>
-    <table>
-      <thead>
-        <tr><th>파일명</th><th>크기</th><th>생성일</th><th>작업</th></tr>
-      </thead>
-      <tbody>
-        {{range .Backups}}
-          <tr>
-            <td>{{.FileName}}</td>
-            <td>{{.SizeBytes}}</td>
-            <td>{{.CreatedAt}}</td>
-            <td>
-              <a href="/admin/backups/download?file={{urlquery .FileName}}">다운로드</a>
-              <form method="post" action="/admin/backups/restore">
-                <input type="hidden" name="file" value="{{.FileName}}">
-                <button type="submit">복원 예약</button>
-              </form>
-            </td>
-          </tr>
-        {{else}}
-          <tr><td colspan="4">백업 파일이 없습니다.</td></tr>
-        {{end}}
-      </tbody>
-    </table>
-    <small>{{.DisplayName}} {{.Version}}</small>
+  <header class="topbar">
+    <a class="brand" href="/admin">{{.DisplayName}}</a>
+    <nav class="topnav">
+      <a href="/admin/members">회원 관리</a>
+      <a href="/admin/courses">강좌 관리</a>
+      <a href="/admin/registrations">신청 현황</a>
+      <a href="/admin/lottery">추첨</a>
+      <a href="/admin/exports">엑셀 내보내기</a>
+      <a href="/admin/backups">백업</a>
+      <a href="/admin/attendance">출석</a>
+      <a href="/reception">접수 화면</a>
+    </nav>
+  </header>
+  <main class="page">
+    <section class="page-header">
+      <div>
+        <h1>백업</h1>
+      </div>
+      <form class="inline-form" method="post" action="/admin/backups/create">
+        <button type="submit">백업 생성</button>
+      </form>
+    </section>
+    {{if .Message}}<p class="alert success" role="status">{{.Message}}</p>{{end}}
+    {{if .Error}}<p class="alert error" role="alert">{{.Error}}</p>{{end}}
+    <section class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>파일명</th><th>크기</th><th>생성일</th><th>작업</th></tr>
+          </thead>
+          <tbody>
+            {{range .Backups}}
+              <tr>
+                <td>{{.FileName}}</td>
+                <td>{{.SizeBytes}}</td>
+                <td>{{.CreatedAt}}</td>
+                <td>
+                  <div class="actions">
+                    <a class="button secondary" href="/admin/backups/download?file={{urlquery .FileName}}">다운로드</a>
+                    <form class="inline-form" method="post" action="/admin/backups/restore">
+                      <input type="hidden" name="file" value="{{.FileName}}">
+                      <button class="danger" type="submit">복원 예약</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {{else}}
+              <tr><td class="empty" colspan="4">백업 파일이 없습니다.</td></tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <footer class="footer">{{.DisplayName}} {{.Version}}</footer>
   </main>
 </body>
 </html>

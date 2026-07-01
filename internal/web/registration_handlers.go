@@ -21,49 +21,69 @@ type receptionPageData struct {
 	Registrations []domain.Registration
 }
 
-var receptionTemplate = template.Must(template.New("reception").Funcs(template.FuncMap{
+var receptionTemplate = template.Must(template.New("reception").Funcs(uiTemplateFuncs(template.FuncMap{
 	"weekdayLabel": weekdayLabel,
-}).Parse(`<!doctype html>
+})).Parse(`<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>접수 - {{.DisplayName}}</title>
+  <style>{{appStyles}}</style>
 </head>
 <body>
-  <main>
-    <nav><a href="/admin">관리</a> <a href="/admin/members">회원 관리</a> <a href="/admin/courses">강좌 관리</a></nav>
-    <h1>접수 화면</h1>
-    {{if .Error}}<p role="alert">{{.Error}}</p>{{end}}
+  <header class="topbar">
+    <a class="brand" href="/admin">{{.DisplayName}}</a>
+    <nav class="topnav">
+      <a href="/admin/members">회원 관리</a>
+      <a href="/admin/courses">강좌 관리</a>
+      <a href="/admin/registrations">신청 현황</a>
+      <a href="/admin/lottery">추첨</a>
+      <a href="/admin/exports">엑셀 내보내기</a>
+      <a href="/admin/backups">백업</a>
+      <a href="/admin/attendance">출석</a>
+      <a href="/reception">접수 화면</a>
+    </nav>
+  </header>
+  <main class="page">
+    <section class="page-header">
+      <div>
+        <h1>접수 화면</h1>
+      </div>
+      <a class="button secondary" href="/admin/registrations">신청 현황</a>
+    </section>
+    {{if .Error}}<p class="alert error" role="alert">{{.Error}}</p>{{end}}
 
-    <section>
+    <section class="panel">
       <h2>회원 검색</h2>
-      <form method="get" action="/reception">
+      <form class="form-grid" method="get" action="/reception">
         <label>검색 <input name="q" value="{{.Query}}" placeholder="이름, 회원번호, 연락처"></label>
         <button type="submit">검색</button>
       </form>
-      <table>
-        <thead><tr><th>ID</th><th>회원번호</th><th>이름</th><th>연락처</th><th>선택</th></tr></thead>
-        <tbody>
-          {{range .Members}}
-            <tr>
-              <td>{{.ID}}</td>
-              <td>{{.MemberNo}}</td>
-              <td>{{.Name}}</td>
-              <td>{{.Phone}}</td>
-              <td><a href="/reception?q={{$.Query}}&member_id={{.ID}}">선택</a></td>
-            </tr>
-          {{else}}
-            <tr><td colspan="5">검색 결과가 없습니다.</td></tr>
-          {{end}}
-        </tbody>
-      </table>
+      <div class="table-wrap" style="margin-top: 14px;">
+        <table>
+          <thead><tr><th>ID</th><th>회원번호</th><th>이름</th><th>연락처</th><th>선택</th></tr></thead>
+          <tbody>
+            {{range .Members}}
+              <tr>
+                <td>{{.ID}}</td>
+                <td>{{.MemberNo}}</td>
+                <td>{{.Name}}</td>
+                <td>{{.Phone}}</td>
+                <td><a class="button secondary" href="/reception?q={{$.Query}}&member_id={{.ID}}">선택</a></td>
+              </tr>
+            {{else}}
+              <tr><td class="empty" colspan="5">검색 결과가 없습니다.</td></tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
     </section>
 
-    <section>
+    <section class="panel">
       <h2>신청 입력</h2>
       {{if .SelectedID}}
-        <form method="post" action="/reception">
+        <form class="form-grid" method="post" action="/reception">
           <input type="hidden" name="member_id" value="{{.SelectedID}}">
           <label>강좌
             <select name="offering_id" required>
@@ -75,40 +95,42 @@ var receptionTemplate = template.Must(template.New("reception").Funcs(template.F
           <button type="submit">신청 저장</button>
         </form>
       {{else}}
-        <p>회원을 먼저 선택하세요.</p>
+        <p class="subtle">회원을 먼저 선택하세요.</p>
       {{end}}
     </section>
 
-    <section>
+    <section class="panel">
       <h2>선택 회원 신청 목록</h2>
-      <table>
-        <thead><tr><th>ID</th><th>회차</th><th>강좌</th><th>상태</th><th>신청일</th><th>작업</th></tr></thead>
-        <tbody>
-          {{range .Registrations}}
-            <tr>
-              <td>{{.ID}}</td>
-              <td>{{.TermName}}</td>
-              <td>{{.CourseTitle}}</td>
-              <td>{{.Status}}</td>
-              <td>{{.CreatedAt}}</td>
-              <td>
-                {{if ne .Status "cancelled"}}
-                  <form method="post" action="/reception/cancel">
-                    <input type="hidden" name="registration_id" value="{{.ID}}">
-                    <input type="hidden" name="member_id" value="{{$.SelectedID}}">
-                    <input type="hidden" name="q" value="{{$.Query}}">
-                    <button type="submit">취소</button>
-                  </form>
-                {{end}}
-              </td>
-            </tr>
-          {{else}}
-            <tr><td colspan="6">신청 내역이 없습니다.</td></tr>
-          {{end}}
-        </tbody>
-      </table>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>회차</th><th>강좌</th><th>상태</th><th>신청일</th><th>작업</th></tr></thead>
+          <tbody>
+            {{range .Registrations}}
+              <tr>
+                <td>{{.ID}}</td>
+                <td>{{.TermName}}</td>
+                <td>{{.CourseTitle}}</td>
+                <td><span class="badge {{statusClass .Status}}">{{statusLabel .Status}}</span></td>
+                <td>{{.CreatedAt}}</td>
+                <td>
+                  {{if ne .Status "cancelled"}}
+                    <form class="inline-form" method="post" action="/reception/cancel">
+                      <input type="hidden" name="registration_id" value="{{.ID}}">
+                      <input type="hidden" name="member_id" value="{{$.SelectedID}}">
+                      <input type="hidden" name="q" value="{{$.Query}}">
+                      <button class="danger" type="submit">취소</button>
+                    </form>
+                  {{end}}
+                </td>
+              </tr>
+            {{else}}
+              <tr><td class="empty" colspan="6">신청 내역이 없습니다.</td></tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
     </section>
-    <small>{{.DisplayName}} {{.Version}}</small>
+    <footer class="footer">{{.DisplayName}} {{.Version}}</footer>
   </main>
 </body>
 </html>
@@ -237,54 +259,76 @@ type registrationsPageData struct {
 	Registrations []domain.Registration
 }
 
-var registrationsTemplate = template.Must(template.New("registrations").Parse(`<!doctype html>
+var registrationsTemplate = template.Must(template.New("registrations").Funcs(uiTemplateFuncs(nil)).Parse(`<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>신청 현황 - {{.DisplayName}}</title>
+  <style>{{appStyles}}</style>
 </head>
 <body>
-  <main>
-    <nav><a href="/admin">관리</a> <a href="/reception">접수 화면</a></nav>
-    <h1>신청 현황</h1>
-    {{if .Message}}<p role="status">{{.Message}}</p>{{end}}
-    {{if .Error}}<p role="alert">{{.Error}}</p>{{end}}
-    <table>
-      <thead><tr><th>ID</th><th>회원</th><th>회원번호</th><th>회차</th><th>강좌</th><th>상태</th><th>신청일</th><th>작업</th></tr></thead>
-      <tbody>
-        {{range .Registrations}}
-          <tr>
-            <td>{{.ID}}</td>
-            <td>{{.MemberName}}</td>
-            <td>{{.MemberNo}}</td>
-            <td>{{.TermName}}</td>
-            <td>{{.CourseTitle}}</td>
-            <td>{{.Status}}</td>
-            <td>{{.CreatedAt}}</td>
-            <td>
-              {{if eq .Status "selected"}}
-                <form method="post" action="/admin/registrations/status">
-                  <input type="hidden" name="registration_id" value="{{.ID}}">
-                  <input type="hidden" name="action" value="confirm">
-                  <button type="submit">확정</button>
-                </form>
-              {{end}}
-              {{if ne .Status "cancelled"}}
-                <form method="post" action="/admin/registrations/status">
-                  <input type="hidden" name="registration_id" value="{{.ID}}">
-                  <input type="hidden" name="action" value="cancel">
-                  <button type="submit">취소</button>
-                </form>
-              {{end}}
-            </td>
-          </tr>
-        {{else}}
-          <tr><td colspan="8">신청 내역이 없습니다.</td></tr>
-        {{end}}
-      </tbody>
-    </table>
-    <small>{{.DisplayName}} {{.Version}}</small>
+  <header class="topbar">
+    <a class="brand" href="/admin">{{.DisplayName}}</a>
+    <nav class="topnav">
+      <a href="/admin/members">회원 관리</a>
+      <a href="/admin/courses">강좌 관리</a>
+      <a href="/admin/registrations">신청 현황</a>
+      <a href="/admin/lottery">추첨</a>
+      <a href="/admin/exports">엑셀 내보내기</a>
+      <a href="/admin/backups">백업</a>
+      <a href="/admin/attendance">출석</a>
+      <a href="/reception">접수 화면</a>
+    </nav>
+  </header>
+  <main class="page">
+    <section class="page-header">
+      <div>
+        <h1>신청 현황</h1>
+      </div>
+      <a class="button secondary" href="/admin/exports/registrations">엑셀 다운로드</a>
+    </section>
+    {{if .Message}}<p class="alert success" role="status">{{.Message}}</p>{{end}}
+    {{if .Error}}<p class="alert error" role="alert">{{.Error}}</p>{{end}}
+    <section class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>회원</th><th>회원번호</th><th>회차</th><th>강좌</th><th>상태</th><th>신청일</th><th>작업</th></tr></thead>
+          <tbody>
+            {{range .Registrations}}
+              <tr>
+                <td>{{.ID}}</td>
+                <td>{{.MemberName}}</td>
+                <td>{{.MemberNo}}</td>
+                <td>{{.TermName}}</td>
+                <td>{{.CourseTitle}}</td>
+                <td><span class="badge {{statusClass .Status}}">{{statusLabel .Status}}</span></td>
+                <td>{{.CreatedAt}}</td>
+                <td>
+                  {{if eq .Status "selected"}}
+                    <form class="inline-form" method="post" action="/admin/registrations/status">
+                      <input type="hidden" name="registration_id" value="{{.ID}}">
+                      <input type="hidden" name="action" value="confirm">
+                      <button type="submit">확정</button>
+                    </form>
+                  {{end}}
+                  {{if ne .Status "cancelled"}}
+                    <form class="inline-form" method="post" action="/admin/registrations/status">
+                      <input type="hidden" name="registration_id" value="{{.ID}}">
+                      <input type="hidden" name="action" value="cancel">
+                      <button class="danger" type="submit">취소</button>
+                    </form>
+                  {{end}}
+                </td>
+              </tr>
+            {{else}}
+              <tr><td class="empty" colspan="8">신청 내역이 없습니다.</td></tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <footer class="footer">{{.DisplayName}} {{.Version}}</footer>
   </main>
 </body>
 </html>
