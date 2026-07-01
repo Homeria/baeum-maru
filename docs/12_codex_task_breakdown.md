@@ -317,15 +317,28 @@ test: 신청 제한 규칙 테스트 추가
 
 ## 9. 현재 이후 권장 작업
 
-현재 구현 상태 기준 다음 브랜치 순서를 권장한다.
+현재 구현 상태 기준 다음 후보 작업을 권장한다.
 
-1. `chore/docs-sync-current-state`
-2. `feat/admin-ui-polish`
-3. `feat/excel-import-basic`
-4. `feat/lottery-rerun-policy`
-5. `feat/backup-retention-status`
-6. `feat/settings-management`
-7. `feat/audit-log-basic`
-8. `test/mvp-workflow-simulation`
-9. `ci/release-package-windows`
-10. `chore/open-source-readiness`
+1. `test/windows-portable-smoke`
+2. `docs/mvp-user-guide`
+3. `feat/member-course-edit`
+4. `feat/search-filter-sort`
+5. `feat/auth-basic`
+
+## 10. 공개 저장소 정리 작업
+
+### Task 20 오픈소스 공개 준비
+
+목표:
+
+- README 실행/패키징 안내 정리
+- LICENSE 추가
+- `.gitignore` 산출물 제외 규칙 점검
+- PR/Issue 템플릿 추가
+- 릴리즈 전 체크리스트 추가
+
+완료 기준:
+
+- 공개 저장소에 실데이터가 포함되지 않는다.
+- 새 기여자가 실행과 검증 방법을 README에서 찾을 수 있다.
+- 릴리즈 전 확인할 항목이 문서화되어 있다.

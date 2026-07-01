@@ -16,6 +16,8 @@
 - SQLite 연결, WAL, foreign key, busy timeout
 - SQL 마이그레이션 실행
 - GitHub Actions 기반 Go 빌드/테스트 CI
+- GitHub Actions 기반 Windows 포터블 패키징 workflow
+- 공개 저장소용 README, LICENSE, 기여/보안 안내, PR/Issue 템플릿
 
 ### 업무 기능
 
@@ -28,6 +30,9 @@
 - 1인 최대 신청 수 제한
 - 접수 마감 후 변경 차단
 - 신청 상태 이력 기록
+- 엑셀 표준 양식 기반 회원/강좌 가져오기
+- 운영 설정 화면
+- 감사 로그 기록과 조회
 
 ### 추첨과 상태 관리
 
@@ -71,18 +76,21 @@
 - `config.json`, 런타임 폴더, 처음 사용 안내 포함
 - portable ZIP 생성
 - 실행 시 서버 시작과 브라우저 열기
+- GitHub Actions artifact 기반 portable ZIP 생성
+
+### 검증
+
+- 실제 SQLite 기반 MVP 업무 흐름 시뮬레이션 테스트
+- 회원, 강좌, 신청, 추첨, 출석, 엑셀 출력, 백업, 감사 로그 통합 검증
 
 ## 3. 의도적으로 남겨둔 공백
 
 ### MVP 마감 전 우선 공백
 
-- 관리자 웹 UI 정리
-- 엑셀 가져오기
-- 중복 추첨 경고와 재추첨 정책
-- 백업 보관 기간과 최근 백업 상태 표시
-- 웹 설정 화면
-- 감사 로그 기록
-- 실제 업무량 더미 데이터 시뮬레이션
+- 실사용자 피드백 기반 화면 문구와 표 레이아웃 세부 조정
+- 더 큰 더미 데이터 기준 성능과 사용성 점검
+- Windows 실기기에서 portable ZIP 실행 확인
+- 릴리즈 태그 기반 Actions artifact 확인
 
 ### MVP 이후 후보
 
@@ -95,27 +103,21 @@
 - Docker 배포
 - PostgreSQL 전환
 
-## 4. 다음 브랜치 계획
+## 4. 다음 브랜치 후보
 
-권장 순서는 다음과 같다.
+권장 후보는 다음과 같다.
 
-1. `chore/docs-sync-current-state`
-2. `feat/admin-ui-polish`
-3. `feat/excel-import-basic`
-4. `feat/lottery-rerun-policy`
-5. `feat/backup-retention-status`
-6. `feat/settings-management`
-7. `feat/audit-log-basic`
-8. `test/mvp-workflow-simulation`
-9. `ci/release-package-windows`
-10. `chore/open-source-readiness`
+1. `test/windows-portable-smoke`
+2. `docs/mvp-user-guide`
+3. `feat/member-course-edit`
+4. `feat/search-filter-sort`
+5. `feat/auth-basic`
 
 ## 5. MVP 완료 판단
 
-현재 구현은 업무 흐름만 보면 MVP-3에 가깝다. 다만 실사용 관점에서는 다음을 더 보강한 뒤 MVP 완료로 본다.
+현재 구현은 업무 흐름 기준 MVP-3 핵심 범위를 충족한다. 다만 실사용 관점에서는 다음을 더 보강한 뒤 첫 공개 릴리즈로 본다.
 
-- 담당자가 길게 설명을 듣지 않아도 화면을 사용할 수 있다.
-- 표준 엑셀 양식으로 회원과 강좌를 가져올 수 있다.
-- 추첨 재실행 시 기존 결과 처리 정책이 명확하다.
-- 백업 상태와 복구 절차가 화면에서 충분히 이해된다.
-- 더미 데이터 기준 전체 업무 시뮬레이션이 통과한다.
+- Windows 실기기에서 포터블 ZIP 실행이 확인된다.
+- 담당자가 짧은 사용자 가이드만 보고 핵심 업무를 수행할 수 있다.
+- 실사용 규모에 가까운 더미 데이터로 주요 화면과 엑셀 출력이 확인된다.
+- 공개 저장소에 실데이터와 개인정보가 포함되지 않는다.
