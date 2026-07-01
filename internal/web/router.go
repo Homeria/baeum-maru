@@ -21,6 +21,7 @@ type RouterOptions struct {
 	Registrations RegistrationService
 	Lotteries     LotteryService
 	Exports       ExportService
+	Backups       BackupService
 }
 
 type MemberService interface {
@@ -54,6 +55,13 @@ type LotteryService interface {
 	ListRuns(context.Context, int) ([]domain.LotteryRun, error)
 }
 
+type BackupService interface {
+	CreateBackup(context.Context) (domain.BackupFile, error)
+	ListBackups(context.Context) ([]domain.BackupFile, error)
+	ResolveBackupPath(string) (string, error)
+	QueueRestore(context.Context, string) (domain.RestorePlan, error)
+}
+
 type pageData struct {
 	Title       string
 	DisplayName string
@@ -78,6 +86,7 @@ var pageTemplate = template.Must(template.New("page").Parse(`<!doctype html>
       <a href="/admin/courses">강좌 관리</a>
       <a href="/admin/lottery">추첨</a>
       <a href="/admin/exports">엑셀 내보내기</a>
+      <a href="/admin/backups">백업</a>
       <a href="/reception">접수 화면</a>
     </nav>
     <small>{{.DisplayName}} {{.Version}}</small>
@@ -120,6 +129,10 @@ func NewRouter(opts RouterOptions) http.Handler {
 	mux.HandleFunc("/admin/exports/courses", exportCoursesHandler(opts))
 	mux.HandleFunc("/admin/exports/registrations", exportRegistrationsHandler(opts))
 	mux.HandleFunc("/admin/exports/lottery-results", exportLotteryResultsHandler(opts))
+	mux.HandleFunc("/admin/backups", backupsHandler(opts))
+	mux.HandleFunc("/admin/backups/create", createBackupHandler(opts))
+	mux.HandleFunc("/admin/backups/download", downloadBackupHandler(opts))
+	mux.HandleFunc("/admin/backups/restore", restoreBackupHandler(opts))
 	mux.HandleFunc("/reception/cancel", cancelRegistrationHandler(opts))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

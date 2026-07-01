@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/Homeria/baeum-maru/internal/backup"
 	"github.com/Homeria/baeum-maru/internal/config"
 	"github.com/Homeria/baeum-maru/internal/database"
 	"github.com/Homeria/baeum-maru/internal/logging"
@@ -22,6 +23,7 @@ type Runtime struct {
 	Registrations *service.RegistrationService
 	Lotteries     *service.LotteryService
 	Exports       *service.ExportService
+	Backups       *service.BackupService
 }
 
 func Bootstrap(configPath string) (*Runtime, error) {
@@ -33,6 +35,9 @@ func Bootstrap(configPath string) (*Runtime, error) {
 	}
 	if err := config.EnsureRuntimeDirs(cfg); err != nil {
 		return nil, fmt.Errorf("ensure runtime directories: %w", err)
+	}
+	if err := backup.ApplyPendingRestore(cfg.Database.Path, cfg.Backup.Path); err != nil {
+		return nil, fmt.Errorf("apply pending restore: %w", err)
 	}
 
 	logger, err := logging.NewFileLogger(cfg.Logging.Path, cfg.Logging.Level)
@@ -72,6 +77,7 @@ func Bootstrap(configPath string) (*Runtime, error) {
 		Registrations: registrationService,
 		Lotteries:     lotteryService,
 		Exports:       service.NewExportService(memberService, courseService, registrationService, cfg.Export.Path, lotteryService),
+		Backups:       service.NewBackupService(db, cfg.Database.Path, cfg.Backup.Path),
 	}, nil
 }
 
