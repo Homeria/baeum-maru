@@ -23,3 +23,9 @@ dist/
 
 The script also creates `BaeumMaru_Portable_<version>.zip` unless `-SkipArchive` is passed.
 
+## GitHub Actions package
+
+`.github/workflows/release-package-windows.yml` creates the same portable ZIP on `windows-latest`.
+
+Run it manually from GitHub Actions with an optional version, or push a `v*` tag to create a package artifact automatically.
+
