@@ -1,0 +1,70 @@
+name: Windows Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version. Leave empty to use the tag name or git description.
+        required: false
+        type: string
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Portable ZIP
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        shell: pwsh
+        run: go test ./...
+
+      - name: Resolve package version
+        id: version
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            if ("${{ github.ref_type }}" -eq "tag") {
+              $version = "${{ github.ref_name }}"
+            } else {
+              $version = git describe --tags --always --dirty
+            }
+          }
+          $version = $version.Trim()
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            $version = "0.1.0-dev"
+          }
+          $safeVersion = $version -replace '[^\w\.-]', '-'
+          "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "safe_value=$safeVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Package version: $version"
+          Write-Host "Safe package version: $safeVersion"
+
+      - name: Build portable package
+        shell: pwsh
+        run: ./scripts/package_windows.ps1 -Version "${{ steps.version.outputs.value }}"
+
+      - name: Upload portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: BaeumMaru_Portable_${{ steps.version.outputs.safe_value }}
+          path: dist/BaeumMaru_Portable_${{ steps.version.outputs.safe_value }}.zip
+          if-no-files-found: error
+          retention-days: 30
