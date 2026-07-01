@@ -1,0 +1,320 @@
+package web
+
+import (
+	"fmt"
+	"html/template"
+)
+
+func templateMust(name string, content string) *template.Template {
+	return template.Must(template.New(name).Funcs(uiTemplateFuncs(nil)).Parse(content))
+}
+
+func uiTemplateFuncs(extra template.FuncMap) template.FuncMap {
+	funcs := template.FuncMap{
+		"appStyles":   appStyles,
+		"humanBytes":  humanBytes,
+		"statusLabel": statusLabel,
+		"statusClass": statusClass,
+	}
+	for name, fn := range extra {
+		funcs[name] = fn
+	}
+	return funcs
+}
+
+func humanBytes(size int64) string {
+	const unit = 1024
+	if size < unit {
+		return formatByteSize(float64(size), "B")
+	}
+	value := float64(size)
+	for _, suffix := range []string{"KiB", "MiB", "GiB"} {
+		value /= unit
+		if value < unit {
+			return formatByteSize(value, suffix)
+		}
+	}
+	return formatByteSize(value/unit, "TiB")
+}
+
+func formatByteSize(value float64, suffix string) string {
+	if suffix == "B" {
+		return formatWholeBytes(int64(value), suffix)
+	}
+	if value >= 10 {
+		return formatWholeBytes(int64(value+0.5), suffix)
+	}
+	return formatOneDecimal(value, suffix)
+}
+
+func formatWholeBytes(value int64, suffix string) string {
+	return fmt.Sprintf("%d %s", value, suffix)
+}
+
+func formatOneDecimal(value float64, suffix string) string {
+	return fmt.Sprintf("%.1f %s", value, suffix)
+}
+
+func appStyles() template.CSS {
+	return template.CSS(`
+:root {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-muted: #eef2f5;
+  --line: #d8dee6;
+  --text: #1d2733;
+  --muted: #657386;
+  --brand: #136f63;
+  --brand-strong: #0d554c;
+  --danger: #b42318;
+  --warning: #9a5b00;
+  --success: #157347;
+  --shadow: 0 1px 2px rgba(29, 39, 51, 0.08);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+a { color: var(--brand); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.brand {
+  color: var(--text);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.topnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.topnav a {
+  color: var(--muted);
+  padding: 7px 9px;
+  border-radius: 6px;
+}
+.topnav a:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+  text-decoration: none;
+}
+.page {
+  width: min(1180px, calc(100vw - 32px));
+  margin: 24px auto 36px;
+}
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+h1, h2 { line-height: 1.2; margin: 0; }
+h1 { font-size: 28px; }
+h2 { font-size: 18px; margin-bottom: 14px; }
+.subtle { color: var(--muted); margin: 6px 0 0; }
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 18px;
+  margin-bottom: 16px;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 13px;
+}
+input, select {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+}
+button, .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--brand);
+  border-radius: 6px;
+  background: var(--brand);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.button:hover, button:hover {
+  background: var(--brand-strong);
+  text-decoration: none;
+}
+.button.secondary {
+  background: #fff;
+  color: var(--brand);
+}
+.button.secondary:hover {
+  background: #edf7f5;
+}
+.button.danger, button.danger {
+  background: #fff;
+  border-color: #f0b8b2;
+  color: var(--danger);
+}
+.button.danger:hover, button.danger:hover {
+  background: #fff1ef;
+}
+.inline-form { display: inline-flex; margin: 0 4px 4px 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+th, td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+th {
+  background: #f0f3f6;
+  color: #435064;
+  font-size: 13px;
+  font-weight: 700;
+}
+tr:last-child td { border-bottom: 0; }
+.empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 22px 12px;
+}
+.alert {
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  margin: 0 0 16px;
+  background: #fff;
+}
+.alert.success {
+  border-color: #a9dbc2;
+  background: #eefaf3;
+  color: var(--success);
+}
+.alert.error {
+  border-color: #f0b8b2;
+  background: #fff1ef;
+  color: var(--danger);
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-muted);
+  color: #435064;
+  font-size: 12px;
+  font-weight: 700;
+}
+.badge.pending, .badge.applied { background: #eef2f5; color: #435064; }
+.badge.selected, .badge.confirmed, .badge.completed, .badge.present { background: #eefaf3; color: var(--success); border-color: #a9dbc2; }
+.badge.waitlisted, .badge.late { background: #fff7e6; color: var(--warning); border-color: #f0d48a; }
+.badge.cancelled, .badge.rejected, .badge.absent, .badge.failed { background: #fff1ef; color: var(--danger); border-color: #f0b8b2; }
+.footer {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 20px;
+}
+@media (max-width: 760px) {
+  .topbar { align-items: flex-start; flex-direction: column; padding: 12px 16px; }
+  .page { width: min(100vw - 20px, 1180px); margin-top: 16px; }
+  .page-header { display: block; }
+  .grid-2 { grid-template-columns: 1fr; }
+  th, td { padding: 9px 10px; }
+}
+`)
+}
+
+func statusLabel(status string) string {
+	switch status {
+	case "applied":
+		return "신청"
+	case "selected":
+		return "선정"
+	case "waitlisted":
+		return "대기"
+	case "confirmed":
+		return "확정"
+	case "cancelled":
+		return "취소"
+	case "rejected":
+		return "탈락"
+	case "completed":
+		return "완료"
+	case "failed":
+		return "실패"
+	case "present":
+		return "출석"
+	case "absent":
+		return "결석"
+	case "late":
+		return "지각"
+	case "excused":
+		return "공결"
+	default:
+		if status == "" {
+			return "-"
+		}
+		return status
+	}
+}
+
+func statusClass(status string) string {
+	switch status {
+	case "applied", "selected", "waitlisted", "confirmed", "cancelled", "rejected", "completed", "failed", "present", "absent", "late", "excused":
+		return status
+	default:
+		return "pending"
+	}
+}

@@ -38,9 +38,10 @@ baeum-maru/
 ├─ go.mod
 ├─ go.sum
 ├─ README.md
-├─ LICENSE
 └─ .gitignore
 ```
+
+현재 저장소에는 `LICENSE`가 아직 없으며, 오픈소스 공개 준비 브랜치에서 추가한다.
 
 ## 2. cmd 구조
 
@@ -54,12 +55,14 @@ cmd/launcher/main.go
 
 역할:
 
-- Fyne GUI 실행
+- 포터블 실행 파일 진입점
 - 설정 로드
-- 서버 시작/중지 제어
-- 백업 명령 실행
-- 로그/폴더 열기
-- 컨트롤 패널 상태 갱신
+- 런타임 조립
+- HTTP 서버 시작
+- 브라우저 열기
+- 종료 신호 처리
+
+Fyne GUI 제어는 후속 사용성 개선 후보이다.
 
 ## 2.2 cmd/server
 
@@ -98,25 +101,17 @@ internal/app/
 
 ## 3.2 internal/launcher
 
-Fyne 컨트롤 패널 관련 코드.
+런처 관련 코드.
 
 ```text
 internal/launcher/
-├─ window.go
-├─ state.go
-├─ actions.go
-├─ widgets.go
-└─ tray.go
+└─ doc.go
 ```
 
 역할:
 
-- 런처 창 구성
-- 서버 상태 표시
-- IP/포트 표시
-- 접속자 수 표시
-- 버튼 이벤트 처리
-- 백업/로그/설정 UI 제공
+- 현재는 런처 패키지 자리만 유지
+- 후속 GUI 런처가 필요할 때 창, 상태, 액션 코드를 추가
 
 ## 3.3 internal/server
 
@@ -413,18 +408,16 @@ docs/
 ├─ 09_screen_flows.md
 ├─ 10_business_rules.md
 ├─ 11_quality_checklist.md
-└─ 12_codex_task_breakdown.md
+├─ 12_codex_task_breakdown.md
+└─ 13_current_state.md
 ```
 
 ## 7. scripts 구조
 
 ```text
 scripts/
-├─ build_windows.ps1
-├─ build_linux.sh
-├─ run_dev.ps1
-├─ test.ps1
-└─ package_portable.ps1
+├─ package_windows.ps1
+└─ README.md
 ```
 
 역할:
@@ -441,8 +434,8 @@ scripts/
 
 ```text
 BaeumMaru_Portable_v0.1.0/
-├─ BaeumMaru.exe
-├─ README_처음사용.txt
+├─ baeum-maru.exe
+├─ README_FIRST_RUN.txt
 └─ config.json
 ```
 
@@ -450,8 +443,8 @@ BaeumMaru_Portable_v0.1.0/
 
 ```text
 BaeumMaru_Portable_v0.1.0/
-├─ BaeumMaru.exe
-├─ README_처음사용.txt
+├─ baeum-maru.exe
+├─ README_FIRST_RUN.txt
 ├─ config.json
 ├─ data/
 │  └─ center.db

@@ -1,0 +1,36 @@
+# build
+/build/
+/dist/
+*.exe
+*.zip
+
+# runtime data
+/data/
+/backups/
+/exports/
+/imports/
+/logs/
+*.db
+*.db-shm
+*.db-wal
+*.xlsx
+*.xls
+*.csv
+
+# local config
+config.local.json
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+*.test
+coverage.out
+
+# IDE
+.idea/
+.vscode/
+
