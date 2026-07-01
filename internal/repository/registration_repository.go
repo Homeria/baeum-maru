@@ -22,6 +22,14 @@ func NewRegistrationRepository(db *sql.DB) *RegistrationRepository {
 }
 
 func (r *RegistrationRepository) Create(ctx context.Context, params CreateRegistrationParams) (domain.Registration, error) {
+	reactivated, err := r.reactivateCancelled(ctx, params)
+	if err != nil {
+		return domain.Registration{}, err
+	}
+	if reactivated {
+		return r.GetByMemberAndOffering(ctx, params.MemberID, params.OfferingID)
+	}
+
 	result, err := r.db.ExecContext(ctx, `
 INSERT INTO registrations (member_id, offering_id, status)
 VALUES (?, ?, 'applied');
@@ -35,6 +43,25 @@ VALUES (?, ?, 'applied');
 		return domain.Registration{}, fmt.Errorf("read registration id: %w", err)
 	}
 	return r.Get(ctx, id)
+}
+
+func (r *RegistrationRepository) reactivateCancelled(ctx context.Context, params CreateRegistrationParams) (bool, error) {
+	result, err := r.db.ExecContext(ctx, `
+UPDATE registrations
+SET status = 'applied',
+    cancelled_at = NULL,
+    updated_at = CURRENT_TIMESTAMP
+WHERE member_id = ? AND offering_id = ? AND status = 'cancelled';
+`, params.MemberID, params.OfferingID)
+	if err != nil {
+		return false, fmt.Errorf("reactivate cancelled registration: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("read reactivated registration rows: %w", err)
+	}
+	return affected > 0, nil
 }
 
 func (r *RegistrationRepository) Cancel(ctx context.Context, id int64) (domain.Registration, error) {
@@ -63,6 +90,13 @@ func (r *RegistrationRepository) Get(ctx context.Context, id int64) (domain.Regi
 	row := r.db.QueryRowContext(ctx, registrationSelectSQL()+`
 WHERE r.id = ?;
 `, id)
+	return scanRegistration(row)
+}
+
+func (r *RegistrationRepository) GetByMemberAndOffering(ctx context.Context, memberID int64, offeringID int64) (domain.Registration, error) {
+	row := r.db.QueryRowContext(ctx, registrationSelectSQL()+`
+WHERE r.member_id = ? AND r.offering_id = ?;
+`, memberID, offeringID)
 	return scanRegistration(row)
 }
 
@@ -107,6 +141,42 @@ LIMIT ?;
 	defer rows.Close()
 
 	return scanRegistrations(rows)
+}
+
+func (r *RegistrationRepository) ListActiveRuleItemsByMember(ctx context.Context, memberID int64) ([]domain.RegistrationRuleItem, error) {
+	rows, err := r.db.QueryContext(ctx, `
+SELECT r.id,
+       r.member_id,
+       r.offering_id,
+       co.term_id,
+       r.status,
+       cm.weekday,
+       cm.start_time,
+       cm.end_time
+FROM registrations r
+JOIN course_offerings co ON co.id = r.offering_id
+JOIN course_meetings cm ON cm.offering_id = co.id
+WHERE r.member_id = ?
+  AND r.status IN ('applied', 'selected', 'waitlisted', 'confirmed')
+ORDER BY r.id;
+`, memberID)
+	if err != nil {
+		return nil, fmt.Errorf("list active registration rule items: %w", err)
+	}
+	defer rows.Close()
+
+	var items []domain.RegistrationRuleItem
+	for rows.Next() {
+		var item domain.RegistrationRuleItem
+		if err := rows.Scan(&item.ID, &item.MemberID, &item.OfferingID, &item.TermID, &item.Status, &item.Weekday, &item.StartTime, &item.EndTime); err != nil {
+			return nil, fmt.Errorf("scan registration rule item: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate registration rule items: %w", err)
+	}
+	return items, nil
 }
 
 func registrationSelectSQL() string {

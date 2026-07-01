@@ -13,3 +13,14 @@ type Registration struct {
 	UpdatedAt   string
 	CancelledAt string
 }
+
+type RegistrationRuleItem struct {
+	ID         int64
+	MemberID   int64
+	OfferingID int64
+	TermID     int64
+	Status     string
+	Weekday    int
+	StartTime  string
+	EndTime    string
+}
