@@ -17,7 +17,7 @@
 - SQL 마이그레이션 실행
 - GitHub Actions 기반 Go 빌드/테스트 CI
 - GitHub Actions 기반 Windows 포터블 패키징 workflow
-- config 기반 관리자 비밀번호 로그인
+- 접속 코드 인증 모델과 config 비밀번호 fallback
 - 서명된 세션 쿠키 기반 접근 보호
 - 공개 저장소용 README, LICENSE, NOTICE, 기여/보안 안내, PR/Issue 템플릿
 
@@ -98,7 +98,8 @@
 
 - 네이티브 GUI 런처 컨트롤 패널
 - 내부망 접속자 heartbeat 표시
-- 직원별 계정과 고급 권한 체계
+- Fyne 런처 기반 접속 코드 발급 패널
+- 직원/임시 직원/조회 전용 권한 적용
 - QR 출석
 - 문자/알림톡 발송
 - Linux 서버 모드
@@ -113,7 +114,7 @@
 2. `docs/mvp-user-guide`
 3. `feat/member-course-edit`
 4. `feat/search-filter-sort`
-5. `feat/auth-hardening`
+5. `feat/launcher-access-code-panel`
 
 ## 5. MVP 완료 판단
 

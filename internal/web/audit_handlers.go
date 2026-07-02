@@ -54,11 +54,16 @@ func recordAudit(r *http.Request, opts RouterOptions, action string, entityType 
 	if opts.Audits == nil {
 		return
 	}
+	var actorUserID int64
+	if identity, ok := currentAuthIdentity(r); ok {
+		actorUserID = identity.UserID
+	}
 	if err := opts.Audits.Record(r.Context(), service.AuditEvent{
-		Action:     action,
-		EntityType: entityType,
-		EntityID:   entityID,
-		Summary:    summary,
+		ActorUserID: actorUserID,
+		Action:      action,
+		EntityType:  entityType,
+		EntityID:    entityID,
+		Summary:     summary,
 	}); err != nil {
 		opts.Logger.Warn("record audit failed", "action", action, "entity_type", entityType, "entity_id", entityID, "error", err)
 	}

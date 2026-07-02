@@ -15,6 +15,7 @@ type RouterOptions struct {
 	Version       string
 	Logger        *slog.Logger
 	Auth          config.AuthConfig
+	Authenticator Authenticator
 	Members       MemberService
 	Courses       CourseService
 	Registrations RegistrationService
@@ -25,6 +26,10 @@ type RouterOptions struct {
 	Attendance    AttendanceService
 	Settings      SettingsService
 	Audits        AuditService
+}
+
+type Authenticator interface {
+	AuthenticateAccessCode(context.Context, string) (service.AuthenticatedUser, error)
 }
 
 type MemberService interface {
