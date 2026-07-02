@@ -302,12 +302,13 @@ BaeumMaru_Portable_v0.1.0/
 - systemd 서비스 예시
 - 관리자 웹 설정 강화
 
-## 17. 오픈소스 공개 전 체크리스트
+## 17. 비상업 소스 공개 전 체크리스트
 
 - 실데이터 포함 금지
 - 더미 데이터만 제공
 - README에 개인정보 주의 문구 작성
-- LICENSE 선택
+- PolyForm Noncommercial License 1.0.0 적용
+- NOTICE와 Required Notice 유지 정책 작성
 - 설치/실행 방법 작성
 - 스크린샷의 개인정보 제거
 - 상표/이름 충돌 간단 확인

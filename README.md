@@ -73,4 +73,8 @@ testdata/     테스트 전용 데이터 자리
 
 ## 라이선스
 
-이 프로젝트는 [MIT License](LICENSE)를 따릅니다.
+이 프로젝트는 [PolyForm Noncommercial License 1.0.0](LICENSE)를 따릅니다.
+
+비상업적 목적의 사용, 복사, 수정, 포크, 배포를 허용합니다. 배움마루를 기반으로 한 파생 프로젝트와 재배포본은 [NOTICE](NOTICE)와 `LICENSE`의 `Required Notice`를 유지하여 사용자와 개발자가 배움마루가 원 프로젝트임을 확인할 수 있게 해야 합니다.
+
+상업적 사용 권한은 이 라이선스에 포함되지 않습니다.
