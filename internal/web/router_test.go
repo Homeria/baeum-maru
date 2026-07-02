@@ -50,6 +50,21 @@ func TestRouterServesBasicPages(t *testing.T) {
 	}
 }
 
+func TestRouterServesEmbeddedStaticCSS(t *testing.T) {
+	router := NewRouter(RouterOptions{})
+	req := httptest.NewRequest(http.MethodGet, "/static/css/app.css", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), ".topbar") {
+		t.Fatalf("body = %q, want embedded css", rec.Body.String())
+	}
+}
+
 func TestRouterServesHealthCheck(t *testing.T) {
 	router := NewRouter(RouterOptions{})
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)

@@ -1,0 +1,44 @@
+{{define "audit_logs"}}
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>감사 로그 - {{.DisplayName}}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  {{template "topnav" .}}
+  <main class="page">
+    <section class="page-header">
+      <div>
+        <h1>감사 로그</h1>
+      </div>
+    </section>
+    {{if .Error}}<p class="alert error" role="alert">{{.Error}}</p>{{end}}
+    <section class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>시간</th><th>작업</th><th>대상</th><th>대상 ID</th><th>요약</th></tr></thead>
+          <tbody>
+            {{range .Logs}}
+              <tr>
+                <td>{{.ID}}</td>
+                <td>{{.CreatedAt}}</td>
+                <td>{{.Action}}</td>
+                <td>{{.EntityType}}</td>
+                <td>{{if .EntityID}}{{.EntityID}}{{else}}-{{end}}</td>
+                <td>{{.Summary}}</td>
+              </tr>
+            {{else}}
+              <tr><td class="empty" colspan="6">감사 로그가 없습니다.</td></tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {{template "footer" .}}
+  </main>
+</body>
+</html>
+{{end}}
