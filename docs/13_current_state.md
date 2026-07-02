@@ -17,7 +17,7 @@
 - SQL 마이그레이션 실행
 - GitHub Actions 기반 Go 빌드/테스트 CI
 - GitHub Actions 기반 Windows 포터블 패키징 workflow
-- 공개 저장소용 README, LICENSE, 기여/보안 안내, PR/Issue 템플릿
+- 공개 저장소용 README, LICENSE, NOTICE, 기여/보안 안내, PR/Issue 템플릿
 
 ### 업무 기능
 

@@ -327,12 +327,13 @@ test: 신청 제한 규칙 테스트 추가
 
 ## 10. 공개 저장소 정리 작업
 
-### Task 20 오픈소스 공개 준비
+### Task 20 비상업 소스 공개 준비
 
 목표:
 
 - README 실행/패키징 안내 정리
-- LICENSE 추가
+- PolyForm Noncommercial License 1.0.0 적용
+- NOTICE와 Required Notice 추가
 - `.gitignore` 산출물 제외 규칙 점검
 - PR/Issue 템플릿 추가
 - 릴리즈 전 체크리스트 추가
