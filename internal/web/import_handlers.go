@@ -17,80 +17,7 @@ type importsPageData struct {
 	Result      *service.ImportResult
 }
 
-var importsTemplate = templateMust("imports", `<!doctype html>
-<html lang="ko">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>엑셀 가져오기 - {{.DisplayName}}</title>
-  <style>{{appStyles}}</style>
-</head>
-<body>
-  <header class="topbar">
-    <a class="brand" href="/admin">{{.DisplayName}}</a>
-    <nav class="topnav">
-      <a href="/admin/members">회원 관리</a>
-      <a href="/admin/courses">강좌 관리</a>
-      <a href="/admin/registrations">신청 현황</a>
-      <a href="/admin/lottery">추첨</a>
-      <a href="/admin/imports">엑셀 가져오기</a>
-      <a href="/admin/exports">엑셀 내보내기</a>
-      <a href="/admin/backups">백업</a>
-      <a href="/admin/attendance">출석</a>
-      <a href="/admin/settings">설정</a>
-      <a href="/admin/audit-logs">감사 로그</a>
-      <a href="/reception">접수 화면</a>
-    </nav>
-  </header>
-  <main class="page">
-    <section class="page-header">
-      <div>
-        <h1>엑셀 가져오기</h1>
-      </div>
-    </section>
-    {{if .Message}}<p class="alert success" role="status">{{.Message}}</p>{{end}}
-    {{if .Error}}<p class="alert error" role="alert">{{.Error}}</p>{{end}}
-
-    <section class="grid-2">
-      <form class="panel" method="post" action="/admin/imports/members" enctype="multipart/form-data">
-        <h2>회원 명단</h2>
-        <p class="subtle"><a href="/admin/imports/members/template">회원 표준 양식 다운로드</a></p>
-        <label>엑셀 파일 <input name="file" type="file" accept=".xlsx" required></label>
-        <button type="submit">회원 가져오기</button>
-      </form>
-
-      <form class="panel" method="post" action="/admin/imports/courses" enctype="multipart/form-data">
-        <h2>강좌 목록</h2>
-        <p class="subtle"><a href="/admin/imports/courses/template">강좌 표준 양식 다운로드</a></p>
-        <label>엑셀 파일 <input name="file" type="file" accept=".xlsx" required></label>
-        <button type="submit">강좌 가져오기</button>
-      </form>
-    </section>
-
-    {{with .Result}}
-      <section class="panel">
-        <h2>{{.Kind}} 가져오기 결과</h2>
-        <p><span class="badge confirmed">성공 {{.CreatedCount}}건</span> <span class="badge {{if .Errors}}failed{{else}}completed{{end}}">오류 {{len .Errors}}건</span></p>
-        {{if .Errors}}
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>행</th><th>오류</th></tr></thead>
-              <tbody>
-                {{range .Errors}}
-                  <tr><td>{{.Row}}</td><td>{{.Message}}</td></tr>
-                {{end}}
-              </tbody>
-            </table>
-          </div>
-        {{end}}
-      </section>
-    {{end}}
-
-    <footer class="footer">{{.DisplayName}} {{.Version}}</footer>
-  </main>
-</body>
-</html>
-`)
+var importsTemplate = mustPageTemplate("imports", "imports.html", nil)
 
 func importsHandler(opts RouterOptions) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -193,7 +120,7 @@ func importTemplateHandler(opts RouterOptions, create func(ImportService) (servi
 
 func renderImports(w http.ResponseWriter, opts RouterOptions, message string, errorMessage string, result *service.ImportResult) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := importsTemplate.Execute(w, importsPageData{
+	if err := importsTemplate.ExecuteTemplate(w, "imports", importsPageData{
 		DisplayName: opts.DisplayName,
 		Version:     opts.Version,
 		Message:     message,

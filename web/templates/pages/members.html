@@ -1,0 +1,75 @@
+{{define "members"}}
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>회원 관리 - {{.DisplayName}}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  {{template "topnav" .}}
+  <main class="page">
+    <section class="page-header">
+      <div>
+        <h1>회원 관리</h1>
+      </div>
+      <a class="button secondary" href="/admin/exports/members">엑셀 다운로드</a>
+    </section>
+    {{if .Error}}<p class="alert error" role="alert">{{.Error}}</p>{{end}}
+
+    <form class="panel form-grid" method="get" action="/admin/members">
+      <label>검색 <input name="q" value="{{.Query}}" placeholder="이름, 회원번호, 연락처"></label>
+      <button type="submit">검색</button>
+    </form>
+
+    <form class="panel" method="post" action="/admin/members">
+      <h2>회원 등록</h2>
+      <div class="form-grid">
+        <label>회원번호 <input name="member_no"></label>
+        <label>이름 <input name="name" required></label>
+        <label>성별
+          <select name="gender_code">
+            <option value="">선택 안 함</option>
+            <option value="male">남성</option>
+            <option value="female">여성</option>
+            <option value="unknown">미상</option>
+          </select>
+        </label>
+        <label>생년월일 <input name="birth_date" placeholder="YYYY-MM-DD"></label>
+        <label>연락처 <input name="phone"></label>
+        <label>비고 <input name="note"></label>
+        <button type="submit">등록</button>
+      </div>
+    </form>
+
+    <section class="panel">
+      <h2>회원 목록</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>회원번호</th><th>이름</th><th>성별</th><th>생년월일</th><th>연락처</th><th>비고</th></tr>
+          </thead>
+          <tbody>
+            {{range .Members}}
+              <tr>
+                <td>{{.ID}}</td>
+                <td>{{.MemberNo}}</td>
+                <td>{{.Name}}</td>
+                <td>{{.GenderCode}}</td>
+                <td>{{.BirthDate}}</td>
+                <td>{{.Phone}}</td>
+                <td>{{.Note}}</td>
+              </tr>
+            {{else}}
+              <tr><td class="empty" colspan="7">회원이 없습니다.</td></tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {{template "footer" .}}
+  </main>
+</body>
+</html>
+{{end}}
