@@ -41,7 +41,7 @@ go run ./cmd/server
 http://127.0.0.1:18080
 ```
 
-기본 관리자 비밀번호는 `admin`입니다. 실사용 전 `config.json`의 `auth.admin_password`를 기관에서 정한 비밀번호로 변경하세요.
+웹 로그인은 런처에서 발급할 접속 코드 기반으로 확장 중입니다. Fyne 런처 패널이 붙기 전까지는 `config.json`의 `auth.admin_password` 기본값 `admin`이 임시 fallback으로 동작합니다.
 
 ## Windows 포터블 패키징
 

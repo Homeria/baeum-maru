@@ -131,6 +131,32 @@ func TestRouterAuthenticatesWithPasswordSession(t *testing.T) {
 	}
 }
 
+func TestRouterAuthenticatesWithAccessCodeService(t *testing.T) {
+	authenticator := &fakeAuthenticator{
+		user: service.AuthenticatedUser{UserID: 7, DisplayName: "김접수", Role: "temporary_staff"},
+	}
+	router := NewRouter(RouterOptions{
+		Auth:          testAuthConfig(),
+		Authenticator: authenticator,
+	})
+	form := url.Values{
+		"access_code": {"ABCD-2345"},
+		"next":        {"/admin"},
+	}
+	loginReq := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginRec := httptest.NewRecorder()
+
+	router.ServeHTTP(loginRec, loginReq)
+
+	if loginRec.Code != http.StatusSeeOther {
+		t.Fatalf("login status = %d, want %d", loginRec.Code, http.StatusSeeOther)
+	}
+	if authenticator.code != "ABCD-2345" {
+		t.Fatalf("authenticator.code = %q, want ABCD-2345", authenticator.code)
+	}
+}
+
 func TestRouterRejectsInvalidLoginPassword(t *testing.T) {
 	router := NewRouter(RouterOptions{Auth: testAuthConfig()})
 	form := url.Values{
@@ -146,7 +172,7 @@ func TestRouterRejectsInvalidLoginPassword(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 	}
-	if !strings.Contains(rec.Body.String(), "비밀번호가 올바르지 않습니다.") {
+	if !strings.Contains(rec.Body.String(), "접속 코드가 올바르지 않거나 만료되었습니다.") {
 		t.Fatalf("body = %q, want login error", rec.Body.String())
 	}
 }
@@ -1181,6 +1207,20 @@ type fakeAttendanceService struct {
 	sessions       []domain.AttendanceSession
 	confirmed      []domain.Registration
 	records        []domain.AttendanceRecord
+}
+
+type fakeAuthenticator struct {
+	code string
+	user service.AuthenticatedUser
+	err  error
+}
+
+func (f *fakeAuthenticator) AuthenticateAccessCode(_ context.Context, code string) (service.AuthenticatedUser, error) {
+	f.code = code
+	if f.err != nil {
+		return service.AuthenticatedUser{}, f.err
+	}
+	return f.user, nil
 }
 
 func (f *fakeAttendanceService) CreateSession(_ context.Context, input service.AttendanceSessionInput) (domain.AttendanceSession, error) {

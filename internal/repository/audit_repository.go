@@ -59,9 +59,10 @@ func (r *AuditRepository) ListRecent(ctx context.Context, limit int) ([]domain.A
 	}
 
 	rows, err := r.db.QueryContext(ctx, `
-SELECT id, actor_user_id, action, entity_type, entity_id, summary, created_at
-FROM audit_logs
-ORDER BY id DESC
+SELECT a.id, a.actor_user_id, u.display_name, a.action, a.entity_type, a.entity_id, a.summary, a.created_at
+FROM audit_logs a
+LEFT JOIN users u ON u.id = a.actor_user_id
+ORDER BY a.id DESC
 LIMIT ?;
 `, limit)
 	if err != nil {
@@ -85,9 +86,10 @@ LIMIT ?;
 
 func (r *AuditRepository) get(ctx context.Context, id int64) (domain.AuditLog, error) {
 	row := r.db.QueryRowContext(ctx, `
-SELECT id, actor_user_id, action, entity_type, entity_id, summary, created_at
-FROM audit_logs
-WHERE id = ?;
+SELECT a.id, a.actor_user_id, u.display_name, a.action, a.entity_type, a.entity_id, a.summary, a.created_at
+FROM audit_logs a
+LEFT JOIN users u ON u.id = a.actor_user_id
+WHERE a.id = ?;
 `, id)
 	return scanAuditLog(row)
 }
@@ -99,10 +101,12 @@ type auditLogScanner interface {
 func scanAuditLog(scanner auditLogScanner) (domain.AuditLog, error) {
 	var log domain.AuditLog
 	var actorUserID sql.NullInt64
+	var actorDisplayName sql.NullString
 	var entityID sql.NullInt64
 	if err := scanner.Scan(
 		&log.ID,
 		&actorUserID,
+		&actorDisplayName,
 		&log.Action,
 		&log.EntityType,
 		&entityID,
@@ -114,6 +118,7 @@ func scanAuditLog(scanner auditLogScanner) (domain.AuditLog, error) {
 	if actorUserID.Valid {
 		log.ActorUserID = actorUserID.Int64
 	}
+	log.ActorDisplayName = actorDisplayName.String
 	if entityID.Valid {
 		log.EntityID = entityID.Int64
 	}

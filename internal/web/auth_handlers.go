@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -13,6 +14,14 @@ import (
 )
 
 const authCookieName = "baeum_maru_session"
+
+type authContextKey struct{}
+
+type AuthIdentity struct {
+	UserID      int64
+	DisplayName string
+	Role        string
+}
 
 type loginPageData struct {
 	DisplayName string
@@ -42,11 +51,12 @@ func loginHandler(opts RouterOptions) http.HandlerFunc {
 				return
 			}
 			next := safeRedirectPath(r.FormValue("next"))
-			if !passwordMatches(r.FormValue("password"), opts.Auth.AdminPassword) {
-				renderLogin(w, opts, next, "비밀번호가 올바르지 않습니다.", http.StatusUnauthorized)
+			identity, err := authenticateLogin(r, opts)
+			if err != nil {
+				renderLogin(w, opts, next, "접속 코드가 올바르지 않거나 만료되었습니다.", http.StatusUnauthorized)
 				return
 			}
-			setSessionCookie(w, opts)
+			setSessionCookie(w, opts, identity)
 			http.Redirect(w, r, next, http.StatusSeeOther)
 		default:
 			w.Header().Set("Allow", "GET, POST")
@@ -89,8 +99,10 @@ func requireAuth(opts RouterOptions, next http.Handler) http.Handler {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if hasValidSession(r, opts) {
-			next.ServeHTTP(w, r)
+		identity, ok := validSessionIdentity(r, opts)
+		if ok {
+			ctx := context.WithValue(r.Context(), authContextKey{}, identity)
+			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 		redirect := "/login?next=" + url.QueryEscape(safeRedirectPath(r.URL.RequestURI()))
@@ -99,7 +111,29 @@ func requireAuth(opts RouterOptions, next http.Handler) http.Handler {
 }
 
 func authEnabled(opts RouterOptions) bool {
-	return !opts.Auth.Disabled && opts.Auth.AdminPassword != "" && opts.Auth.SessionSecret != ""
+	return !opts.Auth.Disabled && opts.Auth.SessionSecret != "" && (opts.Authenticator != nil || opts.Auth.AdminPassword != "")
+}
+
+func authenticateLogin(r *http.Request, opts RouterOptions) (AuthIdentity, error) {
+	code := r.FormValue("access_code")
+	if code == "" {
+		code = r.FormValue("password")
+	}
+	if opts.Authenticator != nil {
+		user, err := opts.Authenticator.AuthenticateAccessCode(r.Context(), code)
+		if err != nil {
+			return AuthIdentity{}, err
+		}
+		return AuthIdentity{
+			UserID:      user.UserID,
+			DisplayName: user.DisplayName,
+			Role:        user.Role,
+		}, nil
+	}
+	if !passwordMatches(code, opts.Auth.AdminPassword) {
+		return AuthIdentity{}, http.ErrNoCookie
+	}
+	return AuthIdentity{Role: "launcher"}, nil
 }
 
 func passwordMatches(got string, want string) bool {
@@ -120,9 +154,9 @@ func safeRedirectPath(path string) string {
 	return path
 }
 
-func setSessionCookie(w http.ResponseWriter, opts RouterOptions) {
+func setSessionCookie(w http.ResponseWriter, opts RouterOptions, identity AuthIdentity) {
 	issuedAt := time.Now().Unix()
-	value := strconv.FormatInt(issuedAt, 10)
+	value := sessionPayload(issuedAt, identity)
 	http.SetCookie(w, &http.Cookie{
 		Name:     authCookieName,
 		Value:    value + "." + sessionSignature(opts, value),
@@ -144,24 +178,60 @@ func clearSessionCookie(w http.ResponseWriter) {
 	})
 }
 
-func hasValidSession(r *http.Request, opts RouterOptions) bool {
+func validSessionIdentity(r *http.Request, opts RouterOptions) (AuthIdentity, bool) {
 	cookie, err := r.Cookie(authCookieName)
 	if err != nil {
-		return false
+		return AuthIdentity{}, false
 	}
-	issuedAt, signature, ok := strings.Cut(cookie.Value, ".")
-	if !ok || issuedAt == "" || signature == "" {
-		return false
+	payload, signature, ok := strings.Cut(cookie.Value, ".")
+	if !ok || payload == "" || signature == "" {
+		return AuthIdentity{}, false
 	}
-	if !hmac.Equal([]byte(signature), []byte(sessionSignature(opts, issuedAt))) {
-		return false
+	if !hmac.Equal([]byte(signature), []byte(sessionSignature(opts, payload))) {
+		return AuthIdentity{}, false
 	}
-	issuedUnix, err := strconv.ParseInt(issuedAt, 10, 64)
-	if err != nil {
-		return false
+	issuedUnix, identity, ok := parseSessionPayload(payload)
+	if !ok {
+		return AuthIdentity{}, false
 	}
 	maxAge := time.Duration(opts.Auth.SessionMaxAgeMinutes) * time.Minute
-	return time.Since(time.Unix(issuedUnix, 0)) <= maxAge
+	if time.Since(time.Unix(issuedUnix, 0)) > maxAge {
+		return AuthIdentity{}, false
+	}
+	return identity, true
+}
+
+func sessionPayload(issuedAt int64, identity AuthIdentity) string {
+	return strings.Join([]string{
+		strconv.FormatInt(issuedAt, 10),
+		strconv.FormatInt(identity.UserID, 10),
+		identity.Role,
+	}, "|")
+}
+
+func parseSessionPayload(payload string) (int64, AuthIdentity, bool) {
+	parts := strings.Split(payload, "|")
+	if len(parts) == 1 {
+		issuedUnix, err := strconv.ParseInt(parts[0], 10, 64)
+		return issuedUnix, AuthIdentity{}, err == nil
+	}
+	if len(parts) != 3 {
+		return 0, AuthIdentity{}, false
+	}
+	issuedUnix, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return 0, AuthIdentity{}, false
+	}
+	userID, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return 0, AuthIdentity{}, false
+	}
+	return issuedUnix, AuthIdentity{UserID: userID, Role: parts[2]}, true
+}
+
+func currentAuthIdentity(r *http.Request) (AuthIdentity, bool) {
+	identity, ok := r.Context().Value(authContextKey{}).(AuthIdentity)
+	return identity, ok
 }
 
 func sessionSignature(opts RouterOptions, value string) string {
