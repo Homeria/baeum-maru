@@ -1,7 +1,8 @@
 param(
     [string]$Version = "",
     [string]$OutputRoot = "dist",
-    [switch]$SkipArchive
+    [switch]$SkipArchive,
+    [switch]$GuiLauncher
 )
 
 $ErrorActionPreference = "Stop"
@@ -134,7 +135,12 @@ foreach ($dir in @("data", "backups", "exports", "imports", "logs")) {
 }
 
 $ldflags = "-s -w -X github.com/Homeria/baeum-maru/internal/app.Version=$packageVersion"
-& $go build -trimpath -ldflags $ldflags -o (Join-Path $packageDir "baeum-maru.exe") ./cmd/launcher
+$buildArgs = @("build", "-trimpath", "-ldflags", $ldflags)
+if ($GuiLauncher) {
+    $buildArgs += @("-tags", "fyne")
+}
+$buildArgs += @("-o", (Join-Path $packageDir "baeum-maru.exe"), "./cmd/launcher")
+& $go @buildArgs
 if ($LASTEXITCODE -ne 0) {
     throw "go build failed"
 }

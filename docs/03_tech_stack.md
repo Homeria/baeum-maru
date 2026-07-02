@@ -20,7 +20,7 @@
 ```text
 Language: Go
 Portable Launcher: Go console entrypoint
-Future Desktop Launcher GUI: Fyne 후보
+Desktop Launcher GUI: Fyne, `fyne` build tag
 HTTP Server: net/http + chi
 Database: SQLite
 DB Access: database/sql
@@ -91,9 +91,9 @@ MVP에서는 Go 콘솔형 런처를 우선 사용한다.
 - 서버, DB, 백업, 업무 흐름을 먼저 검증할 수 있다.
 - Windows ZIP 배포를 빠르게 확인할 수 있다.
 
-Fyne은 Go 기반 GUI 툴킷이며, 후속 단계에서 **네이티브 런처 컨트롤 패널**을 만들 때 후보로 둔다.
+Fyne은 Go 기반 GUI 툴킷이며, 네이티브 런처 컨트롤 패널을 만들 때 사용한다. Fyne 개발 빌드는 Go 외에 C 컴파일러와 데스크톱 그래픽 개발 환경이 필요하므로 기본 콘솔 런처와 `fyne` 빌드 태그 기반 GUI 런처를 분리한다.
 
-후속 컨트롤 패널 역할:
+컨트롤 패널 역할:
 
 - 서버 시작/중지
 - IP 표시
@@ -286,7 +286,7 @@ config.json
 
 `auth.admin_password`는 첫 실행 후 기관에서 정한 값으로 변경한다. `auth.disabled`를 `true`로 바꾸면 로그인 보호를 끌 수 있지만, 내부망 공유 Wi-Fi에서 운영할 때는 권장하지 않는다.
 
-후속 Fyne 런처 패널에서는 웹 업무 사용자를 직접 만들기보다 직원 정보와 유효 기간을 입력한 뒤 접속 코드를 발급한다. 웹 로그인은 발급된 접속 코드로 처리하고, DB에는 원문 코드가 아니라 해시와 만료/폐기 상태만 저장한다. `auth.admin_password`는 패널이 붙기 전 임시 fallback으로만 둔다.
+Fyne 런처 패널에서는 웹 업무 사용자를 직접 만들기보다 직원 정보와 유효 기간을 입력한 뒤 접속 코드를 발급한다. 웹 로그인은 발급된 접속 코드로 처리하고, DB에는 원문 코드가 아니라 해시와 만료/폐기 상태만 저장한다. `auth.admin_password`는 GUI 런처를 사용하지 못하는 환경의 임시 fallback으로만 둔다.
 
 ## 10. 패키징
 
@@ -359,10 +359,10 @@ MVP 노트북 모드에서는 제외한다.
 배움마루 MVP
 
 Desktop Launcher:
-Go console launcher
+Go console launcher by default
 
-Future Desktop GUI:
-Fyne 후보
+Desktop GUI:
+Fyne launcher with `fyne` build tag
 
 Internal Server:
 Go net/http + chi

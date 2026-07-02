@@ -54,4 +54,23 @@ func TestAccessCodeRepositoryCreatesAndFindsPrincipal(t *testing.T) {
 	if used.LastUsedAt == "" {
 		t.Fatal("LastUsedAt = empty, want timestamp")
 	}
+
+	items, err := repo.ListRecentAccessCodes(ctx, 10)
+	if err != nil {
+		t.Fatalf("ListRecentAccessCodes() error = %v", err)
+	}
+	if len(items) != 1 || items[0].AccessCode.ID != code.ID {
+		t.Fatalf("items = %+v, want created access code", items)
+	}
+
+	if err := repo.RevokeAccessCode(ctx, code.ID, time.Now().UTC().Format(time.RFC3339)); err != nil {
+		t.Fatalf("RevokeAccessCode() error = %v", err)
+	}
+	revoked, err := repo.GetAccessCode(ctx, code.ID)
+	if err != nil {
+		t.Fatalf("GetAccessCode() revoked error = %v", err)
+	}
+	if revoked.Status != domain.AccessCodeStatusRevoked {
+		t.Fatalf("revoked.Status = %q, want revoked", revoked.Status)
+	}
 }

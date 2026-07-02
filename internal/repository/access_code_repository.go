@@ -30,6 +30,11 @@ type CreateAccessCodeParams struct {
 	Note      string
 }
 
+type AccessCodeListItem struct {
+	User       domain.User
+	AccessCode domain.AccessCode
+}
+
 func NewAccessCodeRepository(db *sql.DB) *AccessCodeRepository {
 	return &AccessCodeRepository{db: db}
 }
@@ -121,6 +126,60 @@ WHERE id = ?;
 `, usedAt, userID)
 	if err != nil {
 		return fmt.Errorf("mark access user login: %w", err)
+	}
+	return nil
+}
+
+func (r *AccessCodeRepository) ListRecentAccessCodes(ctx context.Context, limit int) ([]AccessCodeListItem, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	rows, err := r.db.QueryContext(ctx, `
+SELECT
+	u.id, u.username, u.display_name, u.affiliation, u.contact_note, u.access_role, u.status, u.expires_at, u.last_login_at, u.created_at, u.updated_at,
+	c.id, c.user_id, c.code_hash, c.label, c.status, c.issued_at, c.expires_at, c.revoked_at, c.last_used_at, c.note, c.created_at, c.updated_at
+FROM access_codes c
+JOIN users u ON u.id = c.user_id
+ORDER BY c.id DESC
+LIMIT ?;
+`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list access codes: %w", err)
+	}
+	defer rows.Close()
+
+	var items []AccessCodeListItem
+	for rows.Next() {
+		user, code, err := scanUserAndAccessCode(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, AccessCodeListItem{User: user, AccessCode: code})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate access codes: %w", err)
+	}
+	return items, nil
+}
+
+func (r *AccessCodeRepository) RevokeAccessCode(ctx context.Context, accessCodeID int64, revokedAt string) error {
+	result, err := r.db.ExecContext(ctx, `
+UPDATE access_codes
+SET status = ?, revoked_at = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ? AND status = ?;
+`, domain.AccessCodeStatusRevoked, revokedAt, accessCodeID, domain.AccessCodeStatusActive)
+	if err != nil {
+		return fmt.Errorf("revoke access code: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read revoked access code count: %w", err)
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
 	}
 	return nil
 }
