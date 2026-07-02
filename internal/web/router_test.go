@@ -226,6 +226,29 @@ func TestRouterServesMemberManagement(t *testing.T) {
 	}
 }
 
+func TestRouterFiltersMemberManagement(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		Members: &fakeMemberService{
+			members: []domain.Member{
+				{ID: 1, Name: "김배움", GenderCode: "female"},
+				{ID: 2, Name: "이마루", GenderCode: "male"},
+			},
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/members?gender=female&sort=id_desc", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "김배움") || strings.Contains(body, "이마루") {
+		t.Fatalf("body = %q, want only female member", body)
+	}
+}
+
 func TestRouterCreatesMember(t *testing.T) {
 	members := &fakeMemberService{}
 	audits := &fakeAuditService{}
@@ -299,6 +322,29 @@ func TestRouterServesCourseManagement(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "요가 기초") {
 		t.Fatalf("body = %q, want course title", rec.Body.String())
+	}
+}
+
+func TestRouterFiltersCourseManagement(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		Courses: &fakeCourseService{
+			offerings: []domain.CourseOffering{
+				{ID: 1, TermName: "여름학기", CategoryName: "건강", CourseTitle: "요가 기초", InstructorName: "홍강사", Status: "open", Weekday: 1, StartTime: "09:00", EndTime: "10:00"},
+				{ID: 2, TermName: "겨울학기", CategoryName: "음악", CourseTitle: "합창 기초", InstructorName: "김강사", Status: "closed", Weekday: 2, StartTime: "10:00", EndTime: "11:00"},
+			},
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/courses?q=요가&term=여름&category=건강&status=open&sort=time", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "요가 기초") || strings.Contains(body, "합창 기초") {
+		t.Fatalf("body = %q, want only matching course", body)
 	}
 }
 
@@ -457,6 +503,29 @@ func TestRouterServesRegistrationManagement(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `value="confirm"`) {
 		t.Fatalf("body = %q, want confirm action", rec.Body.String())
+	}
+}
+
+func TestRouterFiltersRegistrationManagement(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		Registrations: &fakeRegistrationService{
+			recent: []domain.Registration{
+				{ID: 1, MemberName: "김배움", MemberNo: "M-001", TermName: "여름학기", CourseTitle: "요가 기초", Status: "selected"},
+				{ID: 2, MemberName: "이마루", MemberNo: "M-002", TermName: "겨울학기", CourseTitle: "합창 기초", Status: "cancelled"},
+			},
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/registrations?q=요가&status=selected&sort=course", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "김배움") || strings.Contains(body, "이마루") {
+		t.Fatalf("body = %q, want only matching registration", body)
 	}
 }
 

@@ -147,6 +147,9 @@ type registrationsPageData struct {
 	DisplayName   string
 	Version       string
 	Permissions   permissionSet
+	Query         string
+	Status        string
+	Sort          string
 	Message       string
 	Error         string
 	Registrations []domain.Registration
@@ -166,17 +169,25 @@ func registrationsHandler(opts RouterOptions) http.HandlerFunc {
 			return
 		}
 
-		registrations, err := opts.Registrations.ListRecent(r.Context(), 200)
+		query := r.URL.Query().Get("q")
+		status := r.URL.Query().Get("status")
+		sortKey := r.URL.Query().Get("sort")
+		registrations, err := opts.Registrations.ListRecent(r.Context(), 500)
 		message := ""
 		if err != nil {
 			message = err.Error()
 		}
+		registrations = filterRegistrations(registrations, query, status)
+		sortRegistrations(registrations, sortKey)
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if err := registrationsTemplate.ExecuteTemplate(w, "registrations", registrationsPageData{
 			DisplayName:   opts.DisplayName,
 			Version:       opts.Version,
 			Permissions:   pagePermissions(r),
+			Query:         query,
+			Status:        status,
+			Sort:          sortKey,
 			Message:       r.URL.Query().Get("message"),
 			Error:         message,
 			Registrations: registrations,

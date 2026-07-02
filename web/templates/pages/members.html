@@ -20,6 +20,22 @@
 
     <form class="panel form-grid" method="get" action="/admin/members">
       <label>검색 <input name="q" value="{{.Query}}" placeholder="이름, 회원번호, 연락처"></label>
+      <label>성별
+        <select name="gender">
+          <option value="" {{if eq .Gender ""}}selected{{end}}>전체</option>
+          <option value="male" {{if eq .Gender "male"}}selected{{end}}>남성</option>
+          <option value="female" {{if eq .Gender "female"}}selected{{end}}>여성</option>
+          <option value="unknown" {{if eq .Gender "unknown"}}selected{{end}}>미상</option>
+        </select>
+      </label>
+      <label>정렬
+        <select name="sort">
+          <option value="" {{if eq .Sort ""}}selected{{end}}>이름순</option>
+          <option value="member_no" {{if eq .Sort "member_no"}}selected{{end}}>회원번호순</option>
+          <option value="id_desc" {{if eq .Sort "id_desc"}}selected{{end}}>최근 ID순</option>
+          <option value="created_desc" {{if eq .Sort "created_desc"}}selected{{end}}>최근 등록순</option>
+        </select>
+      </label>
       <button type="submit">검색</button>
     </form>
 

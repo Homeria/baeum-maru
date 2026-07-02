@@ -131,6 +131,7 @@ func renderAttendance(w http.ResponseWriter, r *http.Request, opts RouterOptions
 	if err != nil {
 		errorMessage = err.Error()
 	}
+	sortCourseOfferings(offerings, "")
 	var sessions []domain.AttendanceSession
 	var confirmed []domain.Registration
 	if offeringID > 0 {

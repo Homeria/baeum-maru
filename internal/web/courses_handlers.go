@@ -14,6 +14,11 @@ type coursesPageData struct {
 	DisplayName string
 	Version     string
 	Permissions permissionSet
+	Query       string
+	Term        string
+	Category    string
+	Status      string
+	Sort        string
 	Error       string
 	Offerings   []domain.CourseOffering
 }
@@ -93,16 +98,28 @@ func courseInputFromRequest(r *http.Request) (service.CourseOfferingInput, error
 }
 
 func renderCourses(w http.ResponseWriter, r *http.Request, opts RouterOptions, message string) {
-	offerings, err := opts.Courses.ListOfferings(r.Context(), 100)
+	query := r.URL.Query().Get("q")
+	term := r.URL.Query().Get("term")
+	category := r.URL.Query().Get("category")
+	status := r.URL.Query().Get("status")
+	sortKey := r.URL.Query().Get("sort")
+	offerings, err := opts.Courses.ListOfferings(r.Context(), 500)
 	if err != nil {
 		message = err.Error()
 	}
+	offerings = filterCourseOfferings(offerings, query, term, category, status)
+	sortCourseOfferings(offerings, sortKey)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := coursesTemplate.ExecuteTemplate(w, "courses", coursesPageData{
 		DisplayName: opts.DisplayName,
 		Version:     opts.Version,
 		Permissions: pagePermissions(r),
+		Query:       query,
+		Term:        term,
+		Category:    category,
+		Status:      status,
+		Sort:        sortKey,
 		Error:       message,
 		Offerings:   offerings,
 	}); err != nil {
