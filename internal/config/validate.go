@@ -39,5 +39,16 @@ func Validate(cfg Config) error {
 	if cfg.Logging.Level == "" {
 		return errors.New("config logging.level is required")
 	}
+	if !cfg.Auth.Disabled {
+		if cfg.Auth.AdminPassword == "" {
+			return errors.New("config auth.admin_password is required when auth is enabled")
+		}
+		if cfg.Auth.SessionSecret == "" {
+			return errors.New("config auth.session_secret is required when auth is enabled")
+		}
+		if cfg.Auth.SessionMaxAgeMinutes <= 0 {
+			return fmt.Errorf("config auth.session_max_age_minutes must be greater than zero: %d", cfg.Auth.SessionMaxAgeMinutes)
+		}
+	}
 	return nil
 }

@@ -14,6 +14,7 @@ type RouterOptions struct {
 	DisplayName   string
 	Version       string
 	Logger        *slog.Logger
+	Auth          config.AuthConfig
 	Members       MemberService
 	Courses       CourseService
 	Registrations RegistrationService

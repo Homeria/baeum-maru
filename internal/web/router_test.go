@@ -80,6 +80,93 @@ func TestRouterServesHealthCheck(t *testing.T) {
 	}
 }
 
+func TestRouterRedirectsUnauthenticatedRequestWhenAuthEnabled(t *testing.T) {
+	router := NewRouter(RouterOptions{Auth: testAuthConfig()})
+	req := httptest.NewRequest(http.MethodGet, "/admin", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if got := rec.Header().Get("Location"); got != "/login?next=%2Fadmin" {
+		t.Fatalf("Location = %q, want login redirect", got)
+	}
+}
+
+func TestRouterAuthenticatesWithPasswordSession(t *testing.T) {
+	router := NewRouter(RouterOptions{Auth: testAuthConfig()})
+	form := url.Values{
+		"password": {"secret"},
+		"next":     {"/admin"},
+	}
+	loginReq := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginRec := httptest.NewRecorder()
+
+	router.ServeHTTP(loginRec, loginReq)
+
+	if loginRec.Code != http.StatusSeeOther {
+		t.Fatalf("login status = %d, want %d", loginRec.Code, http.StatusSeeOther)
+	}
+	if got := loginRec.Header().Get("Location"); got != "/admin" {
+		t.Fatalf("login Location = %q, want /admin", got)
+	}
+	cookies := loginRec.Result().Cookies()
+	if len(cookies) == 0 {
+		t.Fatal("login cookies = empty, want session cookie")
+	}
+
+	adminReq := httptest.NewRequest(http.MethodGet, "/admin", nil)
+	adminReq.AddCookie(cookies[0])
+	adminRec := httptest.NewRecorder()
+	router.ServeHTTP(adminRec, adminReq)
+
+	if adminRec.Code != http.StatusOK {
+		t.Fatalf("admin status = %d, want %d", adminRec.Code, http.StatusOK)
+	}
+	if !strings.Contains(adminRec.Body.String(), "관리 화면") {
+		t.Fatalf("body = %q, want admin page", adminRec.Body.String())
+	}
+}
+
+func TestRouterRejectsInvalidLoginPassword(t *testing.T) {
+	router := NewRouter(RouterOptions{Auth: testAuthConfig()})
+	form := url.Values{
+		"password": {"wrong"},
+		"next":     {"/admin"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+	if !strings.Contains(rec.Body.String(), "비밀번호가 올바르지 않습니다.") {
+		t.Fatalf("body = %q, want login error", rec.Body.String())
+	}
+}
+
+func TestRouterLogoutClearsSession(t *testing.T) {
+	router := NewRouter(RouterOptions{Auth: testAuthConfig()})
+	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	cookies := rec.Result().Cookies()
+	if len(cookies) == 0 || cookies[0].MaxAge != -1 {
+		t.Fatalf("cookies = %+v, want expired session cookie", cookies)
+	}
+}
+
 func TestRouterRejectsUnsupportedMethod(t *testing.T) {
 	router := NewRouter(RouterOptions{})
 	req := httptest.NewRequest(http.MethodPost, "/admin", nil)
@@ -837,6 +924,14 @@ func TestRouterDownloadsAttendanceOfferingExport(t *testing.T) {
 	}
 	if rec.Body.String() != "xlsx" {
 		t.Fatalf("body = %q, want file contents", rec.Body.String())
+	}
+}
+
+func testAuthConfig() config.AuthConfig {
+	return config.AuthConfig{
+		AdminPassword:        "secret",
+		SessionSecret:        "test-session-secret",
+		SessionMaxAgeMinutes: 720,
 	}
 }
 

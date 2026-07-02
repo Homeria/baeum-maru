@@ -43,6 +43,7 @@
             <tr><th>엑셀 출력 경로</th><td>{{.Config.Export.Path}}</td></tr>
             <tr><th>로그 경로</th><td>{{.Config.Logging.Path}}</td></tr>
             <tr><th>로그 레벨</th><td>{{.Config.Logging.Level}}</td></tr>
+            <tr><th>로그인 보호</th><td>{{if .Config.Auth.Disabled}}사용 안 함{{else}}사용{{end}}</td></tr>
           </tbody>
         </table>
       </div>

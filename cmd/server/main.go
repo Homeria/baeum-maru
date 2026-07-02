@@ -25,6 +25,7 @@ func main() {
 		DisplayName:   runtime.Config.App.DisplayName,
 		Version:       app.Version,
 		Logger:        runtime.Logger.Logger,
+		Auth:          runtime.Config.Auth,
 		Members:       runtime.Members,
 		Courses:       runtime.Courses,
 		Registrations: runtime.Registrations,

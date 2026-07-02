@@ -99,4 +99,13 @@ func applyMissingDefaults(cfg *Config) {
 	if cfg.Export.Path == "" {
 		cfg.Export.Path = defaults.Export.Path
 	}
+	if cfg.Auth.AdminPassword == "" {
+		cfg.Auth.AdminPassword = defaults.Auth.AdminPassword
+	}
+	if cfg.Auth.SessionSecret == "" {
+		cfg.Auth.SessionSecret = defaults.Auth.SessionSecret
+	}
+	if cfg.Auth.SessionMaxAgeMinutes == 0 {
+		cfg.Auth.SessionMaxAgeMinutes = defaults.Auth.SessionMaxAgeMinutes
+	}
 }

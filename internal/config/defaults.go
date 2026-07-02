@@ -1,5 +1,10 @@
 package config
 
+import (
+	"crypto/rand"
+	"encoding/base64"
+)
+
 func Default() Config {
 	return Config{
 		App: AppConfig{
@@ -28,5 +33,19 @@ func Default() Config {
 		UI: UIConfig{
 			OpenBrowserOnStart: true,
 		},
+		Auth: AuthConfig{
+			Disabled:             false,
+			AdminPassword:        "admin",
+			SessionSecret:        randomSessionSecret(),
+			SessionMaxAgeMinutes: 720,
+		},
 	}
+}
+
+func randomSessionSecret() string {
+	data := make([]byte, 32)
+	if _, err := rand.Read(data); err != nil {
+		return "change-this-session-secret"
+	}
+	return base64.RawURLEncoding.EncodeToString(data)
 }
