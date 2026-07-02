@@ -12,6 +12,7 @@ const importUploadLimitBytes = 10 << 20
 type importsPageData struct {
 	DisplayName string
 	Version     string
+	Permissions permissionSet
 	Message     string
 	Error       string
 	Result      *service.ImportResult
@@ -30,7 +31,7 @@ func importsHandler(opts RouterOptions) http.HandlerFunc {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		renderImports(w, opts, "", "", nil)
+		renderImports(w, r, opts, "", "", nil)
 	}
 }
 
@@ -69,17 +70,17 @@ func importUploadHandler(opts RouterOptions, importWorkbook func(ImportService, 
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, importUploadLimitBytes)
 		if err := r.ParseMultipartForm(importUploadLimitBytes); err != nil {
-			renderImports(w, opts, "", "업로드 파일을 읽을 수 없습니다.", nil)
+			renderImports(w, r, opts, "", "업로드 파일을 읽을 수 없습니다.", nil)
 			return
 		}
 		result, err := importWorkbook(opts.Imports, r)
 		if err != nil {
-			renderImports(w, opts, "", err.Error(), nil)
+			renderImports(w, r, opts, "", err.Error(), nil)
 			return
 		}
 		message := fmt.Sprintf("%s 가져오기를 처리했습니다.", result.Kind)
 		recordAudit(r, opts, "excel.import", "import", 0, fmt.Sprintf("%s 가져오기 성공 %d건 오류 %d건", result.Kind, result.CreatedCount, len(result.Errors)))
-		renderImports(w, opts, message, "", &result)
+		renderImports(w, r, opts, message, "", &result)
 	}
 }
 
@@ -118,11 +119,12 @@ func importTemplateHandler(opts RouterOptions, create func(ImportService) (servi
 	}
 }
 
-func renderImports(w http.ResponseWriter, opts RouterOptions, message string, errorMessage string, result *service.ImportResult) {
+func renderImports(w http.ResponseWriter, r *http.Request, opts RouterOptions, message string, errorMessage string, result *service.ImportResult) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := importsTemplate.ExecuteTemplate(w, "imports", importsPageData{
 		DisplayName: opts.DisplayName,
 		Version:     opts.Version,
+		Permissions: pagePermissions(r),
 		Message:     message,
 		Error:       errorMessage,
 		Result:      result,

@@ -14,10 +14,11 @@
       <div>
         <h1>강좌 관리</h1>
       </div>
-      <a class="button secondary" href="/admin/exports/courses">엑셀 다운로드</a>
+      {{if index .Permissions "exports"}}<a class="button secondary" href="/admin/exports/courses">엑셀 다운로드</a>{{end}}
     </section>
     {{if .Error}}<p class="alert error" role="alert">{{.Error}}</p>{{end}}
 
+    {{if index .Permissions "write_courses"}}
     <form class="panel" method="post" action="/admin/courses">
       <h2>강좌 개설 등록</h2>
       <div class="form-grid">
@@ -44,6 +45,7 @@
         <button type="submit">등록</button>
       </div>
     </form>
+    {{end}}
 
     <section class="panel">
       <h2>강좌 개설 목록</h2>

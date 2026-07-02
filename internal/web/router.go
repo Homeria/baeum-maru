@@ -63,7 +63,7 @@ func NewRouter(opts RouterOptions) http.Handler {
 	mux.HandleFunc("/healthz", healthHandler())
 	mux.HandleFunc("/login", loginHandler(opts))
 	mux.HandleFunc("/logout", logoutHandler(opts))
-	mux.Handle("/", requireAuth(opts, appMux))
+	mux.Handle("/", requireAuth(opts, requirePermission(opts, appMux)))
 
 	return mux
 }

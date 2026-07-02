@@ -12,6 +12,7 @@ import (
 type settingsPageData struct {
 	DisplayName string
 	Version     string
+	Permissions permissionSet
 	Message     string
 	Error       string
 	Config      config.Config
@@ -68,6 +69,7 @@ func renderSettings(w http.ResponseWriter, r *http.Request, opts RouterOptions, 
 	if err := settingsTemplate.ExecuteTemplate(w, "settings", settingsPageData{
 		DisplayName: opts.DisplayName,
 		Version:     opts.Version,
+		Permissions: pagePermissions(r),
 		Message:     message,
 		Error:       errorMessage,
 		Config:      cfg,

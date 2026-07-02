@@ -13,6 +13,7 @@ import (
 type receptionPageData struct {
 	DisplayName   string
 	Version       string
+	Permissions   permissionSet
 	Query         string
 	SelectedID    int64
 	Error         string
@@ -96,6 +97,7 @@ func renderReception(w http.ResponseWriter, r *http.Request, opts RouterOptions,
 	if err := receptionTemplate.ExecuteTemplate(w, "reception", receptionPageData{
 		DisplayName:   opts.DisplayName,
 		Version:       opts.Version,
+		Permissions:   pagePermissions(r),
 		Query:         query,
 		SelectedID:    selectedID,
 		Error:         message,
@@ -144,6 +146,7 @@ func cancelRegistrationHandler(opts RouterOptions) http.HandlerFunc {
 type registrationsPageData struct {
 	DisplayName   string
 	Version       string
+	Permissions   permissionSet
 	Message       string
 	Error         string
 	Registrations []domain.Registration
@@ -173,6 +176,7 @@ func registrationsHandler(opts RouterOptions) http.HandlerFunc {
 		if err := registrationsTemplate.ExecuteTemplate(w, "registrations", registrationsPageData{
 			DisplayName:   opts.DisplayName,
 			Version:       opts.Version,
+			Permissions:   pagePermissions(r),
 			Message:       r.URL.Query().Get("message"),
 			Error:         message,
 			Registrations: registrations,

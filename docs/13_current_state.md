@@ -19,6 +19,7 @@
 - GitHub Actions 기반 Windows 포터블 패키징 workflow
 - 접속 코드 인증 모델과 config 비밀번호 fallback
 - 서명된 세션 쿠키 기반 접근 보호
+- 런처/직원/임시 직원/조회 전용 역할별 접근 권한
 - Fyne 빌드 태그 기반 런처 UI와 접속 코드 발급 패널
 - 공개 저장소용 README, LICENSE, NOTICE, 기여/보안 안내, PR/Issue 템플릿
 
@@ -100,7 +101,6 @@
 - 네이티브 GUI 런처 컨트롤 패널
 - 내부망 접속자 heartbeat 표시
 - Fyne GUI 런처를 기본 패키징에 포함하는 빌드 환경 정리
-- 직원/임시 직원/조회 전용 권한 적용
 - QR 출석
 - 문자/알림톡 발송
 - Linux 서버 모드
@@ -115,8 +115,7 @@
 2. `docs/mvp-user-guide`
 3. `feat/member-course-edit`
 4. `feat/search-filter-sort`
-5. `feat/role-permissions`
-6. `ci/fyne-launcher-build`
+5. `ci/fyne-launcher-build`
 
 ## 5. MVP 완료 판단
 

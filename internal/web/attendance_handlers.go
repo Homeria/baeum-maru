@@ -13,6 +13,7 @@ import (
 type attendancePageData struct {
 	DisplayName string
 	Version     string
+	Permissions permissionSet
 	Message     string
 	Error       string
 	OfferingID  int64
@@ -154,6 +155,7 @@ func renderAttendance(w http.ResponseWriter, r *http.Request, opts RouterOptions
 	if err := attendanceTemplate.ExecuteTemplate(w, "attendance", attendancePageData{
 		DisplayName: opts.DisplayName,
 		Version:     opts.Version,
+		Permissions: pagePermissions(r),
 		Message:     message,
 		Error:       errorMessage,
 		OfferingID:  offeringID,

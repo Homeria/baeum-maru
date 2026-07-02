@@ -2,17 +2,17 @@
 <header class="topbar">
   <a class="brand" href="/admin">{{.DisplayName}}</a>
   <nav class="topnav">
-    <a href="/admin/members">회원 관리</a>
-    <a href="/admin/courses">강좌 관리</a>
-    <a href="/admin/registrations">신청 현황</a>
-    <a href="/admin/lottery">추첨</a>
-    <a href="/admin/imports">엑셀 가져오기</a>
-    <a href="/admin/exports">엑셀 내보내기</a>
-    <a href="/admin/backups">백업</a>
-    <a href="/admin/attendance">출석</a>
-    <a href="/admin/settings">설정</a>
-    <a href="/admin/audit-logs">감사 로그</a>
-    <a href="/reception">접수 화면</a>
+    {{if index .Permissions "members"}}<a href="/admin/members">회원 관리</a>{{end}}
+    {{if index .Permissions "courses"}}<a href="/admin/courses">강좌 관리</a>{{end}}
+    {{if index .Permissions "registrations"}}<a href="/admin/registrations">신청 현황</a>{{end}}
+    {{if index .Permissions "lottery"}}<a href="/admin/lottery">추첨</a>{{end}}
+    {{if index .Permissions "imports"}}<a href="/admin/imports">엑셀 가져오기</a>{{end}}
+    {{if index .Permissions "exports"}}<a href="/admin/exports">엑셀 내보내기</a>{{end}}
+    {{if index .Permissions "backups"}}<a href="/admin/backups">백업</a>{{end}}
+    {{if index .Permissions "attendance"}}<a href="/admin/attendance">출석</a>{{end}}
+    {{if index .Permissions "settings"}}<a href="/admin/settings">설정</a>{{end}}
+    {{if index .Permissions "audit_logs"}}<a href="/admin/audit-logs">감사 로그</a>{{end}}
+    {{if index .Permissions "reception"}}<a href="/reception">접수 화면</a>{{end}}
     <form class="topnav-form" method="post" action="/logout">
       <button type="submit">로그아웃</button>
     </form>
