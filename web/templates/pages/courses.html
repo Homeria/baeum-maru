@@ -18,6 +18,29 @@
     </section>
     {{if .Error}}<p class="alert error" role="alert">{{.Error}}</p>{{end}}
 
+    <form class="panel form-grid" method="get" action="/admin/courses">
+      <label>검색 <input name="q" value="{{.Query}}" placeholder="강좌명, 강사, 강의실"></label>
+      <label>회차 <input name="term" value="{{.Term}}" placeholder="예: 여름학기"></label>
+      <label>분류 <input name="category" value="{{.Category}}" placeholder="예: 건강"></label>
+      <label>상태
+        <select name="status">
+          <option value="" {{if eq .Status ""}}selected{{end}}>전체</option>
+          <option value="open" {{if eq .Status "open"}}selected{{end}}>open</option>
+          <option value="closed" {{if eq .Status "closed"}}selected{{end}}>closed</option>
+        </select>
+      </label>
+      <label>정렬
+        <select name="sort">
+          <option value="" {{if eq .Sort ""}}selected{{end}}>회차/강좌명순</option>
+          <option value="time" {{if eq .Sort "time"}}selected{{end}}>요일/시간순</option>
+          <option value="registrations_desc" {{if eq .Sort "registrations_desc"}}selected{{end}}>신청 많은순</option>
+          <option value="capacity_desc" {{if eq .Sort "capacity_desc"}}selected{{end}}>정원 많은순</option>
+          <option value="id_desc" {{if eq .Sort "id_desc"}}selected{{end}}>최근 ID순</option>
+        </select>
+      </label>
+      <button type="submit">적용</button>
+    </form>
+
     {{if index .Permissions "write_courses"}}
     <form class="panel" method="post" action="/admin/courses">
       <h2>강좌 개설 등록</h2>

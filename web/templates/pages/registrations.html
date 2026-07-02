@@ -18,6 +18,28 @@
     </section>
     {{if .Message}}<p class="alert success" role="status">{{.Message}}</p>{{end}}
     {{if .Error}}<p class="alert error" role="alert">{{.Error}}</p>{{end}}
+    <form class="panel form-grid" method="get" action="/admin/registrations">
+      <label>검색 <input name="q" value="{{.Query}}" placeholder="회원명, 회원번호, 회차, 강좌명"></label>
+      <label>상태
+        <select name="status">
+          <option value="" {{if eq .Status ""}}selected{{end}}>전체</option>
+          <option value="applied" {{if eq .Status "applied"}}selected{{end}}>신청</option>
+          <option value="selected" {{if eq .Status "selected"}}selected{{end}}>선정</option>
+          <option value="waitlisted" {{if eq .Status "waitlisted"}}selected{{end}}>대기</option>
+          <option value="confirmed" {{if eq .Status "confirmed"}}selected{{end}}>확정</option>
+          <option value="cancelled" {{if eq .Status "cancelled"}}selected{{end}}>취소</option>
+        </select>
+      </label>
+      <label>정렬
+        <select name="sort">
+          <option value="" {{if eq .Sort ""}}selected{{end}}>최근 신청순</option>
+          <option value="id_asc" {{if eq .Sort "id_asc"}}selected{{end}}>오래된 ID순</option>
+          <option value="member" {{if eq .Sort "member"}}selected{{end}}>회원명순</option>
+          <option value="course" {{if eq .Sort "course"}}selected{{end}}>강좌명순</option>
+        </select>
+      </label>
+      <button type="submit">적용</button>
+    </form>
     <section class="panel">
       <div class="table-wrap">
         <table>

@@ -13,6 +13,8 @@ type membersPageData struct {
 	Version     string
 	Permissions permissionSet
 	Query       string
+	Gender      string
+	Sort        string
 	Error       string
 	Members     []domain.Member
 }
@@ -80,10 +82,14 @@ func membersHandler(opts RouterOptions) http.HandlerFunc {
 
 func renderMembers(w http.ResponseWriter, r *http.Request, opts RouterOptions, message string) {
 	query := r.URL.Query().Get("q")
-	members, err := opts.Members.Search(r.Context(), query, 50)
+	gender := r.URL.Query().Get("gender")
+	sortKey := r.URL.Query().Get("sort")
+	members, err := opts.Members.Search(r.Context(), query, 500)
 	if err != nil {
 		message = err.Error()
 	}
+	members = filterMembers(members, gender)
+	sortMembers(members, sortKey)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := membersTemplate.ExecuteTemplate(w, "members", membersPageData{
@@ -91,6 +97,8 @@ func renderMembers(w http.ResponseWriter, r *http.Request, opts RouterOptions, m
 		Version:     opts.Version,
 		Permissions: pagePermissions(r),
 		Query:       query,
+		Gender:      gender,
+		Sort:        sortKey,
 		Error:       message,
 		Members:     members,
 	}); err != nil {
