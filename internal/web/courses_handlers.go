@@ -12,6 +12,7 @@ import (
 type coursesPageData struct {
 	DisplayName string
 	Version     string
+	Permissions permissionSet
 	Error       string
 	Offerings   []domain.CourseOffering
 }
@@ -78,6 +79,7 @@ func renderCourses(w http.ResponseWriter, r *http.Request, opts RouterOptions, m
 	if err := coursesTemplate.ExecuteTemplate(w, "courses", coursesPageData{
 		DisplayName: opts.DisplayName,
 		Version:     opts.Version,
+		Permissions: pagePermissions(r),
 		Error:       message,
 		Offerings:   offerings,
 	}); err != nil {

@@ -10,6 +10,7 @@ import (
 type auditLogsPageData struct {
 	DisplayName string
 	Version     string
+	Permissions permissionSet
 	Error       string
 	Logs        []domain.AuditLog
 }
@@ -42,6 +43,7 @@ func auditLogsHandler(opts RouterOptions) http.HandlerFunc {
 		if err := auditLogsTemplate.ExecuteTemplate(w, "audit_logs", auditLogsPageData{
 			DisplayName: opts.DisplayName,
 			Version:     opts.Version,
+			Permissions: pagePermissions(r),
 			Error:       errorMessage,
 			Logs:        logs,
 		}); err != nil {

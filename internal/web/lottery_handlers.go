@@ -14,6 +14,7 @@ import (
 type lotteryPageData struct {
 	DisplayName string
 	Version     string
+	Permissions permissionSet
 	Message     string
 	Error       string
 	Offerings   []lotteryOfferingRow
@@ -111,6 +112,7 @@ func renderLottery(w http.ResponseWriter, r *http.Request, opts RouterOptions, m
 	if err := lotteryTemplate.ExecuteTemplate(w, "lottery", lotteryPageData{
 		DisplayName: opts.DisplayName,
 		Version:     opts.Version,
+		Permissions: pagePermissions(r),
 		Message:     message,
 		Error:       errorMessage,
 		Offerings:   offeringRows,

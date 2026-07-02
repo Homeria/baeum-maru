@@ -12,6 +12,7 @@ import (
 type exportsPageData struct {
 	DisplayName string
 	Version     string
+	Permissions permissionSet
 	Error       string
 }
 
@@ -28,7 +29,7 @@ func exportsHandler(opts RouterOptions) http.HandlerFunc {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		renderExports(w, opts, "")
+		renderExports(w, r, opts, "")
 	}
 }
 
@@ -105,11 +106,12 @@ func exportHandler(opts RouterOptions, create func(ExportService, *http.Request)
 	}
 }
 
-func renderExports(w http.ResponseWriter, opts RouterOptions, message string) {
+func renderExports(w http.ResponseWriter, r *http.Request, opts RouterOptions, message string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := exportsTemplate.ExecuteTemplate(w, "exports", exportsPageData{
 		DisplayName: opts.DisplayName,
 		Version:     opts.Version,
+		Permissions: pagePermissions(r),
 		Error:       message,
 	}); err != nil {
 		opts.Logger.Error("render exports failed", "error", err)

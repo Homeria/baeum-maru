@@ -14,7 +14,7 @@
       <div>
         <h1>회원 관리</h1>
       </div>
-      <a class="button secondary" href="/admin/exports/members">엑셀 다운로드</a>
+      {{if index .Permissions "exports"}}<a class="button secondary" href="/admin/exports/members">엑셀 다운로드</a>{{end}}
     </section>
     {{if .Error}}<p class="alert error" role="alert">{{.Error}}</p>{{end}}
 
@@ -23,6 +23,7 @@
       <button type="submit">검색</button>
     </form>
 
+    {{if index .Permissions "write_members"}}
     <form class="panel" method="post" action="/admin/members">
       <h2>회원 등록</h2>
       <div class="form-grid">
@@ -42,6 +43,7 @@
         <button type="submit">등록</button>
       </div>
     </form>
+    {{end}}
 
     <section class="panel">
       <h2>회원 목록</h2>

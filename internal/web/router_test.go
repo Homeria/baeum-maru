@@ -953,12 +953,101 @@ func TestRouterDownloadsAttendanceOfferingExport(t *testing.T) {
 	}
 }
 
+func TestRouterBlocksViewerWriteAccess(t *testing.T) {
+	router := NewRouter(RouterOptions{Auth: testAuthConfig()})
+	req := authenticatedRequest(t, testAuthConfig(), http.MethodPost, "/admin/members", nil, roleViewer)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+}
+
+func TestRouterAllowsTemporaryStaffReception(t *testing.T) {
+	registrations := &fakeRegistrationService{}
+	router := NewRouter(RouterOptions{
+		Auth:          testAuthConfig(),
+		Members:       &fakeMemberService{},
+		Courses:       &fakeCourseService{},
+		Registrations: registrations,
+	})
+	form := url.Values{"member_id": {"1"}, "offering_id": {"2"}}
+	req := authenticatedRequest(t, testAuthConfig(), http.MethodPost, "/reception", strings.NewReader(form.Encode()), roleTemporaryStaff)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if registrations.created.MemberID != 1 || registrations.created.OfferingID != 2 {
+		t.Fatalf("created = %+v, want member 1 offering 2", registrations.created)
+	}
+}
+
+func TestRouterBlocksTemporaryStaffLottery(t *testing.T) {
+	router := NewRouter(RouterOptions{Auth: testAuthConfig()})
+	req := authenticatedRequest(t, testAuthConfig(), http.MethodPost, "/admin/lottery/run", nil, roleTemporaryStaff)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+}
+
+func TestRouterBlocksStaffSettings(t *testing.T) {
+	router := NewRouter(RouterOptions{Auth: testAuthConfig()})
+	req := authenticatedRequest(t, testAuthConfig(), http.MethodGet, "/admin/settings", nil, roleStaff)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+}
+
+func TestRouterAllowsLauncherSettings(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		Auth:     testAuthConfig(),
+		Settings: &fakeSettingsService{},
+	})
+	req := authenticatedRequest(t, testAuthConfig(), http.MethodGet, "/admin/settings", nil, roleLauncher)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+}
+
 func testAuthConfig() config.AuthConfig {
 	return config.AuthConfig{
 		AdminPassword:        "secret",
 		SessionSecret:        "test-session-secret",
 		SessionMaxAgeMinutes: 720,
 	}
+}
+
+func authenticatedRequest(t *testing.T, auth config.AuthConfig, method string, target string, body io.Reader, role string) *http.Request {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	setSessionCookie(rec, RouterOptions{Auth: auth}, AuthIdentity{
+		UserID:      7,
+		DisplayName: "test user",
+		Role:        role,
+	})
+	req := httptest.NewRequest(method, target, body)
+	for _, cookie := range rec.Result().Cookies() {
+		req.AddCookie(cookie)
+	}
+	return req
 }
 
 type fakeMemberService struct {

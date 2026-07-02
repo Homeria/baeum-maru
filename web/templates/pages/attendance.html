@@ -36,14 +36,16 @@
           <div>
             <h2>출석 회차</h2>
           </div>
-          <a class="button secondary" href="/admin/exports/attendance-offering?offering_id={{.OfferingID}}">강좌 전체 출석 다운로드</a>
+          {{if index .Permissions "exports"}}<a class="button secondary" href="/admin/exports/attendance-offering?offering_id={{.OfferingID}}">강좌 전체 출석 다운로드</a>{{end}}
         </div>
+        {{if index .Permissions "write_attendance"}}
         <form class="form-grid" method="post" action="/admin/attendance/session">
           <input type="hidden" name="offering_id" value="{{.OfferingID}}">
           <label>수업일 <input name="session_date" placeholder="YYYY-MM-DD" required></label>
           <label>비고 <input name="note"></label>
           <button type="submit">회차 생성</button>
         </form>
+        {{end}}
 
         <div class="table-wrap" style="margin-top: 14px;">
           <table>
@@ -58,7 +60,7 @@
                   <td>
                     <div class="actions">
                       <a class="button secondary" href="/admin/attendance?offering_id={{.OfferingID}}&session_id={{.ID}}">출석 입력</a>
-                      <a class="button secondary" href="/admin/exports/attendance-session?session_id={{.ID}}">엑셀 다운로드</a>
+                      {{if index $.Permissions "exports"}}<a class="button secondary" href="/admin/exports/attendance-session?session_id={{.ID}}">엑셀 다운로드</a>{{end}}
                     </div>
                   </td>
                 </tr>
@@ -93,7 +95,7 @@
           <div>
             <h2>출석 입력</h2>
           </div>
-          <a class="button secondary" href="/admin/exports/attendance-session?session_id={{.SessionID}}">현재 회차 출석 다운로드</a>
+          {{if index .Permissions "exports"}}<a class="button secondary" href="/admin/exports/attendance-session?session_id={{.SessionID}}">현재 회차 출석 다운로드</a>{{end}}
         </div>
         <div class="table-wrap">
           <table>
@@ -104,6 +106,7 @@
                   <td>{{.MemberNo}}</td>
                   <td>{{.MemberName}}</td>
                   <td>
+                    {{if index $.Permissions "write_attendance"}}
                     <form class="inline-form" method="post" action="/admin/attendance/record">
                       <input type="hidden" name="offering_id" value="{{$.OfferingID}}">
                       <input type="hidden" name="session_id" value="{{$.SessionID}}">
@@ -118,6 +121,12 @@
                   </td>
                   <td><input name="note" value="{{.Note}}"></td>
                   <td><button type="submit">저장</button></form></td>
+                    {{else}}
+                      {{.Status}}
+                  </td>
+                  <td>{{.Note}}</td>
+                  <td></td>
+                    {{end}}
                 </tr>
               {{else}}
                 <tr><td class="empty" colspan="5">출석 대상자가 없습니다.</td></tr>

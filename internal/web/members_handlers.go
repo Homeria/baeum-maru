@@ -11,6 +11,7 @@ import (
 type membersPageData struct {
 	DisplayName string
 	Version     string
+	Permissions permissionSet
 	Query       string
 	Error       string
 	Members     []domain.Member
@@ -65,6 +66,7 @@ func renderMembers(w http.ResponseWriter, r *http.Request, opts RouterOptions, m
 	if err := membersTemplate.ExecuteTemplate(w, "members", membersPageData{
 		DisplayName: opts.DisplayName,
 		Version:     opts.Version,
+		Permissions: pagePermissions(r),
 		Query:       query,
 		Error:       message,
 		Members:     members,

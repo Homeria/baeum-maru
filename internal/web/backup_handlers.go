@@ -12,6 +12,7 @@ import (
 type backupsPageData struct {
 	DisplayName string
 	Version     string
+	Permissions permissionSet
 	Message     string
 	Error       string
 	Status      domain.BackupStatus
@@ -132,6 +133,7 @@ func renderBackups(w http.ResponseWriter, r *http.Request, opts RouterOptions, m
 	if err := backupsTemplate.ExecuteTemplate(w, "backups", backupsPageData{
 		DisplayName: opts.DisplayName,
 		Version:     opts.Version,
+		Permissions: pagePermissions(r),
 		Message:     message,
 		Error:       errorMessage,
 		Status:      status,
