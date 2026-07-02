@@ -9,6 +9,7 @@ type Config struct {
 	Export   ExportConfig   `json:"export"`
 	Logging  LoggingConfig  `json:"logging"`
 	UI       UIConfig       `json:"ui"`
+	Auth     AuthConfig     `json:"auth"`
 }
 
 type AppConfig struct {
@@ -42,4 +43,11 @@ type LoggingConfig struct {
 
 type UIConfig struct {
 	OpenBrowserOnStart bool `json:"open_browser_on_start"`
+}
+
+type AuthConfig struct {
+	Disabled             bool   `json:"disabled"`
+	AdminPassword        string `json:"admin_password"`
+	SessionSecret        string `json:"session_secret"`
+	SessionMaxAgeMinutes int    `json:"session_max_age_minutes"`
 }

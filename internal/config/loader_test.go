@@ -16,6 +16,15 @@ func TestLoadOrCreateCreatesDefaultConfig(t *testing.T) {
 	if cfg.Server.Port != 18080 {
 		t.Fatalf("Server.Port = %d, want 18080", cfg.Server.Port)
 	}
+	if cfg.Auth.Disabled {
+		t.Fatal("Auth.Disabled = true, want default auth enabled")
+	}
+	if cfg.Auth.AdminPassword != "admin" {
+		t.Fatalf("Auth.AdminPassword = %q, want admin", cfg.Auth.AdminPassword)
+	}
+	if cfg.Auth.SessionSecret == "" {
+		t.Fatal("Auth.SessionSecret = empty, want generated secret")
+	}
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("created config stat error = %v", err)
 	}
@@ -61,6 +70,15 @@ func TestLoadFillsMissingExportConfig(t *testing.T) {
 	if cfg.Export.Path != "./exports" {
 		t.Fatalf("Export.Path = %q, want ./exports", cfg.Export.Path)
 	}
+	if cfg.Auth.AdminPassword != "admin" {
+		t.Fatalf("Auth.AdminPassword = %q, want admin", cfg.Auth.AdminPassword)
+	}
+	if cfg.Auth.SessionSecret == "" {
+		t.Fatal("Auth.SessionSecret = empty, want generated secret")
+	}
+	if cfg.Auth.SessionMaxAgeMinutes != 720 {
+		t.Fatalf("Auth.SessionMaxAgeMinutes = %d, want 720", cfg.Auth.SessionMaxAgeMinutes)
+	}
 }
 
 func TestValidateRejectsInvalidPort(t *testing.T) {
@@ -69,6 +87,15 @@ func TestValidateRejectsInvalidPort(t *testing.T) {
 
 	if err := Validate(cfg); err == nil {
 		t.Fatal("Validate() error = nil, want invalid port error")
+	}
+}
+
+func TestValidateRejectsMissingAuthPassword(t *testing.T) {
+	cfg := Default()
+	cfg.Auth.AdminPassword = ""
+
+	if err := Validate(cfg); err == nil {
+		t.Fatal("Validate() error = nil, want missing auth password error")
 	}
 }
 

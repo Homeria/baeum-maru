@@ -39,6 +39,7 @@
 
 - 실사용 DB, 백업, 엑셀 출력, 로그 파일이 포함되지 않았는지 확인
 - README의 실행 방법과 패키징 방법 확인
+- `config.json`의 기본 관리자 비밀번호를 실사용 전에 변경하도록 안내했는지 확인
 - `LICENSE`, `NOTICE`, `CONTRIBUTING.md`, `SECURITY.md` 존재 확인
 - README에 비상업 사용과 출처 고지 정책이 설명되어 있는지 확인
 - 이슈/PR 템플릿 존재 확인

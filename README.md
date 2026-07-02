@@ -41,6 +41,8 @@ go run ./cmd/server
 http://127.0.0.1:18080
 ```
 
+기본 관리자 비밀번호는 `admin`입니다. 실사용 전 `config.json`의 `auth.admin_password`를 기관에서 정한 비밀번호로 변경하세요.
+
 ## Windows 포터블 패키징
 
 ```powershell

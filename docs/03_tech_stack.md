@@ -274,9 +274,17 @@ config.json
   },
   "ui": {
     "open_browser_on_start": true
+  },
+  "auth": {
+    "disabled": false,
+    "admin_password": "admin",
+    "session_secret": "자동 생성 값",
+    "session_max_age_minutes": 720
   }
 }
 ```
+
+`auth.admin_password`는 첫 실행 후 기관에서 정한 값으로 변경한다. `auth.disabled`를 `true`로 바꾸면 로그인 보호를 끌 수 있지만, 내부망 공유 Wi-Fi에서 운영할 때는 권장하지 않는다.
 
 ## 10. 패키징
 
