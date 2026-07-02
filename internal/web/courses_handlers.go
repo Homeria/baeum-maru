@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -34,28 +35,27 @@ func coursesHandler(opts RouterOptions) http.HandlerFunc {
 				http.Error(w, "invalid form", http.StatusBadRequest)
 				return
 			}
-			capacity, err := strconv.Atoi(r.FormValue("capacity"))
+			input, err := courseInputFromRequest(r)
 			if err != nil {
-				renderCourses(w, r, opts, "정원은 숫자로 입력해야 합니다.")
+				renderCourses(w, r, opts, err.Error())
 				return
 			}
-			weekday, err := strconv.Atoi(r.FormValue("weekday"))
-			if err != nil {
-				renderCourses(w, r, opts, "요일 값이 올바르지 않습니다.")
+			if r.FormValue("action") == "update" {
+				id, err := strconv.ParseInt(r.FormValue("offering_id"), 10, 64)
+				if err != nil {
+					renderCourses(w, r, opts, "강좌 선택이 올바르지 않습니다.")
+					return
+				}
+				updated, err := opts.Courses.UpdateOffering(r.Context(), id, input)
+				if err != nil {
+					renderCourses(w, r, opts, err.Error())
+					return
+				}
+				recordAudit(r, opts, "course.update", "course_offering", updated.ID, "강좌 개설 수정 #"+strconv.FormatInt(updated.ID, 10))
+				http.Redirect(w, r, "/admin/courses", http.StatusSeeOther)
 				return
 			}
-			created, err := opts.Courses.CreateOffering(r.Context(), service.CourseOfferingInput{
-				TermName:       r.FormValue("term_name"),
-				CategoryName:   r.FormValue("category_name"),
-				CourseTitle:    r.FormValue("course_title"),
-				InstructorName: r.FormValue("instructor_name"),
-				ClassroomName:  r.FormValue("classroom_name"),
-				Capacity:       capacity,
-				Weekday:        weekday,
-				StartTime:      r.FormValue("start_time"),
-				EndTime:        r.FormValue("end_time"),
-				Note:           r.FormValue("note"),
-			})
+			created, err := opts.Courses.CreateOffering(r.Context(), input)
 			if err != nil {
 				renderCourses(w, r, opts, err.Error())
 				return
@@ -67,6 +67,29 @@ func coursesHandler(opts RouterOptions) http.HandlerFunc {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
+}
+
+func courseInputFromRequest(r *http.Request) (service.CourseOfferingInput, error) {
+	capacity, err := strconv.Atoi(r.FormValue("capacity"))
+	if err != nil {
+		return service.CourseOfferingInput{}, fmt.Errorf("정원은 숫자로 입력해야 합니다.")
+	}
+	weekday, err := strconv.Atoi(r.FormValue("weekday"))
+	if err != nil {
+		return service.CourseOfferingInput{}, fmt.Errorf("요일 값이 올바르지 않습니다.")
+	}
+	return service.CourseOfferingInput{
+		TermName:       r.FormValue("term_name"),
+		CategoryName:   r.FormValue("category_name"),
+		CourseTitle:    r.FormValue("course_title"),
+		InstructorName: r.FormValue("instructor_name"),
+		ClassroomName:  r.FormValue("classroom_name"),
+		Capacity:       capacity,
+		Weekday:        weekday,
+		StartTime:      r.FormValue("start_time"),
+		EndTime:        r.FormValue("end_time"),
+		Note:           r.FormValue("note"),
+	}, nil
 }
 
 func renderCourses(w http.ResponseWriter, r *http.Request, opts RouterOptions, message string) {

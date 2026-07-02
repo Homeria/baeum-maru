@@ -34,13 +34,36 @@ func membersHandler(opts RouterOptions) http.HandlerFunc {
 				http.Error(w, "invalid form", http.StatusBadRequest)
 				return
 			}
-			created, err := opts.Members.Create(r.Context(), service.MemberInput{
+			input := service.MemberInput{
 				MemberNo:   r.FormValue("member_no"),
 				Name:       r.FormValue("name"),
 				GenderCode: r.FormValue("gender_code"),
 				BirthDate:  r.FormValue("birth_date"),
 				Phone:      r.FormValue("phone"),
 				Note:       r.FormValue("note"),
+			}
+			if r.FormValue("action") == "update" {
+				id, err := strconv.ParseInt(r.FormValue("member_id"), 10, 64)
+				if err != nil {
+					renderMembers(w, r, opts, "회원 선택이 올바르지 않습니다.")
+					return
+				}
+				updated, err := opts.Members.Update(r.Context(), id, input)
+				if err != nil {
+					renderMembers(w, r, opts, err.Error())
+					return
+				}
+				recordAudit(r, opts, "member.update", "member", updated.ID, "회원 수정 #"+strconv.FormatInt(updated.ID, 10))
+				http.Redirect(w, r, "/admin/members", http.StatusSeeOther)
+				return
+			}
+			created, err := opts.Members.Create(r.Context(), service.MemberInput{
+				MemberNo:   input.MemberNo,
+				Name:       input.Name,
+				GenderCode: input.GenderCode,
+				BirthDate:  input.BirthDate,
+				Phone:      input.Phone,
+				Note:       input.Note,
 			})
 			if err != nil {
 				renderMembers(w, r, opts, err.Error())

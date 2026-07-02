@@ -50,7 +50,7 @@
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>ID</th><th>회원번호</th><th>이름</th><th>성별</th><th>생년월일</th><th>연락처</th><th>비고</th></tr>
+            <tr><th>ID</th><th>회원번호</th><th>이름</th><th>성별</th><th>생년월일</th><th>연락처</th><th>비고</th>{{if index .Permissions "write_members"}}<th>수정</th>{{end}}</tr>
           </thead>
           <tbody>
             {{range .Members}}
@@ -62,9 +62,34 @@
                 <td>{{.BirthDate}}</td>
                 <td>{{.Phone}}</td>
                 <td>{{.Note}}</td>
+                {{if index $.Permissions "write_members"}}
+                <td>
+                  <details>
+                    <summary class="button secondary">수정</summary>
+                    <form class="form-grid" method="post" action="/admin/members">
+                      <input type="hidden" name="action" value="update">
+                      <input type="hidden" name="member_id" value="{{.ID}}">
+                      <label>회원번호 <input name="member_no" value="{{.MemberNo}}"></label>
+                      <label>이름 <input name="name" value="{{.Name}}" required></label>
+                      <label>성별
+                        <select name="gender_code">
+                          <option value="" {{if eq .GenderCode ""}}selected{{end}}>선택 안 함</option>
+                          <option value="male" {{if eq .GenderCode "male"}}selected{{end}}>남성</option>
+                          <option value="female" {{if eq .GenderCode "female"}}selected{{end}}>여성</option>
+                          <option value="unknown" {{if eq .GenderCode "unknown"}}selected{{end}}>미상</option>
+                        </select>
+                      </label>
+                      <label>생년월일 <input name="birth_date" value="{{.BirthDate}}" placeholder="YYYY-MM-DD"></label>
+                      <label>연락처 <input name="phone" value="{{.Phone}}"></label>
+                      <label>비고 <input name="note" value="{{.Note}}"></label>
+                      <button type="submit">저장</button>
+                    </form>
+                  </details>
+                </td>
+                {{end}}
               </tr>
             {{else}}
-              <tr><td class="empty" colspan="7">회원이 없습니다.</td></tr>
+              <tr><td class="empty" colspan="{{if index .Permissions "write_members"}}8{{else}}7{{end}}">회원이 없습니다.</td></tr>
             {{end}}
           </tbody>
         </table>
