@@ -32,5 +32,6 @@ type CourseOffering struct {
 	Weekday                   int
 	StartTime                 string
 	EndTime                   string
+	Note                      string
 	RegistrationCount         int
 }

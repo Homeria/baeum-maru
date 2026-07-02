@@ -52,7 +52,7 @@
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>ID</th><th>회차</th><th>분류</th><th>강좌명</th><th>강사</th><th>강의실</th><th>정원</th><th>시간</th><th>신청</th></tr>
+            <tr><th>ID</th><th>회차</th><th>분류</th><th>강좌명</th><th>강사</th><th>강의실</th><th>정원</th><th>시간</th><th>신청</th>{{if index .Permissions "write_courses"}}<th>수정</th>{{end}}</tr>
           </thead>
           <tbody>
             {{range .Offerings}}
@@ -66,9 +66,41 @@
                 <td>{{.Capacity}}</td>
                 <td>{{weekdayLabel .Weekday}} {{.StartTime}}-{{.EndTime}}</td>
                 <td><span class="badge">{{.RegistrationCount}}</span></td>
+                {{if index $.Permissions "write_courses"}}
+                <td>
+                  <details>
+                    <summary class="button secondary">수정</summary>
+                    <form class="form-grid" method="post" action="/admin/courses">
+                      <input type="hidden" name="action" value="update">
+                      <input type="hidden" name="offering_id" value="{{.ID}}">
+                      <label>회차 <input name="term_name" value="{{.TermName}}"></label>
+                      <label>분류 <input name="category_name" value="{{.CategoryName}}"></label>
+                      <label>강좌명 <input name="course_title" value="{{.CourseTitle}}" required></label>
+                      <label>강사 <input name="instructor_name" value="{{.InstructorName}}"></label>
+                      <label>강의실 <input name="classroom_name" value="{{.ClassroomName}}"></label>
+                      <label>정원 <input name="capacity" type="number" min="{{.RegistrationCount}}" value="{{.Capacity}}"></label>
+                      <label>요일
+                        <select name="weekday">
+                          <option value="1" {{if eq .Weekday 1}}selected{{end}}>월</option>
+                          <option value="2" {{if eq .Weekday 2}}selected{{end}}>화</option>
+                          <option value="3" {{if eq .Weekday 3}}selected{{end}}>수</option>
+                          <option value="4" {{if eq .Weekday 4}}selected{{end}}>목</option>
+                          <option value="5" {{if eq .Weekday 5}}selected{{end}}>금</option>
+                          <option value="6" {{if eq .Weekday 6}}selected{{end}}>토</option>
+                          <option value="0" {{if eq .Weekday 0}}selected{{end}}>일</option>
+                        </select>
+                      </label>
+                      <label>시작 <input name="start_time" value="{{.StartTime}}" placeholder="09:00" required></label>
+                      <label>종료 <input name="end_time" value="{{.EndTime}}" placeholder="10:00" required></label>
+                      <label>비고 <input name="note" value="{{.Note}}"></label>
+                      <button type="submit">저장</button>
+                    </form>
+                  </details>
+                </td>
+                {{end}}
               </tr>
             {{else}}
-              <tr><td class="empty" colspan="9">강좌가 없습니다.</td></tr>
+              <tr><td class="empty" colspan="{{if index .Permissions "write_courses"}}10{{else}}9{{end}}">강좌가 없습니다.</td></tr>
             {{end}}
           </tbody>
         </table>

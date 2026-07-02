@@ -27,6 +27,20 @@ type CreateCourseOfferingParams struct {
 	Note           string
 }
 
+type UpdateCourseOfferingParams struct {
+	ID             int64
+	TermName       string
+	CategoryName   string
+	CourseTitle    string
+	InstructorName string
+	ClassroomName  string
+	Capacity       int
+	Weekday        int
+	StartTime      string
+	EndTime        string
+	Note           string
+}
+
 func NewCourseRepository(db *sql.DB) *CourseRepository {
 	return &CourseRepository{db: db}
 }
@@ -79,6 +93,93 @@ VALUES (?, ?, ?, ?);
 		return domain.CourseOffering{}, err
 	}
 	return r.GetOffering(ctx, offeringID)
+}
+
+func (r *CourseRepository) UpdateOffering(ctx context.Context, params UpdateCourseOfferingParams) (domain.CourseOffering, error) {
+	err := database.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		var activeRegistrations int
+		if err := tx.QueryRowContext(ctx, `
+SELECT COUNT(*)
+FROM registrations
+WHERE offering_id = ? AND status != 'cancelled';
+`, params.ID).Scan(&activeRegistrations); err != nil {
+			return fmt.Errorf("count active registrations: %w", err)
+		}
+		if params.Capacity < activeRegistrations {
+			return fmt.Errorf("course capacity cannot be less than active registration count %d", activeRegistrations)
+		}
+
+		termID, err := ensureTerm(ctx, tx, strings.TrimSpace(params.TermName))
+		if err != nil {
+			return err
+		}
+		categoryID, err := ensureCategory(ctx, tx, strings.TrimSpace(params.CategoryName))
+		if err != nil {
+			return err
+		}
+		instructorID, err := ensureOptionalNamed(ctx, tx, "instructors", strings.TrimSpace(params.InstructorName))
+		if err != nil {
+			return err
+		}
+		classroomID, err := ensureOptionalNamed(ctx, tx, "classrooms", strings.TrimSpace(params.ClassroomName))
+		if err != nil {
+			return err
+		}
+
+		var courseID int64
+		if err := tx.QueryRowContext(ctx, `
+SELECT course_id
+FROM course_offerings
+WHERE id = ?;
+`, params.ID).Scan(&courseID); err != nil {
+			return fmt.Errorf("select course offering %d: %w", params.ID, err)
+		}
+		if _, err := tx.ExecContext(ctx, `
+UPDATE courses
+SET title = ?,
+    category_id = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?;
+`, strings.TrimSpace(params.CourseTitle), categoryID, courseID); err != nil {
+			return fmt.Errorf("update course: %w", err)
+		}
+
+		result, err := tx.ExecContext(ctx, `
+UPDATE course_offerings
+SET term_id = ?,
+    instructor_id = ?,
+    classroom_id = ?,
+    capacity = ?,
+    note = NULLIF(?, ''),
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?;
+`, termID, instructorID, classroomID, params.Capacity, strings.TrimSpace(params.Note), params.ID)
+		if err != nil {
+			return fmt.Errorf("update course offering %d: %w", params.ID, err)
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("read affected course offering rows: %w", err)
+		}
+		if affected == 0 {
+			return sql.ErrNoRows
+		}
+
+		if _, err := tx.ExecContext(ctx, `
+UPDATE course_meetings
+SET weekday = ?,
+    start_time = ?,
+    end_time = ?
+WHERE offering_id = ?;
+`, params.Weekday, strings.TrimSpace(params.StartTime), strings.TrimSpace(params.EndTime), params.ID); err != nil {
+			return fmt.Errorf("update course meeting: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return domain.CourseOffering{}, err
+	}
+	return r.GetOffering(ctx, params.ID)
 }
 
 func (r *CourseRepository) GetOffering(ctx context.Context, id int64) (domain.CourseOffering, error) {
@@ -195,6 +296,7 @@ SELECT co.id,
        cm.weekday,
        cm.start_time,
        cm.end_time,
+       COALESCE(co.note, ''),
        COUNT(r.id)
 FROM course_offerings co
 JOIN terms t ON t.id = co.term_id
@@ -227,6 +329,7 @@ func scanCourseOffering(scanner interface{ Scan(dest ...any) error }) (domain.Co
 		&offering.Weekday,
 		&offering.StartTime,
 		&offering.EndTime,
+		&offering.Note,
 		&offering.RegistrationCount,
 	); err != nil {
 		return domain.CourseOffering{}, fmt.Errorf("scan course offering: %w", err)

@@ -251,6 +251,36 @@ func TestRouterCreatesMember(t *testing.T) {
 	}
 }
 
+func TestRouterUpdatesMember(t *testing.T) {
+	members := &fakeMemberService{}
+	audits := &fakeAuditService{}
+	router := NewRouter(RouterOptions{
+		Members: members,
+		Audits:  audits,
+	})
+	form := url.Values{
+		"action":    {"update"},
+		"member_id": {"7"},
+		"name":      {"이마루"},
+		"phone":     {"010-1234-5678"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/admin/members", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if members.updatedID != 7 || members.updated.Name != "이마루" {
+		t.Fatalf("updatedID = %d, updated = %+v, want member 7 이마루", members.updatedID, members.updated)
+	}
+	if len(audits.events) != 1 || audits.events[0].Action != "member.update" {
+		t.Fatalf("audit events = %+v, want member.update", audits.events)
+	}
+}
+
 func TestRouterServesCourseManagement(t *testing.T) {
 	router := NewRouter(RouterOptions{
 		DisplayName: "배움마루",
@@ -295,6 +325,39 @@ func TestRouterCreatesCourseOffering(t *testing.T) {
 	}
 	if courses.created.CourseTitle != "요가 기초" {
 		t.Fatalf("created.CourseTitle = %q, want 요가 기초", courses.created.CourseTitle)
+	}
+}
+
+func TestRouterUpdatesCourseOffering(t *testing.T) {
+	courses := &fakeCourseService{}
+	audits := &fakeAuditService{}
+	router := NewRouter(RouterOptions{
+		Courses: courses,
+		Audits:  audits,
+	})
+	form := url.Values{
+		"action":       {"update"},
+		"offering_id":  {"9"},
+		"course_title": {"요가 심화"},
+		"capacity":     {"12"},
+		"weekday":      {"2"},
+		"start_time":   {"10:00"},
+		"end_time":     {"11:00"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/admin/courses", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if courses.updatedID != 9 || courses.updated.CourseTitle != "요가 심화" {
+		t.Fatalf("updatedID = %d, updated = %+v, want offering 9 요가 심화", courses.updatedID, courses.updated)
+	}
+	if len(audits.events) != 1 || audits.events[0].Action != "course.update" {
+		t.Fatalf("audit events = %+v, want course.update", audits.events)
 	}
 }
 
@@ -1051,13 +1114,21 @@ func authenticatedRequest(t *testing.T, auth config.AuthConfig, method string, t
 }
 
 type fakeMemberService struct {
-	created service.MemberInput
-	members []domain.Member
+	created   service.MemberInput
+	updatedID int64
+	updated   service.MemberInput
+	members   []domain.Member
 }
 
 func (f *fakeMemberService) Create(_ context.Context, input service.MemberInput) (domain.Member, error) {
 	f.created = input
 	return domain.Member{ID: 1, Name: input.Name}, nil
+}
+
+func (f *fakeMemberService) Update(_ context.Context, id int64, input service.MemberInput) (domain.Member, error) {
+	f.updatedID = id
+	f.updated = input
+	return domain.Member{ID: id, Name: input.Name}, nil
 }
 
 func (f *fakeMemberService) Search(_ context.Context, _ string, _ int) ([]domain.Member, error) {
@@ -1066,12 +1137,20 @@ func (f *fakeMemberService) Search(_ context.Context, _ string, _ int) ([]domain
 
 type fakeCourseService struct {
 	created   service.CourseOfferingInput
+	updatedID int64
+	updated   service.CourseOfferingInput
 	offerings []domain.CourseOffering
 }
 
 func (f *fakeCourseService) CreateOffering(_ context.Context, input service.CourseOfferingInput) (domain.CourseOffering, error) {
 	f.created = input
 	return domain.CourseOffering{ID: 1, CourseTitle: input.CourseTitle}, nil
+}
+
+func (f *fakeCourseService) UpdateOffering(_ context.Context, id int64, input service.CourseOfferingInput) (domain.CourseOffering, error) {
+	f.updatedID = id
+	f.updated = input
+	return domain.CourseOffering{ID: id, CourseTitle: input.CourseTitle}, nil
 }
 
 func (f *fakeCourseService) ListOfferings(_ context.Context, _ int) ([]domain.CourseOffering, error) {

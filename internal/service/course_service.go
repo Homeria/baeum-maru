@@ -11,6 +11,7 @@ import (
 
 type CourseRepository interface {
 	CreateOffering(context.Context, repository.CreateCourseOfferingParams) (domain.CourseOffering, error)
+	UpdateOffering(context.Context, repository.UpdateCourseOfferingParams) (domain.CourseOffering, error)
 	ListOfferings(context.Context, int) ([]domain.CourseOffering, error)
 }
 
@@ -40,6 +41,29 @@ func (s *CourseService) CreateOffering(ctx context.Context, input CourseOffering
 		return domain.CourseOffering{}, err
 	}
 	return s.courses.CreateOffering(ctx, repository.CreateCourseOfferingParams(input))
+}
+
+func (s *CourseService) UpdateOffering(ctx context.Context, id int64, input CourseOfferingInput) (domain.CourseOffering, error) {
+	if id <= 0 {
+		return domain.CourseOffering{}, errors.New("course offering id is required")
+	}
+	if err := validateCourseOfferingInput(input); err != nil {
+		return domain.CourseOffering{}, err
+	}
+	params := repository.UpdateCourseOfferingParams{
+		ID:             id,
+		TermName:       input.TermName,
+		CategoryName:   input.CategoryName,
+		CourseTitle:    input.CourseTitle,
+		InstructorName: input.InstructorName,
+		ClassroomName:  input.ClassroomName,
+		Capacity:       input.Capacity,
+		Weekday:        input.Weekday,
+		StartTime:      input.StartTime,
+		EndTime:        input.EndTime,
+		Note:           input.Note,
+	}
+	return s.courses.UpdateOffering(ctx, params)
 }
 
 func (s *CourseService) ListOfferings(ctx context.Context, limit int) ([]domain.CourseOffering, error) {

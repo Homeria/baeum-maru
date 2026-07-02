@@ -34,11 +34,13 @@ type Authenticator interface {
 
 type MemberService interface {
 	Create(context.Context, service.MemberInput) (domain.Member, error)
+	Update(context.Context, int64, service.MemberInput) (domain.Member, error)
 	Search(context.Context, string, int) ([]domain.Member, error)
 }
 
 type CourseService interface {
 	CreateOffering(context.Context, service.CourseOfferingInput) (domain.CourseOffering, error)
+	UpdateOffering(context.Context, int64, service.CourseOfferingInput) (domain.CourseOffering, error)
 	ListOfferings(context.Context, int) ([]domain.CourseOffering, error)
 }
 

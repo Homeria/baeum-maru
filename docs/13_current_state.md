@@ -25,8 +25,8 @@
 
 ### 업무 기능
 
-- 회원 등록/검색
-- 강좌, 회차, 강좌 개설, 시간표 기반 관리
+- 회원 등록/검색/수정
+- 강좌, 회차, 강좌 개설, 시간표 기반 등록/수정
 - 수강신청 등록과 취소
 - 회원별/강좌별 신청 조회
 - 동일 강좌 중복 신청 차단
@@ -113,9 +113,8 @@
 
 1. `test/windows-portable-smoke`
 2. `docs/mvp-user-guide`
-3. `feat/member-course-edit`
-4. `feat/search-filter-sort`
-5. `ci/fyne-launcher-build`
+3. `feat/search-filter-sort`
+4. `ci/fyne-launcher-build`
 
 ## 5. MVP 완료 판단
 
