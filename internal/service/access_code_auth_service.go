@@ -22,6 +22,8 @@ type AccessCodeRepository interface {
 	CreateAccessCode(context.Context, repository.CreateAccessCodeParams) (domain.AccessCode, error)
 	FindPrincipalByCodeHash(context.Context, string) (domain.AccessCodePrincipal, error)
 	MarkAccessCodeUsed(context.Context, int64, int64, string) error
+	ListRecentAccessCodes(context.Context, int) ([]repository.AccessCodeListItem, error)
+	RevokeAccessCode(context.Context, int64, string) error
 }
 
 type AccessCodeAuthService struct {
@@ -50,6 +52,20 @@ type AuthenticatedUser struct {
 	UserID      int64
 	DisplayName string
 	Role        string
+}
+
+type AccessCodeSummary struct {
+	ID          int64
+	UserID      int64
+	DisplayName string
+	Affiliation string
+	Role        string
+	Status      string
+	Label       string
+	IssuedAt    string
+	ExpiresAt   string
+	RevokedAt   string
+	LastUsedAt  string
 }
 
 func NewAccessCodeAuthService(repository AccessCodeRepository, secret string) *AccessCodeAuthService {
@@ -147,6 +163,47 @@ func (s *AccessCodeAuthService) AuthenticateAccessCode(ctx context.Context, code
 		DisplayName: principal.User.DisplayName,
 		Role:        principal.User.Role,
 	}, nil
+}
+
+func (s *AccessCodeAuthService) ListRecentAccessCodes(ctx context.Context, limit int) ([]AccessCodeSummary, error) {
+	if s == nil || s.repository == nil {
+		return nil, errors.New("access code repository is not configured")
+	}
+	items, err := s.repository.ListRecentAccessCodes(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	summaries := make([]AccessCodeSummary, 0, len(items))
+	for _, item := range items {
+		status := item.AccessCode.Status
+		if status == domain.AccessCodeStatusActive && !timeStringAfter(item.AccessCode.ExpiresAt, s.now().UTC()) {
+			status = domain.AccessCodeStatusExpired
+		}
+		summaries = append(summaries, AccessCodeSummary{
+			ID:          item.AccessCode.ID,
+			UserID:      item.User.ID,
+			DisplayName: item.User.DisplayName,
+			Affiliation: item.User.Affiliation,
+			Role:        item.User.Role,
+			Status:      status,
+			Label:       item.AccessCode.Label,
+			IssuedAt:    item.AccessCode.IssuedAt,
+			ExpiresAt:   item.AccessCode.ExpiresAt,
+			RevokedAt:   item.AccessCode.RevokedAt,
+			LastUsedAt:  item.AccessCode.LastUsedAt,
+		})
+	}
+	return summaries, nil
+}
+
+func (s *AccessCodeAuthService) RevokeAccessCode(ctx context.Context, accessCodeID int64) error {
+	if s == nil || s.repository == nil {
+		return errors.New("access code repository is not configured")
+	}
+	if accessCodeID <= 0 {
+		return errors.New("access code id is required")
+	}
+	return s.repository.RevokeAccessCode(ctx, accessCodeID, s.now().UTC().Format(time.RFC3339))
 }
 
 func (s *AccessCodeAuthService) hashCode(code string) string {

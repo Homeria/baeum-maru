@@ -49,6 +49,12 @@ http://127.0.0.1:18080
 powershell -ExecutionPolicy Bypass -File .\scripts\package_windows.ps1 -Version 0.1.0
 ```
 
+Fyne 런처 UI가 포함된 실행 파일은 Fyne 개발 환경이 준비된 PC에서 다음처럼 빌드합니다.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\package_windows.ps1 -Version 0.1.0 -GuiLauncher
+```
+
 생성된 `dist/BaeumMaru_Portable_<version>/baeum-maru.exe`를 실행하면 로컬 서버가 시작되고 브라우저가 열립니다.
 
 GitHub Actions의 `Windows Package` workflow를 수동 실행하거나 `v*` 태그를 push하면 같은 ZIP 패키지를 artifact로 받을 수 있습니다.

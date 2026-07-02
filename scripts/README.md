@@ -23,6 +23,12 @@ dist/
 
 The script also creates `BaeumMaru_Portable_<version>.zip` unless `-SkipArchive` is passed.
 
+To build the Fyne launcher UI, prepare the Fyne desktop build prerequisites and pass `-GuiLauncher`.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\package_windows.ps1 -Version 0.1.0 -GuiLauncher
+```
+
 ## GitHub Actions package
 
 `.github/workflows/release-package-windows.yml` creates the same portable ZIP on `windows-latest`.

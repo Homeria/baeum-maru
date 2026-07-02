@@ -323,7 +323,8 @@ test: 신청 제한 규칙 테스트 추가
 2. `docs/mvp-user-guide`
 3. `feat/member-course-edit`
 4. `feat/search-filter-sort`
-5. `feat/launcher-access-code-panel`
+5. `feat/role-permissions`
+6. `ci/fyne-launcher-build`
 
 ## 10. 공개 저장소 정리 작업
 

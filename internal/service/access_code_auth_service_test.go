@@ -38,6 +38,20 @@ func TestAccessCodeAuthServiceIssuesAndAuthenticatesCode(t *testing.T) {
 	if !repo.markUsedCalled {
 		t.Fatal("markUsedCalled = false, want true")
 	}
+
+	summaries, err := service.ListRecentAccessCodes(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("ListRecentAccessCodes() error = %v", err)
+	}
+	if len(summaries) != 1 || summaries[0].DisplayName != "김접수" {
+		t.Fatalf("summaries = %+v, want issued user", summaries)
+	}
+	if err := service.RevokeAccessCode(context.Background(), issued.AccessCode.ID); err != nil {
+		t.Fatalf("RevokeAccessCode() error = %v", err)
+	}
+	if !repo.revokeCalled {
+		t.Fatal("revokeCalled = false, want true")
+	}
 }
 
 func TestAccessCodeAuthServiceRejectsExpiredCode(t *testing.T) {
@@ -73,6 +87,7 @@ type fakeAccessCodeRepository struct {
 	nextCodeID     int64
 	principal      domain.AccessCodePrincipal
 	markUsedCalled bool
+	revokeCalled   bool
 }
 
 func newFakeAccessCodeRepository() *fakeAccessCodeRepository {
@@ -118,5 +133,20 @@ func (f *fakeAccessCodeRepository) FindPrincipalByCodeHash(_ context.Context, co
 
 func (f *fakeAccessCodeRepository) MarkAccessCodeUsed(context.Context, int64, int64, string) error {
 	f.markUsedCalled = true
+	return nil
+}
+
+func (f *fakeAccessCodeRepository) ListRecentAccessCodes(context.Context, int) ([]repository.AccessCodeListItem, error) {
+	if f.principal.User.ID == 0 || f.principal.AccessCode.ID == 0 {
+		return nil, nil
+	}
+	return []repository.AccessCodeListItem{{
+		User:       f.principal.User,
+		AccessCode: f.principal.AccessCode,
+	}}, nil
+}
+
+func (f *fakeAccessCodeRepository) RevokeAccessCode(context.Context, int64, string) error {
+	f.revokeCalled = true
 	return nil
 }
