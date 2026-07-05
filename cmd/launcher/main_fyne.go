@@ -44,6 +44,7 @@ func main() {
 			Attendance:    runtime.Attendance,
 			Settings:      runtime.Settings,
 			Audits:        runtime.Audits,
+			Locations:     runtime.Locations,
 		}),
 		Logger: runtime.Logger.Logger,
 	})

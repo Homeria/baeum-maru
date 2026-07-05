@@ -26,6 +26,7 @@ type RouterOptions struct {
 	Attendance    AttendanceService
 	Settings      SettingsService
 	Audits        AuditService
+	Locations     LocationService
 }
 
 type Authenticator interface {
@@ -42,6 +43,13 @@ type CourseService interface {
 	CreateOffering(context.Context, service.CourseOfferingInput) (domain.CourseOffering, error)
 	UpdateOffering(context.Context, int64, service.CourseOfferingInput) (domain.CourseOffering, error)
 	ListOfferings(context.Context, int) ([]domain.CourseOffering, error)
+}
+
+type LocationService interface {
+	Create(context.Context, service.LocationInput) (domain.Location, error)
+	Update(context.Context, int64, service.LocationInput) (domain.Location, error)
+	List(context.Context, service.LocationListInput) ([]domain.Location, error)
+	ListClassrooms(context.Context, int) ([]domain.Location, error)
 }
 
 type RegistrationService interface {

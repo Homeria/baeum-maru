@@ -4,6 +4,7 @@
   <nav class="topnav">
     {{if index .Permissions "members"}}<a href="/admin/members">회원 관리</a>{{end}}
     {{if index .Permissions "courses"}}<a href="/admin/courses">강좌 관리</a>{{end}}
+    {{if index .Permissions "locations"}}<a href="/admin/locations">장소 관리</a>{{end}}
     {{if index .Permissions "registrations"}}<a href="/admin/registrations">신청 현황</a>{{end}}
     {{if index .Permissions "lottery"}}<a href="/admin/lottery">추첨</a>{{end}}
     {{if index .Permissions "imports"}}<a href="/admin/imports">엑셀 가져오기</a>{{end}}
