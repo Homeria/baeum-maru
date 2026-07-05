@@ -49,7 +49,16 @@
         <label>분류 <input name="category_name" placeholder="예: 건강"></label>
         <label>강좌명 <input name="course_title" required></label>
         <label>강사 <input name="instructor_name"></label>
-        <label>강의실 <input name="classroom_name"></label>
+        <label>강의실
+          {{if .Classrooms}}
+            <select name="classroom_name">
+              <option value="">선택 안 함</option>
+              {{range .Classrooms}}<option value="{{.Name}}">{{.Name}}</option>{{end}}
+            </select>
+          {{else}}
+            <input name="classroom_name">
+          {{end}}
+        </label>
         <label>정원 <input name="capacity" type="number" min="0" value="0"></label>
         <label>요일
           <select name="weekday">
@@ -79,6 +88,7 @@
           </thead>
           <tbody>
             {{range .Offerings}}
+              {{$offering := .}}
               <tr>
                 <td>{{.ID}}</td>
                 <td>{{.TermName}}</td>
@@ -100,7 +110,16 @@
                       <label>분류 <input name="category_name" value="{{.CategoryName}}"></label>
                       <label>강좌명 <input name="course_title" value="{{.CourseTitle}}" required></label>
                       <label>강사 <input name="instructor_name" value="{{.InstructorName}}"></label>
-                      <label>강의실 <input name="classroom_name" value="{{.ClassroomName}}"></label>
+                      <label>강의실
+                        {{if $.Classrooms}}
+                          <select name="classroom_name">
+                            <option value="">선택 안 함</option>
+                            {{range $.Classrooms}}<option value="{{.Name}}" {{if eq .Name $offering.ClassroomName}}selected{{end}}>{{.Name}}</option>{{end}}
+                          </select>
+                        {{else}}
+                          <input name="classroom_name" value="{{.ClassroomName}}">
+                        {{end}}
+                      </label>
                       <label>정원 <input name="capacity" type="number" min="{{.RegistrationCount}}" value="{{.Capacity}}"></label>
                       <label>요일
                         <select name="weekday">

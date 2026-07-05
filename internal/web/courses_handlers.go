@@ -21,6 +21,7 @@ type coursesPageData struct {
 	Sort        string
 	Error       string
 	Offerings   []domain.CourseOffering
+	Classrooms  []domain.Location
 }
 
 var coursesTemplate = mustPageTemplate("courses", "courses.html", template.FuncMap{"weekdayLabel": weekdayLabel})
@@ -109,6 +110,7 @@ func renderCourses(w http.ResponseWriter, r *http.Request, opts RouterOptions, m
 	}
 	offerings = filterCourseOfferings(offerings, query, term, category, status)
 	sortCourseOfferings(offerings, sortKey)
+	classrooms := listClassroomLocations(r, opts, &message)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := coursesTemplate.ExecuteTemplate(w, "courses", coursesPageData{
@@ -122,7 +124,22 @@ func renderCourses(w http.ResponseWriter, r *http.Request, opts RouterOptions, m
 		Sort:        sortKey,
 		Error:       message,
 		Offerings:   offerings,
+		Classrooms:  classrooms,
 	}); err != nil {
 		opts.Logger.Error("render courses failed", "error", err)
 	}
+}
+
+func listClassroomLocations(r *http.Request, opts RouterOptions, message *string) []domain.Location {
+	if opts.Locations == nil {
+		return nil
+	}
+	locations, err := opts.Locations.ListClassrooms(r.Context(), 500)
+	if err != nil {
+		if message != nil && *message == "" {
+			*message = err.Error()
+		}
+		return nil
+	}
+	return locations
 }

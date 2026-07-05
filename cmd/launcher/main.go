@@ -40,6 +40,7 @@ func main() {
 		Attendance:    runtime.Attendance,
 		Settings:      runtime.Settings,
 		Audits:        runtime.Audits,
+		Locations:     runtime.Locations,
 	})
 	httpServer := server.New(server.Options{
 		Host:    runtime.Config.Server.Host,

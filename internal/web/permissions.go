@@ -44,6 +44,8 @@ func allPermissions() permissionSet {
 		"write_members":        true,
 		"courses":              true,
 		"write_courses":        true,
+		"locations":            true,
+		"write_locations":      true,
 		"reception":            true,
 		"write_reception":      true,
 		"registrations":        true,
@@ -66,12 +68,14 @@ func permissionsForRole(role string) permissionSet {
 	permissions := permissionSet{
 		"members":       true,
 		"courses":       true,
+		"locations":     true,
 		"registrations": true,
 		"attendance":    true,
 	}
 	if role == roleStaff {
 		permissions["write_members"] = true
 		permissions["write_courses"] = true
+		permissions["write_locations"] = true
 		permissions["reception"] = true
 		permissions["write_reception"] = true
 		permissions["manage_registrations"] = true
@@ -111,7 +115,7 @@ func isAllowed(role string, method string, path string) bool {
 		return role == roleStaff
 	case "/reception", "/reception/cancel":
 		return role == roleStaff || role == roleTemporaryStaff
-	case "/admin/members", "/admin/courses", "/admin/registrations":
+	case "/admin/members", "/admin/courses", "/admin/locations", "/admin/registrations":
 		return method == http.MethodGet || role == roleStaff
 	case "/admin/registrations/status":
 		return role == roleStaff

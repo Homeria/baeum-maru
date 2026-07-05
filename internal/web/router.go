@@ -31,6 +31,7 @@ func NewRouter(opts RouterOptions) http.Handler {
 	appMux.HandleFunc("/reception", receptionHandler(opts))
 	appMux.HandleFunc("/admin/members", membersHandler(opts))
 	appMux.HandleFunc("/admin/courses", coursesHandler(opts))
+	appMux.HandleFunc("/admin/locations", locationsHandler(opts))
 	appMux.HandleFunc("/admin/registrations", registrationsHandler(opts))
 	appMux.HandleFunc("/admin/registrations/status", registrationStatusHandler(opts))
 	appMux.HandleFunc("/admin/lottery", lotteryHandler(opts))

@@ -444,6 +444,91 @@ func TestRouterUpdatesCourseOffering(t *testing.T) {
 	}
 }
 
+func TestRouterServesLocationManagement(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		DisplayName: "test",
+		Locations: &fakeLocationService{
+			locations: []domain.Location{{ID: 1, Name: "Room 101", Building: "Main", Floor: "2F", IsClassroom: true, IsActive: true}},
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/locations", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "Room 101") {
+		t.Fatalf("body = %q, want location name", rec.Body.String())
+	}
+}
+
+func TestRouterCreatesLocation(t *testing.T) {
+	locations := &fakeLocationService{}
+	router := NewRouter(RouterOptions{Locations: locations})
+	form := url.Values{
+		"name":     {"Room 101"},
+		"building": {"Main"},
+		"floor":    {"2F"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/admin/locations", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if locations.created.Name != "Room 101" || !locations.created.IsClassroom || locations.created.Type != domain.LocationTypeClassroom {
+		t.Fatalf("created = %+v, want classroom location", locations.created)
+	}
+}
+
+func TestRouterUpdatesLocation(t *testing.T) {
+	locations := &fakeLocationService{}
+	router := NewRouter(RouterOptions{Locations: locations})
+	form := url.Values{
+		"action":      {"update"},
+		"location_id": {"7"},
+		"name":        {"Room 202"},
+		"is_active":   {"true"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/admin/locations", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if locations.updatedID != 7 || locations.updated.Name != "Room 202" || !locations.updated.IsActive {
+		t.Fatalf("updatedID = %d, updated = %+v, want active location 7", locations.updatedID, locations.updated)
+	}
+}
+
+func TestRouterUsesClassroomLocationsInCourseForm(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		Courses: &fakeCourseService{},
+		Locations: &fakeLocationService{
+			classrooms: []domain.Location{{ID: 1, Name: "Room 101", IsClassroom: true, IsActive: true}},
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/courses", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), `<option value="Room 101">Room 101</option>`) {
+		t.Fatalf("body = %q, want classroom option", rec.Body.String())
+	}
+}
+
 func TestRouterServesReceptionWithSelectedMember(t *testing.T) {
 	router := NewRouter(RouterOptions{
 		DisplayName: "배움마루",
@@ -1261,6 +1346,39 @@ func (f *fakeCourseService) UpdateOffering(_ context.Context, id int64, input se
 
 func (f *fakeCourseService) ListOfferings(_ context.Context, _ int) ([]domain.CourseOffering, error) {
 	return f.offerings, nil
+}
+
+type fakeLocationService struct {
+	created    service.LocationInput
+	updatedID  int64
+	updated    service.LocationInput
+	locations  []domain.Location
+	classrooms []domain.Location
+}
+
+func (f *fakeLocationService) Create(_ context.Context, input service.LocationInput) (domain.Location, error) {
+	f.created = input
+	return domain.Location{ID: 1, Name: input.Name, Type: input.Type, IsClassroom: input.IsClassroom, IsActive: true}, nil
+}
+
+func (f *fakeLocationService) Update(_ context.Context, id int64, input service.LocationInput) (domain.Location, error) {
+	f.updatedID = id
+	f.updated = input
+	return domain.Location{ID: id, Name: input.Name, Type: input.Type, IsClassroom: input.IsClassroom, IsActive: input.IsActive}, nil
+}
+
+func (f *fakeLocationService) List(_ context.Context, input service.LocationListInput) ([]domain.Location, error) {
+	if input.ClassroomOnly && len(f.classrooms) > 0 {
+		return f.classrooms, nil
+	}
+	return f.locations, nil
+}
+
+func (f *fakeLocationService) ListClassrooms(context.Context, int) ([]domain.Location, error) {
+	if len(f.classrooms) > 0 {
+		return f.classrooms, nil
+	}
+	return f.locations, nil
 }
 
 type fakeRegistrationService struct {
