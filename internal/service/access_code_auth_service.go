@@ -21,9 +21,11 @@ type AccessCodeRepository interface {
 	CreateUser(context.Context, repository.CreateAccessUserParams) (domain.User, error)
 	CreateAccessCode(context.Context, repository.CreateAccessCodeParams) (domain.AccessCode, error)
 	FindPrincipalByCodeHash(context.Context, string) (domain.AccessCodePrincipal, error)
+	FindPrincipalByAccessCodeID(context.Context, int64, int64) (domain.AccessCodePrincipal, error)
 	MarkAccessCodeUsed(context.Context, int64, int64, string) error
 	ListRecentAccessCodes(context.Context, int) ([]repository.AccessCodeListItem, error)
 	RevokeAccessCode(context.Context, int64, string) error
+	ExtendAccessCode(context.Context, int64, string) error
 }
 
 type AccessCodeAuthService struct {
@@ -49,14 +51,16 @@ type IssuedAccessCode struct {
 }
 
 type AuthenticatedUser struct {
-	UserID      int64
-	DisplayName string
-	Role        string
+	UserID       int64
+	AccessCodeID int64
+	DisplayName  string
+	Role         string
 }
 
 type AccessCodeSummary struct {
 	ID          int64
 	UserID      int64
+	Code        string
 	DisplayName string
 	Affiliation string
 	Role        string
@@ -111,11 +115,12 @@ func (s *AccessCodeAuthService) IssueAccessCode(ctx context.Context, input Acces
 		return IssuedAccessCode{}, err
 	}
 	accessCode, err := s.repository.CreateAccessCode(ctx, repository.CreateAccessCodeParams{
-		UserID:    user.ID,
-		CodeHash:  s.hashCode(code),
-		Label:     input.Label,
-		ExpiresAt: expiresAt,
-		Note:      input.Note,
+		UserID:      user.ID,
+		CodeHash:    s.hashCode(code),
+		DisplayCode: formatAccessCode(code),
+		Label:       input.Label,
+		ExpiresAt:   expiresAt,
+		Note:        input.Note,
 	})
 	if err != nil {
 		return IssuedAccessCode{}, err
@@ -140,29 +145,32 @@ func (s *AccessCodeAuthService) AuthenticateAccessCode(ctx context.Context, code
 		return AuthenticatedUser{}, errors.New("access code is invalid")
 	}
 	now := s.now().UTC()
-	if principal.User.Status != domain.UserStatusActive {
-		return AuthenticatedUser{}, errors.New("user is not active")
-	}
-	if principal.User.ExpiresAt != "" && !timeStringAfter(principal.User.ExpiresAt, now) {
-		return AuthenticatedUser{}, errors.New("user is expired")
-	}
-	if principal.AccessCode.Status != domain.AccessCodeStatusActive {
-		return AuthenticatedUser{}, errors.New("access code is not active")
-	}
-	if principal.AccessCode.RevokedAt != "" {
-		return AuthenticatedUser{}, errors.New("access code is revoked")
-	}
-	if !timeStringAfter(principal.AccessCode.ExpiresAt, now) {
-		return AuthenticatedUser{}, errors.New("access code is expired")
+	if err := validateAccessPrincipal(principal, now); err != nil {
+		return AuthenticatedUser{}, err
 	}
 	if err := s.repository.MarkAccessCodeUsed(ctx, principal.AccessCode.ID, principal.User.ID, now.Format(time.RFC3339)); err != nil {
 		return AuthenticatedUser{}, err
 	}
 	return AuthenticatedUser{
-		UserID:      principal.User.ID,
-		DisplayName: principal.User.DisplayName,
-		Role:        principal.User.Role,
+		UserID:       principal.User.ID,
+		AccessCodeID: principal.AccessCode.ID,
+		DisplayName:  principal.User.DisplayName,
+		Role:         principal.User.Role,
 	}, nil
+}
+
+func (s *AccessCodeAuthService) ValidateAccessSession(ctx context.Context, userID int64, accessCodeID int64) error {
+	if s == nil || s.repository == nil {
+		return errors.New("access code repository is not configured")
+	}
+	if userID <= 0 || accessCodeID <= 0 {
+		return errors.New("access session is invalid")
+	}
+	principal, err := s.repository.FindPrincipalByAccessCodeID(ctx, userID, accessCodeID)
+	if err != nil {
+		return errors.New("access session is invalid")
+	}
+	return validateAccessPrincipal(principal, s.now().UTC())
 }
 
 func (s *AccessCodeAuthService) ListRecentAccessCodes(ctx context.Context, limit int) ([]AccessCodeSummary, error) {
@@ -182,6 +190,7 @@ func (s *AccessCodeAuthService) ListRecentAccessCodes(ctx context.Context, limit
 		summaries = append(summaries, AccessCodeSummary{
 			ID:          item.AccessCode.ID,
 			UserID:      item.User.ID,
+			Code:        item.AccessCode.DisplayCode,
 			DisplayName: item.User.DisplayName,
 			Affiliation: item.User.Affiliation,
 			Role:        item.User.Role,
@@ -206,10 +215,42 @@ func (s *AccessCodeAuthService) RevokeAccessCode(ctx context.Context, accessCode
 	return s.repository.RevokeAccessCode(ctx, accessCodeID, s.now().UTC().Format(time.RFC3339))
 }
 
+func (s *AccessCodeAuthService) ExtendAccessCode(ctx context.Context, accessCodeID int64, expiresAt time.Time) error {
+	if s == nil || s.repository == nil {
+		return errors.New("access code repository is not configured")
+	}
+	if accessCodeID <= 0 {
+		return errors.New("access code id is required")
+	}
+	if expiresAt.IsZero() || !expiresAt.After(s.now()) {
+		return errors.New("access code expiration must be in the future")
+	}
+	return s.repository.ExtendAccessCode(ctx, accessCodeID, expiresAt.UTC().Format(time.RFC3339))
+}
+
 func (s *AccessCodeAuthService) hashCode(code string) string {
 	mac := hmac.New(sha256.New, []byte(s.secret))
 	_, _ = mac.Write([]byte(normalizeAccessCode(code)))
 	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func validateAccessPrincipal(principal domain.AccessCodePrincipal, now time.Time) error {
+	if principal.User.Status != domain.UserStatusActive {
+		return errors.New("user is not active")
+	}
+	if principal.User.ExpiresAt != "" && !timeStringAfter(principal.User.ExpiresAt, now) {
+		return errors.New("user is expired")
+	}
+	if principal.AccessCode.Status != domain.AccessCodeStatusActive {
+		return errors.New("access code is not active")
+	}
+	if principal.AccessCode.RevokedAt != "" {
+		return errors.New("access code is revoked")
+	}
+	if !timeStringAfter(principal.AccessCode.ExpiresAt, now) {
+		return errors.New("access code is expired")
+	}
+	return nil
 }
 
 func normalizeAccessRole(role string) string {

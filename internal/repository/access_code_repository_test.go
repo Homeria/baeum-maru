@@ -28,10 +28,11 @@ func TestAccessCodeRepositoryCreatesAndFindsPrincipal(t *testing.T) {
 	}
 
 	code, err := repo.CreateAccessCode(ctx, CreateAccessCodeParams{
-		UserID:    user.ID,
-		CodeHash:  "hash",
-		Label:     "오전 접수",
-		ExpiresAt: expiresAt,
+		UserID:      user.ID,
+		CodeHash:    "hash",
+		DisplayCode: "ABCD-2345",
+		Label:       "오전 접수",
+		ExpiresAt:   expiresAt,
 	})
 	if err != nil {
 		t.Fatalf("CreateAccessCode() error = %v", err)
@@ -44,6 +45,18 @@ func TestAccessCodeRepositoryCreatesAndFindsPrincipal(t *testing.T) {
 	if principal.User.ID != user.ID || principal.AccessCode.ID != code.ID {
 		t.Fatalf("principal = %+v, want user/code ids", principal)
 	}
+	if principal.AccessCode.DisplayCode != "ABCD-2345" {
+		t.Fatalf("DisplayCode = %q, want ABCD-2345", principal.AccessCode.DisplayCode)
+	}
+
+	byID, err := repo.FindPrincipalByAccessCodeID(ctx, user.ID, code.ID)
+	if err != nil {
+		t.Fatalf("FindPrincipalByAccessCodeID() error = %v", err)
+	}
+	if byID.User.ID != user.ID || byID.AccessCode.ID != code.ID {
+		t.Fatalf("byID = %+v, want user/code ids", byID)
+	}
+
 	if err := repo.MarkAccessCodeUsed(ctx, code.ID, user.ID, time.Now().UTC().Format(time.RFC3339)); err != nil {
 		t.Fatalf("MarkAccessCodeUsed() error = %v", err)
 	}
@@ -53,6 +66,18 @@ func TestAccessCodeRepositoryCreatesAndFindsPrincipal(t *testing.T) {
 	}
 	if used.LastUsedAt == "" {
 		t.Fatal("LastUsedAt = empty, want timestamp")
+	}
+
+	extendedAt := time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339)
+	if err := repo.ExtendAccessCode(ctx, code.ID, extendedAt); err != nil {
+		t.Fatalf("ExtendAccessCode() error = %v", err)
+	}
+	extended, err := repo.GetAccessCode(ctx, code.ID)
+	if err != nil {
+		t.Fatalf("GetAccessCode() extended error = %v", err)
+	}
+	if extended.ExpiresAt != extendedAt {
+		t.Fatalf("extended.ExpiresAt = %q, want %q", extended.ExpiresAt, extendedAt)
 	}
 
 	items, err := repo.ListRecentAccessCodes(ctx, 10)

@@ -18,9 +18,10 @@ const authCookieName = "baeum_maru_session"
 type authContextKey struct{}
 
 type AuthIdentity struct {
-	UserID      int64
-	DisplayName string
-	Role        string
+	UserID       int64
+	AccessCodeID int64
+	DisplayName  string
+	Role         string
 }
 
 type loginPageData struct {
@@ -125,9 +126,10 @@ func authenticateLogin(r *http.Request, opts RouterOptions) (AuthIdentity, error
 			return AuthIdentity{}, err
 		}
 		return AuthIdentity{
-			UserID:      user.UserID,
-			DisplayName: user.DisplayName,
-			Role:        user.Role,
+			UserID:       user.UserID,
+			AccessCodeID: user.AccessCodeID,
+			DisplayName:  user.DisplayName,
+			Role:         user.Role,
 		}, nil
 	}
 	if !passwordMatches(code, opts.Auth.AdminPassword) {
@@ -198,6 +200,14 @@ func validSessionIdentity(r *http.Request, opts RouterOptions) (AuthIdentity, bo
 	if time.Since(time.Unix(issuedUnix, 0)) > maxAge {
 		return AuthIdentity{}, false
 	}
+	if opts.Authenticator != nil && identity.UserID > 0 {
+		validator, ok := opts.Authenticator.(interface {
+			ValidateAccessSession(context.Context, int64, int64) error
+		})
+		if ok && validator.ValidateAccessSession(r.Context(), identity.UserID, identity.AccessCodeID) != nil {
+			return AuthIdentity{}, false
+		}
+	}
 	return identity, true
 }
 
@@ -205,6 +215,7 @@ func sessionPayload(issuedAt int64, identity AuthIdentity) string {
 	return strings.Join([]string{
 		strconv.FormatInt(issuedAt, 10),
 		strconv.FormatInt(identity.UserID, 10),
+		strconv.FormatInt(identity.AccessCodeID, 10),
 		identity.Role,
 	}, "|")
 }
@@ -215,7 +226,18 @@ func parseSessionPayload(payload string) (int64, AuthIdentity, bool) {
 		issuedUnix, err := strconv.ParseInt(parts[0], 10, 64)
 		return issuedUnix, AuthIdentity{}, err == nil
 	}
-	if len(parts) != 3 {
+	if len(parts) == 3 {
+		issuedUnix, err := strconv.ParseInt(parts[0], 10, 64)
+		if err != nil {
+			return 0, AuthIdentity{}, false
+		}
+		userID, err := strconv.ParseInt(parts[1], 10, 64)
+		if err != nil {
+			return 0, AuthIdentity{}, false
+		}
+		return issuedUnix, AuthIdentity{UserID: userID, Role: parts[2]}, true
+	}
+	if len(parts) != 4 {
 		return 0, AuthIdentity{}, false
 	}
 	issuedUnix, err := strconv.ParseInt(parts[0], 10, 64)
@@ -226,7 +248,11 @@ func parseSessionPayload(payload string) (int64, AuthIdentity, bool) {
 	if err != nil {
 		return 0, AuthIdentity{}, false
 	}
-	return issuedUnix, AuthIdentity{UserID: userID, Role: parts[2]}, true
+	accessCodeID, err := strconv.ParseInt(parts[2], 10, 64)
+	if err != nil {
+		return 0, AuthIdentity{}, false
+	}
+	return issuedUnix, AuthIdentity{UserID: userID, AccessCodeID: accessCodeID, Role: parts[3]}, true
 }
 
 func currentAuthIdentity(r *http.Request) (AuthIdentity, bool) {
