@@ -23,11 +23,12 @@ type CreateAccessUserParams struct {
 }
 
 type CreateAccessCodeParams struct {
-	UserID    int64
-	CodeHash  string
-	Label     string
-	ExpiresAt string
-	Note      string
+	UserID      int64
+	CodeHash    string
+	DisplayCode string
+	Label       string
+	ExpiresAt   string
+	Note        string
 }
 
 type AccessCodeListItem struct {
@@ -68,9 +69,9 @@ WHERE id = ?;
 
 func (r *AccessCodeRepository) CreateAccessCode(ctx context.Context, params CreateAccessCodeParams) (domain.AccessCode, error) {
 	result, err := r.db.ExecContext(ctx, `
-INSERT INTO access_codes (user_id, code_hash, label, expires_at, note)
-VALUES (?, ?, ?, ?, ?);
-`, params.UserID, params.CodeHash, nullString(params.Label), params.ExpiresAt, nullString(params.Note))
+INSERT INTO access_codes (user_id, code_hash, display_code, label, expires_at, note)
+VALUES (?, ?, ?, ?, ?, ?);
+`, params.UserID, params.CodeHash, nullString(params.DisplayCode), nullString(params.Label), params.ExpiresAt, nullString(params.Note))
 	if err != nil {
 		return domain.AccessCode{}, fmt.Errorf("insert access code: %w", err)
 	}
@@ -83,7 +84,7 @@ VALUES (?, ?, ?, ?, ?);
 
 func (r *AccessCodeRepository) GetAccessCode(ctx context.Context, id int64) (domain.AccessCode, error) {
 	row := r.db.QueryRowContext(ctx, `
-SELECT id, user_id, code_hash, label, status, issued_at, expires_at, revoked_at, last_used_at, note, created_at, updated_at
+SELECT id, user_id, code_hash, display_code, label, status, issued_at, expires_at, revoked_at, last_used_at, note, created_at, updated_at
 FROM access_codes
 WHERE id = ?;
 `, id)
@@ -94,12 +95,32 @@ func (r *AccessCodeRepository) FindPrincipalByCodeHash(ctx context.Context, code
 	row := r.db.QueryRowContext(ctx, `
 SELECT
 	u.id, u.username, u.display_name, u.affiliation, u.contact_note, u.access_role, u.status, u.expires_at, u.last_login_at, u.created_at, u.updated_at,
-	c.id, c.user_id, c.code_hash, c.label, c.status, c.issued_at, c.expires_at, c.revoked_at, c.last_used_at, c.note, c.created_at, c.updated_at
+	c.id, c.user_id, c.code_hash, c.display_code, c.label, c.status, c.issued_at, c.expires_at, c.revoked_at, c.last_used_at, c.note, c.created_at, c.updated_at
 FROM access_codes c
 JOIN users u ON u.id = c.user_id
 WHERE c.code_hash = ?
 LIMIT 1;
 `, codeHash)
+
+	var principal domain.AccessCodePrincipal
+	var err error
+	principal.User, principal.AccessCode, err = scanUserAndAccessCode(row)
+	if err != nil {
+		return domain.AccessCodePrincipal{}, err
+	}
+	return principal, nil
+}
+
+func (r *AccessCodeRepository) FindPrincipalByAccessCodeID(ctx context.Context, userID int64, accessCodeID int64) (domain.AccessCodePrincipal, error) {
+	row := r.db.QueryRowContext(ctx, `
+SELECT
+	u.id, u.username, u.display_name, u.affiliation, u.contact_note, u.access_role, u.status, u.expires_at, u.last_login_at, u.created_at, u.updated_at,
+	c.id, c.user_id, c.code_hash, c.display_code, c.label, c.status, c.issued_at, c.expires_at, c.revoked_at, c.last_used_at, c.note, c.created_at, c.updated_at
+FROM access_codes c
+JOIN users u ON u.id = c.user_id
+WHERE c.id = ? AND u.id = ?
+LIMIT 1;
+`, accessCodeID, userID)
 
 	var principal domain.AccessCodePrincipal
 	var err error
@@ -140,7 +161,7 @@ func (r *AccessCodeRepository) ListRecentAccessCodes(ctx context.Context, limit 
 	rows, err := r.db.QueryContext(ctx, `
 SELECT
 	u.id, u.username, u.display_name, u.affiliation, u.contact_note, u.access_role, u.status, u.expires_at, u.last_login_at, u.created_at, u.updated_at,
-	c.id, c.user_id, c.code_hash, c.label, c.status, c.issued_at, c.expires_at, c.revoked_at, c.last_used_at, c.note, c.created_at, c.updated_at
+	c.id, c.user_id, c.code_hash, c.display_code, c.label, c.status, c.issued_at, c.expires_at, c.revoked_at, c.last_used_at, c.note, c.created_at, c.updated_at
 FROM access_codes c
 JOIN users u ON u.id = c.user_id
 ORDER BY c.id DESC
@@ -184,6 +205,49 @@ WHERE id = ? AND status = ?;
 	return nil
 }
 
+func (r *AccessCodeRepository) ExtendAccessCode(ctx context.Context, accessCodeID int64, expiresAt string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin extend access code: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	result, err := tx.ExecContext(ctx, `
+UPDATE access_codes
+SET status = ?, expires_at = ?, revoked_at = NULL, updated_at = CURRENT_TIMESTAMP
+WHERE id = ? AND status <> ?;
+`, domain.AccessCodeStatusActive, expiresAt, accessCodeID, domain.AccessCodeStatusRevoked)
+	if err != nil {
+		return fmt.Errorf("extend access code: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read extended access code count: %w", err)
+	}
+	if affected == 0 {
+		err = sql.ErrNoRows
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+UPDATE users
+SET status = ?, expires_at = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = (SELECT user_id FROM access_codes WHERE id = ?);
+`, domain.UserStatusActive, expiresAt, accessCodeID)
+	if err != nil {
+		return fmt.Errorf("extend access user: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("commit extend access code: %w", err)
+	}
+	return nil
+}
+
 type userScanner interface {
 	Scan(dest ...any) error
 }
@@ -215,11 +279,12 @@ func scanUser(scanner userScanner) (domain.User, error) {
 
 func scanAccessCode(scanner userScanner) (domain.AccessCode, error) {
 	var code domain.AccessCode
-	var label, revokedAt, lastUsedAt, note sql.NullString
+	var displayCode, label, revokedAt, lastUsedAt, note sql.NullString
 	if err := scanner.Scan(
 		&code.ID,
 		&code.UserID,
 		&code.CodeHash,
+		&displayCode,
 		&label,
 		&code.Status,
 		&code.IssuedAt,
@@ -232,6 +297,7 @@ func scanAccessCode(scanner userScanner) (domain.AccessCode, error) {
 	); err != nil {
 		return domain.AccessCode{}, fmt.Errorf("scan access code: %w", err)
 	}
+	code.DisplayCode = displayCode.String
 	code.Label = label.String
 	code.RevokedAt = revokedAt.String
 	code.LastUsedAt = lastUsedAt.String
@@ -243,7 +309,7 @@ func scanUserAndAccessCode(scanner userScanner) (domain.User, domain.AccessCode,
 	var user domain.User
 	var code domain.AccessCode
 	var affiliation, contactNote, userExpiresAt, lastLoginAt sql.NullString
-	var label, revokedAt, lastUsedAt, note sql.NullString
+	var displayCode, label, revokedAt, lastUsedAt, note sql.NullString
 	if err := scanner.Scan(
 		&user.ID,
 		&user.Username,
@@ -259,6 +325,7 @@ func scanUserAndAccessCode(scanner userScanner) (domain.User, domain.AccessCode,
 		&code.ID,
 		&code.UserID,
 		&code.CodeHash,
+		&displayCode,
 		&label,
 		&code.Status,
 		&code.IssuedAt,
@@ -275,6 +342,7 @@ func scanUserAndAccessCode(scanner userScanner) (domain.User, domain.AccessCode,
 	user.ContactNote = contactNote.String
 	user.ExpiresAt = userExpiresAt.String
 	user.LastLoginAt = lastLoginAt.String
+	code.DisplayCode = displayCode.String
 	code.Label = label.String
 	code.RevokedAt = revokedAt.String
 	code.LastUsedAt = lastUsedAt.String

@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -154,6 +155,42 @@ func TestRouterAuthenticatesWithAccessCodeService(t *testing.T) {
 	}
 	if authenticator.code != "ABCD-2345" {
 		t.Fatalf("authenticator.code = %q, want ABCD-2345", authenticator.code)
+	}
+}
+
+func TestRouterRejectsRevokedAccessCodeSession(t *testing.T) {
+	authenticator := &fakeAuthenticator{
+		user: service.AuthenticatedUser{UserID: 7, AccessCodeID: 9, DisplayName: "access user", Role: "temporary_staff"},
+	}
+	router := NewRouter(RouterOptions{
+		Auth:          testAuthConfig(),
+		Authenticator: authenticator,
+	})
+	form := url.Values{
+		"access_code": {"ABCD-2345"},
+		"next":        {"/admin"},
+	}
+	loginReq := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginRec := httptest.NewRecorder()
+	router.ServeHTTP(loginRec, loginReq)
+
+	cookies := loginRec.Result().Cookies()
+	if loginRec.Code != http.StatusSeeOther || len(cookies) == 0 {
+		t.Fatalf("login status = %d, cookies = %+v, want session", loginRec.Code, cookies)
+	}
+
+	authenticator.sessionErr = errors.New("access code is revoked")
+	adminReq := httptest.NewRequest(http.MethodGet, "/admin", nil)
+	adminReq.AddCookie(cookies[0])
+	adminRec := httptest.NewRecorder()
+	router.ServeHTTP(adminRec, adminReq)
+
+	if adminRec.Code != http.StatusSeeOther {
+		t.Fatalf("admin status = %d, want %d", adminRec.Code, http.StatusSeeOther)
+	}
+	if got := adminRec.Header().Get("Location"); got != "/login?next=%2Fadmin" {
+		t.Fatalf("Location = %q, want login redirect", got)
 	}
 }
 
@@ -1447,9 +1484,10 @@ type fakeAttendanceService struct {
 }
 
 type fakeAuthenticator struct {
-	code string
-	user service.AuthenticatedUser
-	err  error
+	code       string
+	user       service.AuthenticatedUser
+	err        error
+	sessionErr error
 }
 
 func (f *fakeAuthenticator) AuthenticateAccessCode(_ context.Context, code string) (service.AuthenticatedUser, error) {
@@ -1458,6 +1496,10 @@ func (f *fakeAuthenticator) AuthenticateAccessCode(_ context.Context, code strin
 		return service.AuthenticatedUser{}, f.err
 	}
 	return f.user, nil
+}
+
+func (f *fakeAuthenticator) ValidateAccessSession(context.Context, int64, int64) error {
+	return f.sessionErr
 }
 
 func (f *fakeAttendanceService) CreateSession(_ context.Context, input service.AttendanceSessionInput) (domain.AttendanceSession, error) {

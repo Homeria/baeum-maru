@@ -29,18 +29,19 @@ type User struct {
 }
 
 type AccessCode struct {
-	ID         int64
-	UserID     int64
-	CodeHash   string
-	Label      string
-	Status     string
-	IssuedAt   string
-	ExpiresAt  string
-	RevokedAt  string
-	LastUsedAt string
-	Note       string
-	CreatedAt  string
-	UpdatedAt  string
+	ID          int64
+	UserID      int64
+	CodeHash    string
+	DisplayCode string
+	Label       string
+	Status      string
+	IssuedAt    string
+	ExpiresAt   string
+	RevokedAt   string
+	LastUsedAt  string
+	Note        string
+	CreatedAt   string
+	UpdatedAt   string
 }
 
 type AccessCodePrincipal struct {
