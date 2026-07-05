@@ -72,7 +72,7 @@ func TestRunEmbeddedMigrationsCreatesCoreTables(t *testing.T) {
 		t.Fatalf("Run() error = %v", err)
 	}
 
-	for _, table := range []string{"members", "courses", "course_offerings", "registrations"} {
+	for _, table := range []string{"members", "courses", "course_offerings", "registrations", "locations"} {
 		t.Run(table, func(t *testing.T) {
 			var name string
 			err := db.QueryRowContext(ctx,

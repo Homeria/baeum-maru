@@ -29,6 +29,7 @@ type Runtime struct {
 	Settings      *service.SettingsService
 	Audits        *service.AuditService
 	AccessAuth    *service.AccessCodeAuthService
+	Locations     *service.LocationService
 }
 
 func Bootstrap(configPath string) (*Runtime, error) {
@@ -70,6 +71,7 @@ func Bootstrap(configPath string) (*Runtime, error) {
 	attendanceRepository := repository.NewAttendanceRepository(db)
 	auditRepository := repository.NewAuditRepository(db)
 	accessCodeRepository := repository.NewAccessCodeRepository(db)
+	locationRepository := repository.NewLocationRepository(db)
 
 	memberService := service.NewMemberService(memberRepository)
 	courseService := service.NewCourseService(courseRepository)
@@ -78,6 +80,7 @@ func Bootstrap(configPath string) (*Runtime, error) {
 	attendanceService := service.NewAttendanceService(attendanceRepository)
 	auditService := service.NewAuditService(auditRepository)
 	accessAuthService := service.NewAccessCodeAuthService(accessCodeRepository, cfg.Auth.SessionSecret)
+	locationService := service.NewLocationService(locationRepository)
 
 	return &Runtime{
 		Config:        cfg,
@@ -94,6 +97,7 @@ func Bootstrap(configPath string) (*Runtime, error) {
 		Settings:      service.NewSettingsService(configPath, cfg),
 		Audits:        auditService,
 		AccessAuth:    accessAuthService,
+		Locations:     locationService,
 	}, nil
 }
 
