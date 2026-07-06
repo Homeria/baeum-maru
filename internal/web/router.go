@@ -16,6 +16,9 @@ func NewRouter(opts RouterOptions) http.Handler {
 	if opts.Logger == nil {
 		opts.Logger = slog.Default()
 	}
+	if opts.Sync == nil {
+		opts.Sync = NewSyncHub()
+	}
 
 	appMux := http.NewServeMux()
 	appMux.HandleFunc("/", exactPath("/", renderPage(opts, pageData{
@@ -64,6 +67,7 @@ func NewRouter(opts RouterOptions) http.Handler {
 	mux.HandleFunc("/healthz", healthHandler())
 	mux.HandleFunc("/login", loginHandler(opts))
 	mux.HandleFunc("/logout", logoutHandler(opts))
+	mux.Handle("/events", requireAuth(opts, http.HandlerFunc(syncEventsHandler(opts))))
 	mux.Handle("/", requireAuth(opts, requirePermission(opts, appMux)))
 
 	return mux
