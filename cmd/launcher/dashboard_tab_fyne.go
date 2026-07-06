@@ -18,8 +18,8 @@ func buildDashboardTab(state *launcherState) fyne.CanvasObject {
 	state.addServerStatusLabels(serverStateLabel, serverDetailLabel)
 
 	addressEntry := widget.NewEntry()
-	addressEntry.SetText(state.serverURL)
 	addressEntry.Disable()
+	state.addServerURLEntry(addressEntry)
 
 	activeCountLabel := widget.NewLabel("사용 가능 0 / 전체 0")
 	state.addAccessSummaryLabel(activeCountLabel)
@@ -84,12 +84,21 @@ func buildDashboardTab(state *launcherState) fyne.CanvasObject {
 		container.NewHBox(openButton, copyAddressButton, refreshButton),
 	))
 
+	hostLabel := widget.NewLabel(state.runtime.Config.Server.Host)
+	hostLabel.Wrapping = fyne.TextWrapWord
+	portLabel := widget.NewLabel(strconv.Itoa(state.runtime.Config.Server.Port))
+	state.addNetworkLabels(hostLabel, portLabel)
+	accessURLList := buildAccessURLList(state.shareURLs)
+	state.addNetworkURLList(accessURLList)
+
 	networkCard := widget.NewCard("네트워크", "", container.NewVBox(
-		infoLine("바인딩 IP", state.runtime.Config.Server.Host),
-		infoLine("포트", strconv.Itoa(state.runtime.Config.Server.Port)),
+		widget.NewLabelWithStyle("바인딩 IP", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		hostLabel,
+		widget.NewLabelWithStyle("포트", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		portLabel,
 		widget.NewSeparator(),
 		widget.NewLabel("다른 PC 접속 주소"),
-		buildAccessURLList(state.shareURLs),
+		accessURLList,
 		container.NewHBox(copyShareButton),
 	))
 
@@ -104,11 +113,15 @@ func buildDashboardTab(state *launcherState) fyne.CanvasObject {
 	return container.NewBorder(nil, nil, nil, nil, container.NewVBox(grid, summaryCard))
 }
 
-func buildAccessURLList(urls []string) fyne.CanvasObject {
+func buildAccessURLList(urls []string) *fyne.Container {
+	return container.NewVBox(accessURLRows(urls)...)
+}
+
+func accessURLRows(urls []string) []fyne.CanvasObject {
 	if len(urls) == 0 {
 		label := widget.NewLabel(accessURLText(urls))
 		label.Wrapping = fyne.TextWrapWord
-		return label
+		return []fyne.CanvasObject{label}
 	}
 
 	rows := make([]fyne.CanvasObject, 0, len(urls))
@@ -118,5 +131,5 @@ func buildAccessURLList(urls []string) fyne.CanvasObject {
 		label.Wrapping = fyne.TextWrapOff
 		rows = append(rows, container.NewHBox(widget.NewIcon(theme.ComputerIcon()), label))
 	}
-	return container.NewVBox(rows...)
+	return rows
 }
