@@ -45,6 +45,13 @@ func loginHandler(opts RouterOptions) http.HandlerFunc {
 		}
 		switch r.Method {
 		case http.MethodGet:
+			if _, ok := validSessionIdentity(r, opts); ok {
+				http.Redirect(w, r, loginNext(r), http.StatusSeeOther)
+				return
+			}
+			if hasSessionCookie(r) {
+				clearSessionCookie(w)
+			}
 			renderLogin(w, opts, loginNext(r), "", http.StatusOK)
 		case http.MethodPost:
 			if err := r.ParseForm(); err != nil {
@@ -54,6 +61,7 @@ func loginHandler(opts RouterOptions) http.HandlerFunc {
 			next := safeRedirectPath(r.FormValue("next"))
 			identity, err := authenticateLogin(r, opts)
 			if err != nil {
+				clearSessionCookie(w)
 				renderLogin(w, opts, next, "접속 코드가 올바르지 않거나 만료되었습니다.", http.StatusUnauthorized)
 				return
 			}
@@ -105,6 +113,9 @@ func requireAuth(opts RouterOptions, next http.Handler) http.Handler {
 			ctx := context.WithValue(r.Context(), authContextKey{}, identity)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
+		}
+		if hasSessionCookie(r) {
+			clearSessionCookie(w)
 		}
 		redirect := "/login?next=" + url.QueryEscape(safeRedirectPath(r.URL.RequestURI()))
 		http.Redirect(w, r, redirect, http.StatusSeeOther)
@@ -180,6 +191,11 @@ func clearSessionCookie(w http.ResponseWriter) {
 	})
 }
 
+func hasSessionCookie(r *http.Request) bool {
+	cookie, err := r.Cookie(authCookieName)
+	return err == nil && cookie.Value != ""
+}
+
 func validSessionIdentity(r *http.Request, opts RouterOptions) (AuthIdentity, bool) {
 	cookie, err := r.Cookie(authCookieName)
 	if err != nil {
@@ -200,11 +216,11 @@ func validSessionIdentity(r *http.Request, opts RouterOptions) (AuthIdentity, bo
 	if time.Since(time.Unix(issuedUnix, 0)) > maxAge {
 		return AuthIdentity{}, false
 	}
-	if opts.Authenticator != nil && identity.UserID > 0 {
-		validator, ok := opts.Authenticator.(interface {
-			ValidateAccessSession(context.Context, int64, int64) error
-		})
-		if ok && validator.ValidateAccessSession(r.Context(), identity.UserID, identity.AccessCodeID) != nil {
+	if opts.Authenticator != nil {
+		if identity.UserID <= 0 || identity.AccessCodeID <= 0 {
+			return AuthIdentity{}, false
+		}
+		if opts.Authenticator.ValidateAccessSession(r.Context(), identity.UserID, identity.AccessCodeID) != nil {
 			return AuthIdentity{}, false
 		}
 	}
