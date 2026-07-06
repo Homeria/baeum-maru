@@ -44,6 +44,10 @@ type launcherState struct {
 	selectedCodeLabels []*widget.Label
 	codeLists          []*widget.List
 	locationLists      []*widget.List
+	serverURLEntries   []*widget.Entry
+	networkHostLabels  []*widget.Label
+	networkPortLabels  []*widget.Label
+	networkURLLists    []*fyne.Container
 	serverActionHooks  []func(launcherServerStatus)
 }
 
@@ -264,6 +268,44 @@ func (s *launcherState) addServerStatusLabels(status *widget.Label, detail *widg
 func (s *launcherState) addServerActionHook(hook func(launcherServerStatus)) {
 	s.serverActionHooks = append(s.serverActionHooks, hook)
 	hook(s.serverStatus)
+}
+
+func (s *launcherState) updateNetworkConfig(host string, port int) {
+	s.runtime.Config.Server.Host = host
+	s.runtime.Config.Server.Port = port
+	s.serverURL = browserURL(host, port)
+	s.shareURLs = networkAccessURLs(host, port)
+	for _, entry := range s.serverURLEntries {
+		entry.SetText(s.serverURL)
+	}
+	for _, label := range s.networkHostLabels {
+		label.SetText(host)
+	}
+	for _, label := range s.networkPortLabels {
+		label.SetText(fmt.Sprintf("%d", port))
+	}
+	for _, list := range s.networkURLLists {
+		list.Objects = accessURLRows(s.shareURLs)
+		list.Refresh()
+	}
+}
+
+func (s *launcherState) addServerURLEntry(entry *widget.Entry) {
+	s.serverURLEntries = append(s.serverURLEntries, entry)
+	entry.SetText(s.serverURL)
+}
+
+func (s *launcherState) addNetworkLabels(host *widget.Label, port *widget.Label) {
+	s.networkHostLabels = append(s.networkHostLabels, host)
+	s.networkPortLabels = append(s.networkPortLabels, port)
+	host.SetText(s.runtime.Config.Server.Host)
+	port.SetText(fmt.Sprintf("%d", s.runtime.Config.Server.Port))
+}
+
+func (s *launcherState) addNetworkURLList(list *fyne.Container) {
+	s.networkURLLists = append(s.networkURLLists, list)
+	list.Objects = accessURLRows(s.shareURLs)
+	list.Refresh()
 }
 
 func (s *launcherState) addActivityLabel(label *widget.Label) {
