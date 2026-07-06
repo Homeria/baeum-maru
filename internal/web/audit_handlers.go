@@ -53,20 +53,20 @@ func auditLogsHandler(opts RouterOptions) http.HandlerFunc {
 }
 
 func recordAudit(r *http.Request, opts RouterOptions, action string, entityType string, entityID int64, summary string) {
-	if opts.Audits == nil {
-		return
+	if opts.Audits != nil {
+		var actorUserID int64
+		if identity, ok := currentAuthIdentity(r); ok {
+			actorUserID = identity.UserID
+		}
+		if err := opts.Audits.Record(r.Context(), service.AuditEvent{
+			ActorUserID: actorUserID,
+			Action:      action,
+			EntityType:  entityType,
+			EntityID:    entityID,
+			Summary:     summary,
+		}); err != nil {
+			opts.Logger.Warn("record audit failed", "action", action, "entity_type", entityType, "entity_id", entityID, "error", err)
+		}
 	}
-	var actorUserID int64
-	if identity, ok := currentAuthIdentity(r); ok {
-		actorUserID = identity.UserID
-	}
-	if err := opts.Audits.Record(r.Context(), service.AuditEvent{
-		ActorUserID: actorUserID,
-		Action:      action,
-		EntityType:  entityType,
-		EntityID:    entityID,
-		Summary:     summary,
-	}); err != nil {
-		opts.Logger.Warn("record audit failed", "action", action, "entity_type", entityType, "entity_id", entityID, "error", err)
-	}
+	publishDataChange(r, opts, action, entityType, entityID)
 }

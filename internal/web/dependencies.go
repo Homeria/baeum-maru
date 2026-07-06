@@ -27,6 +27,7 @@ type RouterOptions struct {
 	Settings      SettingsService
 	Audits        AuditService
 	Locations     LocationService
+	Sync          *SyncHub
 }
 
 type Authenticator interface {

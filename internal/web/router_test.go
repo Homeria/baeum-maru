@@ -1,8 +1,10 @@
 package web
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"mime/multipart"
@@ -66,6 +68,21 @@ func TestRouterServesEmbeddedStaticCSS(t *testing.T) {
 	}
 }
 
+func TestRouterServesEmbeddedStaticJS(t *testing.T) {
+	router := NewRouter(RouterOptions{})
+	req := httptest.NewRequest(http.MethodGet, "/static/js/app.js", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "EventSource") {
+		t.Fatalf("body = %q, want embedded js", rec.Body.String())
+	}
+}
+
 func TestRouterServesHealthCheck(t *testing.T) {
 	router := NewRouter(RouterOptions{})
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
@@ -79,6 +96,44 @@ func TestRouterServesHealthCheck(t *testing.T) {
 	if rec.Body.String() != "ok\n" {
 		t.Fatalf("body = %q, want ok", rec.Body.String())
 	}
+}
+
+func TestRouterStreamsSyncEvents(t *testing.T) {
+	server := httptest.NewServer(NewRouter(RouterOptions{Sync: NewSyncHub()}))
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/events")
+	if err != nil {
+		t.Fatalf("GET /events error = %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+	if got := resp.Header.Get("Content-Type"); !strings.Contains(got, "text/event-stream") {
+		t.Fatalf("Content-Type = %q, want text/event-stream", got)
+	}
+
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+		var event SyncEvent
+		if err := json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &event); err != nil {
+			t.Fatalf("decode event error = %v", err)
+		}
+		if event.Action != "connected" {
+			t.Fatalf("event action = %q, want connected", event.Action)
+		}
+		return
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("read event stream error = %v", err)
+	}
+	t.Fatal("sync event stream did not send initial event")
 }
 
 func TestRouterRedirectsUnauthenticatedRequestWhenAuthEnabled(t *testing.T) {
