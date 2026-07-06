@@ -31,6 +31,7 @@ type RouterOptions struct {
 
 type Authenticator interface {
 	AuthenticateAccessCode(context.Context, string) (service.AuthenticatedUser, error)
+	ValidateAccessSession(context.Context, int64, int64) error
 }
 
 type MemberService interface {

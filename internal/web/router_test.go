@@ -192,6 +192,34 @@ func TestRouterRejectsRevokedAccessCodeSession(t *testing.T) {
 	if got := adminRec.Header().Get("Location"); got != "/login?next=%2Fadmin" {
 		t.Fatalf("Location = %q, want login redirect", got)
 	}
+	assertClearsSessionCookie(t, adminRec)
+}
+
+func TestRouterRejectsAccessSessionWithoutAccessCodeID(t *testing.T) {
+	authenticator := &fakeAuthenticator{}
+	router := NewRouter(RouterOptions{
+		Auth:          testAuthConfig(),
+		Authenticator: authenticator,
+	})
+	rec := httptest.NewRecorder()
+	setSessionCookie(rec, RouterOptions{Auth: testAuthConfig()}, AuthIdentity{
+		UserID:      7,
+		DisplayName: "legacy access user",
+		Role:        roleStaff,
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin", nil)
+	req.AddCookie(rec.Result().Cookies()[0])
+	adminRec := httptest.NewRecorder()
+
+	router.ServeHTTP(adminRec, req)
+
+	if adminRec.Code != http.StatusSeeOther {
+		t.Fatalf("admin status = %d, want %d", adminRec.Code, http.StatusSeeOther)
+	}
+	if got := adminRec.Header().Get("Location"); got != "/login?next=%2Fadmin" {
+		t.Fatalf("Location = %q, want login redirect", got)
+	}
+	assertClearsSessionCookie(t, adminRec)
 }
 
 func TestRouterRejectsInvalidLoginPassword(t *testing.T) {
@@ -1302,6 +1330,19 @@ func authenticatedRequest(t *testing.T, auth config.AuthConfig, method string, t
 		req.AddCookie(cookie)
 	}
 	return req
+}
+
+func assertClearsSessionCookie(t *testing.T, rec *httptest.ResponseRecorder) {
+	t.Helper()
+	for _, cookie := range rec.Result().Cookies() {
+		if cookie.Name == authCookieName {
+			if cookie.MaxAge != -1 {
+				t.Fatalf("session cookie MaxAge = %d, want -1", cookie.MaxAge)
+			}
+			return
+		}
+	}
+	t.Fatal("session clear cookie not set")
 }
 
 type fakeMemberService struct {
