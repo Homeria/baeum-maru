@@ -12,6 +12,7 @@ func buildLauncherTabs(state *launcherState) fyne.CanvasObject {
 	tabs := container.NewAppTabs(
 		container.NewTabItemWithIcon("대시보드", theme.HomeIcon(), buildDashboardTab(state)),
 		container.NewTabItemWithIcon("접속 관리", theme.VisibilityIcon(), buildAccessTab(state)),
+		container.NewTabItemWithIcon("공간", theme.FolderOpenIcon(), buildLocationsTab(state)),
 		container.NewTabItemWithIcon("로그", theme.HistoryIcon(), buildLogsTab(state)),
 		container.NewTabItemWithIcon("서버 설정", theme.SettingsIcon(), buildSettingsTab(state)),
 		container.NewTabItemWithIcon("백업/동기화", theme.FolderOpenIcon(), buildBackupSyncTab(state)),

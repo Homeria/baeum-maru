@@ -16,7 +16,8 @@
 - 한 번에 하나의 개념을 구현한다.
 - 문서, 코드, 테스트를 같은 작업에서 필요한 만큼만 수정한다.
 - 새 기능은 가능한 한 수동 확인 경로를 만든다.
-- DB schema 변경은 migration과 함께 한다.
+- 실사용 데이터가 생기기 전까지 DB schema 변경은 기존 DB 호환 migration을 만들지 않고 `internal/migration/sql/001_init.sql`의 최신 기준 스키마에 직접 반영한다.
+- 기존 DB를 이어서 쓰는 migration은 사용자가 명시적으로 요청한 경우에만 작성한다.
 - 구현 후 다음 작업을 더 쉽게 만들도록 작은 README 또는 주석을 남긴다.
 
 ## 3. MVP-0 작업
@@ -92,8 +93,8 @@ go test ./...
 목표:
 
 - `schema_migrations` 테이블 생성
-- SQL migration 실행
-- 이미 실행한 migration 재실행 방지
+- 현재 기준 SQL schema 초기화 실행
+- 이미 실행한 schema 초기화 재실행 방지
 
 완료 기준:
 

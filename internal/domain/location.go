@@ -4,7 +4,7 @@ const (
 	LocationTypeClassroom = "classroom"
 	LocationTypeOffice    = "office"
 	LocationTypeStorage   = "storage"
-	LocationTypeHall      = "hall"
+	LocationTypeHall      = "event"
 	LocationTypeReception = "reception"
 	LocationTypeOther     = "other"
 )
@@ -23,4 +23,26 @@ type Location struct {
 	Roles       []string
 	CreatedAt   string
 	UpdatedAt   string
+}
+
+type Building struct {
+	ID       int64
+	Name     string
+	IsActive bool
+}
+
+type BuildingFloor struct {
+	ID         int64
+	BuildingID int64
+	Building   string
+	Label      string
+	IsActive   bool
+	SortOrder  int
+}
+
+type LocationRole struct {
+	ID        int64
+	Name      string
+	IsActive  bool
+	SortOrder int
 }

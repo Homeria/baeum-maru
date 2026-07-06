@@ -25,6 +25,10 @@ type launcherState struct {
 	summaries            []service.AccessCodeSummary
 	accessFilter         string
 	selectedAccessCodeID int64
+	locations            []domain.Location
+	locationRoles        []domain.LocationRole
+	locationFilter       string
+	selectedLocationID   int64
 	logLines             []string
 
 	statusTitleLabels  []*widget.Label
@@ -34,15 +38,17 @@ type launcherState struct {
 	activeCountLabels  []*widget.Label
 	selectedCodeLabels []*widget.Label
 	codeLists          []*widget.List
+	locationLists      []*widget.List
 }
 
 func newLauncherState(runtime *app.Runtime, guiApp fyne.App, serverURL string, shareURLs []string) *launcherState {
 	return &launcherState{
-		runtime:      runtime,
-		guiApp:       guiApp,
-		serverURL:    serverURL,
-		shareURLs:    shareURLs,
-		accessFilter: "all",
+		runtime:        runtime,
+		guiApp:         guiApp,
+		serverURL:      serverURL,
+		shareURLs:      shareURLs,
+		accessFilter:   "all",
+		locationFilter: "all",
 	}
 }
 
@@ -131,6 +137,71 @@ func (s *launcherState) selectAccessCode(id widget.ListItemID) {
 	}
 }
 
+func (s *launcherState) refreshLocations() {
+	items, err := s.runtime.Locations.List(context.Background(), service.LocationListInput{
+		IncludeInactive: true,
+		Limit:           500,
+	})
+	if err != nil {
+		s.setStatus("공간 목록 오류", "공간 목록 조회 실패: "+err.Error())
+		return
+	}
+
+	s.locations = items
+	s.selectedLocationID = 0
+	for _, list := range s.locationLists {
+		list.UnselectAll()
+		list.Refresh()
+	}
+	s.appendLog(fmt.Sprintf("공간 %d개를 불러왔습니다.", len(items)))
+}
+
+func (s *launcherState) setLocationFilter(filter string) {
+	s.locationFilter = filter
+	s.selectedLocationID = 0
+	for _, list := range s.locationLists {
+		list.UnselectAll()
+		list.Refresh()
+	}
+}
+
+func (s *launcherState) filteredLocations() []domain.Location {
+	if s.locationFilter == "" || s.locationFilter == "all" {
+		return s.locations
+	}
+	filtered := make([]domain.Location, 0, len(s.locations))
+	for _, location := range s.locations {
+		if s.locationFilter == "active" && location.IsActive {
+			filtered = append(filtered, location)
+		}
+		if s.locationFilter == "inactive" && !location.IsActive {
+			filtered = append(filtered, location)
+		}
+		if s.locationFilter != "active" && s.locationFilter != "inactive" && hasLauncherLocationRole(locationRolesForUI(location), s.locationFilter) {
+			filtered = append(filtered, location)
+		}
+	}
+	return filtered
+}
+
+func (s *launcherState) selectLocation(id widget.ListItemID) (domain.Location, bool) {
+	items := s.filteredLocations()
+	if id < 0 || id >= len(items) {
+		return domain.Location{}, false
+	}
+	s.selectedLocationID = items[id].ID
+	return items[id], true
+}
+
+func (s *launcherState) selectedLocation() (domain.Location, bool) {
+	for _, location := range s.locations {
+		if location.ID == s.selectedLocationID {
+			return location, true
+		}
+	}
+	return domain.Location{}, false
+}
+
 func (s *launcherState) copyToClipboard(title string, content string) {
 	if strings.TrimSpace(content) == "" {
 		s.setStatus(title, "복사할 내용이 없습니다.")
@@ -171,6 +242,10 @@ func (s *launcherState) addSelectedCodeLabel(label *widget.Label) {
 
 func (s *launcherState) addCodeList(list *widget.List) {
 	s.codeLists = append(s.codeLists, list)
+}
+
+func (s *launcherState) addLocationList(list *widget.List) {
+	s.locationLists = append(s.locationLists, list)
 }
 
 func activeAccessCodeCount(items []service.AccessCodeSummary) int {
