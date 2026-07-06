@@ -17,10 +17,13 @@ import (
 )
 
 type launcherState struct {
-	runtime   *app.Runtime
-	guiApp    fyne.App
-	serverURL string
-	shareURLs []string
+	runtime          *app.Runtime
+	guiApp           fyne.App
+	serverURL        string
+	shareURLs        []string
+	serverController *launcherServerController
+	serverStatus     launcherServerStatus
+	serverDetail     string
 
 	summaries            []service.AccessCodeSummary
 	accessFilter         string
@@ -33,12 +36,15 @@ type launcherState struct {
 
 	statusTitleLabels  []*widget.Label
 	statusDetailLabels []*widget.Label
+	serverStateLabels  []*widget.Label
+	serverDetailLabels []*widget.Label
 	activityLabels     []*widget.Label
 	logLabels          []*widget.Label
 	activeCountLabels  []*widget.Label
 	selectedCodeLabels []*widget.Label
 	codeLists          []*widget.List
 	locationLists      []*widget.List
+	serverActionHooks  []func(launcherServerStatus)
 }
 
 func newLauncherState(runtime *app.Runtime, guiApp fyne.App, serverURL string, shareURLs []string) *launcherState {
@@ -47,6 +53,8 @@ func newLauncherState(runtime *app.Runtime, guiApp fyne.App, serverURL string, s
 		guiApp:         guiApp,
 		serverURL:      serverURL,
 		shareURLs:      shareURLs,
+		serverStatus:   launcherServerStopped,
+		serverDetail:   "서버가 정지되어 있습니다.",
 		accessFilter:   "all",
 		locationFilter: "all",
 	}
@@ -63,6 +71,29 @@ func (s *launcherState) setStatus(title string, detail string) {
 		label.SetText(detail)
 	}
 	s.appendLog(detail)
+}
+
+func (s *launcherState) setServerStatus(status launcherServerStatus, detail string) {
+	s.serverStatus = status
+	s.serverDetail = detail
+	for _, label := range s.serverStateLabels {
+		label.SetText(status.Display())
+	}
+	for _, label := range s.serverDetailLabels {
+		label.SetText(detail)
+	}
+	for _, hook := range s.serverActionHooks {
+		hook(status)
+	}
+
+	title := "서버 " + status.Display()
+	if status == launcherServerRunning {
+		detail = s.serverURL + " 에서 접속할 수 있습니다."
+		for _, label := range s.serverDetailLabels {
+			label.SetText(detail)
+		}
+	}
+	s.setStatus(title, detail)
 }
 
 func (s *launcherState) appendLog(message string) {
@@ -221,6 +252,18 @@ func (s *launcherState) updateAccessSummaryLabels() {
 func (s *launcherState) addStatusLabels(title *widget.Label, detail *widget.Label) {
 	s.statusTitleLabels = append(s.statusTitleLabels, title)
 	s.statusDetailLabels = append(s.statusDetailLabels, detail)
+}
+
+func (s *launcherState) addServerStatusLabels(status *widget.Label, detail *widget.Label) {
+	s.serverStateLabels = append(s.serverStateLabels, status)
+	s.serverDetailLabels = append(s.serverDetailLabels, detail)
+	status.SetText(s.serverStatus.Display())
+	detail.SetText(s.serverDetail)
+}
+
+func (s *launcherState) addServerActionHook(hook func(launcherServerStatus)) {
+	s.serverActionHooks = append(s.serverActionHooks, hook)
+	hook(s.serverStatus)
 }
 
 func (s *launcherState) addActivityLabel(label *widget.Label) {
