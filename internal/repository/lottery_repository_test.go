@@ -38,8 +38,9 @@ func TestLotteryRepositoryListsCandidatesAndSavesRun(t *testing.T) {
 	}
 
 	runID, err := lotteries.SaveRun(ctx, SaveLotteryRunParams{
-		TermID: offering.TermID,
-		Seed:   100,
+		OfferingID: offering.ID,
+		TermID:     offering.TermID,
+		Seed:       100,
 		Assignments: []domain.LotteryAssignment{
 			{RegistrationID: first.ID, Result: "selected", ResultOrder: 1},
 			{RegistrationID: second.ID, Result: "waitlisted", ResultOrder: 2},
@@ -54,6 +55,7 @@ func TestLotteryRepositoryListsCandidatesAndSavesRun(t *testing.T) {
 
 	assertRegistrationStatus(t, db, first.ID, "selected")
 	assertRegistrationStatus(t, db, second.ID, "waitlisted")
+	assertLotteryRunTarget(t, db, runID, offering.ID)
 	assertLotteryResultCount(t, db, runID, 2)
 
 	runs, err := lotteries.ListRuns(ctx, 10)
@@ -125,5 +127,17 @@ func assertLotteryResultCount(t *testing.T, db *sql.DB, runID int64, want int) {
 	}
 	if got != want {
 		t.Fatalf("lottery result count = %d, want %d", got, want)
+	}
+}
+
+func assertLotteryRunTarget(t *testing.T, db *sql.DB, runID int64, wantOfferingID int64) {
+	t.Helper()
+
+	var got int64
+	if err := db.QueryRow("SELECT offering_id FROM lottery_run_targets WHERE lottery_run_id = ?;", runID).Scan(&got); err != nil {
+		t.Fatalf("read lottery run target: %v", err)
+	}
+	if got != wantOfferingID {
+		t.Fatalf("lottery target offering_id = %d, want %d", got, wantOfferingID)
 	}
 }

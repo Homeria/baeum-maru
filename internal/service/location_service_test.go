@@ -39,8 +39,8 @@ func TestLocationServiceRejectsInvalidLocation(t *testing.T) {
 	if _, err := service.Create(context.Background(), LocationInput{}); err == nil {
 		t.Fatal("Create() error = nil, want validation error")
 	}
-	if _, err := service.Create(context.Background(), LocationInput{Name: "사무실", Type: "invalid", IsActive: true}); err == nil {
-		t.Fatal("Create() invalid type error = nil, want validation error")
+	if _, err := service.Create(context.Background(), LocationInput{Name: "사무실", Type: "custom_role", IsActive: true}); err != nil {
+		t.Fatalf("Create() custom role error = %v, want nil", err)
 	}
 }
 

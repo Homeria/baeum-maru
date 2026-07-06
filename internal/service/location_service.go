@@ -127,10 +127,5 @@ func normalizeLocationInput(input LocationInput) (LocationInput, error) {
 
 func normalizeLocationType(value string) (string, error) {
 	value = strings.TrimSpace(value)
-	switch value {
-	case "", domain.LocationTypeClassroom, domain.LocationTypeOffice, domain.LocationTypeStorage, domain.LocationTypeHall, domain.LocationTypeReception, domain.LocationTypeOther:
-		return value, nil
-	default:
-		return "", errors.New("invalid location type")
-	}
+	return value, nil
 }

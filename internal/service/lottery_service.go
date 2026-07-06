@@ -76,6 +76,7 @@ func (s *LotteryService) RunOfferingLottery(ctx context.Context, offeringID int6
 	seed := s.newSeed()
 	assignments := assignLotteryResults(candidates, offering.Capacity, seed)
 	runID, err := s.lotteries.SaveRun(ctx, repository.SaveLotteryRunParams{
+		OfferingID:  offering.ID,
 		TermID:      offering.TermID,
 		Seed:        seed,
 		Assignments: assignments,

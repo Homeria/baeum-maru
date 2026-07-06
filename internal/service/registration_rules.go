@@ -122,10 +122,16 @@ func (r MaxRegistrationsPerMemberRule) Check(ctx context.Context, input Registra
 	}
 
 	count := 0
+	seenOfferings := make(map[int64]struct{})
 	for _, item := range items {
-		if item.TermID == offering.TermID {
-			count++
+		if item.TermID != offering.TermID {
+			continue
 		}
+		if _, exists := seenOfferings[item.OfferingID]; exists {
+			continue
+		}
+		seenOfferings[item.OfferingID] = struct{}{}
+		count++
 	}
 	if count >= offering.MaxRegistrationsPerMember {
 		return fmt.Errorf("1인 최대 신청 강좌 수 %d개를 초과할 수 없습니다", offering.MaxRegistrationsPerMember)
@@ -152,16 +158,29 @@ func (r TimeConflictRule) Check(ctx context.Context, input RegistrationInput) er
 		return err
 	}
 
-	for _, item := range items {
-		if item.TermID != offering.TermID {
-			continue
-		}
-		if item.Weekday != offering.Weekday {
-			continue
-		}
-		if item.StartTime < offering.EndTime && offering.StartTime < item.EndTime {
-			return errors.New("같은 시간대의 다른 강좌를 이미 신청했습니다")
+	for _, schedule := range offeringRuleSchedules(offering) {
+		for _, item := range items {
+			if item.TermID != offering.TermID {
+				continue
+			}
+			if item.Weekday != schedule.Weekday {
+				continue
+			}
+			if item.StartTime < schedule.EndTime && schedule.StartTime < item.EndTime {
+				return errors.New("같은 시간대의 다른 강좌를 이미 신청했습니다")
+			}
 		}
 	}
 	return nil
+}
+
+func offeringRuleSchedules(offering domain.CourseOffering) []domain.CourseSchedule {
+	if len(offering.Schedules) > 0 {
+		return offering.Schedules
+	}
+	return []domain.CourseSchedule{{
+		Weekday:   offering.Weekday,
+		StartTime: offering.StartTime,
+		EndTime:   offering.EndTime,
+	}}
 }

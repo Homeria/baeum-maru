@@ -12,9 +12,9 @@ import (
 func TestImportServiceImportsMembers(t *testing.T) {
 	var members fakeImportMembers
 	service := NewImportService(&members, nil)
-	content := workbookBytes(t, "회원 가져오기", []string{"회원번호", "이름", "성별", "생년월일", "연락처", "비고"}, [][]any{
-		{"M-001", "김배움", "여", "1955-04-12", "010-0000-0000", "첫 행"},
-		{"M-002", "", "남", "", "", "이름 없음"},
+	content := workbookBytes(t, "members", memberImportHeaders, [][]any{
+		{"M-001", "Kim Baeum", "female", "1955-04-12", "010-0000-0000", "first"},
+		{"M-002", "", "male", "", "", "missing name"},
 	})
 
 	result, err := service.ImportMembers(context.Background(), bytes.NewReader(content))
@@ -35,23 +35,34 @@ func TestImportServiceImportsMembers(t *testing.T) {
 func TestImportServiceImportsCourseOfferings(t *testing.T) {
 	var courses fakeImportCourses
 	service := NewImportService(nil, &courses)
-	content := workbookBytes(t, "강좌 가져오기", []string{"회차", "분류", "강좌명", "강사", "강의실", "정원", "요일", "시작", "종료", "비고"}, [][]any{
-		{"2026년 여름학기", "건강", "요가 기초", "이강사", "101호", 20, "월", "09:00", "10:00", ""},
-		{"2026년 여름학기", "건강", "탁구", "", "", "많음", "화", "10:00", "11:00", ""},
+	content := workbookBytes(t, "course_offerings", courseImportHeaders, [][]any{
+		{"2026-2", "lifelong", "Korean basic", "Instructor", "Room 101", 20, "mon", "09:00", "10:00", ""},
+		{"2026-2", "lifelong", "Dance", "", "", "many", "mon", "10:00", "11:00", ""},
+		{"2026-2", "lifelong", "Social dance", "", "", "남7/여7", "thu", "13:00", "14:00", ""},
+		{"2026-2", "lifelong", "Open singing", "", "", "open", "fri", "10:00", "11:00", ""},
 	})
 
 	result, err := service.ImportCourseOfferings(context.Background(), bytes.NewReader(content))
 	if err != nil {
 		t.Fatalf("ImportCourseOfferings() error = %v", err)
 	}
-	if result.CreatedCount != 1 {
-		t.Fatalf("CreatedCount = %d, want 1", result.CreatedCount)
+	if result.CreatedCount != 3 {
+		t.Fatalf("CreatedCount = %d, want 3", result.CreatedCount)
 	}
 	if len(result.Errors) != 1 || result.Errors[0].Row != 3 {
 		t.Fatalf("Errors = %#v, want row 3 error", result.Errors)
 	}
 	if got := courses.created[0].Weekday; got != 1 {
 		t.Fatalf("Weekday = %d, want 1", got)
+	}
+	if got := courses.created[1].CapacityType; got != "gender_split" {
+		t.Fatalf("CapacityType = %q, want gender_split", got)
+	}
+	if courses.created[1].MaleCapacity != 7 || courses.created[1].FemaleCapacity != 7 {
+		t.Fatalf("gender capacity = %d/%d, want 7/7", courses.created[1].MaleCapacity, courses.created[1].FemaleCapacity)
+	}
+	if got := courses.created[2].CapacityType; got != "open" {
+		t.Fatalf("CapacityType = %q, want open", got)
 	}
 }
 
@@ -66,12 +77,12 @@ func TestImportServiceCreatesTemplates(t *testing.T) {
 		t.Fatalf("OpenReader() error = %v", err)
 	}
 	defer workbook.Close()
-	cell, err := workbook.GetCellValue("회원 가져오기", "B1")
+	cell, err := workbook.GetCellValue("members", "B1")
 	if err != nil {
 		t.Fatalf("GetCellValue() error = %v", err)
 	}
-	if cell != "이름" {
-		t.Fatalf("B1 = %q, want 이름", cell)
+	if cell != "name" {
+		t.Fatalf("B1 = %q, want name", cell)
 	}
 }
 

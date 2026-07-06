@@ -12,6 +12,9 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+var memberImportHeaders = []string{"member_no", "name", "gender", "birth_date", "phone", "note"}
+var courseImportHeaders = []string{"term", "category", "course", "instructor", "location", "capacity", "weekday", "start_time", "end_time", "note"}
+
 type ImportMemberTarget interface {
 	Create(context.Context, MemberInput) (domain.Member, error)
 }
@@ -54,8 +57,8 @@ func (s *ImportService) ImportMembers(ctx context.Context, reader io.Reader) (Im
 		return ImportResult{}, err
 	}
 
-	result := ImportResult{Kind: "회원"}
-	if !validateHeaders(rows, []string{"회원번호", "이름", "성별", "생년월일", "연락처", "비고"}, &result) {
+	result := ImportResult{Kind: "members"}
+	if !validateHeaders(rows, memberImportHeaders, &result) {
 		return result, nil
 	}
 
@@ -73,7 +76,7 @@ func (s *ImportService) ImportMembers(ctx context.Context, reader io.Reader) (Im
 			Note:       cell(row, 5),
 		}
 		if strings.TrimSpace(input.Name) == "" {
-			addImportError(&result, rowNumber, "이름은 필수입니다.")
+			addImportError(&result, rowNumber, "name is required")
 			continue
 		}
 		if _, err := s.members.Create(ctx, input); err != nil {
@@ -94,8 +97,8 @@ func (s *ImportService) ImportCourseOfferings(ctx context.Context, reader io.Rea
 		return ImportResult{}, err
 	}
 
-	result := ImportResult{Kind: "강좌"}
-	if !validateHeaders(rows, []string{"회차", "분류", "강좌명", "강사", "강의실", "정원", "요일", "시작", "종료", "비고"}, &result) {
+	result := ImportResult{Kind: "course_offerings"}
+	if !validateHeaders(rows, courseImportHeaders, &result) {
 		return result, nil
 	}
 
@@ -118,16 +121,20 @@ func (s *ImportService) ImportCourseOfferings(ctx context.Context, reader io.Rea
 			TermName:       cell(row, 0),
 			CategoryName:   cell(row, 1),
 			CourseTitle:    cell(row, 2),
+			DisplayName:    cell(row, 2),
 			InstructorName: cell(row, 3),
 			ClassroomName:  cell(row, 4),
-			Capacity:       capacity,
+			Capacity:       capacity.Total,
+			CapacityType:   capacity.Type,
+			MaleCapacity:   capacity.Male,
+			FemaleCapacity: capacity.Female,
 			Weekday:        weekday,
 			StartTime:      cell(row, 7),
 			EndTime:        cell(row, 8),
 			Note:           cell(row, 9),
 		}
 		if strings.TrimSpace(input.CourseTitle) == "" {
-			addImportError(&result, rowNumber, "강좌명은 필수입니다.")
+			addImportError(&result, rowNumber, "course is required")
 			continue
 		}
 		if _, err := s.courses.CreateOffering(ctx, input); err != nil {
@@ -143,11 +150,11 @@ func (s *ImportService) MemberTemplate() (ImportTemplate, error) {
 	file := excelize.NewFile()
 	defer file.Close()
 
-	sheet := "회원 가져오기"
-	if err := setupSheet(file, sheet, []string{"회원번호", "이름", "성별", "생년월일", "연락처", "비고"}); err != nil {
+	sheet := "members"
+	if err := setupSheet(file, sheet, memberImportHeaders); err != nil {
 		return ImportTemplate{}, err
 	}
-	if err := setRow(file, sheet, 2, []any{"M-0001", "김배움", "female", "1955-04-12", "010-0000-0000", "샘플 행"}); err != nil {
+	if err := setRow(file, sheet, 2, []any{"M-0001", "Kim Baeum", "female", "1955-04-12", "010-0000-0000", "sample"}); err != nil {
 		return ImportTemplate{}, err
 	}
 	content, err := file.WriteToBuffer()
@@ -161,11 +168,11 @@ func (s *ImportService) CourseOfferingTemplate() (ImportTemplate, error) {
 	file := excelize.NewFile()
 	defer file.Close()
 
-	sheet := "강좌 가져오기"
-	if err := setupSheet(file, sheet, []string{"회차", "분류", "강좌명", "강사", "강의실", "정원", "요일", "시작", "종료", "비고"}); err != nil {
+	sheet := "course_offerings"
+	if err := setupSheet(file, sheet, courseImportHeaders); err != nil {
 		return ImportTemplate{}, err
 	}
-	if err := setRow(file, sheet, 2, []any{"2026년 여름학기", "건강", "요가 기초", "이강사", "101호", 20, "월", "09:00", "10:00", "샘플 행"}); err != nil {
+	if err := setRow(file, sheet, 2, []any{"2026-2", "lifelong", "Korean basic", "Instructor", "Room 101", 20, "mon", "09:00", "10:00", "sample"}); err != nil {
 		return ImportTemplate{}, err
 	}
 	content, err := file.WriteToBuffer()
@@ -195,62 +202,103 @@ func readWorkbookRows(reader io.Reader) ([][]string, error) {
 
 func validateHeaders(rows [][]string, want []string, result *ImportResult) bool {
 	if len(rows) == 0 {
-		addImportError(result, 1, "헤더 행이 없습니다.")
+		addImportError(result, 1, "header row is missing")
 		return false
 	}
 	for index, header := range want {
 		if cell(rows[0], index) != header {
-			addImportError(result, 1, fmt.Sprintf("%d번째 열은 %q이어야 합니다.", index+1, header))
+			addImportError(result, 1, fmt.Sprintf("column %d must be %q", index+1, header))
 			return false
 		}
 	}
 	return true
 }
 
-func parseCapacity(value string) (int, error) {
+type capacityImportValue struct {
+	Type   string
+	Total  int
+	Male   int
+	Female int
+}
+
+func parseCapacity(value string) (capacityImportValue, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return 0, nil
+		return capacityImportValue{Type: "fixed"}, nil
+	}
+	if value == "개방" || strings.EqualFold(value, "open") {
+		return capacityImportValue{Type: "open"}, nil
+	}
+	if strings.Contains(value, "남") || strings.Contains(value, "여") {
+		male, female, ok := parseGenderSplitCapacity(value)
+		if !ok {
+			return capacityImportValue{}, errors.New("gender split capacity must look like 남7/여7")
+		}
+		return capacityImportValue{Type: "gender_split", Total: male + female, Male: male, Female: female}, nil
 	}
 	capacity, err := strconv.Atoi(value)
 	if err != nil {
-		return 0, errors.New("정원은 숫자로 입력해야 합니다.")
+		return capacityImportValue{}, errors.New("capacity must be a number, open, or gender split value")
 	}
 	if capacity < 0 {
-		return 0, errors.New("정원은 0 이상이어야 합니다.")
+		return capacityImportValue{}, errors.New("capacity must be zero or greater")
 	}
-	return capacity, nil
+	return capacityImportValue{Type: "fixed", Total: capacity}, nil
+}
+
+func parseGenderSplitCapacity(value string) (int, int, bool) {
+	normalized := strings.NewReplacer(" ", "", ",", "/", "·", "/", "，", "/").Replace(value)
+	parts := strings.Split(normalized, "/")
+	male := -1
+	female := -1
+	for _, part := range parts {
+		if strings.HasPrefix(part, "남") {
+			parsed, err := strconv.Atoi(strings.TrimPrefix(part, "남"))
+			if err != nil {
+				return 0, 0, false
+			}
+			male = parsed
+		}
+		if strings.HasPrefix(part, "여") {
+			parsed, err := strconv.Atoi(strings.TrimPrefix(part, "여"))
+			if err != nil {
+				return 0, 0, false
+			}
+			female = parsed
+		}
+	}
+	return male, female, male >= 0 && female >= 0
 }
 
 func parseWeekday(value string) (int, error) {
-	value = strings.TrimSpace(value)
+	value = strings.ToLower(strings.TrimSpace(value))
 	switch value {
-	case "0", "일", "일요일":
+	case "0", "sun", "sunday", "일", "일요일":
 		return 0, nil
-	case "1", "월", "월요일":
+	case "1", "mon", "monday", "월", "월요일":
 		return 1, nil
-	case "2", "화", "화요일":
+	case "2", "tue", "tuesday", "화", "화요일":
 		return 2, nil
-	case "3", "수", "수요일":
+	case "3", "wed", "wednesday", "수", "수요일":
 		return 3, nil
-	case "4", "목", "목요일":
+	case "4", "thu", "thursday", "목", "목요일":
 		return 4, nil
-	case "5", "금", "금요일":
+	case "5", "fri", "friday", "금", "금요일":
 		return 5, nil
-	case "6", "토", "토요일":
+	case "6", "sat", "saturday", "토", "토요일":
 		return 6, nil
 	default:
-		return 0, errors.New("요일은 일, 월, 화, 수, 목, 금, 토 또는 0~6으로 입력해야 합니다.")
+		return 0, errors.New("weekday must be 0-6 or a weekday label")
 	}
 }
 
 func normalizeGender(value string) string {
-	switch strings.TrimSpace(value) {
-	case "남", "남성", "male":
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "m", "male", "남", "남성":
 		return "male"
-	case "여", "여성", "female":
+	case "f", "female", "여", "여성":
 		return "female"
-	case "미상", "unknown":
+	case "unknown", "미상":
 		return "unknown"
 	default:
 		return strings.TrimSpace(value)
