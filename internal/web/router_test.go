@@ -639,6 +639,29 @@ func TestRouterServesReceptionWithSelectedMember(t *testing.T) {
 	}
 }
 
+func TestRouterServesReceptionRegistrationsFragment(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		Registrations: &fakeRegistrationService{
+			byMember: []domain.Registration{{ID: 3, MemberID: 1, CourseTitle: "요가 기초", Status: "applied"}},
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/reception/registrations-fragment?member_id=1", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `<div class="table-wrap">`) || !strings.Contains(body, "요가 기초") {
+		t.Fatalf("body = %q, want registration table fragment", body)
+	}
+	if strings.Contains(body, "<html") || strings.Contains(body, "topbar") {
+		t.Fatalf("body = %q, want fragment without page chrome", body)
+	}
+}
+
 func TestRouterCreatesRegistration(t *testing.T) {
 	registrations := &fakeRegistrationService{}
 	router := NewRouter(RouterOptions{
@@ -708,6 +731,29 @@ func TestRouterServesRegistrationManagement(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `value="confirm"`) {
 		t.Fatalf("body = %q, want confirm action", rec.Body.String())
+	}
+}
+
+func TestRouterServesRegistrationManagementFragment(t *testing.T) {
+	router := NewRouter(RouterOptions{
+		Registrations: &fakeRegistrationService{
+			recent: []domain.Registration{{ID: 1, MemberName: "김배움", CourseTitle: "요가 기초", Status: "selected"}},
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/registrations/fragment", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `<div class="table-wrap">`) || !strings.Contains(body, "김배움") || !strings.Contains(body, `value="confirm"`) {
+		t.Fatalf("body = %q, want registration management fragment", body)
+	}
+	if strings.Contains(body, "<html") || strings.Contains(body, "topbar") {
+		t.Fatalf("body = %q, want fragment without page chrome", body)
 	}
 }
 

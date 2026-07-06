@@ -23,6 +23,77 @@ type receptionPageData struct {
 }
 
 var receptionTemplate = mustPageTemplate("reception", "reception.html", template.FuncMap{"weekdayLabel": weekdayLabel})
+var registrationFragmentsTemplate = template.Must(template.New("registration_fragments").Funcs(uiTemplateFuncs(nil)).Parse(`
+{{define "reception_registrations_fragment"}}
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>ID</th><th>회차</th><th>강좌</th><th>상태</th><th>신청일</th><th>작업</th></tr></thead>
+    <tbody>
+      {{range .Registrations}}
+        <tr>
+          <td>{{.ID}}</td>
+          <td>{{.TermName}}</td>
+          <td>{{.CourseTitle}}</td>
+          <td><span class="badge {{statusClass .Status}}">{{statusLabel .Status}}</span></td>
+          <td>{{.CreatedAt}}</td>
+          <td>
+            {{if and (index $.Permissions "write_reception") (ne .Status "cancelled")}}
+              <form class="inline-form" method="post" action="/reception/cancel">
+                <input type="hidden" name="registration_id" value="{{.ID}}">
+                <input type="hidden" name="member_id" value="{{$.SelectedID}}">
+                <input type="hidden" name="q" value="{{$.Query}}">
+                <button class="danger" type="submit">취소</button>
+              </form>
+            {{end}}
+          </td>
+        </tr>
+      {{else}}
+        <tr><td class="empty" colspan="6">신청 내역이 없습니다.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
+
+{{define "registrations_fragment"}}
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>ID</th><th>회원</th><th>회원번호</th><th>회차</th><th>강좌</th><th>상태</th><th>신청일</th><th>작업</th></tr></thead>
+    <tbody>
+      {{range .Registrations}}
+        <tr>
+          <td>{{.ID}}</td>
+          <td>{{.MemberName}}</td>
+          <td>{{.MemberNo}}</td>
+          <td>{{.TermName}}</td>
+          <td>{{.CourseTitle}}</td>
+          <td><span class="badge {{statusClass .Status}}">{{statusLabel .Status}}</span></td>
+          <td>{{.CreatedAt}}</td>
+          <td>
+            {{if and (index $.Permissions "manage_registrations") (eq .Status "selected")}}
+              <form class="inline-form" method="post" action="/admin/registrations/status">
+                <input type="hidden" name="registration_id" value="{{.ID}}">
+                <input type="hidden" name="action" value="confirm">
+                <button type="submit">확정</button>
+              </form>
+            {{end}}
+            {{if and (index $.Permissions "manage_registrations") (ne .Status "cancelled")}}
+              <form class="inline-form" method="post" action="/admin/registrations/status">
+                <input type="hidden" name="registration_id" value="{{.ID}}">
+                <input type="hidden" name="action" value="cancel">
+                <button class="danger" type="submit">취소</button>
+              </form>
+            {{end}}
+          </td>
+        </tr>
+      {{else}}
+        <tr><td class="empty" colspan="8">신청 내역이 없습니다.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
+`))
 
 func receptionHandler(opts RouterOptions) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -106,6 +177,39 @@ func renderReception(w http.ResponseWriter, r *http.Request, opts RouterOptions,
 		Registrations: registrations,
 	}); err != nil {
 		opts.Logger.Error("render reception failed", "error", err)
+	}
+}
+
+func receptionRegistrationsFragmentHandler(opts RouterOptions) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if opts.Registrations == nil {
+			http.Error(w, "registration service is not configured", http.StatusServiceUnavailable)
+			return
+		}
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		selectedID, _ := strconv.ParseInt(r.URL.Query().Get("member_id"), 10, 64)
+		var registrations []domain.Registration
+		var err error
+		if selectedID > 0 {
+			registrations, err = opts.Registrations.ListByMember(r.Context(), selectedID)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err := registrationFragmentsTemplate.ExecuteTemplate(w, "reception_registrations_fragment", receptionPageData{
+			Permissions:   pagePermissions(r),
+			Query:         r.URL.Query().Get("q"),
+			SelectedID:    selectedID,
+			Registrations: registrations,
+		}); err != nil {
+			opts.Logger.Error("render reception registrations fragment failed", "error", err)
+		}
 	}
 }
 
@@ -193,6 +297,39 @@ func registrationsHandler(opts RouterOptions) http.HandlerFunc {
 			Registrations: registrations,
 		}); err != nil {
 			opts.Logger.Error("render registrations failed", "error", err)
+		}
+	}
+}
+
+func registrationsFragmentHandler(opts RouterOptions) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if opts.Registrations == nil {
+			http.Error(w, "registration service is not configured", http.StatusServiceUnavailable)
+			return
+		}
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		query := r.URL.Query().Get("q")
+		status := r.URL.Query().Get("status")
+		sortKey := r.URL.Query().Get("sort")
+		registrations, err := opts.Registrations.ListRecent(r.Context(), 500)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		registrations = filterRegistrations(registrations, query, status)
+		sortRegistrations(registrations, sortKey)
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err := registrationFragmentsTemplate.ExecuteTemplate(w, "registrations_fragment", registrationsPageData{
+			Permissions:   pagePermissions(r),
+			Registrations: registrations,
+		}); err != nil {
+			opts.Logger.Error("render registrations fragment failed", "error", err)
 		}
 	}
 }

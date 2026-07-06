@@ -180,6 +180,9 @@ button, .button {
   border: 1px solid var(--line);
   border-radius: 8px;
 }
+.table-wrap.sync-updating {
+  opacity: 0.75;
+}
 table {
   width: 100%;
   border-collapse: collapse;

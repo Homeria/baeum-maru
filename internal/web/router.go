@@ -32,10 +32,12 @@ func NewRouter(opts RouterOptions) http.Handler {
 		Description: "회원, 강좌, 신청 현황, 추첨, 출력을 관리하는 화면입니다.",
 	})))
 	appMux.HandleFunc("/reception", receptionHandler(opts))
+	appMux.HandleFunc("/reception/registrations-fragment", receptionRegistrationsFragmentHandler(opts))
 	appMux.HandleFunc("/admin/members", membersHandler(opts))
 	appMux.HandleFunc("/admin/courses", coursesHandler(opts))
 	appMux.HandleFunc("/admin/locations", locationsHandler(opts))
 	appMux.HandleFunc("/admin/registrations", registrationsHandler(opts))
+	appMux.HandleFunc("/admin/registrations/fragment", registrationsFragmentHandler(opts))
 	appMux.HandleFunc("/admin/registrations/status", registrationStatusHandler(opts))
 	appMux.HandleFunc("/admin/lottery", lotteryHandler(opts))
 	appMux.HandleFunc("/admin/lottery/run", runLotteryHandler(opts))

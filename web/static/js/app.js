@@ -43,6 +43,9 @@
     if (!shouldRefreshForScope(payload.scope, location.pathname)) {
       return;
     }
+    if (refreshSyncFragments(payload.scope)) {
+      return;
+    }
     if (formIsDirty || isEditableFocused()) {
       showSyncNotice();
       return;
@@ -71,6 +74,66 @@
       backups: ["/admin/backups"],
     };
     return (groups[scope] || []).some((prefix) => path === prefix || path.startsWith(prefix + "?"));
+  }
+
+  function refreshSyncFragments(scope) {
+    const targets = syncFragmentTargets(scope, location.pathname);
+    if (targets.length === 0) {
+      return false;
+    }
+    targets.forEach((target) => {
+      const element = document.querySelector(target.selector);
+      if (!element) {
+        return;
+      }
+      if (element.contains(document.activeElement) && isEditableFocused()) {
+        showSyncNotice();
+        return;
+      }
+      fetch(target.url, {
+        headers: { "X-Requested-With": "baeum-maru-sync" },
+        cache: "no-store",
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("fragment request failed");
+          }
+          return response.text();
+        })
+        .then((html) => {
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = html.trim();
+          const replacement = wrapper.firstElementChild;
+          if (!replacement) {
+            return;
+          }
+          element.classList.add("sync-updating");
+          element.replaceWith(replacement);
+        })
+        .catch(() => {
+          showSyncNotice();
+        });
+    });
+    return true;
+  }
+
+  function syncFragmentTargets(scope, path) {
+    if (scope !== "registrations" && scope !== "all") {
+      return [];
+    }
+    if (path === "/admin/registrations") {
+      return [{
+        selector: ".page > section.panel .table-wrap",
+        url: "/admin/registrations/fragment" + location.search,
+      }];
+    }
+    if (path === "/reception") {
+      return [{
+        selector: ".page > section.panel:last-of-type .table-wrap",
+        url: "/reception/registrations-fragment" + location.search,
+      }];
+    }
+    return [];
   }
 
   function isEditableFocused() {
