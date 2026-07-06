@@ -113,9 +113,9 @@ func isAllowed(role string, method string, path string) bool {
 		return role == roleStaff
 	case "/admin/lottery", "/admin/lottery/run":
 		return role == roleStaff
-	case "/reception", "/reception/cancel":
+	case "/reception", "/reception/cancel", "/reception/registrations-fragment":
 		return role == roleStaff || role == roleTemporaryStaff
-	case "/admin/members", "/admin/courses", "/admin/locations", "/admin/registrations":
+	case "/admin/members", "/admin/courses", "/admin/locations", "/admin/registrations", "/admin/registrations/fragment":
 		return method == http.MethodGet || role == roleStaff
 	case "/admin/registrations/status":
 		return role == roleStaff
