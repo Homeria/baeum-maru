@@ -12,10 +12,10 @@ import (
 )
 
 func buildDashboardTab(state *launcherState) fyne.CanvasObject {
-	statusTitle := widget.NewLabelWithStyle("서버 시작 중", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	statusDetail := widget.NewLabel("로컬 서버를 준비하고 있습니다.")
-	statusDetail.Wrapping = fyne.TextWrapWord
-	state.addStatusLabels(statusTitle, statusDetail)
+	serverStateLabel := widget.NewLabelWithStyle("정지", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	serverDetailLabel := widget.NewLabel("서버가 정지되어 있습니다.")
+	serverDetailLabel.Wrapping = fyne.TextWrapWord
+	state.addServerStatusLabels(serverStateLabel, serverDetailLabel)
 
 	addressEntry := widget.NewEntry()
 	addressEntry.SetText(state.serverURL)
@@ -37,14 +37,47 @@ func buildDashboardTab(state *launcherState) fyne.CanvasObject {
 	})
 	copyAddressButton := copyButton("주소 복사", func() string { return state.serverURL }, state)
 	copyShareButton := copyButton("내부망 주소 복사", func() string { return accessURLText(state.shareURLs) }, state)
+	startButton := widget.NewButtonWithIcon("서버 시작", theme.MediaPlayIcon(), func() {
+		state.serverController.Start()
+	})
+	stopButton := widget.NewButtonWithIcon("서버 중지", theme.MediaStopIcon(), func() {
+		state.serverController.Stop()
+	})
+	restartButton := widget.NewButtonWithIcon("서버 재시작", theme.ViewRefreshIcon(), func() {
+		state.serverController.Restart()
+	})
 	refreshButton := widget.NewButtonWithIcon("상태 새로고침", theme.ViewRefreshIcon(), func() {
 		state.refreshAccessCodes()
 		state.setStatus("상태 새로고침", "대시보드 상태를 새로고침했습니다.")
 	})
+	state.addServerActionHook(func(status launcherServerStatus) {
+		if status.CanStart() {
+			startButton.Enable()
+		} else {
+			startButton.Disable()
+		}
+		if status.CanStop() {
+			stopButton.Enable()
+		} else {
+			stopButton.Disable()
+		}
+		if status.CanRestart() {
+			restartButton.Enable()
+		} else {
+			restartButton.Disable()
+		}
+		if status == launcherServerRunning {
+			openButton.Enable()
+		} else {
+			openButton.Disable()
+		}
+	})
 
 	serverCard := widget.NewCard("서버 상태", "", container.NewVBox(
-		statusIconLine(theme.InfoIcon(), statusTitle),
-		statusDetail,
+		statusIconLine(theme.InfoIcon(), serverStateLabel),
+		serverDetailLabel,
+		widget.NewSeparator(),
+		container.NewHBox(startButton, stopButton, restartButton),
 		widget.NewSeparator(),
 		widget.NewLabel("접속 주소"),
 		addressEntry,
