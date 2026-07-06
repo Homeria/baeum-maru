@@ -192,12 +192,11 @@ func attendanceSessionSelectSQL() string {
 SELECT s.id,
        s.offering_id,
        t.name,
-       c.title,
+       co.display_name,
        s.session_date,
        COALESCE(s.note, '')
 FROM attendance_sessions s
 JOIN course_offerings co ON co.id = s.offering_id
-JOIN courses c ON c.id = co.course_id
 JOIN terms t ON t.id = co.term_id
 `
 }

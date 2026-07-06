@@ -181,11 +181,56 @@ func TestRegistrationServiceRejectsMaxRegistrations(t *testing.T) {
 	}
 }
 
+func TestRegistrationServiceCountsMultiScheduleOfferingOnceForMaxRegistrations(t *testing.T) {
+	repo := &fakeRegistrationRepository{
+		activeItems: []domain.RegistrationRuleItem{
+			{OfferingID: 1, TermID: 1, Weekday: 1, StartTime: "09:00", EndTime: "10:00"},
+			{OfferingID: 1, TermID: 1, Weekday: 3, StartTime: "09:00", EndTime: "10:00"},
+		},
+	}
+	courses := fakeCourseOfferingLookup{offering: domain.CourseOffering{
+		TermID:                    1,
+		TermStatus:                "open",
+		MaxRegistrationsPerMember: 2,
+		RegistrationEnabled:       true,
+		Status:                    "open",
+		Weekday:                   5,
+		StartTime:                 "11:00",
+		EndTime:                   "12:00",
+	}}
+	service := NewRegistrationService(repo, fakeMemberLookup{}, courses)
+
+	if _, err := service.Create(context.Background(), RegistrationInput{MemberID: 1, OfferingID: 2}); err != nil {
+		t.Fatalf("Create() error = %v, want allowed", err)
+	}
+}
+
 func TestRegistrationServiceRejectsTimeConflict(t *testing.T) {
 	repo := &fakeRegistrationRepository{
 		activeItems: []domain.RegistrationRuleItem{{OfferingID: 1, TermID: 1, Weekday: 1, StartTime: "09:30", EndTime: "10:30"}},
 	}
 	service := NewRegistrationService(repo, fakeMemberLookup{}, fakeCourseOfferingLookup{})
+
+	if _, err := service.Create(context.Background(), RegistrationInput{MemberID: 1, OfferingID: 2}); err == nil {
+		t.Fatal("Create() error = nil, want time conflict rule error")
+	}
+}
+
+func TestRegistrationServiceRejectsTimeConflictAcrossOfferingSchedules(t *testing.T) {
+	repo := &fakeRegistrationRepository{
+		activeItems: []domain.RegistrationRuleItem{{OfferingID: 1, TermID: 1, Weekday: 3, StartTime: "09:30", EndTime: "10:30"}},
+	}
+	courses := fakeCourseOfferingLookup{offering: domain.CourseOffering{
+		TermID:              1,
+		TermStatus:          "open",
+		RegistrationEnabled: true,
+		Status:              "open",
+		Schedules: []domain.CourseSchedule{
+			{Weekday: 1, StartTime: "09:00", EndTime: "10:00"},
+			{Weekday: 3, StartTime: "09:00", EndTime: "10:00"},
+		},
+	}}
+	service := NewRegistrationService(repo, fakeMemberLookup{}, courses)
 
 	if _, err := service.Create(context.Background(), RegistrationInput{MemberID: 1, OfferingID: 2}); err == nil {
 		t.Fatal("Create() error = nil, want time conflict rule error")

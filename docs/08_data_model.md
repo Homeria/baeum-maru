@@ -1,3 +1,7 @@
+# 현행 구현 메모
+
+`refactor/schema-redesign` 브랜치의 최신 스키마 기준은 [16_schema_redesign_notes.md](16_schema_redesign_notes.md)에 정리한다. 이 문서의 일부 표에는 초기 설계의 `classrooms`, `course_meetings`, 단일 숫자 정원 모델이 남아 있을 수 있다. 현재 구현 기준은 `locations`, `time_slots`, `course_schedules`, `lottery_run_targets`, `operation_jobs`를 사용한다.
+
 # 배움마루 데이터 모델
 
 ## 1. 설계 목표

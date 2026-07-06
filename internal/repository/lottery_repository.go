@@ -14,6 +14,7 @@ type LotteryRepository struct {
 }
 
 type SaveLotteryRunParams struct {
+	OfferingID  int64
 	TermID      int64
 	Seed        int64
 	Assignments []domain.LotteryAssignment
@@ -79,6 +80,14 @@ VALUES (?, ?, 'completed', CURRENT_TIMESTAMP);
 		if err != nil {
 			return fmt.Errorf("read lottery run id: %w", err)
 		}
+		if params.OfferingID > 0 {
+			if _, err := tx.ExecContext(ctx, `
+INSERT INTO lottery_run_targets (lottery_run_id, offering_id)
+VALUES (?, ?);
+`, runID, params.OfferingID); err != nil {
+				return fmt.Errorf("insert lottery run target: %w", err)
+			}
+		}
 
 		for _, assignment := range params.Assignments {
 			if err := saveLotteryAssignment(ctx, tx, runID, assignment); err != nil {
@@ -109,18 +118,19 @@ SELECT lr.id,
        lr.status,
        lr.started_at,
        COALESCE(lr.completed_at, ''),
-       COALESCE(co.id, 0),
-       COALESCE(c.title, ''),
+       COALESCE(target_co.id, co.id, 0),
+       COALESCE(target_co.display_name, co.display_name, ''),
        COUNT(lres.id),
        COALESCE(SUM(CASE WHEN lres.result = 'selected' THEN 1 ELSE 0 END), 0),
        COALESCE(SUM(CASE WHEN lres.result = 'waitlisted' THEN 1 ELSE 0 END), 0)
 FROM lottery_runs lr
 JOIN terms t ON t.id = lr.term_id
+LEFT JOIN lottery_run_targets lrt ON lrt.lottery_run_id = lr.id
+LEFT JOIN course_offerings target_co ON target_co.id = lrt.offering_id
 LEFT JOIN lottery_results lres ON lres.lottery_run_id = lr.id
 LEFT JOIN registrations r ON r.id = lres.registration_id
 LEFT JOIN course_offerings co ON co.id = r.offering_id
-LEFT JOIN courses c ON c.id = co.course_id
-GROUP BY lr.id, co.id
+GROUP BY lr.id, target_co.id, co.id
 ORDER BY lr.started_at DESC, lr.id DESC
 LIMIT ?;
 `, limit)
@@ -165,19 +175,19 @@ SELECT lr.id,
        lr.status,
        lr.started_at,
        COALESCE(lr.completed_at, ''),
-       co.id,
-       c.title,
+       target_co.id,
+       target_co.display_name,
        COUNT(lres.id),
        COALESCE(SUM(CASE WHEN lres.result = 'selected' THEN 1 ELSE 0 END), 0),
        COALESCE(SUM(CASE WHEN lres.result = 'waitlisted' THEN 1 ELSE 0 END), 0)
 FROM lottery_runs lr
 JOIN terms t ON t.id = lr.term_id
-JOIN lottery_results lres ON lres.lottery_run_id = lr.id
-JOIN registrations r ON r.id = lres.registration_id
-JOIN course_offerings co ON co.id = r.offering_id
-JOIN courses c ON c.id = co.course_id
-WHERE co.id = ?
-GROUP BY lr.id, co.id
+JOIN lottery_run_targets lrt ON lrt.lottery_run_id = lr.id
+JOIN course_offerings target_co ON target_co.id = lrt.offering_id
+LEFT JOIN lottery_results lres ON lres.lottery_run_id = lr.id
+LEFT JOIN registrations r ON r.id = lres.registration_id
+WHERE target_co.id = ?
+GROUP BY lr.id, target_co.id
 ORDER BY lr.completed_at DESC, lr.started_at DESC, lr.id DESC
 LIMIT 1;
 `, offeringID)
@@ -211,7 +221,7 @@ SELECT lr.id,
        lr.seed,
        COALESCE(lr.completed_at, ''),
        co.id,
-       c.title,
+       co.display_name,
        t.name,
        lres.result,
        lres.result_order,
@@ -225,7 +235,6 @@ JOIN lottery_runs lr ON lr.id = lres.lottery_run_id
 JOIN registrations r ON r.id = lres.registration_id
 JOIN members m ON m.id = r.member_id
 JOIN course_offerings co ON co.id = r.offering_id
-JOIN courses c ON c.id = co.course_id
 JOIN terms t ON t.id = co.term_id
 WHERE lr.id = ?
 ORDER BY lres.result_order, lres.id;

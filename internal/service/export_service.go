@@ -121,7 +121,7 @@ func (s *ExportService) ExportCourseOfferings(ctx context.Context) (ExportResult
 			offering.CourseTitle,
 			offering.InstructorName,
 			offering.ClassroomName,
-			offering.Capacity,
+			offering.CapacityLabel,
 			offering.RegistrationCount,
 			weekdayName(offering.Weekday),
 			offering.StartTime,

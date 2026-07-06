@@ -35,6 +35,9 @@ func TestLotteryServiceSelectsAllWhenWithinCapacity(t *testing.T) {
 			t.Fatalf("assignment.Result = %q, want selected", assignment.Result)
 		}
 	}
+	if lotteries.saved.OfferingID != 10 {
+		t.Fatalf("saved.OfferingID = %d, want 10", lotteries.saved.OfferingID)
+	}
 }
 
 func TestLotteryServiceWaitlistsOverCapacity(t *testing.T) {

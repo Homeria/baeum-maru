@@ -23,9 +23,15 @@ type CourseOfferingInput struct {
 	TermName       string
 	CategoryName   string
 	CourseTitle    string
+	DisplayName    string
+	LevelLabel     string
+	SectionLabel   string
 	InstructorName string
 	ClassroomName  string
 	Capacity       int
+	CapacityType   string
+	MaleCapacity   int
+	FemaleCapacity int
 	Weekday        int
 	StartTime      string
 	EndTime        string
@@ -55,9 +61,15 @@ func (s *CourseService) UpdateOffering(ctx context.Context, id int64, input Cour
 		TermName:       input.TermName,
 		CategoryName:   input.CategoryName,
 		CourseTitle:    input.CourseTitle,
+		DisplayName:    input.DisplayName,
+		LevelLabel:     input.LevelLabel,
+		SectionLabel:   input.SectionLabel,
 		InstructorName: input.InstructorName,
 		ClassroomName:  input.ClassroomName,
 		Capacity:       input.Capacity,
+		CapacityType:   input.CapacityType,
+		MaleCapacity:   input.MaleCapacity,
+		FemaleCapacity: input.FemaleCapacity,
 		Weekday:        input.Weekday,
 		StartTime:      input.StartTime,
 		EndTime:        input.EndTime,
@@ -74,8 +86,25 @@ func validateCourseOfferingInput(input CourseOfferingInput) error {
 	if strings.TrimSpace(input.CourseTitle) == "" {
 		return errors.New("course title is required")
 	}
+	capacityType := strings.TrimSpace(input.CapacityType)
+	if capacityType == "" {
+		capacityType = "fixed"
+	}
+	switch capacityType {
+	case "fixed":
+	case "open":
+	case "gender_split":
+	default:
+		return errors.New("course capacity type is invalid")
+	}
 	if input.Capacity < 0 {
 		return errors.New("course capacity must be zero or greater")
+	}
+	if input.MaleCapacity < 0 || input.FemaleCapacity < 0 {
+		return errors.New("course gender split capacity must be zero or greater")
+	}
+	if capacityType == "gender_split" && input.MaleCapacity+input.FemaleCapacity <= 0 {
+		return errors.New("course gender split capacity is required")
 	}
 	if input.Weekday < 0 || input.Weekday > 6 {
 		return errors.New("course weekday must be between 0 and 6")

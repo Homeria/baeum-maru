@@ -222,12 +222,13 @@ SELECT r.id,
        r.offering_id,
        co.term_id,
        r.status,
-       cm.weekday,
-       cm.start_time,
-       cm.end_time
+       CASE WHEN cs.weekday = 7 THEN 0 ELSE cs.weekday END,
+       ts.start_time,
+       ts.end_time
 FROM registrations r
 JOIN course_offerings co ON co.id = r.offering_id
-JOIN course_meetings cm ON cm.offering_id = co.id
+JOIN course_schedules cs ON cs.offering_id = co.id
+JOIN time_slots ts ON ts.id = cs.time_slot_id
 WHERE r.member_id = ?
   AND r.status IN ('applied', 'selected', 'waitlisted', 'confirmed')
 ORDER BY r.id;
@@ -258,7 +259,7 @@ SELECT r.id,
        m.name,
        COALESCE(m.member_no, ''),
        co.id,
-       c.title,
+       co.display_name,
        t.name,
        r.status,
        r.created_at,
@@ -267,7 +268,6 @@ SELECT r.id,
 FROM registrations r
 JOIN members m ON m.id = r.member_id
 JOIN course_offerings co ON co.id = r.offering_id
-JOIN courses c ON c.id = co.course_id
 JOIN terms t ON t.id = co.term_id
 `
 }
