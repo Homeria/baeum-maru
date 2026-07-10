@@ -15,8 +15,8 @@
 ## 현재 위치
 
 - 기능 MVP 기준선: `develop`의 `c3460aa`
-- 최근 완료: `test/prototype-baseline-characterization`
-- 다음 예정: `refactor/launcher-core`
+- 최근 완료: `refactor/launcher-core`
+- 다음 예정: `spike/wails-launcher-prototype`
 - 병합 정책: 각 작업은 CI 통과 후 `develop`에만 병합한다.
 
 ## 1. 기준선과 아키텍처

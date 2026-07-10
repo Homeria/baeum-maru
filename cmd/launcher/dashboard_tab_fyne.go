@@ -9,6 +9,8 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	launchercore "github.com/Homeria/baeum-maru/internal/launcher"
 )
 
 func buildDashboardTab(state *launcherState) fyne.CanvasObject {
@@ -36,7 +38,7 @@ func buildDashboardTab(state *launcherState) fyne.CanvasObject {
 		state.setStatus("브라우저 열기", "관리 화면을 브라우저로 열었습니다.")
 	})
 	copyAddressButton := copyButton("주소 복사", func() string { return state.serverURL }, state)
-	copyShareButton := copyButton("내부망 주소 복사", func() string { return accessURLText(state.shareURLs) }, state)
+	copyShareButton := copyButton("내부망 주소 복사", func() string { return launchercore.AccessURLText(state.shareURLs) }, state)
 	startButton := widget.NewButtonWithIcon("서버 시작", theme.MediaPlayIcon(), func() {
 		state.serverController.Start()
 	})
@@ -119,7 +121,7 @@ func buildAccessURLList(urls []string) *fyne.Container {
 
 func accessURLRows(urls []string) []fyne.CanvasObject {
 	if len(urls) == 0 {
-		label := widget.NewLabel(accessURLText(urls))
+		label := widget.NewLabel(launchercore.AccessURLText(urls))
 		label.Wrapping = fyne.TextWrapWord
 		return []fyne.CanvasObject{label}
 	}
