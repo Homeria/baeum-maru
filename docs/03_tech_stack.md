@@ -1,393 +1,74 @@
-# 배움마루 기술스택 정의서
+# 배움마루 기술 스택
 
-## 1. 기술 선택 기준
+이 문서는 프로토타입에서 반드시 따를 채택 기술 스택이다. 변경은 실제 검증 결과가 현재 조건을 더 잘 만족하지 못한다는 근거가 있을 때만 ADR과 함께 진행한다.
 
-배움마루의 기술스택은 다음 조건을 기준으로 선택한다.
+## 결정
 
-- 일반 사무용 Windows 노트북에서 실행 가능
-- 설치 없이 포터블 실행 가능
-- `exe` 더블클릭으로 포터블 런처 실행
-- MVP에서는 런처가 내부 웹서버를 자동 시작
-- 네이티브 컨트롤 패널은 후속 사용성 개선 후보
-- 같은 내부망의 최대 5대 기기가 브라우저로 접속
-- DB 서버 설치 없이 로컬 파일 DB 사용
-- 엑셀 입출력 지원
-- 추후 Linux 서버 또는 Docker 배포로 확장 가능
-- 비상업 소스 공개 프로젝트로 공개 가능
+| 영역 | 선택 | 역할 |
+|---|---|---|
+| 백엔드 | Go 1.25.x, 표준 라이브러리 `net/http` | HTTP API, 업무 규칙, 파일/서버 제어 |
+| API 계약 | Huma v2, OpenAPI 3.1 | 타입 기반 요청/응답 검증, 문서, 표준 오류 응답 |
+| DB | SQLite, `database/sql`, `modernc.org/sqlite` | 호스트 로컬 데이터 저장 |
+| 웹 UI | React, TypeScript, Vite | 직원/관리자 브라우저 화면 |
+| 웹 상태 | TanStack Query, SSE | 서버 데이터 조회, 변경 이벤트 기반 갱신 |
+| 폼/검증 | React Hook Form, Zod | 접수와 강좌 운영의 복잡한 입력 검증 |
+| 스타일 | CSS variables와 CSS Modules, Lucide icons | 기관 업무 도구에 맞는 일관된 UI |
+| 호스트 런처 | Wails v2, React/Vite, Windows WebView2 | 서버 제어와 운영 콘솔 |
+| Excel | Excelize | Excel 가져오기/내보내기 |
+| 설정/로그 | JSON, `log/slog` | 포터블 설정과 구조화 로그 |
+| 검증 | Go test, race detector, Vitest, Playwright | 도메인, UI, 다중 브라우저 흐름 검증 |
+| CI/CD | GitHub Actions | Go/API/UI 검사와 Windows 패키징 |
 
-## 2. 최종 추천 스택
+## 선택 원칙
 
-```text
-Language: Go
-Portable Launcher: Go console entrypoint
-Desktop Launcher GUI: Fyne, `fyne` build tag
-HTTP Server: net/http + chi
-Database: SQLite
-DB Access: database/sql
-SQLite Driver: modernc.org/sqlite
-Web UI: Go html/template + HTMX
-CSS: Pico CSS 또는 Bootstrap
-Excel: Excelize
-Config: JSON
-Logging: slog 또는 zerolog
-Packaging: Portable ZIP
-Future Server Deployment: Linux binary / Docker
-```
+- Windows 사무용 노트북과 내부망 5명 내외 사용을 기준으로 한다.
+- 사용자용 앱을 설치하지 않는다. 브라우저가 직원 클라이언트다.
+- 런처와 웹은 UI 기술을 공유하지만, 업무 서비스와 DB 접근은 Go에 둔다.
+- Node.js는 개발/빌드에만 사용한다. 최종 웹 자산은 Go 실행 파일에 포함되며, 운영 PC에서 Node.js를 설치할 필요는 없다.
+- Electron처럼 브라우저 엔진을 번들하지 않는다. Wails는 Windows의 WebView2 런타임을 사용한다.
+- 운영 PC는 Go, Node.js, Python, Docker Desktop, C 컴파일러를 설치하지 않아도 된다.
+- 모든 의존성은 버전을 잠그고 Windows CI에서 실제 패키지 빌드를 검증한다.
 
-## 3. Go를 사용하는 이유
-
-## 3.1 포터블 배포에 유리
-
-Go는 컴파일 언어이고 실행 파일 배포가 비교적 단순하다.
-
-배움마루는 담당 직원이 직접 실행해야 하므로 다음 설치를 요구하지 않아야 한다.
-
-- Python
-- Node.js
-- Docker Desktop
-- PostgreSQL
-- 별도 런타임
-
-Go를 사용하면 단일 실행 파일 중심의 포터블 배포가 가능하다.
-
-## 3.2 내장 웹서버 구현이 자연스러움
-
-Go의 `net/http`는 내장 웹서버 구현에 적합하다.  
-추가 라우팅은 `chi`를 사용한다.
-
-주요 역할:
-
-- 내부망 HTTP 서버
-- 관리자 화면 제공
-- 접수 화면 제공
-- 신청/추첨 API
-- 엑셀 다운로드
-- heartbeat 수신
-- 정적 파일 제공
-
-## 3.3 추후 서버형 전환이 쉬움
-
-Go는 Windows exe뿐만 아니라 Linux binary도 쉽게 만들 수 있다.  
-MVP는 포터블 Windows 앱으로 만들고, 추후 상시 서버형으로 확장할 수 있다.
-
-예상 확장:
+## 런처와 웹의 역할
 
 ```text
-Portable Mode:
-Windows + console launcher + SQLite
-
-Server Mode:
-Linux binary or Docker + SQLite/PostgreSQL
+Wails 런처 (호스트 PC만)
+  └ Go 런처 서비스 직접 호출
+      └ Go HTTP 서버 시작
+          └ React 웹 자산 제공
+              └ 직원 브라우저가 내부망으로 접속
 ```
 
-## 4. 런처 선택
+Wails는 외부 웹사이트를 필요로 하지 않는다. 런처의 React 빌드 산출물을 실행 파일에 포함해 창 내부 WebView2에서 그린다. 직원용 React 웹은 Go 서버가 정적 자산으로 제공한다.
 
-MVP에서는 Go 콘솔형 런처를 우선 사용한다.
+## 현재 구현과 전환
 
-이유:
+현재 코드는 Go HTML template와 Fyne를 사용한다. 이는 업무 규칙과 운영 흐름을 검증한 기존 구현이며, 목표 스택으로 전환할 때 Go `service`와 `repository`는 유지한다.
 
-- 포터블 실행 파일 크기를 작게 유지할 수 있다.
-- GUI 의존성을 늦게 결정할 수 있다.
-- 서버, DB, 백업, 업무 흐름을 먼저 검증할 수 있다.
-- Windows ZIP 배포를 빠르게 확인할 수 있다.
+- Go template handler: React 전환 기간의 호환/검증용으로 유지 후 제거한다.
+- Fyne launcher: Wails 전환 완료 전까지 호스트 운영 기능을 유지한다.
+- 새 React 화면은 template POST 경로를 호출하지 않고 Huma v2 기반 `/api/v1` JSON API를 사용한다.
+- Wails 런처는 HTTP API를 우회해 프레임워크 독립 `internal/launcher` 서비스를 호출한다.
 
-Fyne은 Go 기반 GUI 툴킷이며, 네이티브 런처 컨트롤 패널을 만들 때 사용한다. Fyne 개발 빌드는 Go 외에 C 컴파일러와 데스크톱 그래픽 개발 환경이 필요하므로 기본 콘솔 런처와 `fyne` 빌드 태그 기반 GUI 런처를 분리한다.
+## API 원칙
 
-컨트롤 패널 역할:
+- `net/http`가 transport 기반이고 Huma v2가 OpenAPI/검증 계층이다. 도메인 서비스는 Huma 타입을 import하지 않는다.
+- API는 `/api/v1`로 버전 관리하고, 리소스 중심 URL과 HTTP method를 사용한다.
+- 접수 처리와 추첨 실행처럼 원자적 업무 명령은 `reception-submissions`, `lottery-runs` 같은 리소스 생성으로 표현한다.
+- 요청/응답 DTO, 오류 코드, 권한 규칙은 OpenAPI에 문서화하고 TypeScript client를 생성한다.
+- API 호환성을 깨는 변경은 새 version 또는 명시적 deprecation 기간을 거친다.
 
-- 서버 시작/중지
-- IP 표시
-- 포트 표시
-- 접속 주소 표시
-- 접속자 수 표시
-- DB 상태 표시
-- 최근 백업 표시
-- 백업 실행
-- 로그 보기
-- 설정 변경
-- 프로그램 종료
+## 포터블 호환성 정책
 
-## 5. 웹 UI 선택
+- Wails 런처는 Windows WebView2를 사용한다. 패키지는 런타임 부재 감지와 설치 경로를 제공한다.
+- 인터넷이 없거나 WebView2 설치가 막힌 PC에서도 업무를 계속할 수 있도록 콘솔 서버 실행 경로를 패키지에 유지한다.
+- 기본 배포 단위는 단일 exe만을 고집하지 않는 portable ZIP이다. ZIP에는 런처, fallback 서버, 설정, 런타임 폴더, WebView2 오프라인 설치 수단, 첫 실행 안내를 포함한다.
+- WebView2 bootstrapper는 편의 수단이며, 기관 네트워크가 차단된 경우를 대비해 오프라인 설치 수단을 함께 검증한다.
 
-## 5.1 React를 기본으로 선택하지 않는 이유
+## 의도적으로 쓰지 않는 것
 
-초기 MVP의 화면은 대부분 업무용 폼과 테이블이다.
-
-- 회원 검색
-- 강좌 목록
-- 신청 입력
-- 신청 현황
-- 추첨 결과
-- 출석부 출력
-
-이 정도는 React SPA 없이도 구현 가능하다.
-
-React를 사용하면 다음 부담이 생긴다.
-
-- Node.js 개발 체인
-- 빌드 관리
-- 상태 관리 복잡도
-- API/프론트 분리 복잡도
-- 초기 MVP 개발량 증가
-
-## 5.2 Go template + HTMX를 선택하는 이유
-
-Go template + HTMX는 서버 렌더링 기반으로 단순하게 개발할 수 있다.
-
-장점:
-
-- 프론트 빌드 과정 최소화
-- 부분 갱신 가능
-- 배포 단순
-- 업무용 화면에 적합
-- Go binary에 템플릿/정적 파일 embed 가능
-- 유지보수 쉬움
-
-예시 동작:
-
-- 회원 검색 결과만 부분 갱신
-- 강좌 선택 시 신청 가능 여부만 갱신
-- 신청 저장 후 신청 목록만 갱신
-- 추첨 결과 테이블만 갱신
-
-## 6. SQLite를 사용하는 이유
-
-## 6.1 포터블 노트북 모드에 적합
-
-SQLite는 별도 DB 서버가 필요 없다.
-
-DB 파일:
-
-```text
-data/center.db
-```
-
-장점:
-
-- 파일 기반
-- 설치 불필요
-- 백업/복구 쉬움
-- 포터블 배포에 적합
-- 동시 접속 5대 수준에서는 충분
-
-## 6.2 SQLite 권장 설정
-
-```sql
-PRAGMA journal_mode = WAL;
-PRAGMA busy_timeout = 5000;
-PRAGMA foreign_keys = ON;
-```
-
-WAL 모드를 사용해 읽기와 쓰기 충돌을 줄인다.  
-트랜잭션은 짧게 유지한다.
-
-## 6.3 PostgreSQL을 MVP에서 제외하는 이유
-
-PostgreSQL은 서버형 운영에는 좋지만 포터블 노트북 MVP에는 과하다.
-
-문제점:
-
-- 별도 DB 서버 실행 필요
-- 포트/계정/비밀번호 관리 필요
-- 설치 또는 서비스 등록 부담
-- 사회복지사 담당자가 직접 켜고 끄기 어려움
-- 포터블 배포 난이도 증가
-
-추후 상시 서버 모드에서는 PostgreSQL 지원을 고려할 수 있다.
-
-## 7. Excel 처리
-
-추천 라이브러리:
-
-```text
-github.com/xuri/excelize/v2
-```
-
-필수 기능:
-
-- 회원명단 가져오기
-- 강좌목록 가져오기
-- 신청 결과 내보내기
-- 강좌별 수강자 명단 내보내기
-- 추첨 결과 내보내기
-- 대기자 명단 내보내기
-- 출석부 생성
-
-주의:
-
-- 미디어 업로드는 지원하지 않는다.
-- 엑셀 파일은 파싱 후 영구 저장하지 않는다.
-- 내보낸 파일은 `exports/`에 저장한다.
-
-## 8. 로깅
-
-추천:
-
-```text
-표준 slog
-또는
-zerolog
-```
-
-MVP에서는 표준 `slog`를 우선 고려한다.
-
-로그 위치:
-
-```text
-logs/app.log
-```
-
-로그 원칙:
-
-- 개인정보 최소 기록
-- 오류 원인 추적 가능
-- 백업/추첨/서버 시작/중지 기록
-- 사용자에게 보여줄 메시지와 개발자 로그 분리
-
-## 9. 설정 파일
-
-설정 파일:
-
-```text
-config.json
-```
-
-예시:
-
-```json
-{
-  "app": {
-    "display_name": "배움마루",
-    "english_name": "Baeum-Maru",
-    "mode": "portable"
-  },
-  "server": {
-    "host": "0.0.0.0",
-    "port": 18080
-  },
-  "database": {
-    "path": "./data/center.db"
-  },
-  "backup": {
-    "path": "./backups",
-    "keep_days": 30
-  },
-  "ui": {
-    "open_browser_on_start": true
-  },
-  "auth": {
-    "disabled": false,
-    "admin_password": "admin",
-    "session_secret": "자동 생성 값",
-    "session_max_age_minutes": 720
-  }
-}
-```
-
-`auth.admin_password`는 첫 실행 후 기관에서 정한 값으로 변경한다. `auth.disabled`를 `true`로 바꾸면 로그인 보호를 끌 수 있지만, 내부망 공유 Wi-Fi에서 운영할 때는 권장하지 않는다.
-
-Fyne 런처 패널에서는 웹 업무 사용자를 직접 만들기보다 직원 정보와 유효 기간을 입력한 뒤 접속 코드를 발급한다. 웹 로그인은 발급된 접속 코드로 처리하고, DB에는 원문 코드가 아니라 해시와 만료/폐기 상태만 저장한다. `auth.admin_password`는 GUI 런처를 사용하지 못하는 환경의 임시 fallback으로만 둔다.
-
-## 10. 패키징
-
-배포 방식:
-
-```text
-BaeumMaru_Portable_v0.1.0.zip
-```
-
-포함 파일:
-
-```text
-baeum-maru.exe
-README_FIRST_RUN.txt
-config.json
-```
-
-첫 실행 시 자동 생성:
-
-```text
-data/
-backups/
-exports/
-imports/
-logs/
-```
-
-## 11. 제외하거나 후순위로 둔 기술
-
-## 11.1 Python + PyInstaller
-
-장점:
-
-- 개발 속도 빠름
-- FastAPI 사용 가능
-- Excel 처리 라이브러리 풍부
-
-후순위 이유:
-
-- 패키징 결과물이 큼
-- PyInstaller 설정 부담
-- hidden import 문제
-- 실행 초기 로딩 느릴 수 있음
-- PyQt 등을 포함하면 배포 크기 증가
-- 포터블 프로그램 품질이 애매할 수 있음
-
-## 11.2 Electron
-
-후순위 이유:
-
-- 배포 용량 큼
-- 런타임 무거움
-- 컨트롤 패널 용도로는 과함
-
-## 11.3 Docker
-
-MVP 노트북 모드에서는 제외한다.
-
-이유:
-
-- 사회복지사 선생님이 직접 실행하기 어렵다.
-- Docker Desktop 설치가 필요하다.
-- 포터블 실행 조건과 맞지 않는다.
-
-추후 상시 서버 모드에서는 Docker 배포를 지원한다.
-
-## 12. 최종 스택 요약
-
-```text
-배움마루 MVP
-
-Desktop Launcher:
-Go console launcher by default
-
-Desktop GUI:
-Fyne launcher with `fyne` build tag
-
-Internal Server:
-Go net/http + chi
-
-Web UI:
-Go html/template + HTMX + Pico CSS or Bootstrap
-
-Database:
-SQLite WAL
-
-Excel:
-Excelize
-
-Config:
-JSON
-
-Logging:
-slog
-
-Packaging:
-Portable ZIP
-
-Target:
-Windows office laptop
-
-Clients:
-Host laptop + up to 4 LAN clients
-```
+- Rust/Tauri: 현재 Go 도메인 코드를 재작성해야 하므로 선택하지 않는다.
+- Electron: 런처 용도에 비해 배포 크기와 런타임이 크다.
+- Gin/Fiber: 현재 `net/http` 기반 코드와 API 계약 계층을 교체할 만큼의 이득이 없다.
+- 전역 상태 라이브러리: TanStack Query와 React local state로 부족해질 때만 도입한다.
+- UI 컴포넌트 프레임워크: 기관 업무 화면의 밀도와 디자인을 먼저 정하고, 필요한 primitive만 도입한다.

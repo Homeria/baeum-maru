@@ -1,88 +1,41 @@
 # 배움마루
 
-배움마루는 복지관, 문화센터, 평생교육기관의 수강신청, 추첨, 대기자, 출석부, 엑셀 출력 업무를 내부망에서 처리하기 위한 포터블 로컬 호스팅 업무 도구입니다.
+배움마루는 복지관, 문화센터, 평생교육기관이 내부망에서 회원 관리, 수강신청, 추첨, 출석, Excel 출력을 처리하도록 돕는 로컬 호스팅 업무 시스템입니다.
 
-현재 저장소는 개인 사이드 프로젝트로 진행 중인 로컬 실행형 MVP입니다.
+현재는 Go와 SQLite 기반의 기능 검증 구현이 동작하며, 프로토타입은 `Go + net/http + Huma v2` API, React/Vite 웹 화면, Wails Windows 런처로 전환합니다. 직원은 별도 앱 설치 없이 브라우저로 접속하고, 호스트 담당자만 전용 런처를 사용합니다.
 
-## 기능
+## 현재 기능
 
-- 회원 등록과 검색
-- 강좌 개설 관리
-- 수강신청 등록, 취소, 확정
-- 중복 신청, 시간대 충돌, 최대 신청 수 제한
-- 강좌별 추첨과 대기자 승격
-- 출석 회차 생성과 출석 기록
-- 회원, 강좌, 신청, 추첨 결과, 출석 엑셀 출력
-- 엑셀 회원/강좌 가져오기
-- SQLite 백업, 복구 예약, 백업 보관 상태 표시
-- 운영 설정 화면과 감사 로그
-- Windows 포터블 ZIP 패키징
+- 회원, 강좌 개설, 수강신청, 신청 제한 규칙
+- 추첨, 대기자, 출석, Excel 가져오기/내보내기
+- SQLite 백업/복구, 감사 로그, 접속 코드와 역할 권한
+- Fyne 기반 운영 런처와 Windows portable ZIP 기반
 
-## 기술 스택
+## 목표 프로토타입
 
-- Go
-- SQLite
-- Go 내장 HTTP 서버
-- HTML template 기반 관리자 화면
-- GitHub Actions CI
+- React/Vite/TypeScript 기반 접수 및 운영 웹
+- Huma v2와 OpenAPI 3.1 기반 REST API 및 생성된 TypeScript API 타입
+- 회원 정보와 다중 강좌 선택을 한 번에 저장하는 접수 흐름
+- SSE 기반 다중 사용자 갱신
+- Wails v2 기반 Windows 호스트 런처
+- HTTPS, CSRF, 로그인 실패 제한, Windows 실기기 운영 검증
+- WebView2 런타임 부재 시 설치 안내와 콘솔 서버 fallback을 포함한 포터블 패키지
 
-자세한 설계는 [docs/00_README.md](docs/00_README.md)를 기준으로 합니다.
-
-## 개발 실행
+## 개발 검증
 
 ```powershell
 go test ./...
-go run ./cmd/server
+go test -race ./...
+go vet ./...
+go build ./cmd/server
 ```
 
-기본 실행 후 브라우저에서 다음 주소로 접속합니다.
-
-```text
-http://127.0.0.1:18080
-```
-
-웹 로그인은 런처에서 발급할 접속 코드 기반으로 확장 중입니다. Fyne 런처 패널이 붙기 전까지는 `config.json`의 `auth.admin_password` 기본값 `admin`이 임시 fallback으로 동작합니다.
-
-## Windows 포터블 패키징
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package_windows.ps1 -Version 0.1.0
-```
-
-Fyne 런처 UI가 포함된 실행 파일은 Fyne 개발 환경이 준비된 PC에서 다음처럼 빌드합니다.
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package_windows.ps1 -Version 0.1.0 -GuiLauncher
-```
-
-생성된 `dist/BaeumMaru_Portable_<version>/baeum-maru.exe`를 실행하면 로컬 서버가 시작되고 브라우저가 열립니다.
-
-GitHub Actions의 `Windows Package` workflow를 수동 실행하거나 `v*` 태그를 push하면 같은 ZIP 패키지를 artifact로 받을 수 있습니다.
+자세한 설계와 작업 순서는 [docs/00_README.md](docs/00_README.md)를 참고합니다.
 
 ## 데이터 주의
 
-이 앱은 회원명, 연락처, 생년월일, 신청 내역, 출석 기록 같은 개인정보를 다룰 수 있습니다.
-
-- `data/`, `backups/`, `exports/`, `imports/`, `logs/` 폴더는 Git에 올리지 않습니다.
-- `.db`, `.xlsx`, `.csv` 같은 업무 데이터 파일은 저장소에 포함하지 않습니다.
-- 공개 이슈나 PR에는 실사용자 개인정보를 올리지 않습니다.
-- 스크린샷을 공유할 때는 개인정보를 제거합니다.
-
-## 저장소 구조
-
-```text
-cmd/          실행 진입점
-internal/     애플리케이션 코드
-docs/         기획, 설계, 업무 규칙 문서
-scripts/      로컬 패키징 스크립트
-web/          정적 파일과 템플릿 자리
-testdata/     테스트 전용 데이터 자리
-```
+회원명, 연락처, 생년월일, 신청 내역, 출석 기록, 백업 파일은 개인정보를 포함할 수 있습니다. `data/`, `backups/`, `exports/`, `imports/`, `logs/`와 업무용 파일은 저장소에 올리지 않습니다.
 
 ## 라이선스
 
-이 프로젝트는 [PolyForm Noncommercial License 1.0.0](LICENSE)를 따릅니다.
-
-비상업적 목적의 사용, 복사, 수정, 포크, 배포를 허용합니다. 배움마루를 기반으로 한 파생 프로젝트와 재배포본은 [NOTICE](NOTICE)와 `LICENSE`의 `Required Notice`를 유지하여 사용자와 개발자가 배움마루가 원 프로젝트임을 확인할 수 있게 해야 합니다.
-
-상업적 사용 권한은 이 라이선스에 포함되지 않습니다.
+이 프로젝트는 [PolyForm Noncommercial License 1.0.0](LICENSE)를 따릅니다. 비상업적 사용과 개선 포크를 허용하며, 파생 프로젝트는 `LICENSE`, `NOTICE`, 원 프로젝트 출처를 유지해야 합니다.
