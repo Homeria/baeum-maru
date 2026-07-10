@@ -8,16 +8,16 @@
 
 - 모든 작업 브랜치는 최신 `develop`에서 만들고 PR과 CI 통과 후 `develop`에 merge한다.
 - 순서를 임의로 건너뛰지 않는다. spike가 실패하면 이후 계획을 진행하지 않고 기술 결정을 다시 기록한다.
-- `main`은 검증된 기준점만 받는다. 단계 중간 구현은 `develop`에 모은다.
+- 모든 프로토타입 단계는 `develop`에만 모은다. 사용자 명시 요청 전에는 `main`을 변경하거나 PR을 열지 않는다.
 - 수동 확인 단계는 사용자의 확인과 피드백을 받아야 완료된다.
 - 실제 구현 중 더 적절한 분리가 발견되면 문서 PR에서 근거와 함께 순서를 조정한다.
 
 ## 현재 위치
 
-- 기능 MVP 기준선: `develop`의 `3614626`
-- 진행 중: `docs/prototype-branch-roadmap`
-- 다음 예정: `test/prototype-baseline-characterization`
-- 선행 작업: 현재 `develop`을 `main`에 반영하고 `mvp-baseline-2026-07` 기준점을 남긴다.
+- 기능 MVP 기준선: `develop`의 `c3460aa`
+- 최근 완료: `test/prototype-baseline-characterization`
+- 다음 예정: `refactor/launcher-core`
+- 병합 정책: 각 작업은 CI 통과 후 `develop`에만 병합한다.
 
 ## 1. 기준선과 아키텍처
 
@@ -120,4 +120,4 @@
 72. `docs/troubleshooting-security`: 방화벽, 인증서, WebView2, 복구 가이드
 73. `test/prototype-operation-simulation`: 한 회차 전체 운영 리허설 - 수동 확인
 
-종료 기준: 품질 및 릴리즈 체크리스트를 모두 통과하고 `develop`을 `main`에 PR로 반영해 프로토타입 기준 태그를 남긴다.
+종료 기준: 품질 및 릴리즈 체크리스트를 모두 통과하고 `develop`에 프로토타입 기준점을 남긴다. `main` 반영과 태그는 사용자가 별도로 요청할 때만 진행한다.
