@@ -12,6 +12,7 @@
 - 접속 코드 발급/만료/폐기, 서명된 세션 쿠키, 역할 기반 권한
 - SSE `/events`와 도메인 scope 기반 변경 이벤트
 - Fyne 런처: 서버 제어, 내부망 주소, 접속 코드, 로그, 공간/건물/역할, 설정/백업 화면
+- UI 프레임워크와 분리된 런처 코어: 서버 lifecycle, 네트워크 주소 탐색, 최근 작업 로그
 - Go template 기반 웹: 회원, 강좌, 접수, 신청 현황, 추첨, 출석, 가져오기/내보내기, 설정
 - GitHub Actions Go CI와 Windows portable ZIP workflow
 
@@ -28,10 +29,10 @@
 - 웹은 Go template/폼 POST 중심이며 React API 구조가 없다.
 - 접수는 기존 회원 선택 후 강좌 하나씩 저장한다. 회원 등록과 다중 강좌 선택을 한 작업으로 처리하지 않는다.
 - 강좌 입력 UI가 정규화된 회차/과목/공간/복수 시간표 모델을 충분히 드러내지 못한다.
-- Fyne 런처의 서버 제어 상태가 UI 프레임워크에 결합돼 있다.
+- 런처 UI는 아직 Fyne이며 Wails/WebView2의 한글 입력과 탭 상태 유지는 실기기에서 검증하지 않았다.
 - SSE는 기반이 있으나 React query cache와 연결되지 않았고 일부 화면은 전체 새로고침에 의존한다.
 - HTTPS, CSRF, 로그인 실패 제한, 다중 브라우저 E2E/부하 검증이 없다.
-- Huma API/OpenAPI, Fyne/Wails 빌드, 브라우저 UI 테스트를 CI에서 아직 수행하지 않는다.
+- Huma API/OpenAPI contract, Wails 빌드, 브라우저 UI 테스트를 CI에서 아직 수행하지 않는다.
 
 ## 다음 기준선
 

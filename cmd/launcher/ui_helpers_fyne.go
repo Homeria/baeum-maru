@@ -169,13 +169,6 @@ func openBrowser(url string) error {
 	return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
 }
 
-func browserURL(host string, port int) string {
-	if host == "" || host == "0.0.0.0" || host == "::" {
-		host = "127.0.0.1"
-	}
-	return fmt.Sprintf("http://%s:%d", host, port)
-}
-
 func statusIconLine(icon fyne.Resource, label *widget.Label) fyne.CanvasObject {
 	return container.NewHBox(widget.NewIcon(icon), label)
 }

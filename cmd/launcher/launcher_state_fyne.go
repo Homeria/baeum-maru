@@ -6,13 +6,13 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/Homeria/baeum-maru/internal/app"
 	"github.com/Homeria/baeum-maru/internal/domain"
+	launchercore "github.com/Homeria/baeum-maru/internal/launcher"
 	"github.com/Homeria/baeum-maru/internal/service"
 )
 
@@ -24,6 +24,8 @@ type launcherState struct {
 	serverController *launcherServerController
 	serverStatus     launcherServerStatus
 	serverDetail     string
+	networkResolver  *launchercore.NetworkResolver
+	activityLog      *launchercore.ActivityLog
 
 	summaries            []service.AccessCodeSummary
 	accessFilter         string
@@ -32,7 +34,6 @@ type launcherState struct {
 	locationRoles        []domain.LocationRole
 	locationFilter       string
 	selectedLocationID   int64
-	logLines             []string
 
 	statusTitleLabels  []*widget.Label
 	statusDetailLabels []*widget.Label
@@ -51,16 +52,20 @@ type launcherState struct {
 	serverActionHooks  []func(launcherServerStatus)
 }
 
-func newLauncherState(runtime *app.Runtime, guiApp fyne.App, serverURL string, shareURLs []string) *launcherState {
+func newLauncherState(runtime *app.Runtime, guiApp fyne.App) *launcherState {
+	networkResolver := launchercore.NewNetworkResolver()
+	shareURLs, _ := networkResolver.AccessURLs(runtime.Config.Server.Host, runtime.Config.Server.Port)
 	return &launcherState{
-		runtime:        runtime,
-		guiApp:         guiApp,
-		serverURL:      serverURL,
-		shareURLs:      shareURLs,
-		serverStatus:   launcherServerStopped,
-		serverDetail:   "서버가 정지되어 있습니다.",
-		accessFilter:   "all",
-		locationFilter: "all",
+		runtime:         runtime,
+		guiApp:          guiApp,
+		serverURL:       launchercore.BrowserURL(runtime.Config.Server.Host, runtime.Config.Server.Port),
+		shareURLs:       shareURLs,
+		serverStatus:    launcherServerStopped,
+		serverDetail:    "서버가 정지되어 있습니다.",
+		networkResolver: networkResolver,
+		activityLog:     launchercore.NewActivityLog(100),
+		accessFilter:    "all",
+		locationFilter:  "all",
 	}
 }
 
@@ -81,7 +86,7 @@ func (s *launcherState) setServerStatus(status launcherServerStatus, detail stri
 	s.serverStatus = status
 	s.serverDetail = detail
 	for _, label := range s.serverStateLabels {
-		label.SetText(status.Display())
+		label.SetText(serverStatusDisplay(status))
 	}
 	for _, label := range s.serverDetailLabels {
 		label.SetText(detail)
@@ -90,7 +95,7 @@ func (s *launcherState) setServerStatus(status launcherServerStatus, detail stri
 		hook(status)
 	}
 
-	title := "서버 " + status.Display()
+	title := "서버 " + serverStatusDisplay(status)
 	if status == launcherServerRunning {
 		detail = s.serverURL + " 에서 접속할 수 있습니다."
 		for _, label := range s.serverDetailLabels {
@@ -101,12 +106,8 @@ func (s *launcherState) setServerStatus(status launcherServerStatus, detail stri
 }
 
 func (s *launcherState) appendLog(message string) {
-	line := time.Now().Format("15:04:05") + "  " + message
-	s.logLines = append([]string{line}, s.logLines...)
-	if len(s.logLines) > 100 {
-		s.logLines = s.logLines[:100]
-	}
-	text := strings.Join(s.logLines, "\n")
+	s.activityLog.Append(message)
+	text := s.activityLog.Text()
 	for _, label := range s.logLabels {
 		label.SetText(text)
 	}
@@ -261,7 +262,7 @@ func (s *launcherState) addStatusLabels(title *widget.Label, detail *widget.Labe
 func (s *launcherState) addServerStatusLabels(status *widget.Label, detail *widget.Label) {
 	s.serverStateLabels = append(s.serverStateLabels, status)
 	s.serverDetailLabels = append(s.serverDetailLabels, detail)
-	status.SetText(s.serverStatus.Display())
+	status.SetText(serverStatusDisplay(s.serverStatus))
 	detail.SetText(s.serverDetail)
 }
 
@@ -273,8 +274,13 @@ func (s *launcherState) addServerActionHook(hook func(launcherServerStatus)) {
 func (s *launcherState) updateNetworkConfig(host string, port int) {
 	s.runtime.Config.Server.Host = host
 	s.runtime.Config.Server.Port = port
-	s.serverURL = browserURL(host, port)
-	s.shareURLs = networkAccessURLs(host, port)
+	s.serverURL = launchercore.BrowserURL(host, port)
+	shareURLs, err := s.networkResolver.AccessURLs(host, port)
+	if err != nil {
+		shareURLs = nil
+		s.appendLog("내부망 주소 탐색 실패: " + err.Error())
+	}
+	s.shareURLs = shareURLs
 	for _, entry := range s.serverURLEntries {
 		entry.SetText(s.serverURL)
 	}

@@ -27,12 +27,7 @@ func main() {
 	window := guiApp.NewWindow(runtime.Config.App.DisplayName + " 런처")
 	window.Resize(fyne.NewSize(1120, 760))
 
-	state := newLauncherState(
-		runtime,
-		guiApp,
-		browserURL(runtime.Config.Server.Host, runtime.Config.Server.Port),
-		networkAccessURLs(runtime.Config.Server.Host, runtime.Config.Server.Port),
-	)
+	state := newLauncherState(runtime, guiApp)
 	state.serverController = newLauncherServerController(runtime, state.setServerStatus)
 	tabs := buildLauncherTabs(state)
 	header := buildLauncherHeader(runtime.Config.App.DisplayName)

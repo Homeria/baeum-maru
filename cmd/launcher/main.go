@@ -12,8 +12,7 @@ import (
 	"time"
 
 	"github.com/Homeria/baeum-maru/internal/app"
-	"github.com/Homeria/baeum-maru/internal/server"
-	"github.com/Homeria/baeum-maru/internal/web"
+	launchercore "github.com/Homeria/baeum-maru/internal/launcher"
 )
 
 func main() {
@@ -24,30 +23,7 @@ func main() {
 	}
 	defer runtime.Close()
 
-	router := web.NewRouter(web.RouterOptions{
-		DisplayName:   runtime.Config.App.DisplayName,
-		Version:       app.Version,
-		Logger:        runtime.Logger.Logger,
-		Auth:          runtime.Config.Auth,
-		Authenticator: runtime.AccessAuth,
-		Members:       runtime.Members,
-		Courses:       runtime.Courses,
-		Registrations: runtime.Registrations,
-		Lotteries:     runtime.Lotteries,
-		Exports:       runtime.Exports,
-		Imports:       runtime.Imports,
-		Backups:       runtime.Backups,
-		Attendance:    runtime.Attendance,
-		Settings:      runtime.Settings,
-		Audits:        runtime.Audits,
-		Locations:     runtime.Locations,
-	})
-	httpServer := server.New(server.Options{
-		Host:    runtime.Config.Server.Host,
-		Port:    runtime.Config.Server.Port,
-		Handler: router,
-		Logger:  runtime.Logger.Logger,
-	})
+	httpServer := launchercore.NewRuntimeServer(runtime)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -57,7 +33,7 @@ func main() {
 		errCh <- httpServer.Start()
 	}()
 
-	url := browserURL(runtime.Config.Server.Host, runtime.Config.Server.Port)
+	url := launchercore.BrowserURL(runtime.Config.Server.Host, runtime.Config.Server.Port)
 	fmt.Printf("%s %s\n", runtime.Config.App.DisplayName, app.Version)
 	fmt.Printf("server running at %s\n", url)
 	if runtime.Config.UI.OpenBrowserOnStart {
@@ -84,11 +60,4 @@ func main() {
 
 func openBrowser(url string) error {
 	return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
-}
-
-func browserURL(host string, port int) string {
-	if host == "" || host == "0.0.0.0" || host == "::" {
-		host = "127.0.0.1"
-	}
-	return fmt.Sprintf("http://%s:%d", host, port)
 }

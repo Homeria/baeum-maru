@@ -43,3 +43,21 @@ jobs:
       - name: Test
         run: go test ./...
 
+  fyne-windows:
+    name: Fyne Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build launcher
+        shell: pwsh
+        run: go build -tags fyne -o "$env:RUNNER_TEMP\baeum-maru-launcher.exe" ./cmd/launcher
+

@@ -1,2 +1,2 @@
-// Package launcher will contain the native desktop control panel.
+// Package launcher owns desktop-launcher behavior independently of a UI toolkit.
 package launcher
