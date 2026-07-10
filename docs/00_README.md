@@ -22,10 +22,12 @@
 10. `11_quality_checklist.md`, `14_release_checklist.md`: 검증과 배포 점검
 11. `13_current_state.md`: 실제 구현 상태와 다음 작업
 12. `17_prototype_architecture.md`: React/Wails 전환 아키텍처 결정
+13. `18_prototype_branch_roadmap.md`: 프로토타입까지의 전체 브랜치 순서와 진행 기준
 
 ## 문서 운영 원칙
 
 - `13_current_state.md`는 코드와 테스트 결과에 맞춰 갱신한다.
+- 다음 브랜치를 정하거나 구현하기 전에 `18_prototype_branch_roadmap.md`를 확인한다.
 - 현재 구현과 목표 구조를 섞어 쓰지 않는다. 계획 항목에는 `목표`, 구현된 항목에는 `현재`를 붙인다.
 - 스키마 대개편은 실사용 데이터가 없다는 전제에서만 기존 DB를 폐기하고 진행한다.
 - 기능을 빨리 끝내는 것보다, 실제 기관 업무를 검증할 수 있는 구조와 경험을 우선한다.
