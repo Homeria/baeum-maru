@@ -24,6 +24,8 @@
 - `app/composition.py`가 concrete handler와 router를 불변 `ApplicationContainer`로 조립한다.
 - health 기능은 첫 feature slice인 `modules/system` 안에서 API/schema/application/public 경계로 동작한다.
 - command/query protocol과 AST architecture test가 layer 역참조와 feature 내부 직접 import를 차단한다.
+- Python 초기 schema의 30개 table, column, CHECK/UNIQUE/index와 FK 삭제 정책을 확정했다.
+- location은 building floor FK, course schedule은 공간 FK를 가지며 접속 코드 만료 상태는 시각에서 계산한다.
 - GitHub Actions는 비워 두었고 Python API/frontend 계약 안정화 이후 새로 추가한다.
 - 최신 DB schema, 업무 rule, screen requirement, license policy는 유지한다.
 
@@ -47,9 +49,9 @@
 
 ## 바로 다음 작업
 
-`docs/python-schema-baseline`
+`feat/sqlalchemy-alembic-baseline`
 
-이 branch는 이전 스키마 문서를 현재 Python prototype의 단일 초기 SQLAlchemy/Alembic 기준으로 재검토하고 table, constraint, index, cascade/null 정책을 확정한다. `main`은 변경하지 않는다.
+이 branch는 `08_data_model.md`를 SQLAlchemy 2 model과 단일 초기 Alembic revision으로 구현하고 schema 생성/upgrade smoke test를 추가한다. `main`은 변경하지 않는다.
 
 ## 현재 로컬 검증
 

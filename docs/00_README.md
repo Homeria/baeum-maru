@@ -20,10 +20,11 @@
 6. `05_file_structure.md`: 목표 파일 구조와 의존 방향
 7. `06_development_plan.md`: 프로토타입 완성 단계
 8. `18_prototype_branch_roadmap.md`: 전체 브랜치 순서와 수동 검증 지점
-9. `08_data_model.md`, `16_schema_redesign_notes.md`: 데이터 모델과 개편 원칙
-10. `09_screen_flows.md`, `10_business_rules.md`: 화면과 업무 규칙
-11. `11_quality_checklist.md`, `14_release_checklist.md`: 검증과 배포 점검
-12. `13_current_state.md`: 실제 구현 상태와 바로 다음 작업
+9. `08_data_model.md`: Python 초기 스키마 구현 기준
+10. `16_schema_redesign_notes.md`: 과거 schema에서 달라진 결정과 이유
+11. `09_screen_flows.md`, `10_business_rules.md`: 화면과 업무 규칙
+12. `11_quality_checklist.md`, `14_release_checklist.md`: 검증과 배포 점검
+13. `13_current_state.md`: 실제 구현 상태와 바로 다음 작업
 
 ## 문서 운영 원칙
 
