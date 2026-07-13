@@ -32,6 +32,11 @@ class LoggingSettings(BaseModel):
     backup_count: int = Field(default=5, ge=1, le=20)
 
 
+class DatabaseSettings(BaseModel):
+    busy_timeout_ms: int = Field(default=5_000, ge=1_000, le=60_000)
+    echo_sql: bool = False
+
+
 class AppSettings(BaseSettings):
     """애플리케이션에서 사용하는 설정의 단일 검증 모델."""
 
@@ -45,6 +50,7 @@ class AppSettings(BaseSettings):
     environment: Literal["development", "test", "production"] = "development"
     server: ServerSettings = Field(default_factory=ServerSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
+    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
 
     @classmethod
     def settings_customise_sources(

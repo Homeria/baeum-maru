@@ -9,5 +9,9 @@
     "json_console": false,
     "max_bytes": 5242880,
     "backup_count": 5
+  },
+  "database": {
+    "busy_timeout_ms": 5000,
+    "echo_sql": false
   }
 }

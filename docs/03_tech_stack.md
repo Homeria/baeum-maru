@@ -69,6 +69,7 @@ SQLite / data / backups / exports / logs는 실행 파일 외부에 저장
 - Pydantic model을 핵심 업무 규칙의 유일한 표현으로 사용하지 않는다.
 - repository는 SQLAlchemy query, `add()`와 `flush()`를 캡슐화하고 commit하지 않는다.
 - service는 업무 규칙을 실행하고 성공 시 `commit()`, 실패 시 `rollback()`하여 transaction을 완료한다.
+- SQLite 연결은 foreign key, WAL, busy timeout과 `synchronous=NORMAL`을 적용하고 Session은 자동 commit하지 않는다.
 - FastAPI `Depends`는 조립과 request scope에만 사용하며 도메인 코드에 유출하지 않는다.
 - 실제 대체 구현이 필요하기 전에는 repository protocol, generic repository와 command/query handler를 도입하지 않는다.
 - import 방향은 `router → service → repository → models/db`로만 허용하며 architecture test로 역방향 참조를 차단한다.

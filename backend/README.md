@@ -2,7 +2,7 @@
 
 Python 3.13, FastAPI와 uv를 사용할 배움마루 백엔드 보일러플레이트다.
 
-현재 `app/`의 Python 파일에는 실행 코드가 없으며 각 파일의 책임을 설명하는 module docstring만 있다. 이전 feature-first 구현, SQLAlchemy model, Alembic migration과 자동화 테스트는 새 구조를 확정하기 위해 폐기했다.
+현재 공통 runtime/config/logging과 SQLAlchemy Base/engine/Session factory가 구현되어 있다. 업무 model, Alembic migration과 FastAPI application은 이후 브랜치에서 새 구조에 맞춰 구현한다.
 
 ## 읽는 순서
 
@@ -32,7 +32,7 @@ Router는 `Depends(get_db)`로 Session을 받아 service에 전달한다. Reposi
 
 ## 개발 도구
 
-의존성은 유지하지만 실행 가능한 FastAPI application과 migration은 이후 브랜치에서 다시 구현한다.
+실행 가능한 FastAPI application과 migration은 이후 브랜치에서 구현한다.
 
 ```powershell
 uv sync --all-groups

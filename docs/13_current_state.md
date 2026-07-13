@@ -21,6 +21,8 @@
 - `core/settings.py`는 기본값, JSON, runtime `.env`, 운영체제 환경변수를 순서대로 병합하고 검증한다.
 - `core/logging.py`는 회전 JSON 파일, 콘솔 출력과 민감값 제거를 제공한다.
 - architecture test가 하위 계층의 상위 계층 import와 Unit of Work 추상화 재도입을 차단한다.
+- `db/base.py`는 Alembic과 model이 공유할 Declarative Base와 제약조건 이름 규칙을 제공한다.
+- `db/session.py`는 파일 기반 SQLite engine, 운영 PRAGMA와 자동 commit하지 않는 Session factory를 제공한다.
 - 독립 pywebview 제어는 `launcher/`, Excel과 backup 장시간 작업은 `jobs/`로 분리했다.
 - Python 3.13과 FastAPI, Pydantic, SQLAlchemy, Alembic, pywebview 의존성 결정은 유지한다.
 - 정규화된 데이터 모델 문서는 이후 ORM과 migration을 다시 구현할 설계 기준으로 유지한다.
@@ -53,14 +55,15 @@ Schema는 router와 service 사이의 API 입력·응답 계약이다. Router는
 
 ## 바로 다음 작업
 
-`feat/database-core`
+`feat/database-schema-baseline`
 
-SQLAlchemy Base, engine, request scope Session과 SQLite PRAGMA를 구현한다. model과 Alembic initial revision은 다음 `feat/database-schema-baseline`에서 다룬다. `main`은 변경하지 않는다.
+정규화된 데이터 모델 문서를 기준으로 SQLAlchemy model 전체와 단일 Alembic initial revision을 새로 구성한다. 과거 Go/Python DB 이관 코드는 작성하지 않는다. `main`은 변경하지 않는다.
 
 ## 현재 검증 범위
 
 - runtime 경로, 설정 source 우선순위, 구조화 logging과 민감값 제거 pytest
 - 하위 계층의 상위 계층 import를 차단하는 architecture test
+- SQLite URL/PRAGMA/FK와 명시적 Session transaction pytest
 - Python compile, Ruff와 mypy 통과
 - operator/launcher TypeScript typecheck, oxlint, Vitest와 production build 통과
-- 실행 가능한 FastAPI API와 DB는 아직 존재하지 않음
+- 실행 가능한 FastAPI API와 업무 table/migration은 아직 존재하지 않음
