@@ -7,15 +7,14 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
-from app.api.router import api_router
-from app.core.bootstrap import bootstrap_runtime
+from app.composition import compose_api_router, compose_application
 
 
 def create_app(runtime_dir: str | Path | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
-        runtime = bootstrap_runtime(runtime_dir)
-        application.state.runtime = runtime
+        container = compose_application(runtime_dir)
+        application.state.container = container
         logger = logging.getLogger("baeum_maru.app")
         logger.info("application started", extra={"event": "application.started"})
 
@@ -29,7 +28,7 @@ def create_app(runtime_dir: str | Path | None = None) -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
-    application.include_router(api_router, prefix="/api/v1")
+    application.include_router(compose_api_router(), prefix="/api/v1")
     return application
 
 

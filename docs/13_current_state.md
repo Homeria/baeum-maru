@@ -2,7 +2,7 @@
 
 ## 기준 시점
 
-2026-07-13 기준. Python/React 보일러플레이트와 Python config/runtime 기반을 완료했다.
+2026-07-13 기준. Python/React 보일러플레이트, config/runtime와 application architecture 기반을 완료했다.
 
 ## 보존 기준점
 
@@ -21,6 +21,9 @@
 - 설정은 JSON, runtime `.env`, OS 환경변수를 Pydantic으로 병합·검증한다.
 - application logger는 JSON rotating file과 console을 제공하고 주요 secret/개인정보 key를 마스킹한다.
 - FastAPI lifespan은 불변 `RuntimeContext`를 조립하며 업무 상태를 프로세스 전역에 저장하지 않는다.
+- `app/composition.py`가 concrete handler와 router를 불변 `ApplicationContainer`로 조립한다.
+- health 기능은 첫 feature slice인 `modules/system` 안에서 API/schema/application/public 경계로 동작한다.
+- command/query protocol과 AST architecture test가 layer 역참조와 feature 내부 직접 import를 차단한다.
 - GitHub Actions는 비워 두었고 Python API/frontend 계약 안정화 이후 새로 추가한다.
 - 최신 DB schema, 업무 rule, screen requirement, license policy는 유지한다.
 
@@ -44,13 +47,13 @@
 
 ## 바로 다음 작업
 
-`refactor/python-application-boundaries`
+`docs/python-schema-baseline`
 
-이 branch는 기능 우선 modular monolith 안에서 router/application/domain/repository 의존 방향, composition root와 command/query 경계를 코드와 architecture test로 고정한다. `main`은 변경하지 않는다.
+이 branch는 이전 스키마 문서를 현재 Python prototype의 단일 초기 SQLAlchemy/Alembic 기준으로 재검토하고 table, constraint, index, cascade/null 정책을 확정한다. `main`은 변경하지 않는다.
 
 ## 현재 로컬 검증
 
-- `uv lock --check`, Ruff, mypy, pytest 15개 통과
+- `uv lock --check`, Ruff, mypy, pytest 22개 통과
 - operator/launcher TypeScript typecheck와 oxlint 통과
 - operator/launcher Vitest와 Vite production build 통과
 - 실제 Uvicorn process에서 `/api/v1/health`, runtime directory와 JSON file log 생성을 확인

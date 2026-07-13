@@ -13,6 +13,8 @@ uv run mypy
 
 개발 서버의 상태 확인 API는 `GET /api/v1/health`다.
 
+`app/composition.py`가 유일한 composition root이며 `app/main.py`는 이 경계만 import한다. 업무 코드는 `app/modules/<feature>/`에 기능별로 모으고, `pytest`에 포함된 architecture test가 domain/application의 framework·persistence 역참조와 비공개 모듈 간 import를 차단한다.
+
 ## 런타임 설정
 
 개발 환경의 기본 writable 경로는 저장소 루트의 `runtime/`이다. 배포 환경에서는 실행 파일 옆의 `runtime/`을 사용한다. `BAEUM_MARU_RUNTIME_DIR`로 다른 경로를 지정할 수 있다.

@@ -3,7 +3,7 @@ from typing import cast
 
 import pytest
 
-from app.core.bootstrap import RuntimeContext
+from app.container import ApplicationContainer
 from app.main import create_app
 
 
@@ -12,7 +12,8 @@ async def test_lifespan_bootstraps_runtime_and_writes_lifecycle_logs(tmp_path: P
     app = create_app(runtime_dir=tmp_path / "runtime")
 
     async with app.router.lifespan_context(app):
-        runtime = cast(RuntimeContext, app.state.runtime)
+        container = cast(ApplicationContainer, app.state.container)
+        runtime = container.runtime
         assert runtime.paths.database_file.parent.is_dir()
         assert runtime.settings.server.port == 18080
 
