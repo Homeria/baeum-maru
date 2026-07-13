@@ -20,8 +20,8 @@
 
 - Go checkpoint: `go-prototype-baseline-2026-07`
 - 이전 Python feature-first/ORM 구현: 구조 재검토로 폐기
-- 최근 완료: `feat/database-core`
-- 다음 예정: `feat/database-schema-baseline`
+- 최근 완료: `feat/database-schema-baseline`
+- 다음 예정: `test/sqlite-schema-contract`
 - merge target: `develop` only
 
 ## A. 실행 및 아키텍처 기반
