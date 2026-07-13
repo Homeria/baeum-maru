@@ -1,5 +1,23 @@
-"""FastAPI 공통 의존성 제공 모듈.
+"""FastAPI router가 공유하는 DB Session과 pagination 의존성."""
 
-DB session, 현재 로그인 사용자와 service 생성처럼 여러 router가 공유하는
-Depends 의존성을 정의한다. 업무 규칙은 이 모듈에서 처리하지 않는다.
-"""
+from collections.abc import Iterator
+from typing import Annotated
+
+from fastapi import Query, Request
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.schemas.common import PaginationParams
+
+
+def get_db(request: Request) -> Iterator[Session]:
+    """요청마다 Session을 열고 응답 후 닫는다. commit 여부는 service가 결정한다."""
+    factory: sessionmaker[Session] = request.app.state.session_factory
+    with factory() as session:
+        yield session
+
+
+def get_pagination(
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> PaginationParams:
+    return PaginationParams(page=page, page_size=page_size)

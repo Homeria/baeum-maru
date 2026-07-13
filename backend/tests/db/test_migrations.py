@@ -6,8 +6,8 @@ from typing import cast
 from sqlalchemy import create_engine, inspect, text
 
 from alembic import command
+from app.db.migrations import alembic_configuration
 from app.db.session import database_url
-from tests.db.alembic_helpers import alembic_configuration
 from tests.db.test_metadata import EXPECTED_TABLES
 
 

@@ -8,8 +8,8 @@ from sqlalchemy import Engine
 
 from alembic import command
 from app.core.settings import DatabaseSettings
+from app.db.migrations import alembic_configuration
 from app.db.session import create_sqlite_engine
-from tests.db.alembic_helpers import alembic_configuration
 
 
 @pytest.fixture
