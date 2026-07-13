@@ -30,6 +30,8 @@ app/models/<domain>.py + app/db/
 
 Router는 `Depends(get_db)`로 Session을 받아 service에 전달한다. Repository는 전달받은 Session으로 query, `add()`와 `flush()`만 수행하며 `commit()`, `rollback()`, `close()`하지 않는다. Service가 업무 흐름의 성공 시 `commit()`, 실패 시 `rollback()`을 명시적으로 수행한다.
 
+감사 로그는 업무 변경과 같은 Session에 추가해 함께 commit한다. Resource event는 service의 `session.commit()`이 성공한 다음에만 `publish_committed_events()`로 전달한다. 이벤트 전달 실패는 이미 commit된 업무 결과를 실패로 바꾸지 않으며 클라이언트는 재연결 시 REST API를 다시 조회한다.
+
 ## 개발 도구
 
 의존성을 설치하고 전체 백엔드 검사를 실행하려면 다음 명령을 사용한다.

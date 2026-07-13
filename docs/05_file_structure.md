@@ -68,6 +68,8 @@ models/members.py
 - FastAPI `Depends`, `Request`, HTTP status는 router 바깥으로 전달하지 않는다.
 - SQLAlchemy query는 repository 바깥으로 노출하지 않는다.
 - 여러 repository 변경은 service가 받은 같은 Session 안에서 수행하고 service가 commit 또는 rollback한다.
+- 감사 로그는 업무 변경과 같은 transaction에 저장하고 resource event는 commit 성공 뒤 전달한다.
+- event 전달 실패로 이미 commit된 업무를 rollback하거나 API 실패로 바꾸지 않는다.
 - 하위 계층은 상위 계층을 import할 수 없으며 architecture test가 역방향 의존성을 검사한다.
 - 별도 저장소 구현이 실제로 필요해지기 전에는 repository protocol이나 generic repository를 만들지 않는다.
 - import 시 DB 연결, process 시작과 파일 생성을 수행하지 않는다.
