@@ -3,29 +3,18 @@
 from pathlib import Path
 from typing import cast
 
-from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 
 from alembic import command
 from app.db.session import database_url
+from tests.db.alembic_helpers import alembic_configuration
 from tests.db.test_metadata import EXPECTED_TABLES
-
-BACKEND_ROOT = Path(__file__).resolve().parents[2]
-
-
-def _alembic_configuration(database_file: Path) -> Config:
-    configuration = Config(str(BACKEND_ROOT / "alembic.ini"))
-    configuration.set_main_option(
-        "sqlalchemy.url",
-        database_url(database_file).render_as_string(hide_password=False),
-    )
-    return configuration
 
 
 def test_initial_migration_matches_metadata_and_seeds_gender_codes(tmp_path: Path) -> None:
     database_file = tmp_path / "한글 기관" / "migration" / "배움마루.db"
     database_file.parent.mkdir(parents=True)
-    configuration = _alembic_configuration(database_file)
+    configuration = alembic_configuration(database_file)
 
     command.upgrade(configuration, "head")
     command.check(configuration)
