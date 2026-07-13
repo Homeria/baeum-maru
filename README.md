@@ -4,7 +4,7 @@
 
 ## 현재 전환 상태
 
-기존 Go/Fyne 기능 검증 구현은 `go-prototype-baseline-2026-07` 태그에 보존했습니다. 실사용·배포 데이터가 없는 현재 시점부터 활성 구현을 `Python + FastAPI + SQLite + React/Vite` 기반으로 전면 교체합니다.
+기존 Go/Fyne 기능 검증 구현은 `go-prototype-baseline-2026-07` 태그에 보존했습니다. 실사용·배포 데이터가 없는 현재 시점부터 활성 구현을 `Python + FastAPI + SQLite + React/Vite + pywebview` 기반으로 전면 교체합니다.
 
 - 기존 Go 코드는 참고 구현이며 새 기능을 추가하지 않습니다.
 - Python 전환 작업은 `develop`에만 누적합니다.
@@ -17,8 +17,8 @@
 - SQLAlchemy 2, Alembic, SQLite WAL 기반 로컬 데이터 저장
 - React/Vite/TypeScript 기반 접수 및 운영 웹
 - 회원 정보와 여러 희망 강좌를 한 번에 저장하는 접수 흐름
-- SSE와 TanStack Query를 이용한 다중 사용자 갱신
-- `127.0.0.1` 전용 호스트 관리 콘솔과 내부망 업무 서버 분리
+- FastAPI WebSocket과 TanStack Query를 이용한 다중 사용자 갱신
+- pywebview 독립 런처와 내부망 업무 서버 프로세스 분리
 - 접속 코드, 역할 권한, HTTPS, CSRF, 로그인 실패 제한
 - PyInstaller `onedir` 기반 Windows 포터블 ZIP
 - Docker 기반 중앙 서버 배포로 확장 가능한 구조

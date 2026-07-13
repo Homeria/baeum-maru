@@ -18,7 +18,8 @@
 - [ ] DB, backup, export, import, log가 bundle 외부 writable path에 생성됨
 - [ ] Python, Node.js, uv 설치를 요구하지 않음
 - [ ] 한글 사용자명, 한글/공백 경로에서 실행됨
-- [ ] 실행 직후 업무 서버는 정지 상태이고 localhost host console만 열림
+- [ ] 실행 직후 업무 서버는 정지 상태이고 pywebview 독립 런처 창만 열림
+- [ ] WebView2 Runtime 유무를 검사하고 누락 시 설치/복구 안내를 제공함
 - [ ] 업무 서버 시작 후 실제 내부망 주소와 HTTPS URL을 표시함
 - [ ] 비정상 종료 후 재실행과 오류 log 확인 가능
 
@@ -26,14 +27,14 @@
 
 - [ ] 접속 코드 발급, 로그인, 만료/폐기 확인
 - [ ] 회원 등록/검색과 다중 강좌 접수 확인
-- [ ] 동시 접수, conflict message, SSE 재연결 확인
+- [ ] 동시 접수, conflict message, WebSocket 재연결 확인
 - [ ] 강좌 운영, 추첨, 확정/대기자 승격, 출석, Excel 출력 확인
 - [ ] backup 생성, restore 예약, 재시작 후 복구 확인
 - [ ] server 시작/중지/재시작/종료와 log 확인
 
 ## 보안과 공개
 
-- [ ] host console은 loopback 외부에서 접근되지 않음
+- [ ] launcher bridge와 권한 있는 명령이 LAN에 공개되지 않음
 - [ ] HTTPS 인증서, Secure cookie, CSRF, 로그인 실패 제한 확인
 - [ ] 실사용 DB, backup, Excel, log, 인증서 secret이 package/source에 없음
 - [ ] `LICENSE`, `NOTICE`, `CONTRIBUTING.md`, `SECURITY.md` 확인

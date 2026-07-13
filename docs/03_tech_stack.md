@@ -7,17 +7,18 @@
 | 영역 | 선택 | 역할 |
 |---|---|---|
 | 언어 | Python 3.13.x | HTTP API, 업무 규칙, 파일/서버 제어 |
-| 백엔드 | FastAPI, Uvicorn | REST API, OpenAPI, 정적 자산, ASGI 실행 |
+| 백엔드 | FastAPI, Uvicorn, websockets | REST API, OpenAPI, 정적 자산, WebSocket, ASGI 실행 |
 | 검증/설정 | Pydantic v2, pydantic-settings | 요청/응답 DTO와 환경/JSON 설정 검증 |
 | DB | SQLite WAL, SQLAlchemy 2 | 호스트 로컬 데이터와 명시적 repository 구현 |
 | migration | Alembic | 최신 기준 스키마와 이후 변경 이력 |
-| 웹 UI | React, TypeScript, Vite | 직원 업무 화면과 호스트 관리 콘솔 |
-| 서버 상태 | TanStack Query, SSE | 조회 cache와 서버 변경 이벤트 기반 갱신 |
+| 데스크톱 런처 | pywebview, Microsoft Edge WebView2 | React 런처를 독립 Windows 창으로 제공하고 Python 제어 기능과 연결 |
+| 웹 UI | React, TypeScript, Vite | 직원 업무 앱과 런처 앱을 별도 entry로 구성 |
+| 서버 상태 | TanStack Query, FastAPI WebSocket | 조회 cache와 서버 변경 이벤트 기반 갱신 |
 | 폼 | React Hook Form, Zod | 복잡한 입력 상태와 즉시 사용자 피드백 |
 | 스타일 | CSS variables, CSS Modules, Lucide icons | 조용하고 밀도 높은 기관 업무 UI |
 | Excel | openpyxl | Excel 가져오기와 내보내기 |
 | Python 도구 | uv, `pyproject.toml`, `uv.lock` | 재현 가능한 개발 환경과 의존성 잠금 |
-| Node 도구 | pnpm workspace, lockfile | operator/host/shared React package 관리 |
+| Node 도구 | pnpm workspace, lockfile | operator/launcher/shared React package 관리 |
 | 백엔드 검증 | pytest, pytest-asyncio, HTTPX | 도메인, DB, API, 비동기 흐름 검증 |
 | 프론트 검증 | Vitest, Testing Library, Playwright | 컴포넌트와 다중 브라우저 업무 흐름 검증 |
 | 정적 검사 | Ruff, mypy | formatting, lint, 타입 검사 |
@@ -38,17 +39,18 @@
 
 ```text
 배움마루.exe
-└─ Python 프로세스
-   ├─ 호스트 제어면: 127.0.0.1 전용
-   │  └─ 서버 상태, 네트워크, 접속 코드, 로그, 백업, 설정
-   └─ 업무 서버: 설정된 host:port
-      ├─ /api/v1 REST API와 /api/v1/events SSE
-      └─ React 직원 웹 자산
+├─ Python 런처 프로세스
+│  ├─ pywebview + WebView2 독립 창
+│  ├─ React 런처 자산 + 검증된 Python bridge
+│  └─ 서버 상태, 네트워크, 접속 코드, 로그, 백업, 설정
+└─ FastAPI 업무 서버 자식 프로세스: 설정된 host:port
+   ├─ /api/v1 REST API와 /api/v1/events/ws WebSocket
+   └─ React 직원 웹 자산
 
 SQLite / data / backups / exports / logs는 실행 파일 외부에 저장
 ```
 
-호스트 제어면과 업무 서버는 같은 Python 프로세스 안에서 명시적으로 분리한다. 제어 API는 LAN 인터페이스에 바인딩하지 않고, 업무 서버는 관리 콘솔에서 시작하기 전까지 정지 상태를 유지한다.
+런처와 업무 서버는 별도 프로세스로 분리한다. 런처의 Python bridge는 네트워크 API로 공개하지 않으며, 업무 서버는 런처에서 시작하기 전까지 정지 상태를 유지한다. FastAPI가 실패해도 런처는 오류와 로그를 표시할 수 있어야 한다.
 
 ## API 원칙
 
@@ -71,6 +73,7 @@ SQLite / data / backups / exports / logs는 실행 파일 외부에 저장
 
 - Windows 기본 배포는 PyInstaller `onedir` 결과와 런타임 폴더를 묶은 ZIP이다.
 - React production build는 패키지에 포함하고 운영 PC에 Node.js를 요구하지 않는다.
+- 런처 시작 시 WebView2 Runtime을 검사하고 누락된 PC를 위한 Microsoft Evergreen 설치 수단을 패키지 또는 안내에 포함한다.
 - SQLite DB, 설정, 백업, 로그, Excel 파일은 번들 외부의 명확한 디렉터리에 둔다.
 - 중앙 서버가 필요해지면 같은 FastAPI application을 Docker로 실행하고 PostgreSQL adapter를 추가한다.
 - Docker 배포는 프로토타입 필수 범위가 아니며 Windows 로컬 운영을 먼저 완성한다.
@@ -78,6 +81,7 @@ SQLite / data / backups / exports / logs는 실행 파일 외부에 저장
 ## 의도적으로 쓰지 않는 것
 
 - Go/Fyne/Wails: `go-prototype-baseline-2026-07` 태그에서만 보존하고 활성 구현에는 유지하지 않는다.
+- CustomTkinter: 단순성과 가벼움은 장점이지만 두 React 앱의 디자인/컴포넌트 재사용과 복잡한 관리 UI 확장성을 우선해 선택하지 않는다.
 - Electron: 호스트 제어면만을 위해 브라우저 엔진과 Node runtime을 번들하지 않는다.
 - PyInstaller `onefile`: 초기 기본값으로 사용하지 않는다. 실제 Windows 검증 후 보조 산출물로만 검토한다.
 - Django: 현재 목표는 명시적인 API와 React UI이며 Django admin 중심 구조를 필요로 하지 않는다.

@@ -22,15 +22,16 @@
 
 - Python 3.13, FastAPI, Pydantic v2
 - SQLAlchemy 2, Alembic, SQLite WAL
-- React/Vite/TypeScript, TanStack Query, SSE
-- localhost host console과 LAN operator server 분리
+- React/Vite/TypeScript, TanStack Query, FastAPI WebSocket
+- pywebview/WebView2 독립 launcher와 LAN operator server process 분리
 - PyInstaller `onedir` portable ZIP
 - pytest/HTTPX/Playwright와 Windows package CI
 
 ## 폐기한 계획
 
 - Go `net/http` + Huma v2 전환
-- Wails/WebView2 launcher
+- localhost 기본 브라우저 host console
+- Wails launcher
 - Fyne 유지보수와 Go template 점진 전환
 - Go와 Python 구현 동시 유지
 - 과거 Go DB 파일을 Python schema로 변환하는 migration
