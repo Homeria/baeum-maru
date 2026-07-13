@@ -1,8 +1,25 @@
 # build
 /build/
 /dist/
+**/dist/
 *.exe
 *.zip
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+.vite/
+coverage/
+*.tsbuildinfo
 
 # runtime data
 /data/
@@ -21,14 +38,12 @@
 config.local.json
 .env
 .env.*
+!.env.example
+!**/.env.example
 
 # OS
 .DS_Store
 Thumbs.db
-
-# Go
-*.test
-coverage.out
 
 # IDE
 .idea/

@@ -1,0 +1,14 @@
+{
+  "name": "@baeum-maru/frontend",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "dev:operator": "pnpm --filter @baeum-maru/operator dev",
+    "dev:launcher": "pnpm --filter @baeum-maru/launcher dev",
+    "build": "pnpm --recursive build",
+    "lint": "pnpm --recursive lint",
+    "typecheck": "pnpm --recursive typecheck",
+    "test": "pnpm --recursive test"
+  }
+}

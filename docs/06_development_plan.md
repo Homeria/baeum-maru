@@ -15,8 +15,10 @@
 
 - Go 프로토타입을 annotated tag로 보존한다.
 - Go/Fyne/template 코드와 Go 전용 CI를 제거한다.
-- Python 3.13, uv, FastAPI health endpoint, pytest, Ruff, mypy CI로 빈 기반을 만든다.
-- React workspace와 Windows PyInstaller `onedir` 포터블 실행을 조기에 검증한다.
+- Python 3.13, uv, FastAPI health endpoint, pytest, Ruff, mypy로 backend 기반을 만든다.
+- pnpm workspace에 operator/launcher React 앱, typecheck, lint, unit test, production build를 구성한다.
+- 기존 GitHub Actions를 모두 제거하고 API/frontend 계약이 안정된 뒤 Python/React CI를 새로 추가한다.
+- pywebview와 Windows PyInstaller `onedir` 포터블 실행을 조기에 검증한다.
 
 ## 단계 1: 데이터와 application 기반
 

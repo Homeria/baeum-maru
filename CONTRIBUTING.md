@@ -5,9 +5,22 @@
 ## 개발 준비
 
 ```powershell
-go test ./...
-go run ./cmd/server
+cd backend
+uv sync --all-groups
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy
+uv run pytest
+
+cd ../frontend
+pnpm install --frozen-lockfile
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm build
 ```
+
+직원용 앱은 `pnpm dev:operator`, 런처 앱은 `pnpm dev:launcher`로 실행합니다.
 
 ## PR 기준
 
