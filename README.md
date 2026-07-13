@@ -4,7 +4,7 @@
 
 ## 현재 전환 상태
 
-기존 Go/Fyne 기능 검증 구현은 `go-prototype-baseline-2026-07` 태그에 보존했습니다. 활성 작업 트리에는 `Python + FastAPI + SQLite + React/Vite + pywebview` 기반 보일러플레이트만 유지합니다.
+기존 Go/Fyne 기능 검증 구현은 `go-prototype-baseline-2026-07` 태그에 보존했습니다. 활성 작업 트리에는 `Python + FastAPI + SQLite + React/Vite + pywebview` 기반 보일러플레이트만 유지합니다. 백엔드 Python 파일은 현재 역할을 설명하는 docstring만 가지며 실행 기능은 아직 없습니다.
 
 - 기존 Go 코드는 활성 작업 트리에서 제거했으며 태그에서만 참고합니다.
 - Python 전환 작업은 `develop`에만 누적합니다.
@@ -36,13 +36,17 @@ commit: 547977b13d77ffc0dbaa42a4dd4c24829a000d6f
 
 ## 개발 시작
 
-백엔드:
+백엔드 의존성 준비와 정적 검사:
 
 ```powershell
 cd backend
 uv sync --all-groups
-uv run uvicorn app.main:app --reload
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy
 ```
+
+FastAPI 실행 명령은 `app/main.py` 구현 이후 제공한다.
 
 프론트엔드:
 

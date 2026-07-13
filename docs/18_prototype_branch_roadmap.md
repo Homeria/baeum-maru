@@ -12,37 +12,38 @@
 - 실사용 데이터가 없으므로 초기 Alembic 이력은 최신 스키마 하나에서 시작한다.
 - 19번 CI 기반 전까지는 로컬 전체 검증과 PR 검토를 병합 조건으로 삼는다. 19번 이후에는 PR CI 통과도 필수다.
 - `manual` 브랜치는 실제 Windows 또는 다중 브라우저 확인이 필요하므로 사용자 피드백 전에는 병합하지 않는다.
-- 기반 브랜치는 공통 경계를 수평으로 만들고, 업무 기능은 DB/application/API/UI/test를 함께 끝내는 세로 슬라이스로 구현한다.
+- 백엔드 요청 흐름은 `router → service → repository → database`로 읽혀야 한다.
+- 업무 기능은 DB/service/API/UI/test를 함께 끝내는 세로 슬라이스로 구현한다.
 - 순서를 바꾸면 이 문서에 dependency와 이유를 먼저 반영한다.
 
 ## 현재 위치
 
 - Go checkpoint: `go-prototype-baseline-2026-07`
-- 최근 완료: `feat/sqlalchemy-alembic-baseline`
-- 현재 작업: `test/sqlite-schema-contract`
-- 다음 예정: `feat/sqlalchemy-unit-of-work`
+- 이전 Python feature-first/ORM 구현: 구조 재검토로 폐기
+- 현재 작업: `refactor/readable-layered-boilerplate`
+- 다음 예정: `feat/config-runtime-foundation`
 - merge target: `develop` only
 
 ## A. 실행 및 아키텍처 기반
 
-1. `docs/python-transition-roadmap`: Python 기술 결정과 전환 계획 확정
-2. `refactor/python-project-reset`: Go/Fyne 제거, uv/FastAPI와 pnpm React workspace 생성
-3. `feat/python-config-runtime`: portable runtime path, JSON/env 설정, structured logging, lifespan bootstrap
-4. `refactor/python-application-boundaries`: feature-first layered module, dependency rule, composition root
-5. `docs/python-schema-baseline`: 최신 table, constraint, cascade/null 정책 확정
-6. `feat/sqlalchemy-alembic-baseline`: SQLAlchemy base/session과 단일 initial migration
-7. `test/sqlite-schema-contract`: FK, unique, check, index, WAL, busy timeout 검증
-8. `feat/sqlalchemy-unit-of-work`: request/task session과 transaction 경계
-9. `feat/api-foundation`: `/api/v1`, 공통 오류, request ID, pagination, OpenAPI metadata
-10. `feat/application-events-audit`: commit 이후 event와 audit sink 경계
-11. `feat/realtime-websocket-foundation`: 인증 가능한 WebSocket, heartbeat, resource event, 재연결 계약
-12. `feat/frontend-integration-foundation`: typed API client, TanStack Query, WebSocket invalidation, launcher bridge type
-13. `feat/fastapi-react-static-serving`: production asset와 history fallback 제공
-14. `feat/launcher-control-bridge`: pywebview bridge allowlist와 lifecycle state machine
-15. `feat/launcher-shell-foundation`: persistent tab 기반 독립 런처 shell
-16. `feat/launcher-server-lifecycle`: 서버 시작/중지/재시작과 bind/port/address 상태
-17. `feat/windows-pywebview-onedir`: WebView2 기반 PyInstaller `onedir` artifact
-18. `manual/windows-bootstrap-smoke`: Python 없는 Windows, 한글/공백 경로, WebView2, 시작 속도 확인
+1. `refactor/readable-layered-boilerplate`: 기존 Python 구현 폐기, 역할 docstring만 가진 수평 계층 확정
+2. `feat/config-runtime-foundation`: portable runtime path, JSON/env 설정과 structured logging
+3. `feat/database-alembic-foundation`: SQLAlchemy base/session, model과 단일 initial migration 재구현
+4. `test/sqlite-schema-contract`: FK, unique, check, index, WAL, busy timeout 재검증
+5. `feat/sqlalchemy-unit-of-work`: request/task session과 transaction 경계
+6. `feat/api-foundation`: FastAPI app, `/api/v1`, 공통 오류, request ID, pagination과 OpenAPI metadata
+7. `feat/application-events-audit`: commit 이후 event와 audit sink 경계
+8. `feat/realtime-websocket-foundation`: 인증 가능한 WebSocket, heartbeat, resource event와 재연결 계약
+9. `feat/frontend-integration-foundation`: typed API client, TanStack Query, WebSocket invalidation과 launcher bridge type
+10. `feat/fastapi-react-static-serving`: production asset와 history fallback 제공
+11. `feat/launcher-control-bridge`: pywebview bridge allowlist와 lifecycle state machine
+12. `feat/launcher-shell-foundation`: persistent tab 기반 독립 런처 shell
+13. `feat/launcher-server-lifecycle`: 서버 시작/중지/재시작과 bind/port/address 상태
+14. `feat/windows-pywebview-onedir`: WebView2 기반 PyInstaller `onedir` artifact
+15. `test/backend-startup-contract`: 설정 오류, 경로와 lifespan 실패 동작 검증
+16. `test/api-foundation-contract`: 오류 형식, pagination과 OpenAPI 기본 계약 검증
+17. `test/launcher-bridge-security`: bridge allowlist와 원격 호출 차단 검증
+18. `manual/windows-bootstrap-smoke`: Python 없는 Windows, 한글/공백 경로, WebView2와 시작 속도 확인
 19. `ci/python-react-foundation`: backend/frontend/package 기본 PR quality gate
 
 종료 기준: 공통 실행 경계, DB transaction, REST/WebSocket 계약, React와 pywebview 배포 경로가 실제 Windows에서 검증된다.

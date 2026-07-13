@@ -1,1 +1,0 @@
-"""Access-code identity capability."""

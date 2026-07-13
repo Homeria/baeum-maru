@@ -1,125 +1,70 @@
 # 파일 구조
 
-## 전환 전 구조
+## 기준
 
-Go 기준점은 `go-prototype-baseline-2026-07` 태그에만 보존한다. `cmd/`, `internal/`, Go template 자산, `go.mod`, `go.sum`과 Go/Fyne workflow는 활성 트리에서 제거했다.
+백엔드는 프로젝트 소유자가 익숙한 `router → service → repository → database` 수평 계층 구조를 사용한다. 파일을 처음 읽는 사람이 추상화나 조립 코드를 먼저 해석하지 않고도 요청의 흐름을 따라갈 수 있어야 한다.
 
-## 목표 구조
+기존 feature-first `modules/`, `public.py`, composition container와 command/query handler 구조는 폐기했다. Go 구현은 `go-prototype-baseline-2026-07` 태그에만 보존한다.
+
+## 백엔드 구조
 
 ```text
 backend/
-  pyproject.toml              uv project와 Python 품질 도구 설정
-  uv.lock                    Python 의존성 잠금
-  .python-version            Python 3.13 개발 기준
+  pyproject.toml
+  uv.lock
   app/
-    main.py                   FastAPI operator app 조립
-    composition.py            concrete adapter와 feature router 조립
-    container.py              lifespan 동안 유지하는 불변 application dependency
-    launcher_main.py          pywebview launcher entry point
-    api/dependencies.py       FastAPI 공통 dependency adapter
-    core/                     runtime path, config, security, errors, logging, events
-    db/                       SQLAlchemy base, metadata registry, SQLite session
-    shared/application.py     command/query handler protocol
-    launcher/                 bridge, server lifecycle, network, diagnostics
-    modules/
-      system/                 health 등 system capability
-      identity/
-      members/
-      locations/
-      courses/
-      registrations/
-      lottery/
-      attendance/
-      operations/
-  alembic/
-    versions/                 `20260713_0001`부터 시작하는 migration
+    main.py                       FastAPI 생성과 router 등록
+    api/
+      dependencies.py             DB session, 인증 등 공통 Depends
+      routers/                    도메인별 HTTP/WebSocket endpoint
+    schemas/                      도메인별 Pydantic 요청·응답
+    services/                     업무 규칙과 transaction 조정
+    repositories/                 SQLAlchemy 조회와 저장
+    models/                       도메인별 SQLAlchemy table model
+    db/
+      base.py                     Declarative Base와 metadata
+      session.py                  engine, SQLite PRAGMA와 Session
+      unit_of_work.py             commit/rollback transaction 경계
+    core/                         설정, runtime, logging, 예외, 보안
+    launcher/                     pywebview와 서버 process 제어
+    jobs/                         Excel, backup 등 장시간 작업
   tests/
-    contracts/sqlite_schema.json  승인된 실제 SQLite schema snapshot
-    update_sqlite_schema_contract.py  migration 결과 snapshot 갱신 도구
-    test_sqlite_schema_contract.py    구조와 무결성 동작 계약
-
-frontend/
-  package.json               workspace 공통 command
-  pnpm-workspace.yaml
-  pnpm-lock.yaml             frontend 의존성 잠금
-  apps/
-    operator/                접수 직원과 업무 관리자 React 앱
-    launcher/                pywebview 독립 런처 React 앱
-  packages/
-    ui/                       검증된 공통 primitive와 디자인 token
-    api-client/               OpenAPI 생성 타입과 client
-
-scripts/
-  package_windows.ps1
-  smoke_windows.ps1
-
-docs/
-.github/workflows/
+    conftest.py                   공통 DB와 API fixture
+    api/                          endpoint 통합 테스트
+    services/                     업무 규칙과 transaction 테스트
+    repositories/                 query와 DB 제약 테스트
+    scenarios/                    핵심 사용자 흐름 테스트
 ```
 
-GitHub Actions는 Python/React 계약이 안정되기 전까지 비워 두고 로드맵의 CI branch에서 새로 구성한다.
+현재 Python 파일은 역할을 설명하는 module docstring만 가진 보일러플레이트다. 실행 코드, model, migration과 테스트는 이후 브랜치에서 순서대로 추가한다.
 
-## 기능 우선 모듈
+## 기능 탐색 규칙
+
+회원 등록 기능을 찾는 경우 다음 파일을 순서대로 읽는다.
 
 ```text
-modules/members/
-  public.py                   다른 feature가 import할 수 있는 application 계약
-  api.py                      FastAPI router와 HTTP DTO 변환
-  schemas.py                  Pydantic request/response model
-  service.py                  application use case
-  domain.py                   업무 entity/value/rule
-  ports.py                    repository protocol
-  repository.py               SQLAlchemy adapter
-  models.py                   SQLAlchemy persistence model
+api/routers/members.py
+schemas/members.py
+services/member_service.py
+repositories/member_repository.py
+models/members.py
 ```
 
-모듈이 작을 때 사용하지 않는 layer 파일을 억지로 만들지 않는다. 커지면 `api/`, `application/`, `domain/`, `infrastructure/` 디렉터리로 확장할 수 있지만 dependency 방향과 transaction 경계는 그대로 유지한다.
+강좌, 공간, 신청, 추첨과 출석도 같은 이름 규칙을 사용한다. 한 계층의 파일이 커질 때만 같은 이름의 하위 package로 분리하며, 기능마다 임의의 추가 계층을 만들지 않는다.
 
-루트에 전역 `routers/`, `services/`, `repositories/`를 만들지 않는다. 회원 코드는 `modules/members/`, 강좌 코드는 `modules/courses/`처럼 기능별로 모은다. 다른 feature는 오직 대상 feature의 `public.py`를 application layer에서만 import한다. Import graph를 명확히 검사할 수 있도록 feature 내부에서도 절대 import를 사용한다.
+## 계층 규칙
 
-변경 use case는 불변 `*Command`와 `CommandHandler.execute()`를 사용하고, 읽기 use case는 불변 `*Query`와 `QueryHandler.fetch()`를 사용한다. SQLite/SQLAlchemy 작업은 동기식 transaction으로 실행하고 blocking use case를 호출하는 FastAPI route는 일반 `def`로 선언해 thread pool에서 처리한다.
+- router는 요청 검증 결과를 service에 전달하고 응답으로 변환한다.
+- schema는 API 계약이며 SQLAlchemy model로 사용하지 않는다.
+- service는 업무 규칙과 transaction 시작·완료를 담당한다.
+- repository는 전달받은 Session으로 조회·저장하지만 commit하지 않는다.
+- model은 table mapping과 DB 수준 제약만 표현한다.
+- FastAPI `Depends`, `Request`, HTTP status는 router 바깥으로 전달하지 않는다.
+- SQLAlchemy query는 repository 바깥으로 노출하지 않는다.
+- 여러 repository 변경은 하나의 unit of work로 묶는다.
+- 별도 저장소 구현이 실제로 필요해지기 전에는 repository protocol이나 generic repository를 만들지 않는다.
+- import 시 DB 연결, process 시작과 파일 생성을 수행하지 않는다.
 
-## 런타임 파일
+## 프론트엔드와 런타임
 
-```text
-runtime/
-  config/settings.json
-  config/.env
-  data/baeum-maru.db
-  logs/baeum-maru.log
-  backups/
-  exports/
-  imports/
-  certificates/
-  tmp/
-```
-
-이 디렉터리는 source나 PyInstaller bundle에 포함하지 않는다. 개발 시 저장소 루트, 배포 시 실행 파일 옆에 만들며 `BAEUM_MARU_RUNTIME_DIR`로 재정의할 수 있다.
-
-## 경계 규칙
-
-- FastAPI router는 HTTP 처리와 application service 호출만 담당한다.
-- `main.py`는 `composition.py`만 import하고 concrete handler와 router 조립은 composition root에 한정한다.
-- Pydantic schema와 SQLAlchemy model을 분리한다.
-- application service는 FastAPI `Request`, `Depends`, React 타입을 import하지 않는다.
-- domain rule은 DB session이나 HTTP status code를 알지 않는다.
-- repository protocol과 unit of work를 통해 persistence를 교체할 수 있게 한다.
-- SQLAlchemy query가 router와 React layer로 새지 않게 한다.
-- launcher bridge는 업무 모듈의 public application API만 사용하고 모든 입력을 Python에서 다시 검증한다.
-- React는 생성된 API client를 통해서만 backend와 통신한다.
-- 공통 `packages/ui`에는 두 앱에서 실제로 반복된 안정된 컴포넌트만 옮긴다.
-- `tests/architecture/`의 AST import 검사를 우회하거나 삭제하지 않는다.
-
-## 의존 방향
-
-```text
-FastAPI / React adapter
-        ↓
-application service
-        ↓
-domain + port
-        ↑
-SQLAlchemy / filesystem / Excel adapter
-```
-
-Python의 import 편의 때문에 계층을 우회하지 않는다. 순환 import가 생기면 전역 조립으로 덮지 않고 모듈 책임과 protocol 위치를 다시 검토한다.
+`frontend/apps/operator`는 직원 업무 웹 앱, `frontend/apps/launcher`는 pywebview 런처 UI다. writable 데이터는 source 또는 package 내부가 아니라 `runtime/` 아래에 생성한다.

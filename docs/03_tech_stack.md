@@ -63,11 +63,13 @@ SQLite / data / backups / exports / logs는 실행 파일 외부에 저장
 
 ## Python 아키텍처 원칙
 
-- 기능별 모듈 안에서 `api → application → domain/port → infrastructure` 방향을 지킨다.
+- 수평 계층 `api/routers → services → repositories → models/db` 방향을 지킨다.
+- 같은 업무 영역은 계층마다 같은 이름을 사용해 파일 탐색 경로를 명확하게 만든다.
 - SQLAlchemy model을 API response로 직접 반환하지 않는다.
 - Pydantic model을 핵심 업무 규칙의 유일한 표현으로 사용하지 않는다.
-- repository는 SQLAlchemy query를 캡슐화하고 application service가 여러 repository transaction을 조정한다.
+- repository는 SQLAlchemy query를 캡슐화하고 commit하지 않으며 service가 여러 repository transaction을 조정한다.
 - FastAPI `Depends`는 조립과 request scope에만 사용하며 도메인 코드에 유출하지 않는다.
+- 실제 대체 구현이 필요하기 전에는 repository protocol, generic repository와 command/query handler를 도입하지 않는다.
 
 ## 배포 및 확장
 
