@@ -5,9 +5,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.dependencies import RealtimeSessionVerifier
 from app.api.errors import register_exception_handlers
 from app.api.middleware import request_id_middleware
+from app.api.realtime import RealtimeHub
 from app.api.routers.health import router as health_router
+from app.api.routers.realtime import router as realtime_router
 from app.core.logging import configure_logging
 from app.core.runtime import RuntimePaths
 from app.core.settings import AppSettings, load_settings
@@ -22,6 +25,7 @@ def create_app(
     runtime_paths: RuntimePaths | None = None,
     settings: AppSettings | None = None,
     apply_migrations: bool = True,
+    realtime_session_verifier: RealtimeSessionVerifier | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -34,13 +38,18 @@ def create_app(
             upgrade_database(paths.database_file)
 
         engine = create_sqlite_engine(paths.database_file, app_settings.database)
+        realtime_hub = RealtimeHub(app_settings.realtime)
         application.state.runtime_paths = paths
         application.state.settings = app_settings
         application.state.engine = engine
         application.state.session_factory = create_session_factory(engine)
+        application.state.realtime_hub = realtime_hub
+        application.state.resource_event_sink = realtime_hub.publish
+        await realtime_hub.start()
         try:
             yield
         finally:
+            await realtime_hub.stop()
             engine.dispose()
 
     application = FastAPI(
@@ -53,8 +62,10 @@ def create_app(
         lifespan=lifespan,
     )
     application.middleware("http")(request_id_middleware)
+    application.state.realtime_session_verifier = realtime_session_verifier
     register_exception_handlers(application)
     application.include_router(health_router, prefix=API_PREFIX)
+    application.include_router(realtime_router, prefix=API_PREFIX)
     return application
 
 

@@ -22,6 +22,7 @@ backend/
       dependencies.py             DB session, 인증 등 공통 Depends
       errors.py                   공통 API 오류 응답과 exception handler
       middleware.py               request ID 생성과 응답 header
+      realtime.py                 WebSocket 연결, heartbeat와 event broadcast
       routers/                    도메인별 HTTP/WebSocket endpoint
     schemas/                      도메인별 Pydantic 요청·응답
     services/                     업무 규칙과 transaction 조정

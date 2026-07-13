@@ -20,8 +20,8 @@
 
 - Go checkpoint: `go-prototype-baseline-2026-07`
 - 이전 Python feature-first/ORM 구현: 구조 재검토로 폐기
-- 최근 완료: `feat/application-events-audit`
-- 다음 예정: `feat/realtime-websocket-foundation`
+- 최근 완료: `feat/realtime-websocket-foundation`
+- 다음 예정: `feat/frontend-integration-foundation`
 - merge target: `develop` only
 
 ## A. 실행 및 아키텍처 기반
