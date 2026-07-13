@@ -34,7 +34,9 @@ backend/
   alembic/
     versions/                 `20260713_0001`부터 시작하는 migration
   tests/
-    unit/ integration/ contract/
+    contracts/sqlite_schema.json  승인된 실제 SQLite schema snapshot
+    update_sqlite_schema_contract.py  migration 결과 snapshot 갱신 도구
+    test_sqlite_schema_contract.py    구조와 무결성 동작 계약
 
 frontend/
   package.json               workspace 공통 command

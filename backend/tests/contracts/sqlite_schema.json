@@ -1,0 +1,3199 @@
+{
+  "format_version": 1,
+  "tables": {
+    "access_codes": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "user_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "code_hash",
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "display_code",
+          "type": "VARCHAR(32)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "label",
+          "type": "VARCHAR(120)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "issued_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "expires_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "revoked_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "hidden_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "last_used_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "note",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_access_codes",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_access_codes_user_id_users",
+          "columns": [
+            "user_id"
+          ],
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_access_codes_code_hash",
+          "columns": [
+            "code_hash"
+          ]
+        },
+        {
+          "name": "uq_access_codes_display_code",
+          "columns": [
+            "display_code"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_access_codes_lifecycle",
+          "columns": [
+            "expires_at",
+            "revoked_at",
+            "hidden_at"
+          ],
+          "unique": false,
+          "where": null
+        },
+        {
+          "name": "ix_access_codes_user_id",
+          "columns": [
+            "user_id"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_access_codes_expiry_after_issue",
+          "sql": "expires_at > issued_at"
+        },
+        {
+          "name": "ck_access_codes_hidden_after_issue",
+          "sql": "hidden_at IS NULL OR hidden_at >= issued_at"
+        },
+        {
+          "name": "ck_access_codes_revoked_after_issue",
+          "sql": "revoked_at IS NULL OR revoked_at >= issued_at"
+        },
+        {
+          "name": "ck_access_codes_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "attendance_records": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "attendance_session_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "registration_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(16)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "note",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_attendance_records",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_attendance_records_attendance_session_id_attendance_sessions",
+          "columns": [
+            "attendance_session_id"
+          ],
+          "referred_table": "attendance_sessions",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "CASCADE"
+        },
+        {
+          "name": "fk_attendance_records_registration_id_registrations",
+          "columns": [
+            "registration_id"
+          ],
+          "referred_table": "registrations",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_attendance_records_attendance_session_id_registration_id",
+          "columns": [
+            "attendance_session_id",
+            "registration_id"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_attendance_records_registration_id",
+          "columns": [
+            "registration_id"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_attendance_records_status_allowed",
+          "sql": "status IN ('present', 'absent', 'late', 'excused')"
+        },
+        {
+          "name": "ck_attendance_records_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "attendance_sessions": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "offering_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "schedule_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "session_date",
+          "type": "DATE",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "sequence_no",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        },
+        {
+          "name": "note",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_attendance_sessions",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_attendance_sessions_offering_id_course_offerings",
+          "columns": [
+            "offering_id"
+          ],
+          "referred_table": "course_offerings",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        },
+        {
+          "name": "fk_attendance_sessions_schedule_id_course_schedules",
+          "columns": [
+            "schedule_id"
+          ],
+          "referred_table": "course_schedules",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_attendance_sessions_offering_id_session_date_sequence_no",
+          "columns": [
+            "offering_id",
+            "session_date",
+            "sequence_no"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_attendance_sessions_offering_date",
+          "columns": [
+            "offering_id",
+            "session_date"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_attendance_sessions_sequence_positive",
+          "sql": "sequence_no >= 1"
+        },
+        {
+          "name": "ck_attendance_sessions_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "audit_logs": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "actor_kind",
+          "type": "VARCHAR(16)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "actor_user_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "actor_access_code_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "actor_display_name",
+          "type": "VARCHAR(80)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "action",
+          "type": "VARCHAR(80)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "resource_type",
+          "type": "VARCHAR(80)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "resource_id",
+          "type": "VARCHAR(80)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "summary",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "request_id",
+          "type": "VARCHAR(64)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "metadata_json",
+          "type": "JSON",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_audit_logs",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_audit_logs_actor_access_code_id_access_codes",
+          "columns": [
+            "actor_access_code_id"
+          ],
+          "referred_table": "access_codes",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        },
+        {
+          "name": "fk_audit_logs_actor_user_id_users",
+          "columns": [
+            "actor_user_id"
+          ],
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        }
+      ],
+      "unique_constraints": [],
+      "indexes": [
+        {
+          "name": "ix_audit_logs_actor_user_id",
+          "columns": [
+            "actor_user_id"
+          ],
+          "unique": false,
+          "where": null
+        },
+        {
+          "name": "ix_audit_logs_created_at",
+          "columns": [
+            "created_at"
+          ],
+          "unique": false,
+          "where": null
+        },
+        {
+          "name": "ix_audit_logs_resource",
+          "columns": [
+            "resource_type",
+            "resource_id"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_audit_logs_actor_kind_allowed",
+          "sql": "actor_kind IN ('user', 'launcher', 'system')"
+        }
+      ]
+    },
+    "building_floors": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "building_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "label",
+          "type": "VARCHAR(80)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "sort_order",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'0'"
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "'1'"
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_building_floors",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_building_floors_building_id_buildings",
+          "columns": [
+            "building_id"
+          ],
+          "referred_table": "buildings",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "CASCADE"
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_building_floors_building_id_label",
+          "columns": [
+            "building_id",
+            "label"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_building_floors_building_id",
+          "columns": [
+            "building_id"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_building_floors_is_active_bool",
+          "sql": "is_active IN (0, 1)"
+        },
+        {
+          "name": "ck_building_floors_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "buildings": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(120)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "sort_order",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'0'"
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "'1'"
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_buildings",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [],
+      "unique_constraints": [
+        {
+          "name": "uq_buildings_name",
+          "columns": [
+            "name"
+          ]
+        }
+      ],
+      "indexes": [],
+      "checks": [
+        {
+          "name": "ck_buildings_is_active_bool",
+          "sql": "is_active IN (0, 1)"
+        },
+        {
+          "name": "ck_buildings_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "course_categories": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "sort_order",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'0'"
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "'1'"
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_course_categories",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [],
+      "unique_constraints": [
+        {
+          "name": "uq_course_categories_name",
+          "columns": [
+            "name"
+          ]
+        }
+      ],
+      "indexes": [],
+      "checks": [
+        {
+          "name": "ck_course_categories_is_active_bool",
+          "sql": "is_active IN (0, 1)"
+        },
+        {
+          "name": "ck_course_categories_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "course_offerings": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "term_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "course_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "section_label",
+          "type": "VARCHAR(80)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "instructor_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "capacity_type",
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "default": "'fixed'"
+        },
+        {
+          "name": "capacity_total",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "male_capacity",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "female_capacity",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(16)",
+          "nullable": false,
+          "default": "'draft'"
+        },
+        {
+          "name": "sort_order",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'0'"
+        },
+        {
+          "name": "note",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_course_offerings",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_course_offerings_course_id_courses",
+          "columns": [
+            "course_id"
+          ],
+          "referred_table": "courses",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        },
+        {
+          "name": "fk_course_offerings_instructor_id_instructors",
+          "columns": [
+            "instructor_id"
+          ],
+          "referred_table": "instructors",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        },
+        {
+          "name": "fk_course_offerings_term_id_terms",
+          "columns": [
+            "term_id"
+          ],
+          "referred_table": "terms",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        }
+      ],
+      "unique_constraints": [],
+      "indexes": [
+        {
+          "name": "ix_course_offerings_course_id",
+          "columns": [
+            "course_id"
+          ],
+          "unique": false,
+          "where": null
+        },
+        {
+          "name": "ix_course_offerings_instructor_id",
+          "columns": [
+            "instructor_id"
+          ],
+          "unique": false,
+          "where": null
+        },
+        {
+          "name": "ix_course_offerings_term_status",
+          "columns": [
+            "term_id",
+            "status"
+          ],
+          "unique": false,
+          "where": null
+        },
+        {
+          "name": "uq_course_offerings_term_course_no_section",
+          "columns": [
+            "term_id",
+            "course_id"
+          ],
+          "unique": true,
+          "where": "section_label IS NULL"
+        },
+        {
+          "name": "uq_course_offerings_term_course_section",
+          "columns": [
+            "term_id",
+            "course_id",
+            "section_label"
+          ],
+          "unique": true,
+          "where": "section_label IS NOT NULL"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_course_offerings_capacity_shape_valid",
+          "sql": "( capacity_type = 'fixed' AND capacity_total > 0 AND male_capacity IS NULL AND female_capacity IS NULL ) OR ( capacity_type = 'open' AND capacity_total IS NULL AND male_capacity IS NULL AND female_capacity IS NULL ) OR ( capacity_type = 'gender_split' AND capacity_total IS NULL AND male_capacity >= 0 AND female_capacity >= 0 AND male_capacity + female_capacity > 0 )"
+        },
+        {
+          "name": "ck_course_offerings_capacity_type_allowed",
+          "sql": "capacity_type IN ('fixed', 'open', 'gender_split')"
+        },
+        {
+          "name": "ck_course_offerings_section_not_blank",
+          "sql": "section_label IS NULL OR length(trim(section_label)) > 0"
+        },
+        {
+          "name": "ck_course_offerings_status_allowed",
+          "sql": "status IN ('draft', 'open', 'closed', 'cancelled')"
+        },
+        {
+          "name": "ck_course_offerings_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "course_schedules": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "offering_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "weekday",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "time_slot_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "location_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary_key": {
+        "name": "pk_course_schedules",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_course_schedules_location_id_locations",
+          "columns": [
+            "location_id"
+          ],
+          "referred_table": "locations",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        },
+        {
+          "name": "fk_course_schedules_offering_id_course_offerings",
+          "columns": [
+            "offering_id"
+          ],
+          "referred_table": "course_offerings",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "CASCADE"
+        },
+        {
+          "name": "fk_course_schedules_time_slot_id_time_slots",
+          "columns": [
+            "time_slot_id"
+          ],
+          "referred_table": "time_slots",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_course_schedules_offering_id_weekday_time_slot_id",
+          "columns": [
+            "offering_id",
+            "weekday",
+            "time_slot_id"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_course_schedules_location_id",
+          "columns": [
+            "location_id"
+          ],
+          "unique": false,
+          "where": null
+        },
+        {
+          "name": "ix_course_schedules_offering_id",
+          "columns": [
+            "offering_id"
+          ],
+          "unique": false,
+          "where": null
+        },
+        {
+          "name": "ix_course_schedules_weekday_slot",
+          "columns": [
+            "weekday",
+            "time_slot_id"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_course_schedules_weekday_range",
+          "sql": "weekday BETWEEN 1 AND 7"
+        }
+      ]
+    },
+    "courses": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "category_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(160)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "'1'"
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_courses",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_courses_category_id_course_categories",
+          "columns": [
+            "category_id"
+          ],
+          "referred_table": "course_categories",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_courses_category_id_name",
+          "columns": [
+            "category_id",
+            "name"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_courses_category_active",
+          "columns": [
+            "category_id",
+            "is_active"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_courses_is_active_bool",
+          "sql": "is_active IN (0, 1)"
+        },
+        {
+          "name": "ck_courses_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "gender_codes": {
+      "columns": [
+        {
+          "name": "code",
+          "type": "VARCHAR(16)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "label",
+          "type": "VARCHAR(40)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "sort_order",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'0'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_gender_codes",
+        "columns": [
+          "code"
+        ]
+      },
+      "foreign_keys": [],
+      "unique_constraints": [
+        {
+          "name": "uq_gender_codes_label",
+          "columns": [
+            "label"
+          ]
+        }
+      ],
+      "indexes": [],
+      "checks": []
+    },
+    "idempotency_records": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "namespace",
+          "type": "VARCHAR(160)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "key_hash",
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "request_hash",
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(16)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "response_status",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "response_json",
+          "type": "JSON",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "expires_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary_key": {
+        "name": "pk_idempotency_records",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [],
+      "unique_constraints": [
+        {
+          "name": "uq_idempotency_records_namespace_key_hash",
+          "columns": [
+            "namespace",
+            "key_hash"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_idempotency_records_expires_at",
+          "columns": [
+            "expires_at"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_idempotency_records_expiry_after_creation",
+          "sql": "expires_at > created_at"
+        },
+        {
+          "name": "ck_idempotency_records_status_allowed",
+          "sql": "status IN ('processing', 'completed', 'failed')"
+        }
+      ]
+    },
+    "instructors": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(80)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "phone",
+          "type": "VARCHAR(20)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "note",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "'1'"
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_instructors",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [],
+      "unique_constraints": [],
+      "indexes": [],
+      "checks": [
+        {
+          "name": "ck_instructors_is_active_bool",
+          "sql": "is_active IN (0, 1)"
+        },
+        {
+          "name": "ck_instructors_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "location_role_assignments": {
+      "columns": [
+        {
+          "name": "location_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "role_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary_key": {
+        "name": "pk_location_role_assignments",
+        "columns": [
+          "location_id",
+          "role_id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_location_role_assignments_location_id_locations",
+          "columns": [
+            "location_id"
+          ],
+          "referred_table": "locations",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "CASCADE"
+        },
+        {
+          "name": "fk_location_role_assignments_role_id_location_roles",
+          "columns": [
+            "role_id"
+          ],
+          "referred_table": "location_roles",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "CASCADE"
+        }
+      ],
+      "unique_constraints": [],
+      "indexes": [
+        {
+          "name": "ix_location_role_assignments_role_id",
+          "columns": [
+            "role_id"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": []
+    },
+    "location_roles": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(80)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "is_course_eligible",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "'0'"
+        },
+        {
+          "name": "sort_order",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'0'"
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "'1'"
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_location_roles",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [],
+      "unique_constraints": [
+        {
+          "name": "uq_location_roles_name",
+          "columns": [
+            "name"
+          ]
+        }
+      ],
+      "indexes": [],
+      "checks": [
+        {
+          "name": "ck_location_roles_is_active_bool",
+          "sql": "is_active IN (0, 1)"
+        },
+        {
+          "name": "ck_location_roles_is_course_eligible_bool",
+          "sql": "is_course_eligible IN (0, 1)"
+        },
+        {
+          "name": "ck_location_roles_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "locations": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "building_floor_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(120)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "sort_order",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'0'"
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "'1'"
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_locations",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_locations_building_floor_id_building_floors",
+          "columns": [
+            "building_floor_id"
+          ],
+          "referred_table": "building_floors",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_locations_building_floor_id_name",
+          "columns": [
+            "building_floor_id",
+            "name"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_locations_floor_active",
+          "columns": [
+            "building_floor_id",
+            "is_active"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_locations_is_active_bool",
+          "sql": "is_active IN (0, 1)"
+        },
+        {
+          "name": "ck_locations_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "lottery_results": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "lottery_run_target_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "registration_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "result",
+          "type": "VARCHAR(16)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "result_order",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_lottery_results",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_lottery_results_lottery_run_target_id_lottery_run_targets",
+          "columns": [
+            "lottery_run_target_id"
+          ],
+          "referred_table": "lottery_run_targets",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "CASCADE"
+        },
+        {
+          "name": "fk_lottery_results_registration_id_registrations",
+          "columns": [
+            "registration_id"
+          ],
+          "referred_table": "registrations",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_lottery_results_lottery_run_target_id_registration_id",
+          "columns": [
+            "lottery_run_target_id",
+            "registration_id"
+          ]
+        },
+        {
+          "name": "uq_lottery_results_lottery_run_target_id_result_result_order",
+          "columns": [
+            "lottery_run_target_id",
+            "result",
+            "result_order"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_lottery_results_registration_id",
+          "columns": [
+            "registration_id"
+          ],
+          "unique": false,
+          "where": null
+        },
+        {
+          "name": "ix_lottery_results_target_id",
+          "columns": [
+            "lottery_run_target_id"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_lottery_results_result_allowed",
+          "sql": "result IN ('selected', 'waitlisted', 'rejected')"
+        },
+        {
+          "name": "ck_lottery_results_result_order_positive",
+          "sql": "result_order >= 1"
+        }
+      ]
+    },
+    "lottery_run_targets": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "lottery_run_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "offering_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "capacity_type",
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "capacity_total",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "male_capacity",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "female_capacity",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "eligible_count",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary_key": {
+        "name": "pk_lottery_run_targets",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_lottery_run_targets_lottery_run_id_lottery_runs",
+          "columns": [
+            "lottery_run_id"
+          ],
+          "referred_table": "lottery_runs",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "CASCADE"
+        },
+        {
+          "name": "fk_lottery_run_targets_offering_id_course_offerings",
+          "columns": [
+            "offering_id"
+          ],
+          "referred_table": "course_offerings",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_lottery_run_targets_lottery_run_id_offering_id",
+          "columns": [
+            "lottery_run_id",
+            "offering_id"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_lottery_run_targets_offering_id",
+          "columns": [
+            "offering_id"
+          ],
+          "unique": false,
+          "where": null
+        },
+        {
+          "name": "ix_lottery_run_targets_run_id",
+          "columns": [
+            "lottery_run_id"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_lottery_run_targets_capacity_shape_valid",
+          "sql": "( capacity_type = 'fixed' AND capacity_total > 0 AND male_capacity IS NULL AND female_capacity IS NULL ) OR ( capacity_type = 'open' AND capacity_total IS NULL AND male_capacity IS NULL AND female_capacity IS NULL ) OR ( capacity_type = 'gender_split' AND capacity_total IS NULL AND male_capacity >= 0 AND female_capacity >= 0 AND male_capacity + female_capacity > 0 )"
+        },
+        {
+          "name": "ck_lottery_run_targets_capacity_type_allowed",
+          "sql": "capacity_type IN ('fixed', 'open', 'gender_split')"
+        },
+        {
+          "name": "ck_lottery_run_targets_eligible_count_nonnegative",
+          "sql": "eligible_count >= 0"
+        }
+      ]
+    },
+    "lottery_runs": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "term_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "seed",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(16)",
+          "nullable": false,
+          "default": "'prepared'"
+        },
+        {
+          "name": "executed_by_user_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "started_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "completed_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "note",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary_key": {
+        "name": "pk_lottery_runs",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_lottery_runs_executed_by_user_id_users",
+          "columns": [
+            "executed_by_user_id"
+          ],
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        },
+        {
+          "name": "fk_lottery_runs_term_id_terms",
+          "columns": [
+            "term_id"
+          ],
+          "referred_table": "terms",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        }
+      ],
+      "unique_constraints": [],
+      "indexes": [
+        {
+          "name": "ix_lottery_runs_term_status",
+          "columns": [
+            "term_id",
+            "status"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_lottery_runs_status_allowed",
+          "sql": "status IN ('prepared', 'running', 'completed', 'failed', 'cancelled')"
+        }
+      ]
+    },
+    "members": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "member_no",
+          "type": "VARCHAR(40)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(80)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "gender_code",
+          "type": "VARCHAR(16)",
+          "nullable": false,
+          "default": "'unknown'"
+        },
+        {
+          "name": "phone",
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "note",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "'1'"
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_members",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_members_gender_code_gender_codes",
+          "columns": [
+            "gender_code"
+          ],
+          "referred_table": "gender_codes",
+          "referred_columns": [
+            "code"
+          ],
+          "ondelete": "RESTRICT"
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_members_member_no",
+          "columns": [
+            "member_no"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_members_is_active",
+          "columns": [
+            "is_active"
+          ],
+          "unique": false,
+          "where": null
+        },
+        {
+          "name": "ix_members_name",
+          "columns": [
+            "name"
+          ],
+          "unique": false,
+          "where": null
+        },
+        {
+          "name": "ix_members_phone",
+          "columns": [
+            "phone"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_members_is_active_bool",
+          "sql": "is_active IN (0, 1)"
+        },
+        {
+          "name": "ck_members_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "operation_job_errors": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "job_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "row_number",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "field_name",
+          "type": "VARCHAR(120)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "message",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "raw_value",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_operation_job_errors",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_operation_job_errors_job_id_operation_jobs",
+          "columns": [
+            "job_id"
+          ],
+          "referred_table": "operation_jobs",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "CASCADE"
+        }
+      ],
+      "unique_constraints": [],
+      "indexes": [
+        {
+          "name": "ix_operation_job_errors_job_id",
+          "columns": [
+            "job_id"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_operation_job_errors_row_number_positive",
+          "sql": "row_number IS NULL OR row_number >= 1"
+        }
+      ]
+    },
+    "operation_jobs": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "job_type",
+          "type": "VARCHAR(24)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(16)",
+          "nullable": false,
+          "default": "'queued'"
+        },
+        {
+          "name": "source_name",
+          "type": "VARCHAR(255)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "output_relative_path",
+          "type": "VARCHAR(260)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "requested_by_user_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "requested_by_access_code_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "total_count",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'0'"
+        },
+        {
+          "name": "success_count",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'0'"
+        },
+        {
+          "name": "failure_count",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'0'"
+        },
+        {
+          "name": "error_summary",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "metadata_json",
+          "type": "JSON",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "started_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "completed_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary_key": {
+        "name": "pk_operation_jobs",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_operation_jobs_requested_by_access_code_id_access_codes",
+          "columns": [
+            "requested_by_access_code_id"
+          ],
+          "referred_table": "access_codes",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        },
+        {
+          "name": "fk_operation_jobs_requested_by_user_id_users",
+          "columns": [
+            "requested_by_user_id"
+          ],
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        }
+      ],
+      "unique_constraints": [],
+      "indexes": [
+        {
+          "name": "ix_operation_jobs_type_status",
+          "columns": [
+            "job_type",
+            "status"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_operation_jobs_counts_nonnegative",
+          "sql": "total_count >= 0 AND success_count >= 0 AND failure_count >= 0"
+        },
+        {
+          "name": "ck_operation_jobs_counts_within_total",
+          "sql": "success_count + failure_count <= total_count"
+        },
+        {
+          "name": "ck_operation_jobs_job_type_allowed",
+          "sql": "job_type IN ('import', 'export', 'backup', 'restore', 'notification')"
+        },
+        {
+          "name": "ck_operation_jobs_status_allowed",
+          "sql": "status IN ('queued', 'running', 'completed', 'failed', 'cancelled')"
+        }
+      ]
+    },
+    "operation_locks": {
+      "columns": [
+        {
+          "name": "resource_type",
+          "type": "VARCHAR(80)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "resource_id",
+          "type": "VARCHAR(80)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "operation",
+          "type": "VARCHAR(80)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "owner_token",
+          "type": "VARCHAR(64)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "acquired_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "expires_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary_key": {
+        "name": "pk_operation_locks",
+        "columns": [
+          "resource_type",
+          "resource_id"
+        ]
+      },
+      "foreign_keys": [],
+      "unique_constraints": [],
+      "indexes": [],
+      "checks": [
+        {
+          "name": "ck_operation_locks_expiry_after_acquire",
+          "sql": "expires_at > acquired_at"
+        }
+      ]
+    },
+    "organization_settings": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "organization_name",
+          "type": "VARCHAR(120)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "logo_relative_path",
+          "type": "VARCHAR(260)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "default_max_registrations",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'4'"
+        },
+        {
+          "name": "default_access_code_ttl_minutes",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'480'"
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_organization_settings",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [],
+      "unique_constraints": [],
+      "indexes": [],
+      "checks": [
+        {
+          "name": "ck_organization_settings_access_code_ttl_range",
+          "sql": "default_access_code_ttl_minutes BETWEEN 1 AND 10080"
+        },
+        {
+          "name": "ck_organization_settings_default_limit_nonnegative",
+          "sql": "default_max_registrations >= 0"
+        },
+        {
+          "name": "ck_organization_settings_singleton_id",
+          "sql": "id = 1"
+        },
+        {
+          "name": "ck_organization_settings_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "registration_status_history": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "registration_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "from_status",
+          "type": "VARCHAR(16)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "to_status",
+          "type": "VARCHAR(16)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(255)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "actor_kind",
+          "type": "VARCHAR(16)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "actor_user_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "actor_access_code_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "actor_display_name",
+          "type": "VARCHAR(80)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "metadata_json",
+          "type": "JSON",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "changed_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_registration_status_history",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_registration_status_history_actor_access_code_id_access_codes",
+          "columns": [
+            "actor_access_code_id"
+          ],
+          "referred_table": "access_codes",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        },
+        {
+          "name": "fk_registration_status_history_actor_user_id_users",
+          "columns": [
+            "actor_user_id"
+          ],
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        },
+        {
+          "name": "fk_registration_status_history_registration_id_registrations",
+          "columns": [
+            "registration_id"
+          ],
+          "referred_table": "registrations",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "CASCADE"
+        }
+      ],
+      "unique_constraints": [],
+      "indexes": [
+        {
+          "name": "ix_registration_status_history_registration_changed",
+          "columns": [
+            "registration_id",
+            "changed_at"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_registration_status_history_actor_kind_allowed",
+          "sql": "actor_kind IN ('user', 'launcher', 'system')"
+        },
+        {
+          "name": "ck_registration_status_history_from_status_allowed",
+          "sql": "from_status IS NULL OR from_status IN ('applied', 'selected', 'waitlisted', 'rejected', 'confirmed', 'cancelled')"
+        },
+        {
+          "name": "ck_registration_status_history_to_status_allowed",
+          "sql": "to_status IN ('applied', 'selected', 'waitlisted', 'rejected', 'confirmed', 'cancelled')"
+        }
+      ]
+    },
+    "registrations": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "member_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "offering_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(16)",
+          "nullable": false,
+          "default": "'applied'"
+        },
+        {
+          "name": "cancelled_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_registrations",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_registrations_member_id_members",
+          "columns": [
+            "member_id"
+          ],
+          "referred_table": "members",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        },
+        {
+          "name": "fk_registrations_offering_id_course_offerings",
+          "columns": [
+            "offering_id"
+          ],
+          "referred_table": "course_offerings",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_registrations_member_id_offering_id",
+          "columns": [
+            "member_id",
+            "offering_id"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_registrations_member_id",
+          "columns": [
+            "member_id"
+          ],
+          "unique": false,
+          "where": null
+        },
+        {
+          "name": "ix_registrations_offering_status",
+          "columns": [
+            "offering_id",
+            "status"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_registrations_cancelled_at_matches_status",
+          "sql": "(status = 'cancelled' AND cancelled_at IS NOT NULL) OR (status <> 'cancelled' AND cancelled_at IS NULL)"
+        },
+        {
+          "name": "ck_registrations_status_allowed",
+          "sql": "status IN ('applied', 'selected', 'waitlisted', 'rejected', 'confirmed', 'cancelled')"
+        },
+        {
+          "name": "ck_registrations_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "terms": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(120)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "starts_on",
+          "type": "DATE",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "ends_on",
+          "type": "DATE",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "registration_opens_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "registration_closes_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "max_registrations_per_member",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'0'"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(16)",
+          "nullable": false,
+          "default": "'draft'"
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_terms",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [],
+      "unique_constraints": [
+        {
+          "name": "uq_terms_name",
+          "columns": [
+            "name"
+          ]
+        }
+      ],
+      "indexes": [],
+      "checks": [
+        {
+          "name": "ck_terms_date_range_valid",
+          "sql": "starts_on IS NULL OR ends_on IS NULL OR starts_on <= ends_on"
+        },
+        {
+          "name": "ck_terms_registration_limit_nonnegative",
+          "sql": "max_registrations_per_member >= 0"
+        },
+        {
+          "name": "ck_terms_registration_range_valid",
+          "sql": "registration_opens_at IS NULL OR registration_closes_at IS NULL OR registration_opens_at < registration_closes_at"
+        },
+        {
+          "name": "ck_terms_status_allowed",
+          "sql": "status IN ('draft', 'open', 'closed', 'finalized')"
+        },
+        {
+          "name": "ck_terms_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "time_slots": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(80)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "start_time",
+          "type": "TIME",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "end_time",
+          "type": "TIME",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "sort_order",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'0'"
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "'1'"
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_time_slots",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [],
+      "unique_constraints": [
+        {
+          "name": "uq_time_slots_name",
+          "columns": [
+            "name"
+          ]
+        },
+        {
+          "name": "uq_time_slots_start_time_end_time",
+          "columns": [
+            "start_time",
+            "end_time"
+          ]
+        }
+      ],
+      "indexes": [],
+      "checks": [
+        {
+          "name": "ck_time_slots_is_active_bool",
+          "sql": "is_active IN (0, 1)"
+        },
+        {
+          "name": "ck_time_slots_time_range_valid",
+          "sql": "start_time < end_time"
+        },
+        {
+          "name": "ck_time_slots_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    },
+    "user_sessions": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "VARCHAR(36)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "user_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "access_code_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "token_hash",
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "issued_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "expires_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "last_seen_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "revoked_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary_key": {
+        "name": "pk_user_sessions",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_user_sessions_access_code_id_access_codes",
+          "columns": [
+            "access_code_id"
+          ],
+          "referred_table": "access_codes",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        },
+        {
+          "name": "fk_user_sessions_user_id_users",
+          "columns": [
+            "user_id"
+          ],
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "ondelete": "RESTRICT"
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_user_sessions_token_hash",
+          "columns": [
+            "token_hash"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_user_sessions_access_code_id",
+          "columns": [
+            "access_code_id"
+          ],
+          "unique": false,
+          "where": null
+        },
+        {
+          "name": "ix_user_sessions_lifecycle",
+          "columns": [
+            "expires_at",
+            "revoked_at"
+          ],
+          "unique": false,
+          "where": null
+        },
+        {
+          "name": "ix_user_sessions_user_id",
+          "columns": [
+            "user_id"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_user_sessions_expiry_after_issue",
+          "sql": "expires_at > issued_at"
+        },
+        {
+          "name": "ck_user_sessions_last_seen_after_issue",
+          "sql": "last_seen_at >= issued_at"
+        },
+        {
+          "name": "ck_user_sessions_revoked_after_issue",
+          "sql": "revoked_at IS NULL OR revoked_at >= issued_at"
+        }
+      ]
+    },
+    "users": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "display_name",
+          "type": "VARCHAR(80)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "affiliation",
+          "type": "VARCHAR(120)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "contact_note",
+          "type": "VARCHAR(120)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "role",
+          "type": "VARCHAR(24)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "'1'"
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "'1'"
+        }
+      ],
+      "primary_key": {
+        "name": "pk_users",
+        "columns": [
+          "id"
+        ]
+      },
+      "foreign_keys": [],
+      "unique_constraints": [],
+      "indexes": [
+        {
+          "name": "ix_users_role_is_active",
+          "columns": [
+            "role",
+            "is_active"
+          ],
+          "unique": false,
+          "where": null
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_users_is_active_bool",
+          "sql": "is_active IN (0, 1)"
+        },
+        {
+          "name": "ck_users_role_allowed",
+          "sql": "role IN ('staff', 'temporary_staff', 'viewer')"
+        },
+        {
+          "name": "ck_users_version_positive",
+          "sql": "version >= 1"
+        }
+      ]
+    }
+  }
+}
