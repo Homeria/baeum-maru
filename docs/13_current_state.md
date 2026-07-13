@@ -25,9 +25,11 @@
 - `db/session.py`는 파일 기반 SQLite engine, 운영 PRAGMA와 자동 commit하지 않는 Session factory를 제공한다.
 - `app/models/`의 9개 도메인 파일에 문서 기준 30개 SQLAlchemy table model이 등록되어 있다.
 - `20260713_0001_initial_schema` Alembic revision이 빈 DB에 전체 schema와 성별 기준코드를 생성한다.
+- 실제 SQLite table/index SQL fingerprint, 인덱스 38개와 FK 35개 정책을 schema contract test로 고정했다.
+- 대표 CHECK/UNIQUE 위반과 aggregate CASCADE/업무 이력 RESTRICT를 실제 SQL로 검증한다.
 - 독립 pywebview 제어는 `launcher/`, Excel과 backup 장시간 작업은 `jobs/`로 분리했다.
 - Python 3.13과 FastAPI, Pydantic, SQLAlchemy, Alembic, pywebview 의존성 결정은 유지한다.
-- 정규화된 데이터 모델 문서는 이후 ORM과 migration을 다시 구현할 설계 기준으로 유지한다.
+- 정규화된 데이터 모델 문서는 ORM, migration과 schema contract의 source of truth로 유지한다.
 - `frontend/`의 operator/launcher React/Vite/TypeScript 보일러플레이트는 유지한다.
 - GitHub Actions는 비워 두었고 API/frontend 계약 안정화 이후 새로 추가한다.
 
@@ -57,9 +59,9 @@ Schema는 router와 service 사이의 API 입력·응답 계약이다. Router는
 
 ## 바로 다음 작업
 
-`test/sqlite-schema-contract`
+`feat/api-foundation`
 
-실제 SQLite schema snapshot과 대표 위반 SQL을 이용해 FK, UNIQUE, CHECK, partial index, cascade/restrict와 필수 query index를 계약 테스트로 고정한다. `main`은 변경하지 않는다.
+FastAPI application factory, lifespan, `/api/v1`, request scope `Depends(get_db)`, 공통 오류 응답, request ID, pagination과 OpenAPI metadata를 구현한다. 업무 도메인 endpoint는 아직 추가하지 않는다. `main`은 변경하지 않는다.
 
 ## 현재 검증 범위
 
@@ -67,6 +69,7 @@ Schema는 router와 service 사이의 API 입력·응답 계약이다. Router는
 - 하위 계층의 상위 계층 import를 차단하는 architecture test
 - SQLite URL/PRAGMA/FK와 명시적 Session transaction pytest
 - 30개 metadata table, optimistic version, Alembic upgrade/check/downgrade와 seed pytest
+- SQLite schema fingerprint, 필수 index/FK 정책, 대표 제약 위반과 삭제 정책 pytest
 - Python compile, Ruff와 mypy 통과
 - operator/launcher TypeScript typecheck, oxlint, Vitest와 production build 통과
 - 실행 가능한 FastAPI API는 아직 존재하지 않음

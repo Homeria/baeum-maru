@@ -657,7 +657,7 @@ def upgrade() -> None:
         ),
         sa.Column("version", sa.Integer(), server_default="1", nullable=False),
         sa.CheckConstraint(
-            "\n(\n  capacity_type = 'fixed'\n  AND capacity_total > 0\n  AND male_capacity IS NULL\n  AND female_capacity IS NULL\n)\nOR (\n  capacity_type = 'open'\n  AND capacity_total IS NULL\n  AND male_capacity IS NULL\n  AND female_capacity IS NULL\n)\nOR (\n  capacity_type = 'gender_split'\n  AND capacity_total IS NULL\n  AND male_capacity >= 0\n  AND female_capacity >= 0\n  AND male_capacity + female_capacity > 0\n)\n",
+            "\n(\n  capacity_type = 'fixed'\n  AND capacity_total IS NOT NULL\n  AND capacity_total > 0\n  AND male_capacity IS NULL\n  AND female_capacity IS NULL\n)\nOR (\n  capacity_type = 'open'\n  AND capacity_total IS NULL\n  AND male_capacity IS NULL\n  AND female_capacity IS NULL\n)\nOR (\n  capacity_type = 'gender_split'\n  AND capacity_total IS NULL\n  AND male_capacity IS NOT NULL\n  AND female_capacity IS NOT NULL\n  AND male_capacity >= 0\n  AND female_capacity >= 0\n  AND male_capacity + female_capacity > 0\n)\n",
             name=op.f("ck_course_offerings_capacity_shape_valid"),
         ),
         sa.CheckConstraint(
@@ -934,7 +934,7 @@ def upgrade() -> None:
         sa.Column("female_capacity", sa.Integer(), nullable=True),
         sa.Column("eligible_count", sa.Integer(), nullable=False),
         sa.CheckConstraint(
-            "\n(\n  capacity_type = 'fixed'\n  AND capacity_total > 0\n  AND male_capacity IS NULL\n  AND female_capacity IS NULL\n)\nOR (\n  capacity_type = 'open'\n  AND capacity_total IS NULL\n  AND male_capacity IS NULL\n  AND female_capacity IS NULL\n)\nOR (\n  capacity_type = 'gender_split'\n  AND capacity_total IS NULL\n  AND male_capacity >= 0\n  AND female_capacity >= 0\n  AND male_capacity + female_capacity > 0\n)\n",
+            "\n(\n  capacity_type = 'fixed'\n  AND capacity_total IS NOT NULL\n  AND capacity_total > 0\n  AND male_capacity IS NULL\n  AND female_capacity IS NULL\n)\nOR (\n  capacity_type = 'open'\n  AND capacity_total IS NULL\n  AND male_capacity IS NULL\n  AND female_capacity IS NULL\n)\nOR (\n  capacity_type = 'gender_split'\n  AND capacity_total IS NULL\n  AND male_capacity IS NOT NULL\n  AND female_capacity IS NOT NULL\n  AND male_capacity >= 0\n  AND female_capacity >= 0\n  AND male_capacity + female_capacity > 0\n)\n",
             name=op.f("ck_lottery_run_targets_capacity_shape_valid"),
         ),
         sa.CheckConstraint(
