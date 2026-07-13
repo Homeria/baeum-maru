@@ -1,1 +1,18 @@
-"""SQLAlchemy Declarative Base와 공통 metadata 규칙을 정의하는 모듈."""
+"""SQLAlchemy Declarative Base와 제약조건 이름 규칙을 정의한다."""
+
+from sqlalchemy import MetaData
+from sqlalchemy.orm import DeclarativeBase
+
+NAMING_CONVENTION = {
+    "ix": "ix_%(table_name)s_%(column_0_N_name)s",
+    "uq": "uq_%(table_name)s_%(column_0_N_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_N_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
+
+
+class Base(DeclarativeBase):
+    """모든 SQLAlchemy table model이 상속하는 기준 클래스."""
+
+    metadata = MetaData(naming_convention=NAMING_CONVENTION)

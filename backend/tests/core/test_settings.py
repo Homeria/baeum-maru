@@ -21,6 +21,8 @@ def test_load_settings_uses_defaults_when_files_are_absent(tmp_path: Path) -> No
     assert settings.environment == "development"
     assert settings.server.host == "127.0.0.1"
     assert settings.server.port == 18080
+    assert settings.database.busy_timeout_ms == 5_000
+    assert settings.database.echo_sql is False
 
 
 def test_environment_sources_override_json_in_order(
@@ -33,6 +35,7 @@ def test_environment_sources_override_json_in_order(
                 "environment": "production",
                 "server": {"host": "10.0.0.1", "port": 18001},
                 "logging": {"level": "WARNING"},
+                "database": {"busy_timeout_ms": 6_000},
             }
         ),
         encoding="utf-8",
@@ -44,6 +47,7 @@ def test_environment_sources_override_json_in_order(
         encoding="utf-8",
     )
     monkeypatch.setenv("BAEUM_MARU_SERVER__PORT", "18003")
+    monkeypatch.setenv("BAEUM_MARU_DATABASE__BUSY_TIMEOUT_MS", "7000")
 
     settings = load_settings(paths)
 
@@ -51,6 +55,7 @@ def test_environment_sources_override_json_in_order(
     assert settings.server.host == "192.168.0.10"
     assert settings.server.port == 18003
     assert settings.logging.level == "ERROR"
+    assert settings.database.busy_timeout_ms == 7_000
 
 
 def test_invalid_json_setting_raises_readable_error(tmp_path: Path) -> None:

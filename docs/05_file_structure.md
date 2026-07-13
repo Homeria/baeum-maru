@@ -23,7 +23,7 @@ backend/
     models/                       도메인별 SQLAlchemy table model
     db/
       base.py                     Declarative Base와 metadata
-      session.py                  engine, SQLite PRAGMA와 Session
+      session.py                  engine, SQLite PRAGMA와 Session factory
     core/                         설정, runtime, logging, 예외, 보안
     launcher/                     pywebview와 서버 process 제어
     jobs/                         Excel, backup 등 장시간 작업
@@ -35,7 +35,7 @@ backend/
     scenarios/                    핵심 사용자 흐름 테스트
 ```
 
-현재 Python 파일은 역할을 설명하는 module docstring만 가진 보일러플레이트다. 실행 코드, model, migration과 테스트는 이후 브랜치에서 순서대로 추가한다.
+공통 runtime/config/logging과 DB engine/Session 기반부터 구현되어 있다. 업무 model, migration과 FastAPI application은 이후 브랜치에서 순서대로 추가한다.
 
 ## 기능 탐색 규칙
 

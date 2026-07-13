@@ -20,15 +20,15 @@
 
 - Go checkpoint: `go-prototype-baseline-2026-07`
 - 이전 Python feature-first/ORM 구현: 구조 재검토로 폐기
-- 최근 완료: `feat/config-runtime-foundation`
-- 다음 예정: `feat/database-core`
+- 최근 완료: `feat/database-core`
+- 다음 예정: `feat/database-schema-baseline`
 - merge target: `develop` only
 
 ## A. 실행 및 아키텍처 기반
 
 1. `refactor/readable-layered-boilerplate`: 기존 Python 구현 폐기, 역할 docstring만 가진 수평 계층 확정
 2. `feat/config-runtime-foundation`: portable runtime path, JSON/env 설정과 structured logging
-3. `feat/database-core`: SQLAlchemy Base, engine, request scope Session과 SQLite PRAGMA
+3. `feat/database-core`: SQLAlchemy Base, engine, Session factory와 SQLite PRAGMA
 4. `feat/database-schema-baseline`: 최신 모델 전체와 단일 Alembic initial revision 재구현
 5. `test/sqlite-schema-contract`: FK, unique, check, index, WAL, busy timeout 재검증
 6. `feat/api-foundation`: FastAPI app, `/api/v1`, 공통 오류, request ID, pagination과 OpenAPI metadata
