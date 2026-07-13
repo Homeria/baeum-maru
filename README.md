@@ -4,7 +4,7 @@
 
 ## 현재 전환 상태
 
-기존 Go/Fyne 기능 검증 구현은 `go-prototype-baseline-2026-07` 태그에 보존했습니다. 활성 작업 트리에서는 `Python + FastAPI + SQLite + React/Vite + pywebview` 기반 프로토타입을 다시 구현하고 있습니다. 현재 runtime/config/logging, SQLAlchemy engine/Session과 30개 업무 테이블의 초기 Alembic 기준선까지 구현되어 있으며 업무 API는 아직 없습니다.
+기존 Go/Fyne 기능 검증 구현은 `go-prototype-baseline-2026-07` 태그에 보존했습니다. 활성 작업 트리에서는 `Python + FastAPI + SQLite + React/Vite + pywebview` 기반 프로토타입을 다시 구현하고 있습니다. 현재 runtime/config/logging, SQLAlchemy engine/Session, 30개 업무 테이블의 초기 Alembic 기준선과 FastAPI 공통 실행 기반까지 구현되어 있으며 업무 API는 아직 없습니다.
 
 - 기존 Go 코드는 활성 작업 트리에서 제거했으며 태그에서만 참고합니다.
 - Python 전환 작업은 `develop`에만 누적합니다.
@@ -44,9 +44,14 @@ uv sync --all-groups
 uv run ruff format --check .
 uv run ruff check .
 uv run mypy
+uv run pytest -q
 ```
 
-FastAPI 실행 명령은 `app/main.py` 구현 이후 제공한다.
+FastAPI 개발 서버:
+
+```powershell
+uv run uvicorn app.main:app --reload
+```
 
 프론트엔드:
 
@@ -57,7 +62,7 @@ pnpm dev:operator
 pnpm dev:launcher
 ```
 
-GitHub Actions는 이전 Go/Fyne workflow를 모두 제거한 상태다. Python API와 frontend 계약이 안정되는 로드맵 단계에서 새 workflow를 추가한다.
+GitHub Actions의 `Backend`, `Frontend` job은 `develop` 대상 PR과 push에서 lockfile 설치, format/lint, typecheck, test와 frontend production build를 검증한다. Windows 포터블 패키지는 packaging 기반이 완성된 뒤 별도 job으로 추가한다.
 
 ## 데이터 주의
 
