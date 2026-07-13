@@ -2,7 +2,7 @@
 
 ## 기준 시점
 
-2026-07-13 기준. Python 전환 결정과 Go 기준점 보존을 완료했다.
+2026-07-13 기준. Go 활성 구현 제거와 Python/React 보일러플레이트 구성을 완료했다.
 
 ## 보존 기준점
 
@@ -13,10 +13,12 @@
 
 ## 현재 작업 트리
 
-- 이 문서 branch까지는 Go 코드가 남아 있다.
-- 다음 `refactor/python-project-reset`에서 Go/Fyne/template 코드와 Go CI를 제거한다.
+- Go/Fyne/template 코드, Go module, 기존 package script와 GitHub Actions를 제거했다.
+- `backend/`는 Python 3.13, uv, FastAPI health API, pytest, Ruff, mypy 기준선을 가진다.
+- `frontend/`는 pnpm workspace와 operator/launcher React/Vite/TypeScript 앱을 가진다.
+- 두 frontend 앱은 Vitest/Testing Library, oxlint, TypeScript build가 구성되어 있다.
+- GitHub Actions는 비워 두었고 Python API/frontend 계약 안정화 이후 새로 추가한다.
 - 최신 DB schema, 업무 rule, screen requirement, license policy는 유지한다.
-- Python active implementation은 아직 생성되지 않았다.
 
 ## 채택한 목표
 
@@ -38,6 +40,12 @@
 
 ## 바로 다음 작업
 
-`refactor/python-project-reset`
+`feat/python-config-runtime`
 
-이 branch는 Go 구현을 활성 tree에서 제거하고, 최소 FastAPI health endpoint, Python project/lockfile, pytest/Ruff/mypy와 Python CI가 통과하는 새 기준선을 만든다. `main`은 변경하지 않는다.
+이 branch는 portable runtime path, Pydantic settings, 환경별 설정, structured logging과 writable directory 경계를 구성한다. `main`은 변경하지 않는다.
+
+## 현재 로컬 검증
+
+- `uv lock --check`, Ruff, mypy, pytest 통과
+- operator/launcher TypeScript typecheck와 oxlint 통과
+- operator/launcher Vitest와 Vite production build 통과

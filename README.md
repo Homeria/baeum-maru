@@ -4,9 +4,9 @@
 
 ## 현재 전환 상태
 
-기존 Go/Fyne 기능 검증 구현은 `go-prototype-baseline-2026-07` 태그에 보존했습니다. 실사용·배포 데이터가 없는 현재 시점부터 활성 구현을 `Python + FastAPI + SQLite + React/Vite + pywebview` 기반으로 전면 교체합니다.
+기존 Go/Fyne 기능 검증 구현은 `go-prototype-baseline-2026-07` 태그에 보존했습니다. 활성 작업 트리에는 `Python + FastAPI + SQLite + React/Vite + pywebview` 기반 보일러플레이트만 유지합니다.
 
-- 기존 Go 코드는 참고 구현이며 새 기능을 추가하지 않습니다.
+- 기존 Go 코드는 활성 작업 트리에서 제거했으며 태그에서만 참고합니다.
 - Python 전환 작업은 `develop`에만 누적합니다.
 - 사용자 요청 전에는 `main`을 변경하지 않습니다.
 - 최신 DB 스키마, 업무 규칙, UI 피드백은 Python 구현의 요구사항으로 이어갑니다.
@@ -33,6 +33,27 @@ commit: 547977b13d77ffc0dbaa42a4dd4c24829a000d6f
 태그에는 Go, Go template, Fyne로 구현한 회원·강좌·신청·추첨·출석·Excel·백업 기능이 남아 있습니다. 활성 작업 트리에서 Go 코드가 제거된 뒤에도 설계 의도와 과거 동작을 확인할 수 있습니다.
 
 자세한 기술 결정과 브랜치 순서는 [docs/00_README.md](docs/00_README.md)를 참고합니다.
+
+## 개발 시작
+
+백엔드:
+
+```powershell
+cd backend
+uv sync --all-groups
+uv run uvicorn app.main:app --reload
+```
+
+프론트엔드:
+
+```powershell
+cd frontend
+pnpm install --frozen-lockfile
+pnpm dev:operator
+pnpm dev:launcher
+```
+
+GitHub Actions는 이전 Go/Fyne workflow를 모두 제거한 상태다. Python API와 frontend 계약이 안정되는 로드맵 단계에서 새 workflow를 추가한다.
 
 ## 데이터 주의
 

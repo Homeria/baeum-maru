@@ -1,0 +1,1 @@
+"""Baeum Maru backend application."""

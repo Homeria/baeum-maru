@@ -17,19 +17,19 @@ Go 기능 검증 구현을 폐기하고 `Python + FastAPI + SQLite + React/Vite/
 ## 현재 위치
 
 - Go checkpoint: `go-prototype-baseline-2026-07` → `547977b`
-- 최근 완료: `docs/pywebview-websocket-stack`
-- 다음 예정: `refactor/python-project-reset`
+- 최근 완료: `refactor/python-project-reset`
+- 다음 예정: `feat/python-config-runtime`
 - merge target: `develop` only
 
 ## 1. Python reset과 실행 기반
 
 1. `docs/python-transition-roadmap`: Python 기술 결정, architecture, 전체 roadmap 확정
-2. `refactor/python-project-reset`: Go/Fyne/template/Go CI 제거, FastAPI health, pyproject, pytest/Ruff/mypy CI 생성
+2. `refactor/python-project-reset`: Go/Fyne/template/workflow 제거, backend uv/FastAPI와 operator/launcher pnpm boilerplate 생성
 3. `feat/python-config-runtime`: portable path, JSON/env 설정, runtime directory, structured logging
 4. `docs/python-schema-baseline`: 최신 table/constraint/cascade와 building-floor-location FK 결정 확정
 5. `feat/sqlalchemy-alembic-baseline`: SQLAlchemy base/session과 단일 최신 Alembic initial schema
 6. `test/sqlite-schema-contract`: FK, unique, check, index, cascade/null, WAL/busy timeout 검증
-7. `feat/react-workspace-foundation`: pnpm workspace, operator/launcher app, shared package, frontend CI
+7. `feat/frontend-integration-foundation`: shared API client, environment, FastAPI dev proxy, launcher bridge type 경계
 8. `feat/fastapi-react-static-serving`: production asset manifest와 FastAPI static/history fallback
 9. `feat/windows-pywebview-onedir`: pywebview/WebView2 launcher shell과 Python/frontend asset을 포함한 portable directory build
 10. `test/windows-python-bootstrap-smoke`: Python 미설치 Windows, WebView2 유무, 한글/공백 경로, startup/size/memory 확인 - 수동 확인
@@ -73,7 +73,7 @@ Go 기능 검증 구현을 폐기하고 `Python + FastAPI + SQLite + React/Vite/
 38. `feat/api-settings-audit-jobs`: setting, audit log, operation job endpoint
 39. `feat/api-realtime-events`: authenticated `/api/v1/events/ws`, resource event, heartbeat, reconnect reconciliation
 40. `test/openapi-contract`: endpoint, DTO, error, permission, schema snapshot
-41. `ci/python-api-contract`: Python quality gate와 OpenAPI/client diff PR 검사
+41. `ci/python-api-contract`: 새 Python/frontend quality gate와 OpenAPI/client diff PR 검사
 
 종료 기준: React가 필요한 모든 업무를 `/api/v1`로 수행하고 OpenAPI와 실제 response가 일치한다.
 

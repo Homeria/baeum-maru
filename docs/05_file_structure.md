@@ -2,12 +2,15 @@
 
 ## 전환 전 구조
 
-Go 기준점은 `go-prototype-baseline-2026-07` 태그에만 보존한다. 다음 Python reset 브랜치에서 `cmd/`, `internal/`, Go template 자산, `go.mod`, `go.sum`을 활성 트리에서 제거한다.
+Go 기준점은 `go-prototype-baseline-2026-07` 태그에만 보존한다. `cmd/`, `internal/`, Go template 자산, `go.mod`, `go.sum`과 Go/Fyne workflow는 활성 트리에서 제거했다.
 
 ## 목표 구조
 
 ```text
 backend/
+  pyproject.toml              uv project와 Python 품질 도구 설정
+  uv.lock                    Python 의존성 잠금
+  .python-version            Python 3.13 개발 기준
   app/
     main.py                   FastAPI operator app 조립
     launcher_main.py          pywebview launcher entry point
@@ -29,8 +32,12 @@ backend/
     unit/ integration/ contract/
 
 frontend/
-  operator/                   접수 직원과 업무 관리자 React 앱
-  launcher/                   pywebview 독립 런처 React 앱
+  package.json               workspace 공통 command
+  pnpm-workspace.yaml
+  pnpm-lock.yaml             frontend 의존성 잠금
+  apps/
+    operator/                접수 직원과 업무 관리자 React 앱
+    launcher/                pywebview 독립 런처 React 앱
   packages/
     ui/                       검증된 공통 primitive와 디자인 token
     api-client/               OpenAPI 생성 타입과 client
@@ -41,11 +48,9 @@ scripts/
 
 docs/
 .github/workflows/
-pyproject.toml
-uv.lock
-package.json
-pnpm-lock.yaml
 ```
+
+GitHub Actions는 Python/React 계약이 안정되기 전까지 비워 두고 로드맵의 CI branch에서 새로 구성한다.
 
 ## 기능 모듈 내부
 
