@@ -27,6 +27,9 @@
 - `20260713_0001_initial_schema` Alembic revision이 빈 DB에 전체 schema와 성별 기준코드를 생성한다.
 - 실제 SQLite table/index SQL fingerprint, 인덱스 38개와 FK 35개 정책을 schema contract test로 고정했다.
 - 대표 CHECK/UNIQUE 위반과 aggregate CASCADE/업무 이력 RESTRICT를 실제 SQL로 검증한다.
+- `create_app()`과 lifespan이 runtime/config/logging, Alembic upgrade, SQLite engine과 Session factory를 순서대로 준비한다.
+- `/api/v1` 아래에 health endpoint와 OpenAPI를 제공하고 request ID, 공통 오류 응답과 pagination 계약을 공유한다.
+- `Depends(get_db)`는 요청마다 Session을 열고 닫되 자동 commit하지 않아 service transaction 소유권을 유지한다.
 - 독립 pywebview 제어는 `launcher/`, Excel과 backup 장시간 작업은 `jobs/`로 분리했다.
 - Python 3.13과 FastAPI, Pydantic, SQLAlchemy, Alembic, pywebview 의존성 결정은 유지한다.
 - 정규화된 데이터 모델 문서는 ORM, migration과 schema contract의 source of truth로 유지한다.
@@ -59,9 +62,9 @@ Schema는 router와 service 사이의 API 입력·응답 계약이다. Router는
 
 ## 바로 다음 작업
 
-`feat/api-foundation`
+`ci/python-react-foundation`
 
-FastAPI application factory, lifespan, `/api/v1`, request scope `Depends(get_db)`, 공통 오류 응답, request ID, pagination과 OpenAPI metadata를 구현한다. 업무 도메인 endpoint는 아직 추가하지 않는다. `main`은 변경하지 않는다.
+백엔드 Ruff/mypy/pytest와 프론트엔드 typecheck/lint/test/build를 PR에서 검증하는 기본 GitHub Actions를 구성한다. Windows package 검증은 packaging 기반이 생긴 뒤 별도 workflow로 추가한다. `main`은 변경하지 않는다.
 
 ## 현재 검증 범위
 
@@ -72,4 +75,5 @@ FastAPI application factory, lifespan, `/api/v1`, request scope `Depends(get_db)
 - SQLite schema fingerprint, 필수 index/FK 정책, 대표 제약 위반과 삭제 정책 pytest
 - Python compile, Ruff와 mypy 통과
 - operator/launcher TypeScript typecheck, oxlint, Vitest와 production build 통과
-- 실행 가능한 FastAPI API는 아직 존재하지 않음
+- FastAPI lifespan, health, OpenAPI, request ID, 공통 오류와 pagination API 계약 pytest
+- 업무 도메인 endpoint, 인증과 WebSocket은 아직 구현하지 않음

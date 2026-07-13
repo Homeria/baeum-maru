@@ -20,6 +20,8 @@ backend/
     main.py                       FastAPI 생성과 router 등록
     api/
       dependencies.py             DB session, 인증 등 공통 Depends
+      errors.py                   공통 API 오류 응답과 exception handler
+      middleware.py               request ID 생성과 응답 header
       routers/                    도메인별 HTTP/WebSocket endpoint
     schemas/                      도메인별 Pydantic 요청·응답
     services/                     업무 규칙과 transaction 조정
@@ -27,6 +29,7 @@ backend/
     models/                       도메인별 SQLAlchemy table model
     db/
       base.py                     Declarative Base와 metadata
+      migrations.py               application 시작 시 Alembic upgrade
       session.py                  engine, SQLite PRAGMA와 Session factory
     core/                         설정, runtime, logging, 예외, 보안
     launcher/                     pywebview와 서버 process 제어
@@ -39,7 +42,7 @@ backend/
     scenarios/                    핵심 사용자 흐름 테스트
 ```
 
-공통 runtime/config/logging, DB engine/Session, 업무 model과 초기 migration이 구현되어 있다. FastAPI application과 repository/service는 이후 브랜치에서 순서대로 추가한다.
+공통 runtime/config/logging, DB engine/Session, 업무 model과 초기 migration, FastAPI application 기반이 구현되어 있다. 업무 repository/service와 도메인 router는 이후 세로 슬라이스 브랜치에서 함께 추가한다.
 
 ## 기능 탐색 규칙
 
