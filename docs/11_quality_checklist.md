@@ -1,42 +1,54 @@
 # 품질 체크리스트
 
-## 백엔드와 데이터
+## Python 백엔드와 데이터
 
-- [ ] `go test ./...`, `go test -race ./...`, `go vet ./...` 통과
-- [ ] 빈 DB에서 마이그레이션, 기준 데이터 입력, 백업/복구 확인
-- [ ] 회원/강좌/신청/추첨/출석/Excel 한 사이클 통합 테스트
-- [ ] 다중 신청 저장이 원자적이며 DB 제약과 서비스 검증이 모두 동작
-- [ ] 스키마의 FK, unique, 상태 제약, 인덱스가 실제 조회/변경 흐름과 맞음
+- [ ] `uv lock --check`, Ruff format/lint, mypy 통과
+- [ ] `pytest` unit/integration/contract 전체 통과
+- [ ] 빈 DB에서 Alembic upgrade, 기준 데이터, backup/restore 확인
+- [ ] 회원/강좌/신청/추첨/출석/Excel 한 cycle integration test
+- [ ] 다중 신청 저장이 원자적이며 DB 제약과 application rule이 모두 동작
+- [ ] FK, unique, check, index, cascade/null 정책이 실제 workflow와 일치
+- [ ] SQLite connection과 transaction이 request/task 종료 시 정리됨
 
-## 웹 UI
+## REST API
 
-- [ ] React typecheck, lint, unit test 통과
-- [ ] Huma OpenAPI 문서, DTO 검증, 오류 응답, API 호환성 검사 통과
+- [ ] `/api/v1` resource, method, status code, pagination/filter 규약 확인
+- [ ] Pydantic validation과 공통 오류 response 확인
+- [ ] OpenAPI snapshot과 생성 TypeScript client가 최신 상태
+- [ ] 권한, CSRF, idempotency, 동시성 충돌 test 통과
+- [ ] host control API가 loopback 이외의 경로에서 접근되지 않음
+
+## React UI
+
+- [ ] TypeScript typecheck, lint, unit test, production build 통과
 - [ ] 회원 등록과 다중 강좌 신청의 성공/오류/충돌 상태 확인
-- [ ] 키보드 탐색, 포커스, 표/폼 모바일 및 데스크톱 레이아웃 확인
-- [ ] SSE 수신 시 관련 데이터만 갱신되고 입력 중 폼을 덮어쓰지 않음
-- [ ] 한글 입력, 날짜/시간, 전화번호 입력이 Windows 브라우저에서 정상 동작
+- [ ] keyboard, focus, table/form의 mobile 및 desktop layout 확인
+- [ ] SSE 수신 시 관련 데이터만 갱신되고 입력 중 form을 덮어쓰지 않음
+- [ ] 한글, 날짜/시간, 전화번호 입력이 Windows browser에서 정상 동작
 
-## 런처
+## 호스트 콘솔
 
-- [ ] Wails 런처의 한글 입력, 탭 상태 유지, 서버 시작/중지/재시작 확인
-- [ ] WebView2 런타임 유무에 따른 안내 확인
-- [ ] WebView2 미설치/설치 정책 차단 환경에서 콘솔 서버 fallback 확인
-- [ ] 실제 내부망 IPv4 주소 목록과 접속 URL이 명확히 표시됨
-- [ ] 런처 종료 중 실행 작업과 서버 shutdown 상태가 사용자에게 보임
+- [ ] 실행 직후 업무 서버가 정지 상태임
+- [ ] 시작/중지/재시작과 중복 command 방지 확인
+- [ ] 실제 내부망 IPv4 주소와 접속 URL이 명확히 표시됨
+- [ ] 접속 코드, 로그, 백업, 설정 기능 확인
+- [ ] localhost 이외에서 host console route/API 접근이 거부됨
+- [ ] 종료 중 진행 작업과 server shutdown 상태가 사용자에게 보임
 
 ## 보안
 
-- [ ] 내부망 공유는 명시적 설정이며 기본 바인딩은 localhost
-- [ ] HTTPS, `Secure` 세션 쿠키, CSRF, 로그인 실패 제한 적용
+- [ ] 내부망 공유는 명시적 설정이며 기본 bind는 localhost
+- [ ] HTTPS, `Secure` session cookie, CSRF, 로그인 실패 제한 적용
 - [ ] 역할 권한이 API와 SSE 모두에서 강제됨
-- [ ] 파일 업로드 크기/확장자/파싱 오류가 안전하게 처리됨
-- [ ] 로그, 백업, Excel, 스크린샷에 개인정보가 불필요하게 포함되지 않음
+- [ ] file upload 크기/확장자/parsing 오류가 안전하게 처리됨
+- [ ] 로그, backup, Excel, screenshot에 개인정보가 불필요하게 포함되지 않음
 
-## 운영 검증
+## 운영과 패키징
 
-- [ ] 2~5개 브라우저 동시 접수 시나리오 수행
-- [ ] 회원 1,000명, 강좌 50개, 신청 3,000건 수준의 더미 데이터 점검
-- [ ] 저사양에 가까운 Windows 사무용 노트북에서 패키지 실행
-- [ ] 인터넷 없이 WebView2 오프라인 설치 수단 또는 fallback 경로 확인
-- [ ] 네트워크 끊김, 서버 재시작, SSE 재연결, 백업/복구 시나리오 확인
+- [ ] 2~5개 browser 동시 접수 scenario 수행
+- [ ] 회원 1,000명, 강좌 50개, 신청 3,000건 dummy data 점검
+- [ ] 저사양에 가까운 Windows 사무용 노트북에서 package 실행
+- [ ] Python과 Node.js가 설치되지 않은 Windows에서 실행
+- [ ] 한글 사용자명·한글 경로·공백 경로에서 runtime directory 확인
+- [ ] network 단절, server 재시작, SSE 재연결, backup/restore scenario 확인
+- [ ] Windows Defender와 기관 보안 정책에서 실행/오류 흐름 확인

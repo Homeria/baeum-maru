@@ -2,7 +2,7 @@
 
 ## 기본 정책
 
-배움마루는 아직 실사용 데이터를 운영하지 않는다. 따라서 스키마가 목표 업무 모델을 잘못 표현하면 기존 DB 파일을 버리고 기준 스키마를 고친다. 호환 migration은 사용자가 기존 데이터 유지가 필요하다고 명시할 때만 작성한다.
+배움마루는 아직 실사용 데이터를 운영하지 않는다. Python 전환 시 기존 Go DB 파일은 폐기하고 최신 모델을 단일 Alembic initial revision으로 작성한다. 이후 실제 사용 데이터가 생긴 뒤부터 호환 migration을 작성한다.
 
 ## 현재 설계의 핵심
 
@@ -28,7 +28,7 @@ course_schedules: 월 + 14:00~14:50, 수 + 14:00~14:50
 
 `building_floors`를 실제 기준 데이터로 쓸지, 층 표시 문자열을 단순 보조 데이터로 쓸지 확정해야 한다.
 
-현재 목표는 건물과 층을 한 번 등록해두고 공간에서 선택하는 경험이다. 따라서 다음 API/UI 전환 전에 `locations.building_floor_id` FK 도입 여부를 결정하고, 선택한다면 `floor_label` 중복 저장을 제거한다.
+현재 목표는 건물과 층을 한 번 등록해두고 공간에서 선택하는 경험이다. 따라서 `docs/python-schema-baseline`에서 `locations.building_floor_id` FK 도입 여부를 결정하고, 선택한다면 초기 Alembic schema에서 `floor_label` 중복 저장을 제거한다.
 
 ## UI 전환과 스키마
 

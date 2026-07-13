@@ -2,7 +2,8 @@
 
 ## 기준
 
-- 실제 스키마의 기준 파일은 `internal/migration/sql/001_init.sql`이다.
+- Python 전환 전 schema 의미의 기준은 이 문서와 `16_schema_redesign_notes.md`, checkpoint tag의 `internal/migration/sql/001_init.sql`이다.
+- Python 기반 생성 후 실제 schema source of truth는 SQLAlchemy model, 첫 Alembic revision, SQLite schema contract test다.
 - 현재 개발 단계에는 실사용 데이터가 없으므로, 비호환 스키마 변경은 기존 DB를 폐기하고 진행한다.
 - 데이터 모델은 정규화하되, 현장 사용자가 입력하는 단위를 잃지 않는다.
 
@@ -57,7 +58,7 @@ members ── registrations ── course_offerings
 
 현재 `building_floors`는 기준 테이블이지만 `locations`는 `floor_label` 문자열을 저장한다. 이는 층 이름을 손쉽게 표시하는 장점이 있지만, 층 이름 변경과 참조 무결성에서 중복이 생길 수 있다.
 
-프로토타입 전환 단계에서 다음 중 하나를 확정한다.
+초기 Alembic schema를 만들기 전에 다음 중 하나를 확정한다.
 
 1. `locations.building_floor_id`를 FK로 두고 표시명은 join으로 읽는다.
 2. 야외/건물 미지정 공간까지 단순하게 다뤄야 한다면 `floor_label`을 유지하되, 층 마스터는 입력 보조용이라는 정책을 명시한다.

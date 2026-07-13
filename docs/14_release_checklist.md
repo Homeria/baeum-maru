@@ -1,44 +1,48 @@
 # 릴리즈 체크리스트
 
-## 코드와 테스트
+## 코드와 계약
 
-- [ ] `go test ./...` 통과
-- [ ] `go test -race ./...` 통과
-- [ ] `go vet ./...` 통과
-- [ ] `go build ./cmd/server` 통과
-- [ ] Wails Windows 빌드 통과
-- [ ] Huma OpenAPI spec 생성 및 API 호환성 검사 통과
+- [ ] `uv lock --check` 통과
+- [ ] Ruff format/lint와 mypy 통과
+- [ ] pytest unit/integration/contract test 통과
+- [ ] Alembic empty DB upgrade test 통과
+- [ ] OpenAPI spec 생성과 TypeScript client diff 검사 통과
 - [ ] React typecheck, lint, unit test, production build 통과
+- [ ] Playwright 핵심 workflow 통과
 - [ ] `git diff --check` 통과
 
-## 패키지
+## Windows 패키지
 
-- [ ] Windows 패키지에 Wails 런처, 콘솔 서버 fallback, 서버 자산, 기본 `config.json`, 런타임 폴더, 첫 실행 안내 포함
-- [ ] WebView2 런타임이 없는 PC의 설치/오류 흐름 확인
-- [ ] 오프라인 WebView2 설치 수단 또는 fallback 안내 포함
-- [ ] 런처가 기본적으로 서버 정지 상태로 열리는지 확인
-- [ ] 서버 시작 후 실제 내부망 주소와 HTTPS URL을 표시하는지 확인
-- [ ] 패키지에서 Node.js나 개발 도구 설치를 요구하지 않는지 확인
+- [ ] PyInstaller `onedir` 결과가 portable ZIP에 포함됨
+- [ ] 실행 파일, React assets, 기본 config, runtime directory, 첫 실행 안내 포함
+- [ ] DB, backup, export, import, log가 bundle 외부 writable path에 생성됨
+- [ ] Python, Node.js, uv 설치를 요구하지 않음
+- [ ] 한글 사용자명, 한글/공백 경로에서 실행됨
+- [ ] 실행 직후 업무 서버는 정지 상태이고 localhost host console만 열림
+- [ ] 업무 서버 시작 후 실제 내부망 주소와 HTTPS URL을 표시함
+- [ ] 비정상 종료 후 재실행과 오류 log 확인 가능
 
 ## 운영 리허설
 
 - [ ] 접속 코드 발급, 로그인, 만료/폐기 확인
 - [ ] 회원 등록/검색과 다중 강좌 접수 확인
-- [ ] 동시 접수, 충돌 메시지, SSE 재연결 확인
+- [ ] 동시 접수, conflict message, SSE 재연결 확인
 - [ ] 강좌 운영, 추첨, 확정/대기자 승격, 출석, Excel 출력 확인
-- [ ] 백업 생성, 복구 예약, 재시작 후 복구 확인
-- [ ] 서버 중지/재시작/종료와 로그 확인
+- [ ] backup 생성, restore 예약, 재시작 후 복구 확인
+- [ ] server 시작/중지/재시작/종료와 log 확인
 
 ## 보안과 공개
 
+- [ ] host console은 loopback 외부에서 접근되지 않음
 - [ ] HTTPS 인증서, Secure cookie, CSRF, 로그인 실패 제한 확인
-- [ ] 실사용 DB, 백업, Excel, 로그, 인증서 비밀값이 패키지/저장소에 없음
+- [ ] 실사용 DB, backup, Excel, log, 인증서 secret이 package/source에 없음
 - [ ] `LICENSE`, `NOTICE`, `CONTRIBUTING.md`, `SECURITY.md` 확인
-- [ ] README와 사용자 가이드가 현재 런처/UI 구조를 설명함
-- [ ] 예시 화면과 더미 데이터에 개인정보가 없음
+- [ ] README와 사용자 가이드가 현재 Python 구조를 설명함
+- [ ] example과 screenshot에 개인정보가 없음
 
-## CI
+## CI와 릴리즈
 
-- [ ] Pull request에서 Go와 frontend 검사가 실행됨
-- [ ] Windows runner에서 Wails/WebView2 패키지 smoke test가 실행됨
-- [ ] 태그 릴리즈에서 portable artifact 또는 설치 패키지가 생성됨
+- [ ] PR에서 Python backend, OpenAPI, frontend 검사가 실행됨
+- [ ] Windows runner에서 PyInstaller build와 portable smoke test가 실행됨
+- [ ] tag release에서 portable ZIP artifact가 생성됨
+- [ ] release artifact checksum과 version 정보가 제공됨

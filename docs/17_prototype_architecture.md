@@ -2,46 +2,103 @@
 
 ## 상태
 
-채택 예정. 현재 Go template/Fyne 구현을 대체하기 전의 목표 구조다.
+채택. 2026-07-13부터 Python/FastAPI 구현을 활성 기준으로 사용한다.
 
 ## 결정
 
-배움마루의 프로토타입은 다음처럼 구성한다.
-
 ```text
-Go + net/http + Huma v2 + SQLite
-├─ React/Vite/TypeScript 웹 앱: 직원과 관리자 브라우저 사용
-├─ SSE: 도메인 변경 알림
-└─ Wails v2 + React 런처: 호스트 노트북 운영 콘솔
+Python 3.13 + FastAPI + Pydantic v2
+├─ SQLAlchemy 2 + Alembic + SQLite WAL
+├─ React/Vite/TypeScript 직원 업무 앱
+├─ React/Vite/TypeScript localhost 호스트 콘솔
+├─ REST /api/v1 + OpenAPI + SSE
+└─ PyInstaller onedir Windows portable ZIP
 ```
 
-## 이유
+기존 Go 구현은 `go-prototype-baseline-2026-07` annotated tag에 보존하고 활성 tree에서 제거한다.
 
-- 사용자 화면은 여러 명이 같은 데이터를 다루므로 브라우저/서버 구조가 가장 자연스럽다.
-- 접수, 검색, 필터, 다중 선택, 모달, 실시간 상태는 컴포넌트 기반 UI가 유리하다.
-- 런처는 서버 제어와 운영 설정을 위한 전용 Windows 앱이며, Fyne보다 WebView2 기반 UI가 한글 입력과 복잡한 화면에 적합하다.
-- 기존 Go 서비스/DB 코드를 유지해 Rust/Tauri 재작성 비용을 피한다.
-- Windows 전용 환경에서는 WebView2 런타임 의존성을 현실적으로 관리할 수 있다.
-- Huma v2는 표준 `net/http` 위에서 OpenAPI와 검증을 제공하므로, API 계약을 분명히 하면서 프레임워크 종속성을 transport 계층에 가둔다.
+## 변경 이유
 
-## 하지 않는 것
+- 프로젝트 소유자가 FastAPI 경험을 바탕으로 코드를 직접 읽고 검증할 수 있다.
+- Pydantic, FastAPI dependency, OpenAPI를 이용해 API 경계를 명시적으로 유지할 수 있다.
+- Python의 구현 속도는 반복되는 현장 피드백과 schema/application rule 수정에 적합하다.
+- 목표 동시 사용자는 2~5명이며 Python runtime overhead는 핵심 제약이 아니다.
+- 실사용·배포 데이터가 없어 언어 전환과 schema 초기화 비용이 낮다.
+- 향후 중앙 서버가 필요하면 FastAPI application을 Docker로 배포하기 쉽다.
+- 비상업적 포크 프로젝트에서 Python은 기여자와 기관 개발자가 접근하기 쉽다.
 
-- Wails를 직원용 클라이언트로 배포하지 않는다.
-- Wails 때문에 외부 웹페이지나 인터넷 연결을 요구하지 않는다.
-- React를 곧바로 두 앱의 모든 컴포넌트에 공용화하지 않는다. 실제로 공유되는 디자인 토큰과 안정된 컴포넌트만 `packages/ui`로 승격한다.
-- 현재 Fyne/template 구현을 검증 없이 삭제하지 않는다.
+## 수용하는 비용
 
-## 호환성 조건
+- Go binary보다 package 크기와 memory 사용량이 증가한다.
+- native single binary가 아니라 Python interpreter와 dependency를 포함한 directory bundle을 배포한다.
+- startup과 antivirus 호환성은 실제 Windows artifact에서 반복 검증해야 한다.
+- Python의 dynamic 특성을 보완하기 위해 mypy, Ruff, Pydantic, DB constraint, pytest를 함께 사용한다.
 
-- 운영 PC에는 Node.js, Python, Docker Desktop, C 컴파일러를 요구하지 않는다.
-- React/Vite 산출물과 Go SQL migration은 실행 파일에 포함한다.
-- WebView2가 없거나 설치 정책이 막힌 경우에도 콘솔 서버 fallback으로 브라우저 업무를 계속한다.
-- 패키지와 CI는 Windows에서 실제 빌드/실행을 확인한다. 단일 exe 크기보다 오류 없이 업무를 이어갈 수 있는 portable ZIP을 우선한다.
+이 비용은 프로젝트 소유자의 검증 가능성, 개발 속도, 포크 접근성이 주는 이점보다 작다고 판단한다.
 
-## 전환 순서
+## 호스트 콘솔 결정
 
-1. 프레임워크 독립 런처 서비스와 JSON API 경계를 만든다.
-2. Wails 최소 프로토타입으로 Windows/WebView2/한글 입력을 검증한다.
-3. React 웹 기반과 핵심 접수 흐름을 구현한다.
-4. Wails 런처를 전환한다.
-5. 이전 Fyne/template 경로를 제거하거나 유지보수 모드로 명확히 구분한다.
+Wails와 별도 native launcher를 사용하지 않는다. 실행 파일이 localhost 전용 FastAPI control server를 열고 기본 browser에서 React host console을 제공한다.
+
+- host console은 server lifecycle, network, access code, log, backup, 초기 설정을 담당한다.
+- operator server는 별도 Uvicorn task이며 기본 상태는 stopped다.
+- control endpoint는 loopback socket에서만 listen한다.
+- UI 숨김은 security boundary가 아니며 socket bind와 API test로 외부 접근을 차단한다.
+- native tray, WebView, installer는 실제 운영에서 필요성이 확인될 때 별도 결정한다.
+
+## application 아키텍처
+
+기능 중심 modular monolith와 얇은 layered/hexagonal boundary를 사용한다.
+
+```text
+api adapter (FastAPI/Pydantic)
+          ↓
+application use case + unit of work
+          ↓
+domain rule + repository protocol
+          ↑
+SQLAlchemy / filesystem / Excel adapter
+```
+
+- 단순 CRUD에 불필요한 abstraction을 강제하지 않는다.
+- 여러 table과 repository를 바꾸는 업무 command는 application transaction으로 묶는다.
+- FastAPI와 SQLAlchemy model을 업무 규칙 자체로 사용하지 않는다.
+- domain event는 audit log와 SSE를 HTTP handler 밖에서 연결한다.
+- module 간 호출은 public application interface를 통해 수행한다.
+
+## 데이터 결정
+
+- 과거 Go DB를 변환하는 migration은 작성하지 않는다.
+- 최신 schema 문서와 `001_init.sql`의 의미를 검토해 단일 Alembic initial revision을 새로 작성한다.
+- initial revision 이후부터 모든 schema 변경을 Alembic history로 관리한다.
+- SQLite constraint와 transaction test를 source of truth로 사용한다.
+- 중앙 서버 확장 시 PostgreSQL adapter를 추가하되 domain/API contract를 유지한다.
+
+## 배포 결정
+
+- 기본 artifact는 PyInstaller `onedir` directory를 ZIP으로 묶은 portable package다.
+- `onefile`은 압축 해제 startup과 임시 directory 문제 때문에 기본값으로 사용하지 않는다.
+- frontend production assets와 Python runtime을 package에 포함한다.
+- DB, config, certificate, backup, export, log는 bundle 밖에 생성한다.
+- 운영 PC는 Python, uv, Node.js를 설치하지 않는다.
+- Windows CI와 실제 사무용 노트북 smoke test를 모두 통과해야 release 후보가 된다.
+
+## 폐기한 대안
+
+- Go + Huma: 배포 효율은 좋지만 프로젝트 소유자의 코드 검증 비용이 크다.
+- Fyne: 한글 IME와 복잡한 UI 경험이 목표에 맞지 않았다.
+- Wails: Go backend가 전제이며 Python 전환 후 유지할 이유가 없다.
+- Electron: host console 용도에 비해 runtime과 package가 무겁다.
+- Python과 Go 병행: 실사용 호환성 요구가 없고 이중 유지보수만 만든다.
+- 새 repository: 제품 정체성, issue, license, schema history가 같으므로 기존 repository를 유지한다.
+
+## 재검토 조건
+
+다음 중 하나가 실제 측정으로 확인될 때 이 결정을 다시 검토한다.
+
+- 목표 Windows PC에서 PyInstaller package가 반복적으로 실행되지 않는다.
+- idle/업무 memory 또는 startup이 운영을 방해한다.
+- SQLite와 단일 Python process가 2~5명 동시 업무를 감당하지 못한다.
+- 중앙 서버 요구가 생기고 Python 운영 비용이 실제 장애 원인이 된다.
+
+재검토 시에도 OpenAPI, schema, 업무 rule, integration scenario를 language-independent contract로 유지한다.

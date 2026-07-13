@@ -4,9 +4,10 @@
 
 ## 확인
 
-- [ ] go test ./...
-- [ ] go vet ./...
-- [ ] 필요한 경우 go build ./cmd/server, go build ./cmd/launcher
+- [ ] Python lock, format, lint, typecheck, pytest 통과
+- [ ] React typecheck, lint, test, build 통과
+- [ ] API 변경 시 OpenAPI/client 계약 확인
+- [ ] 패키징 변경 시 Windows portable artifact 확인
 - [ ] UI 변경 시 주요 화면 수동 확인
 
 ## 데이터 주의

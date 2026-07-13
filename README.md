@@ -2,35 +2,37 @@
 
 배움마루는 복지관, 문화센터, 평생교육기관이 내부망에서 회원 관리, 수강신청, 추첨, 출석, Excel 출력을 처리하도록 돕는 로컬 호스팅 업무 시스템입니다.
 
-현재는 Go와 SQLite 기반의 기능 검증 구현이 동작하며, 프로토타입은 `Go + net/http + Huma v2` API, React/Vite 웹 화면, Wails Windows 런처로 전환합니다. 직원은 별도 앱 설치 없이 브라우저로 접속하고, 호스트 담당자만 전용 런처를 사용합니다.
+## 현재 전환 상태
 
-## 현재 기능
+기존 Go/Fyne 기능 검증 구현은 `go-prototype-baseline-2026-07` 태그에 보존했습니다. 실사용·배포 데이터가 없는 현재 시점부터 활성 구현을 `Python + FastAPI + SQLite + React/Vite` 기반으로 전면 교체합니다.
 
-- 회원, 강좌 개설, 수강신청, 신청 제한 규칙
-- 추첨, 대기자, 출석, Excel 가져오기/내보내기
-- SQLite 백업/복구, 감사 로그, 접속 코드와 역할 권한
-- Fyne 기반 운영 런처와 Windows portable ZIP 기반
+- 기존 Go 코드는 참고 구현이며 새 기능을 추가하지 않습니다.
+- Python 전환 작업은 `develop`에만 누적합니다.
+- 사용자 요청 전에는 `main`을 변경하지 않습니다.
+- 최신 DB 스키마, 업무 규칙, UI 피드백은 Python 구현의 요구사항으로 이어갑니다.
 
 ## 목표 프로토타입
 
+- FastAPI/Pydantic 기반 `/api/v1` REST API와 OpenAPI 문서
+- SQLAlchemy 2, Alembic, SQLite WAL 기반 로컬 데이터 저장
 - React/Vite/TypeScript 기반 접수 및 운영 웹
-- Huma v2와 OpenAPI 3.1 기반 REST API 및 생성된 TypeScript API 타입
-- 회원 정보와 다중 강좌 선택을 한 번에 저장하는 접수 흐름
-- SSE 기반 다중 사용자 갱신
-- Wails v2 기반 Windows 호스트 런처
-- HTTPS, CSRF, 로그인 실패 제한, Windows 실기기 운영 검증
-- WebView2 런타임 부재 시 설치 안내와 콘솔 서버 fallback을 포함한 포터블 패키지
+- 회원 정보와 여러 희망 강좌를 한 번에 저장하는 접수 흐름
+- SSE와 TanStack Query를 이용한 다중 사용자 갱신
+- `127.0.0.1` 전용 호스트 관리 콘솔과 내부망 업무 서버 분리
+- 접속 코드, 역할 권한, HTTPS, CSRF, 로그인 실패 제한
+- PyInstaller `onedir` 기반 Windows 포터블 ZIP
+- Docker 기반 중앙 서버 배포로 확장 가능한 구조
 
-## 개발 검증
+## 보존된 Go 기준점
 
-```powershell
-go test ./...
-go test -race ./...
-go vet ./...
-go build ./cmd/server
+```text
+tag: go-prototype-baseline-2026-07
+commit: 547977b13d77ffc0dbaa42a4dd4c24829a000d6f
 ```
 
-자세한 설계와 작업 순서는 [docs/00_README.md](docs/00_README.md)를 참고합니다.
+태그에는 Go, Go template, Fyne로 구현한 회원·강좌·신청·추첨·출석·Excel·백업 기능이 남아 있습니다. 활성 작업 트리에서 Go 코드가 제거된 뒤에도 설계 의도와 과거 동작을 확인할 수 있습니다.
+
+자세한 기술 결정과 브랜치 순서는 [docs/00_README.md](docs/00_README.md)를 참고합니다.
 
 ## 데이터 주의
 
