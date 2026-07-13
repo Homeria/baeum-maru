@@ -10,8 +10,8 @@
 Python 3.13 + FastAPI + Pydantic v2
 ├─ SQLAlchemy 2 + Alembic + SQLite WAL
 ├─ React/Vite/TypeScript 직원 업무 앱
-├─ React/Vite/TypeScript localhost 호스트 콘솔
-├─ REST /api/v1 + OpenAPI + SSE
+├─ pywebview/WebView2 + React/Vite/TypeScript 독립 런처
+├─ REST /api/v1 + OpenAPI + WebSocket
 └─ PyInstaller onedir Windows portable ZIP
 ```
 
@@ -36,15 +36,15 @@ Python 3.13 + FastAPI + Pydantic v2
 
 이 비용은 프로젝트 소유자의 검증 가능성, 개발 속도, 포크 접근성이 주는 이점보다 작다고 판단한다.
 
-## 호스트 콘솔 결정
+## 호스트 런처 결정
 
-Wails와 별도 native launcher를 사용하지 않는다. 실행 파일이 localhost 전용 FastAPI control server를 열고 기본 browser에서 React host console을 제공한다.
+별도 native launcher를 사용한다. 실행 파일은 pywebview로 WebView2 독립 창을 열고 bundled React launcher app을 표시한다.
 
-- host console은 server lifecycle, network, access code, log, backup, 초기 설정을 담당한다.
-- operator server는 별도 Uvicorn task이며 기본 상태는 stopped다.
-- control endpoint는 loopback socket에서만 listen한다.
-- UI 숨김은 security boundary가 아니며 socket bind와 API test로 외부 접근을 차단한다.
-- native tray, WebView, installer는 실제 운영에서 필요성이 확인될 때 별도 결정한다.
+- launcher는 server lifecycle, network, access code, log, backup, 초기 설정을 담당한다.
+- operator server는 별도 Uvicorn 자식 프로세스이며 기본 상태는 stopped다.
+- React launcher는 검증된 Python bridge를 호출하고 권한 있는 control endpoint를 LAN socket에 노출하지 않는다.
+- launcher는 bundled local assets만 로드하고 production에서는 원격 navigation과 개발자 도구를 차단한다.
+- WebView2 Runtime 유무를 시작 시 검사하고 누락 시 Microsoft Evergreen 설치 수단을 제공한다.
 
 ## application 아키텍처
 
@@ -63,7 +63,7 @@ SQLAlchemy / filesystem / Excel adapter
 - 단순 CRUD에 불필요한 abstraction을 강제하지 않는다.
 - 여러 table과 repository를 바꾸는 업무 command는 application transaction으로 묶는다.
 - FastAPI와 SQLAlchemy model을 업무 규칙 자체로 사용하지 않는다.
-- domain event는 audit log와 SSE를 HTTP handler 밖에서 연결한다.
+- domain event는 audit log와 commit 이후 WebSocket 발행을 HTTP handler 밖에서 연결한다.
 - module 간 호출은 public application interface를 통해 수행한다.
 
 ## 데이터 결정
@@ -79,6 +79,7 @@ SQLAlchemy / filesystem / Excel adapter
 - 기본 artifact는 PyInstaller `onedir` directory를 ZIP으로 묶은 portable package다.
 - `onefile`은 압축 해제 startup과 임시 directory 문제 때문에 기본값으로 사용하지 않는다.
 - frontend production assets와 Python runtime을 package에 포함한다.
+- pywebview dependency와 launcher production assets를 포함하고 WebView2 Runtime 검사 흐름을 검증한다.
 - DB, config, certificate, backup, export, log는 bundle 밖에 생성한다.
 - 운영 PC는 Python, uv, Node.js를 설치하지 않는다.
 - Windows CI와 실제 사무용 노트북 smoke test를 모두 통과해야 release 후보가 된다.
@@ -88,7 +89,8 @@ SQLAlchemy / filesystem / Excel adapter
 - Go + Huma: 배포 효율은 좋지만 프로젝트 소유자의 코드 검증 비용이 크다.
 - Fyne: 한글 IME와 복잡한 UI 경험이 목표에 맞지 않았다.
 - Wails: Go backend가 전제이며 Python 전환 후 유지할 이유가 없다.
-- Electron: host console 용도에 비해 runtime과 package가 무겁다.
+- Electron: 호스트 런처 용도에 비해 runtime과 package가 무겁다.
+- CustomTkinter: 단순성과 외부 WebView 의존성은 유리하지만 React 디자인 체계 재사용과 복잡한 런처 UI 확장성을 우선해 선택하지 않는다.
 - Python과 Go 병행: 실사용 호환성 요구가 없고 이중 유지보수만 만든다.
 - 새 repository: 제품 정체성, issue, license, schema history가 같으므로 기존 repository를 유지한다.
 

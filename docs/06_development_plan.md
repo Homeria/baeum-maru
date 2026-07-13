@@ -36,27 +36,28 @@
 
 - `/api/v1`, 공통 오류, pagination/filter, OpenAPI 규약을 먼저 확정한다.
 - 접속 코드 session, 역할 권한, CSRF, throttling을 server side에서 강제한다.
-- 각 업무 모듈의 REST endpoint와 SSE domain event를 추가한다.
+- 각 업무 모듈의 REST endpoint와 commit 이후 WebSocket domain event를 추가한다.
 - OpenAPI에서 TypeScript client를 생성하고 계약 차이를 CI에서 검사한다.
 
 ## 단계 4: React 업무 화면
 
 - 디자인 token과 업무용 primitive를 만든 뒤 로그인과 app shell을 구성한다.
 - 접수, 회원, 강좌, 신청, 추첨, 출석, Excel/백업 순서로 화면을 구현한다.
-- TanStack Query와 SSE를 연결하고 폼 편집 중 변경 충돌 UX를 제공한다.
+- TanStack Query와 WebSocket을 연결하고 폼 편집 중 변경 충돌 UX를 제공한다.
 - 한글 입력, 키보드, 좁은 화면, 다중 브라우저를 자동/수동 검증한다.
 
-## 단계 5: localhost 호스트 콘솔
+## 단계 5: pywebview 호스트 런처
 
-- loopback 전용 FastAPI control app과 별도 React host app을 만든다.
+- pywebview/WebView2 독립 창, React launcher app과 검증된 Python bridge를 만든다.
 - 업무 서버 시작/중지/재시작, bind address, 실제 접속 URL, 접속 코드, 로그, 백업, 초기 공간 설정을 제공한다.
-- 호스트 콘솔 API가 LAN에서 접근되지 않는지 자동 테스트한다.
-- 실행 파일을 켰을 때 업무 서버는 정지 상태이고 기본 브라우저에는 host console만 연다.
+- launcher bridge가 원격 자산이나 LAN에서 호출되지 않는지 자동 테스트한다.
+- 실행 파일을 켰을 때 독립 런처 창만 열고 업무 서버는 정지 상태를 유지한다.
 
 ## 단계 6: 보안, 패키징, 운영 검증
 
 - HTTPS, secure cookie, CSRF, CSP, 로그인 실패 제한을 검증한다.
-- 동일 회원 동시 접수, 추첨 잠금, 중복 제출, 재기동과 SSE 재연결을 테스트한다.
+- 동일 회원 동시 접수, 추첨 잠금, 중복 제출, 재기동과 WebSocket 재연결을 테스트한다.
+- WebView2 Runtime 누락, 한글 IME와 pywebview 창 lifecycle을 실제 Windows에서 검증한다.
 - PyInstaller `onedir` 포터블 ZIP을 Windows CI와 일반 사무용 노트북에서 확인한다.
 - 회원 1,000명, 강좌 50개, 신청 3,000건과 2~5개 브라우저로 운영 리허설을 수행한다.
 - 설치, 운영, 백업, 장애 대응 가이드를 작성한다.

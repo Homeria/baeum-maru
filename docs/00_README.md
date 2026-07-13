@@ -6,8 +6,8 @@
 
 - 보존 구현: `go-prototype-baseline-2026-07` 태그의 Go/SQLite/Go template/Fyne 프로토타입
 - 활성 전환: Go 구현을 제거하고 Python/FastAPI 기반을 새로 구성하는 단계
-- 목표 프로토타입: Python 3.13, FastAPI, Pydantic v2, SQLAlchemy 2, SQLite, React/Vite/TypeScript, SSE
-- 호스트 제어: Wails 대신 localhost 전용 웹 콘솔을 사용하며 직원 화면은 내부망 브라우저로 제공한다.
+- 목표 프로토타입: Python 3.13, FastAPI, Pydantic v2, SQLAlchemy 2, SQLite, React/Vite/TypeScript, pywebview, WebSocket
+- 호스트 제어: pywebview와 WebView2 기반 독립 런처를 사용하며 직원 화면은 내부망 브라우저로 제공한다.
 - 배포: Python 설치가 필요 없는 PyInstaller `onedir` 포터블 ZIP을 기본으로 한다.
 
 ## 문서 읽는 순서

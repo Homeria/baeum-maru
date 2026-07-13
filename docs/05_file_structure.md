@@ -10,10 +10,10 @@ Go 기준점은 `go-prototype-baseline-2026-07` 태그에만 보존한다. 다�
 backend/
   app/
     main.py                   FastAPI operator app 조립
-    host_main.py              localhost host control app 조립
+    launcher_main.py          pywebview launcher entry point
     core/                     config, security, errors, logging, events
     db/                       SQLAlchemy base, session, unit of work
-    host/                     server lifecycle, network, diagnostics
+    launcher/                 bridge, server lifecycle, network, diagnostics
     modules/
       identity/
       members/
@@ -30,7 +30,7 @@ backend/
 
 frontend/
   operator/                   접수 직원과 업무 관리자 React 앱
-  host/                       localhost 호스트 관리 React 콘솔
+  launcher/                   pywebview 독립 런처 React 앱
   packages/
     ui/                       검증된 공통 primitive와 디자인 token
     api-client/               OpenAPI 생성 타입과 client
@@ -70,7 +70,7 @@ modules/members/
 - domain rule은 DB session이나 HTTP status code를 알지 않는다.
 - repository protocol과 unit of work를 통해 persistence를 교체할 수 있게 한다.
 - SQLAlchemy query가 router와 React layer로 새지 않게 한다.
-- host control app은 업무 모듈의 public application API만 사용한다.
+- launcher bridge는 업무 모듈의 public application API만 사용하고 모든 입력을 Python에서 다시 검증한다.
 - React는 생성된 API client를 통해서만 backend와 통신한다.
 - 공통 `packages/ui`에는 두 앱에서 실제로 반복된 안정된 컴포넌트만 옮긴다.
 
