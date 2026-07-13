@@ -4,9 +4,10 @@ import json
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from app.core.runtime import RuntimePaths
-from app.core.settings import SettingsLoadError, load_settings
+from app.core.settings import RealtimeSettings, SettingsLoadError, load_settings
 
 
 def _runtime_paths(tmp_path: Path) -> RuntimePaths:
@@ -23,6 +24,8 @@ def test_load_settings_uses_defaults_when_files_are_absent(tmp_path: Path) -> No
     assert settings.server.port == 18080
     assert settings.database.busy_timeout_ms == 5_000
     assert settings.database.echo_sql is False
+    assert settings.realtime.heartbeat_interval_seconds == 20.0
+    assert settings.realtime.stale_timeout_seconds == 60.0
 
 
 def test_environment_sources_override_json_in_order(
@@ -72,3 +75,8 @@ def test_json_root_must_be_an_object(tmp_path: Path) -> None:
 
     with pytest.raises(SettingsLoadError, match="JSON 객체"):
         load_settings(paths)
+
+
+def test_realtime_stale_timeout_must_exceed_heartbeat_interval() -> None:
+    with pytest.raises(ValidationError, match="stale timeout"):
+        RealtimeSettings(heartbeat_interval_seconds=10, stale_timeout_seconds=10)

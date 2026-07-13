@@ -54,5 +54,8 @@ uv run uvicorn app.main:app --reload
 - health: `GET /api/v1/health`
 - OpenAPI: `/api/v1/openapi.json`
 - Swagger UI: `/api/docs`
+- realtime: `WS /api/v1/events/ws`
 
 서버 lifespan은 writable runtime 경로를 준비하고 Alembic revision을 `head`까지 적용한 뒤 SQLite engine과 request scope Session factory를 생성한다. 모듈 import만으로는 runtime 파일을 만들거나 DB에 연결하지 않는다.
+
+Realtime WebSocket은 동일 출처 요청과 `baeum_maru_session` HttpOnly cookie를 요구한다. 현재 기본 verifier는 모든 연결을 거부하며 실제 access-code session 검증은 인증 도메인 구현에서 연결한다. 연결 성공 시 `ready`, 주기적인 `heartbeat`, commit 이후 `resource_changed`를 전송하고 재연결 또는 event gap에는 REST API 전체 재조회를 요구한다.

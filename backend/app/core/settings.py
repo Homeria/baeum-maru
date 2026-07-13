@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, model_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -37,6 +37,20 @@ class DatabaseSettings(BaseModel):
     echo_sql: bool = False
 
 
+class RealtimeSettings(BaseModel):
+    heartbeat_interval_seconds: float = Field(default=20.0, ge=0.05, le=300.0)
+    stale_timeout_seconds: float = Field(default=60.0, ge=0.1, le=900.0)
+    send_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
+    event_queue_size: int = Field(default=256, ge=16, le=10_000)
+    max_connections: int = Field(default=20, ge=1, le=200)
+
+    @model_validator(mode="after")
+    def validate_heartbeat_window(self) -> RealtimeSettings:
+        if self.stale_timeout_seconds <= self.heartbeat_interval_seconds:
+            raise ValueError("stale timeout must be greater than heartbeat interval")
+        return self
+
+
 class AppSettings(BaseSettings):
     """애플리케이션에서 사용하는 설정의 단일 검증 모델."""
 
@@ -51,6 +65,7 @@ class AppSettings(BaseSettings):
     server: ServerSettings = Field(default_factory=ServerSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    realtime: RealtimeSettings = Field(default_factory=RealtimeSettings)
 
     @classmethod
     def settings_customise_sources(

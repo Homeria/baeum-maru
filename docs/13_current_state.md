@@ -32,6 +32,9 @@
 - `Depends(get_db)`는 요청마다 Session을 열고 닫되 자동 commit하지 않아 service transaction 소유권을 유지한다.
 - `record_audit()`은 민감 metadata를 거부하고 업무 변경과 같은 Session에 append-only 감사 row를 추가한다.
 - `ResourceEvent`와 `publish_committed_events()`는 commit 이후 개인정보 없는 변경 신호를 best-effort로 전달한다.
+- `RealtimeHub`는 thread-safe event queue, 다중 WebSocket broadcast, heartbeat와 stale/slow connection 정리를 제공한다.
+- `WS /api/v1/events/ws`는 동일 출처와 session cookie를 요구하며 재연결/event gap reconciliation 계약을 제공한다.
+- 실제 access-code session verifier는 아직 연결하지 않아 기본 애플리케이션의 WebSocket 인증은 fail-closed다.
 - 독립 pywebview 제어는 `launcher/`, Excel과 backup 장시간 작업은 `jobs/`로 분리했다.
 - Python 3.13과 FastAPI, Pydantic, SQLAlchemy, Alembic, pywebview 의존성 결정은 유지한다.
 - 정규화된 데이터 모델 문서는 ORM, migration과 schema contract의 source of truth로 유지한다.
@@ -64,9 +67,9 @@ Schema는 router와 service 사이의 API 입력·응답 계약이다. Router는
 
 ## 바로 다음 작업
 
-`feat/realtime-websocket-foundation`
+`feat/frontend-integration-foundation`
 
-인증 가능한 WebSocket 연결, heartbeat, resource event broadcast와 재연결 계약을 구현한다. 아직 인증 도메인이 없으므로 연결 인증의 인터페이스와 테스트 대역을 먼저 두고 실제 access code session은 후속 브랜치에서 연결한다. `main`은 변경하지 않는다.
+React operator/launcher가 공유할 typed REST client, TanStack Query provider, WebSocket 연결과 query invalidation 기반을 구현한다. 실제 업무 화면은 만들지 않고 API 오류, 재연결, heartbeat ack와 reconciliation 동작을 공통 코드로 고정한다. `main`은 변경하지 않는다.
 
 ## 현재 검증 범위
 
@@ -80,4 +83,5 @@ Schema는 router와 service 사이의 API 입력·응답 계약이다. Router는
 - FastAPI lifespan, health, OpenAPI, request ID, 공통 오류와 pagination API 계약 pytest
 - `develop` PR/push에서 backend format/lint/typecheck/test와 frontend typecheck/lint/test/build CI
 - 업무 변경과 감사 로그의 원자적 commit/rollback, commit 이후 event 전달과 실패 격리 pytest
-- 업무 도메인 endpoint, 인증과 WebSocket은 아직 구현하지 않음
+- WebSocket 동일 출처/cookie 인증 경계, 다중 broadcast, heartbeat, event gap과 느린 연결 정리 pytest
+- 업무 도메인 endpoint와 실제 access-code 인증은 아직 구현하지 않음

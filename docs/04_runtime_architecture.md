@@ -53,6 +53,18 @@
 - 폼 편집 중에는 자동 덮어쓰지 않고 최신 데이터가 있다는 안내를 표시한다.
 - 최종 정확성은 WebSocket이 아니라 DB 제약, transaction, idempotency와 optimistic version으로 보장한다.
 
+### WebSocket protocol v1
+
+- endpoint: `WS /api/v1/events/ws`
+- 인증: 동일 출처 `Origin`과 `baeum_maru_session` HttpOnly cookie
+- `ready`: connection ID, heartbeat 간격과 재연결 후 REST reconciliation 요구
+- `heartbeat` / `heartbeat_ack`: stale connection 탐지와 정리
+- `resource_changed`: event type, resource, entity ID, version과 발생 시각
+- `reconcile_required`: queue overflow 등 event gap 발생 시 active query 전체 재조회 요구
+- 지원하지 않는 client message는 `1003`, 인증 실패는 `1008`, 느린 연결은 `1011`로 종료한다.
+
+브라우저는 WebSocket message 자체를 확정 데이터로 사용하지 않는다. `resource_changed`는 관련 TanStack Query key를 무효화하고, `ready.reconcile_required` 또는 `reconcile_required`는 현재 active query를 REST API에서 다시 읽으라는 신호다.
+
 ## 네트워크와 보안
 
 - 런처 제어 bridge는 네트워크에 공개하지 않고 신뢰한 bundled launcher 자산만 로드한다.
