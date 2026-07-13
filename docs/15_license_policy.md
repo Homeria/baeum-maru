@@ -2,7 +2,7 @@
 
 ## 적용 라이선스
 
-배움마루는 `PolyForm Noncommercial License 1.0.0`을 따른다. 이 정책은 Go, React, Wails 등 기술 스택 변경과 무관하게 유지한다.
+배움마루는 `PolyForm Noncommercial License 1.0.0`을 따른다. 이 정책은 Python, React 등 기술 스택 변경과 무관하게 유지한다.
 
 ## 목적
 

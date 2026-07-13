@@ -1,74 +1,84 @@
 # 배움마루 기술 스택
 
-이 문서는 프로토타입에서 반드시 따를 채택 기술 스택이다. 변경은 실제 검증 결과가 현재 조건을 더 잘 만족하지 못한다는 근거가 있을 때만 ADR과 함께 진행한다.
+이 문서는 Python 전환 이후 프로토타입이 따라야 할 채택 기술 스택이다. 버전은 `pyproject.toml`, `uv.lock`, `package.json`과 lockfile에서 고정한다.
 
 ## 결정
 
 | 영역 | 선택 | 역할 |
 |---|---|---|
-| 백엔드 | Go 1.25.x, 표준 라이브러리 `net/http` | HTTP API, 업무 규칙, 파일/서버 제어 |
-| API 계약 | Huma v2, OpenAPI 3.1 | 타입 기반 요청/응답 검증, 문서, 표준 오류 응답 |
-| DB | SQLite, `database/sql`, `modernc.org/sqlite` | 호스트 로컬 데이터 저장 |
-| 웹 UI | React, TypeScript, Vite | 직원/관리자 브라우저 화면 |
-| 웹 상태 | TanStack Query, SSE | 서버 데이터 조회, 변경 이벤트 기반 갱신 |
-| 폼/검증 | React Hook Form, Zod | 접수와 강좌 운영의 복잡한 입력 검증 |
-| 스타일 | CSS variables와 CSS Modules, Lucide icons | 기관 업무 도구에 맞는 일관된 UI |
-| 호스트 런처 | Wails v2, React/Vite, Windows WebView2 | 서버 제어와 운영 콘솔 |
-| Excel | Excelize | Excel 가져오기/내보내기 |
-| 설정/로그 | JSON, `log/slog` | 포터블 설정과 구조화 로그 |
-| 검증 | Go test, race detector, Vitest, Playwright | 도메인, UI, 다중 브라우저 흐름 검증 |
-| CI/CD | GitHub Actions | Go/API/UI 검사와 Windows 패키징 |
+| 언어 | Python 3.13.x | HTTP API, 업무 규칙, 파일/서버 제어 |
+| 백엔드 | FastAPI, Uvicorn | REST API, OpenAPI, 정적 자산, ASGI 실행 |
+| 검증/설정 | Pydantic v2, pydantic-settings | 요청/응답 DTO와 환경/JSON 설정 검증 |
+| DB | SQLite WAL, SQLAlchemy 2 | 호스트 로컬 데이터와 명시적 repository 구현 |
+| migration | Alembic | 최신 기준 스키마와 이후 변경 이력 |
+| 웹 UI | React, TypeScript, Vite | 직원 업무 화면과 호스트 관리 콘솔 |
+| 서버 상태 | TanStack Query, SSE | 조회 cache와 서버 변경 이벤트 기반 갱신 |
+| 폼 | React Hook Form, Zod | 복잡한 입력 상태와 즉시 사용자 피드백 |
+| 스타일 | CSS variables, CSS Modules, Lucide icons | 조용하고 밀도 높은 기관 업무 UI |
+| Excel | openpyxl | Excel 가져오기와 내보내기 |
+| Python 도구 | uv, `pyproject.toml`, `uv.lock` | 재현 가능한 개발 환경과 의존성 잠금 |
+| Node 도구 | pnpm workspace, lockfile | operator/host/shared React package 관리 |
+| 백엔드 검증 | pytest, pytest-asyncio, HTTPX | 도메인, DB, API, 비동기 흐름 검증 |
+| 프론트 검증 | Vitest, Testing Library, Playwright | 컴포넌트와 다중 브라우저 업무 흐름 검증 |
+| 정적 검사 | Ruff, mypy | formatting, lint, 타입 검사 |
+| Windows 배포 | PyInstaller `onedir`, portable ZIP | Python 미설치 PC에서 실행 |
+| CI/CD | GitHub Actions | Python/API/UI/Windows 패키지 검사 |
 
 ## 선택 원칙
 
-- Windows 사무용 노트북과 내부망 5명 내외 사용을 기준으로 한다.
-- 사용자용 앱을 설치하지 않는다. 브라우저가 직원 클라이언트다.
-- 런처와 웹은 UI 기술을 공유하지만, 업무 서비스와 DB 접근은 Go에 둔다.
-- Node.js는 개발/빌드에만 사용한다. 최종 웹 자산은 Go 실행 파일에 포함되며, 운영 PC에서 Node.js를 설치할 필요는 없다.
-- Electron처럼 브라우저 엔진을 번들하지 않는다. Wails는 Windows의 WebView2 런타임을 사용한다.
-- 운영 PC는 Go, Node.js, Python, Docker Desktop, C 컴파일러를 설치하지 않아도 된다.
-- 모든 의존성은 버전을 잠그고 Windows CI에서 실제 패키지 빌드를 검증한다.
+- 목표 환경은 Windows 사무용 노트북 한 대와 내부망 사용자 2~5명이다.
+- 프로젝트 소유자가 코드를 읽고 테스트와 업무 검증에 직접 참여할 수 있어야 한다.
+- 직원 PC에는 앱을 설치하지 않고 브라우저를 사용한다.
+- 운영 PC에는 Python, Node.js, uv, pnpm, Docker Desktop, C 컴파일러를 요구하지 않는다.
+- 개발 편의보다 최종 포터블 패키지의 재현성과 Windows 호환성을 우선한다.
+- Python 성능과 패키지 크기 증가는 목표 동시 사용자와 유지보수 이점을 고려해 수용한다.
+- `onefile`보다 시작과 진단이 예측 가능한 `onedir`를 기본 배포 단위로 사용한다.
 
-## 런처와 웹의 역할
+## 런타임 구성
 
 ```text
-Wails 런처 (호스트 PC만)
-  └ Go 런처 서비스 직접 호출
-      └ Go HTTP 서버 시작
-          └ React 웹 자산 제공
-              └ 직원 브라우저가 내부망으로 접속
+배움마루.exe
+└─ Python 프로세스
+   ├─ 호스트 제어면: 127.0.0.1 전용
+   │  └─ 서버 상태, 네트워크, 접속 코드, 로그, 백업, 설정
+   └─ 업무 서버: 설정된 host:port
+      ├─ /api/v1 REST API와 /api/v1/events SSE
+      └─ React 직원 웹 자산
+
+SQLite / data / backups / exports / logs는 실행 파일 외부에 저장
 ```
 
-Wails는 외부 웹사이트를 필요로 하지 않는다. 런처의 React 빌드 산출물을 실행 파일에 포함해 창 내부 WebView2에서 그린다. 직원용 React 웹은 Go 서버가 정적 자산으로 제공한다.
-
-## 현재 구현과 전환
-
-현재 코드는 Go HTML template와 Fyne를 사용한다. 이는 업무 규칙과 운영 흐름을 검증한 기존 구현이며, 목표 스택으로 전환할 때 Go `service`와 `repository`는 유지한다.
-
-- Go template handler: React 전환 기간의 호환/검증용으로 유지 후 제거한다.
-- Fyne launcher: Wails 전환 완료 전까지 호스트 운영 기능을 유지한다.
-- 새 React 화면은 template POST 경로를 호출하지 않고 Huma v2 기반 `/api/v1` JSON API를 사용한다.
-- Wails 런처는 HTTP API를 우회해 프레임워크 독립 `internal/launcher` 서비스를 호출한다.
+호스트 제어면과 업무 서버는 같은 Python 프로세스 안에서 명시적으로 분리한다. 제어 API는 LAN 인터페이스에 바인딩하지 않고, 업무 서버는 관리 콘솔에서 시작하기 전까지 정지 상태를 유지한다.
 
 ## API 원칙
 
-- `net/http`가 transport 기반이고 Huma v2가 OpenAPI/검증 계층이다. 도메인 서비스는 Huma 타입을 import하지 않는다.
-- API는 `/api/v1`로 버전 관리하고, 리소스 중심 URL과 HTTP method를 사용한다.
-- 접수 처리와 추첨 실행처럼 원자적 업무 명령은 `reception-submissions`, `lottery-runs` 같은 리소스 생성으로 표현한다.
-- 요청/응답 DTO, 오류 코드, 권한 규칙은 OpenAPI에 문서화하고 TypeScript client를 생성한다.
-- API 호환성을 깨는 변경은 새 version 또는 명시적 deprecation 기간을 거친다.
+- API는 `/api/v1`로 버전 관리하고 리소스 중심 URL과 HTTP method를 사용한다.
+- Pydantic은 transport DTO를 검증하며 업무 규칙은 application service와 DB 제약에서 다시 검증한다.
+- FastAPI router는 얇게 유지하고 transaction 경계는 application service 또는 unit of work가 소유한다.
+- 오류는 안정된 코드, 사용자 메시지, field detail, correlation ID를 가진 공통 형식으로 응답한다.
+- OpenAPI 문서에서 TypeScript client와 타입을 생성하고 실제 응답과의 계약을 CI에서 검사한다.
+- 동시성, 추첨, 복구처럼 단순 CRUD가 아닌 작업은 명시적인 command endpoint와 작업 상태를 사용한다.
 
-## 포터블 호환성 정책
+## Python 아키텍처 원칙
 
-- Wails 런처는 Windows WebView2를 사용한다. 패키지는 런타임 부재 감지와 설치 경로를 제공한다.
-- 인터넷이 없거나 WebView2 설치가 막힌 PC에서도 업무를 계속할 수 있도록 콘솔 서버 실행 경로를 패키지에 유지한다.
-- 기본 배포 단위는 단일 exe만을 고집하지 않는 portable ZIP이다. ZIP에는 런처, fallback 서버, 설정, 런타임 폴더, WebView2 오프라인 설치 수단, 첫 실행 안내를 포함한다.
-- WebView2 bootstrapper는 편의 수단이며, 기관 네트워크가 차단된 경우를 대비해 오프라인 설치 수단을 함께 검증한다.
+- 기능별 모듈 안에서 `api → application → domain/port → infrastructure` 방향을 지킨다.
+- SQLAlchemy model을 API response로 직접 반환하지 않는다.
+- Pydantic model을 핵심 업무 규칙의 유일한 표현으로 사용하지 않는다.
+- repository는 SQLAlchemy query를 캡슐화하고 application service가 여러 repository transaction을 조정한다.
+- FastAPI `Depends`는 조립과 request scope에만 사용하며 도메인 코드에 유출하지 않는다.
+
+## 배포 및 확장
+
+- Windows 기본 배포는 PyInstaller `onedir` 결과와 런타임 폴더를 묶은 ZIP이다.
+- React production build는 패키지에 포함하고 운영 PC에 Node.js를 요구하지 않는다.
+- SQLite DB, 설정, 백업, 로그, Excel 파일은 번들 외부의 명확한 디렉터리에 둔다.
+- 중앙 서버가 필요해지면 같은 FastAPI application을 Docker로 실행하고 PostgreSQL adapter를 추가한다.
+- Docker 배포는 프로토타입 필수 범위가 아니며 Windows 로컬 운영을 먼저 완성한다.
 
 ## 의도적으로 쓰지 않는 것
 
-- Rust/Tauri: 현재 Go 도메인 코드를 재작성해야 하므로 선택하지 않는다.
-- Electron: 런처 용도에 비해 배포 크기와 런타임이 크다.
-- Gin/Fiber: 현재 `net/http` 기반 코드와 API 계약 계층을 교체할 만큼의 이득이 없다.
-- 전역 상태 라이브러리: TanStack Query와 React local state로 부족해질 때만 도입한다.
-- UI 컴포넌트 프레임워크: 기관 업무 화면의 밀도와 디자인을 먼저 정하고, 필요한 primitive만 도입한다.
+- Go/Fyne/Wails: `go-prototype-baseline-2026-07` 태그에서만 보존하고 활성 구현에는 유지하지 않는다.
+- Electron: 호스트 제어면만을 위해 브라우저 엔진과 Node runtime을 번들하지 않는다.
+- PyInstaller `onefile`: 초기 기본값으로 사용하지 않는다. 실제 Windows 검증 후 보조 산출물로만 검토한다.
+- Django: 현재 목표는 명시적인 API와 React UI이며 Django admin 중심 구조를 필요로 하지 않는다.
+- 전역 상태 라이브러리: TanStack Query와 React local state로 부족하다는 근거가 생길 때만 도입한다.

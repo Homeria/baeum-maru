@@ -2,59 +2,61 @@
 
 ## 원칙
 
-- MVP를 빠르게 끝내는 것이 목표가 아니다.
-- 업무 규칙을 유지한 채 실제 운영 화면과 배포 구조를 검증한다.
-- 큰 전환은 작고 검증 가능한 브랜치로 나눈다.
-- 사용자 데이터가 아직 없으므로, 스키마 오류는 지금 바로 바로잡는다.
+- 활성 구현을 Python/FastAPI로 전면 교체하며 Go와 Python을 동시에 유지하지 않는다.
+- Go 구현은 `go-prototype-baseline-2026-07` 태그에서만 참고한다.
+- 실사용 데이터가 없으므로 최신 스키마 하나에서 Alembic 이력을 시작한다.
+- 프로젝트 소유자가 읽고 검증할 수 있는 명시적인 코드와 테스트를 우선한다.
+- 큰 전환은 항상 buildable하고 검증 가능한 브랜치로 나눈다.
+- 모든 작업은 `develop`에만 누적하고 사용자 요청 전에는 `main`을 변경하지 않는다.
 
-브랜치별 전체 순서와 수동 검증 지점은 `18_prototype_branch_roadmap.md`를 단일 기준으로 사용한다. 이 문서는 단계의 목적을 설명하고, 실제 다음 브랜치 판단은 로드맵 문서를 따른다.
+브랜치별 정확한 순서와 수동 검증 지점은 `18_prototype_branch_roadmap.md`를 단일 기준으로 사용한다.
 
-## 단계 0: 기준선 정리
+## 단계 0: Python reset
 
-- 프로토타입 작업은 `develop`에만 누적하며, 사용자 요청 전에는 `main`을 변경하지 않는다.
-- 프로토타입 브랜치 로드맵과 현재/목표 상태를 문서에 확정한다.
-- 기존 행동을 characterization test로 고정한 후 구조를 변경한다.
+- Go 프로토타입을 annotated tag로 보존한다.
+- Go/Fyne/template 코드와 Go 전용 CI를 제거한다.
+- Python 3.13, uv, FastAPI health endpoint, pytest, Ruff, mypy CI로 빈 기반을 만든다.
+- React workspace와 Windows PyInstaller `onedir` 포터블 실행을 조기에 검증한다.
 
-## 단계 1: 애플리케이션 경계 정리
+## 단계 1: 데이터와 application 기반
 
-- Fyne에 묶인 서버 제어, 네트워크 주소 탐색, 로그 구독을 `internal/launcher`로 추출한다.
-- Go template handler에서 재사용 가능한 command/query DTO를 서비스 경계에 둔다.
-- Huma v2를 `net/http` 위에 도입하고 `/api/v1`의 OpenAPI, 인증, 오류 형식, 페이지네이션, 필터, 권한 규약을 정의한다.
-- 공간의 층 참조 모델을 확정하고 필요하면 `locations.building_floor_id`로 정리한다.
+- 현재 정규화 스키마를 SQLAlchemy 2 model과 단일 초기 Alembic migration으로 옮긴다.
+- FK, unique, check, index, cascade/null 정책을 실제 SQLite 테스트로 고정한다.
+- request scope session, unit of work, 공통 오류, audit/event 발행 경계를 만든다.
+- config, runtime directory, logging, backup filesystem 경계를 분리한다.
 
-## 단계 2: React 웹 기반
+## 단계 2: 업무 모듈
 
-- `frontend/web`에 React/Vite/TypeScript를 구성한다.
-- Go 빌드에 웹 정적 자산 embed 단계를 연결한다.
-- 로그인, 앱 shell, 권한별 메뉴, API client, SSE query invalidation을 만든다.
-- Go template 화면은 즉시 삭제하지 않고 전환 기간의 비교 기준으로 둔다.
+- identity, members, locations, courses, registrations, lottery, attendance, operations 순서로 구현한다.
+- 회원과 여러 신청을 하나의 transaction으로 저장하는 reception submission을 별도 use case로 만든다.
+- 기존 Go 코드를 줄 단위로 번역하지 않고 스키마 문서와 업무 규칙에서 Python 구현을 작성한다.
+- 각 모듈은 repository integration test와 application test를 가진다.
 
-## 단계 3: 핵심 업무 화면 재설계
+## 단계 3: REST API와 실시간 갱신
 
-우선순위는 다음과 같다.
+- `/api/v1`, 공통 오류, pagination/filter, OpenAPI 규약을 먼저 확정한다.
+- 접속 코드 session, 역할 권한, CSRF, throttling을 server side에서 강제한다.
+- 각 업무 모듈의 REST endpoint와 SSE domain event를 추가한다.
+- OpenAPI에서 TypeScript client를 생성하고 계약 차이를 CI에서 검사한다.
 
-1. 접수: 회원 검색/신규 등록/수정과 다중 강좌 선택을 한 흐름으로 처리
-2. 회원 관리: 검색, 상세, 수정, 신청 이력
-3. 강좌 운영: 회차, 분류, 과목, 강사, 공간, 복수 시간표, 정원 타입
-4. 신청 현황: 검색, 상태 변경, 충돌/정원 정보, 실시간 갱신
-5. 추첨, 출석, Excel, 백업 화면
+## 단계 4: React 업무 화면
 
-## 단계 4: Wails 런처 프로토타입
+- 디자인 token과 업무용 primitive를 만든 뒤 로그인과 app shell을 구성한다.
+- 접수, 회원, 강좌, 신청, 추첨, 출석, Excel/백업 순서로 화면을 구현한다.
+- TanStack Query와 SSE를 연결하고 폼 편집 중 변경 충돌 UX를 제공한다.
+- 한글 입력, 키보드, 좁은 화면, 다중 브라우저를 자동/수동 검증한다.
 
-- `spike/wails-launcher-prototype`에서 WebView2, 한글 입력, 탭 상태 유지, 실행 파일 크기를 검증한다.
-- 통과 기준: 서버 시작/중지, 주소 표시, 접속 코드 목록, 한글 입력, 로그 이벤트가 실제 Windows 장비에서 동작한다.
-- 이후 `frontend/launcher`과 `cmd/launcher`를 Wails로 교체한다. Fyne는 전환 완료까지 유지한다.
-- Wails와 별개로 콘솔 서버 fallback 실행 경로를 유지하고, WebView2가 없는 PC에서도 브라우저 업무가 가능한지 확인한다.
+## 단계 5: localhost 호스트 콘솔
 
-## 단계 5: 보안과 동시성
+- loopback 전용 FastAPI control app과 별도 React host app을 만든다.
+- 업무 서버 시작/중지/재시작, bind address, 실제 접속 URL, 접속 코드, 로그, 백업, 초기 공간 설정을 제공한다.
+- 호스트 콘솔 API가 LAN에서 접근되지 않는지 자동 테스트한다.
+- 실행 파일을 켰을 때 업무 서버는 정지 상태이고 기본 브라우저에는 host console만 연다.
 
-- HTTPS 인증서 생성/설정과 안전한 쿠키를 도입한다.
-- CSRF, 로그인 실패 제한, 보안 헤더, 파일 업로드 검증을 추가한다.
-- 2~5개 브라우저 동시 접수, 동일 회원 동시 신청, 서버 재시작, 이벤트 재연결을 자동/수동 검증한다.
+## 단계 6: 보안, 패키징, 운영 검증
 
-## 단계 6: 운영 검증과 릴리즈
-
-- 회원 1,000명, 강좌 50개, 신청 3,000건 수준의 더미 데이터로 흐름을 점검한다.
-- 사무용 Windows 노트북에서 Wails/WebView2와 포터블 패키지를 확인한다.
-- Windows CI에서 React 빌드, Huma API contract 검사, Wails 빌드, Go test/race, WebView2/fallback 패키지 smoke test를 실행한다.
-- 사용자 가이드와 장애 대응 가이드를 작성한다.
+- HTTPS, secure cookie, CSRF, CSP, 로그인 실패 제한을 검증한다.
+- 동일 회원 동시 접수, 추첨 잠금, 중복 제출, 재기동과 SSE 재연결을 테스트한다.
+- PyInstaller `onedir` 포터블 ZIP을 Windows CI와 일반 사무용 노트북에서 확인한다.
+- 회원 1,000명, 강좌 50개, 신청 3,000건과 2~5개 브라우저로 운영 리허설을 수행한다.
+- 설치, 운영, 백업, 장애 대응 가이드를 작성한다.
