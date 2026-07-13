@@ -18,9 +18,9 @@
 ## 현재 위치
 
 - Go checkpoint: `go-prototype-baseline-2026-07`
-- 최근 완료: `docs/python-schema-baseline`
-- 현재 작업: `feat/sqlalchemy-alembic-baseline`
-- 다음 예정: `test/sqlite-schema-contract`
+- 최근 완료: `feat/sqlalchemy-alembic-baseline`
+- 현재 작업: `test/sqlite-schema-contract`
+- 다음 예정: `feat/sqlalchemy-unit-of-work`
 - merge target: `develop` only
 
 ## A. 실행 및 아키텍처 기반

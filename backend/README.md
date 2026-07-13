@@ -44,3 +44,12 @@ uv run alembic -c alembic.ini check
 ```
 
 현재 기준선은 `20260713_0001_initial_schema.py` 한 개이며 업무 테이블 30개와 성별 코드 3개를 생성한다.
+
+실제 SQLite 결과는 `tests/contracts/sqlite_schema.json` 승인 스냅샷으로 고정한다. migration을 의도적으로 변경한 경우에만 아래 명령을 실행하고, 생성된 컬럼·PK·FK 삭제 정책·UNIQUE·CHECK·index diff를 검토한다.
+
+```powershell
+uv run python -m tests.update_sqlite_schema_contract
+uv run pytest tests/test_sqlite_schema_contract.py
+```
+
+스냅샷만 먼저 갱신해 실패를 없애지 않는다. schema 문서와 SQLAlchemy model, Alembic revision을 함께 변경한 뒤 계약 diff를 승인한다.

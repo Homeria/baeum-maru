@@ -29,6 +29,8 @@
 - 기능별 SQLAlchemy model 30개, 공통 metadata registry와 SQLite session factory를 구현했다.
 - `20260713_0001` initial Alembic revision은 빈 DB upgrade/downgrade, metadata diff와 성별 seed 검사를 통과한다.
 - mutable model의 `version`은 SQLAlchemy optimistic concurrency mapper에 연결되어 있다.
+- 실제 SQLite의 컬럼, PK, FK 삭제 정책, UNIQUE, CHECK와 index는 승인된 schema contract snapshot으로 고정되어 있다.
+- 대표 무결성 위반과 partial UNIQUE, CASCADE/RESTRICT 동작을 실제 SQL로 검증한다.
 - GitHub Actions는 비워 두었고 Python API/frontend 계약 안정화 이후 새로 추가한다.
 - 최신 DB schema, 업무 rule, screen requirement, license policy는 유지한다.
 
@@ -52,13 +54,13 @@
 
 ## 바로 다음 작업
 
-`test/sqlite-schema-contract`
+`feat/sqlalchemy-unit-of-work`
 
-이 branch는 실제 SQLite에서 FK, UNIQUE, CHECK, partial index, cascade/restrict, WAL과 busy timeout 계약을 위반하는 입력을 실행해 DB가 기준선을 강제하는지 검증한다. `main`은 변경하지 않는다.
+이 branch는 HTTP request와 launcher/background task가 같은 transaction 원칙을 사용하도록 session과 unit of work 경계를 정의한다. commit/rollback 소유권과 repository가 session 생명주기를 소유하지 않는 규칙을 테스트로 고정한다. `main`은 변경하지 않는다.
 
 ## 현재 로컬 검증
 
-- `uv lock --check`, Ruff, mypy, pytest 26개 통과
+- `uv lock --check`, Ruff, mypy, pytest 30개 통과
 - operator/launcher TypeScript typecheck와 oxlint 통과
 - operator/launcher Vitest와 Vite production build 통과
 - 실제 Uvicorn process에서 `/api/v1/health`, runtime directory와 JSON file log 생성을 확인
