@@ -2,7 +2,7 @@
 
 ## 기준 시점
 
-2026-07-13 기준. Go 활성 구현 제거와 Python/React 보일러플레이트 구성을 완료했다.
+2026-07-13 기준. Python/React 보일러플레이트와 Python config/runtime 기반을 완료했다.
 
 ## 보존 기준점
 
@@ -17,6 +17,10 @@
 - `backend/`는 Python 3.13, uv, FastAPI health API, pytest, Ruff, mypy 기준선을 가진다.
 - `frontend/`는 pnpm workspace와 operator/launcher React/Vite/TypeScript 앱을 가진다.
 - 두 frontend 앱은 Vitest/Testing Library, oxlint, TypeScript build가 구성되어 있다.
+- backend는 개발/배포 포터블 runtime 경로와 writable directory를 자동 구성한다.
+- 설정은 JSON, runtime `.env`, OS 환경변수를 Pydantic으로 병합·검증한다.
+- application logger는 JSON rotating file과 console을 제공하고 주요 secret/개인정보 key를 마스킹한다.
+- FastAPI lifespan은 불변 `RuntimeContext`를 조립하며 업무 상태를 프로세스 전역에 저장하지 않는다.
 - GitHub Actions는 비워 두었고 Python API/frontend 계약 안정화 이후 새로 추가한다.
 - 최신 DB schema, 업무 rule, screen requirement, license policy는 유지한다.
 
@@ -40,12 +44,13 @@
 
 ## 바로 다음 작업
 
-`feat/python-config-runtime`
+`refactor/python-application-boundaries`
 
-이 branch는 portable runtime path, Pydantic settings, 환경별 설정, structured logging과 writable directory 경계를 구성한다. `main`은 변경하지 않는다.
+이 branch는 기능 우선 modular monolith 안에서 router/application/domain/repository 의존 방향, composition root와 command/query 경계를 코드와 architecture test로 고정한다. `main`은 변경하지 않는다.
 
 ## 현재 로컬 검증
 
-- `uv lock --check`, Ruff, mypy, pytest 통과
+- `uv lock --check`, Ruff, mypy, pytest 15개 통과
 - operator/launcher TypeScript typecheck와 oxlint 통과
 - operator/launcher Vitest와 Vite production build 통과
+- 실제 Uvicorn process에서 `/api/v1/health`, runtime directory와 JSON file log 생성을 확인

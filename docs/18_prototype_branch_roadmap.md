@@ -2,127 +2,113 @@
 
 ## 목적
 
-Go 기능 검증 구현을 폐기하고 `Python + FastAPI + SQLite + React/Vite/TypeScript` 기반 프로토타입을 완성하기 위한 branch 순서다. 다음 branch를 만들거나 구현하기 전에 이 문서를 먼저 확인한다.
+`Python + FastAPI + SQLite + React/Vite/TypeScript + pywebview` 기반 프로토타입을 완성하기 위한 작업 순서다. 다음 브랜치를 만들거나 구현하기 전에 이 문서를 단일 기준으로 확인한다.
 
-## 운영 규칙
+## 진행 원칙
 
-- 모든 작업 branch는 최신 `develop`에서 만들고 PR과 CI 통과 후 `develop`에 merge한다.
+- 모든 작업 브랜치는 최신 `develop`에서 만들고 PR 검증 후 `develop`에 병합한다.
 - `main`은 사용자가 명시적으로 요청하기 전까지 변경하거나 PR 대상으로 사용하지 않는다.
-- Go 구현은 `go-prototype-baseline-2026-07` tag에서만 보존하고 active tree에 fallback으로 남기지 않는다.
-- 실사용 데이터가 없으므로 Go DB 호환 migration을 작성하지 않는다.
-- 수동 확인 branch는 사용자의 실제 확인과 feedback 전에는 merge하지 않는다.
-- 순서를 바꿔야 하면 먼저 roadmap 문서에서 이유와 dependency를 갱신한다.
-- 각 branch는 test, documentation, CI 영향을 함께 완료한다.
+- Go 구현은 `go-prototype-baseline-2026-07` 태그에서만 보존하며 활성 코드에 호환 계층을 두지 않는다.
+- 실사용 데이터가 없으므로 초기 Alembic 이력은 최신 스키마 하나에서 시작한다.
+- 19번 CI 기반 전까지는 로컬 전체 검증과 PR 검토를 병합 조건으로 삼는다. 19번 이후에는 PR CI 통과도 필수다.
+- `manual` 브랜치는 실제 Windows 또는 다중 브라우저 확인이 필요하므로 사용자 피드백 전에는 병합하지 않는다.
+- 기반 브랜치는 공통 경계를 수평으로 만들고, 업무 기능은 DB/application/API/UI/test를 함께 끝내는 세로 슬라이스로 구현한다.
+- 순서를 바꾸면 이 문서에 dependency와 이유를 먼저 반영한다.
 
 ## 현재 위치
 
-- Go checkpoint: `go-prototype-baseline-2026-07` → `547977b`
+- Go checkpoint: `go-prototype-baseline-2026-07`
 - 최근 완료: `refactor/python-project-reset`
-- 다음 예정: `feat/python-config-runtime`
+- 현재 작업: `feat/python-config-runtime`
+- 다음 예정: `refactor/python-application-boundaries`
 - merge target: `develop` only
 
-## 1. Python reset과 실행 기반
+## A. 실행 및 아키텍처 기반
 
-1. `docs/python-transition-roadmap`: Python 기술 결정, architecture, 전체 roadmap 확정
-2. `refactor/python-project-reset`: Go/Fyne/template/workflow 제거, backend uv/FastAPI와 operator/launcher pnpm boilerplate 생성
-3. `feat/python-config-runtime`: portable path, JSON/env 설정, runtime directory, structured logging
-4. `docs/python-schema-baseline`: 최신 table/constraint/cascade와 building-floor-location FK 결정 확정
-5. `feat/sqlalchemy-alembic-baseline`: SQLAlchemy base/session과 단일 최신 Alembic initial schema
-6. `test/sqlite-schema-contract`: FK, unique, check, index, cascade/null, WAL/busy timeout 검증
-7. `feat/frontend-integration-foundation`: shared API client, environment, FastAPI dev proxy, launcher bridge type 경계
-8. `feat/fastapi-react-static-serving`: production asset manifest와 FastAPI static/history fallback
-9. `feat/windows-pywebview-onedir`: pywebview/WebView2 launcher shell과 Python/frontend asset을 포함한 portable directory build
-10. `test/windows-python-bootstrap-smoke`: Python 미설치 Windows, WebView2 유무, 한글/공백 경로, startup/size/memory 확인 - 수동 확인
+1. `docs/python-transition-roadmap`: Python 기술 결정과 전환 계획 확정
+2. `refactor/python-project-reset`: Go/Fyne 제거, uv/FastAPI와 pnpm React workspace 생성
+3. `feat/python-config-runtime`: portable runtime path, JSON/env 설정, structured logging, lifespan bootstrap
+4. `refactor/python-application-boundaries`: feature-first layered module, dependency rule, composition root
+5. `docs/python-schema-baseline`: 최신 table, constraint, cascade/null 정책 확정
+6. `feat/sqlalchemy-alembic-baseline`: SQLAlchemy base/session과 단일 initial migration
+7. `test/sqlite-schema-contract`: FK, unique, check, index, WAL, busy timeout 검증
+8. `feat/sqlalchemy-unit-of-work`: request/task session과 transaction 경계
+9. `feat/api-foundation`: `/api/v1`, 공통 오류, request ID, pagination, OpenAPI metadata
+10. `feat/application-events-audit`: commit 이후 event와 audit sink 경계
+11. `feat/realtime-websocket-foundation`: 인증 가능한 WebSocket, heartbeat, resource event, 재연결 계약
+12. `feat/frontend-integration-foundation`: typed API client, TanStack Query, WebSocket invalidation, launcher bridge type
+13. `feat/fastapi-react-static-serving`: production asset와 history fallback 제공
+14. `feat/launcher-control-bridge`: pywebview bridge allowlist와 lifecycle state machine
+15. `feat/launcher-shell-foundation`: persistent tab 기반 독립 런처 shell
+16. `feat/launcher-server-lifecycle`: 서버 시작/중지/재시작과 bind/port/address 상태
+17. `feat/windows-pywebview-onedir`: WebView2 기반 PyInstaller `onedir` artifact
+18. `manual/windows-bootstrap-smoke`: Python 없는 Windows, 한글/공백 경로, WebView2, 시작 속도 확인
+19. `ci/python-react-foundation`: backend/frontend/package 기본 PR quality gate
 
-종료 기준: Go code 없이 Python health server와 두 React shell이 build되고 Windows portable artifact가 실행된다.
+종료 기준: 공통 실행 경계, DB transaction, REST/WebSocket 계약, React와 pywebview 배포 경로가 실제 Windows에서 검증된다.
 
-## 2. application과 업무 모듈
+## B. 접근 및 기관 환경
 
-11. `refactor/python-application-boundaries`: api/application/domain/port/infrastructure 규칙과 composition root
-12. `feat/sqlalchemy-unit-of-work`: request/task session과 multi-repository transaction
-13. `feat/application-events-audit`: domain event, audit sink, commit 이후 WebSocket publisher 경계
-14. `feat/identity-module`: user, access code, session, role, expiry/revoke policy
-15. `feat/member-module`: member entity, repository, search, create/update rule
-16. `feat/location-module`: building, floor, space, role, multi-role assignment
-17. `feat/course-module`: term, category, course, instructor, offering, multi-schedule
-18. `feat/registration-module`: application, duplicate/time/limit rule, status history
-19. `feat/reception-submission-usecase`: member create/update와 multiple registration atomic command
-20. `feat/lottery-module`: run, target, seeded result, rerun guard, waitlist promotion
-21. `feat/attendance-module`: session과 attendance record
-22. `feat/excel-operation-module`: member/course import와 업무별 export
-23. `feat/backup-restore-module`: backup list/create, restore queue, restart application
-24. `feat/settings-operation-jobs`: setting, long-running job, job error/status
-25. `test/python-workflow-characterization`: 접수→추첨→확정→출석→Excel→backup/restore 전체 workflow
+20. `feat/identity-access-code`: access code, session, role, expiry/revoke 정책과 API
+21. `feat/operator-auth-shell`: 로그인, 현재 session, 권한 메뉴, 만료 UX
+22. `feat/operator-realtime-query-sync`: query cache 무효화, reconnect reconciliation, 편집 중 충돌 표시
+23. `feat/launcher-access-management`: 코드 발급/연장/폐기/삭제와 접속 현황
+24. `feat/organization-settings`: 기관 정보, 로고, 신청 가능 개수와 운영 설정
+25. `feat/location-domain-api`: building, floor, space, role, 다중 역할의 application/API
+26. `feat/operator-location-management`: 공간 기준정보 전체 관리 화면
+27. `manual/location-management-ux`: 공간/건물/층/역할 등록과 한글 입력 검증
 
-종료 기준: HTTP/UI 없이 Python application service와 실제 SQLite integration test만으로 한 업무 cycle이 동작한다.
+종료 기준: 호스트 담당자가 기관 환경과 접근 권한을 준비하고 직원이 안전하게 로그인한다.
 
-## 3. FastAPI REST API와 실시간 계약
+## C. 강좌, 회원 및 접수
 
-26. `feat/api-foundation`: `/api/v1`, health/readiness, common error, request ID, OpenAPI metadata
-27. `feat/api-auth-sessions`: access code login/logout/current session/permission
-28. `feat/api-members`: member search, detail, create, update
-29. `feat/api-locations`: building, floor, space, role CRUD/status API
-30. `feat/api-course-reference-data`: term, category, course, instructor, time slot API
-31. `feat/api-course-offerings`: offering과 multiple schedule command/query
-32. `feat/api-reception-submissions`: member와 multiple application atomic endpoint
-33. `feat/api-registrations`: application search, cancel, confirm, status history
-34. `feat/api-lottery-runs`: preview, execute, rerun, result
-35. `feat/api-attendance`: session과 attendance bulk save/query
-36. `feat/api-excel-operations`: upload validation, import/export job과 download
-37. `feat/api-backup-restore`: backup status/create/list와 restore queue
-38. `feat/api-settings-audit-jobs`: setting, audit log, operation job endpoint
-39. `feat/api-realtime-events`: authenticated `/api/v1/events/ws`, resource event, heartbeat, reconnect reconciliation
-40. `test/openapi-contract`: endpoint, DTO, error, permission, schema snapshot
-41. `ci/python-api-contract`: 새 Python/frontend quality gate와 OpenAPI/client diff PR 검사
+28. `feat/course-reference-domain-api`: term, category, instructor, time slot의 application/API
+29. `feat/course-offering-domain-api`: course, offering, multiple schedule와 충돌 규칙
+30. `feat/operator-course-management`: 강좌 기준정보와 개설 강좌 관리 화면
+31. `manual/course-management-ux`: 실제 시간표 입력과 수정 흐름 검증
+32. `feat/member-domain-api`: 회원 등록/수정/상태와 검색 query
+33. `feat/operator-member-management`: 회원 목록, 상세, 수정, 신청 이력
+34. `feat/registration-domain-api`: 신청, 중복/시간/개수 제한, 상태 이력
+35. `feat/reception-submission-api`: 회원과 복수 강좌 신청의 원자적 command
+36. `feat/operator-reception-workspace`: 한 화면 회원 검색/입력, 강좌 선택, 접수 결과
+37. `manual/multi-user-reception`: 2~5개 브라우저 동시 접수와 즉시 갱신 검증
 
-종료 기준: React가 필요한 모든 업무를 `/api/v1`로 수행하고 OpenAPI와 실제 response가 일치한다.
+종료 기준: 여러 직원이 같은 데이터를 보며 회원과 복수 강좌 신청을 안전하게 접수한다.
 
-## 4. React 직원 업무 앱
+## D. 추첨, 출석 및 운영 기능
 
-42. `feat/operator-design-system`: token, typography, icon button, form, table, dialog, notification
-43. `feat/operator-auth-shell`: login, routing, permission menu, error boundary, session expiry
-44. `feat/operator-realtime-query-sync`: TanStack Query와 WebSocket resource invalidation/reconnect
-45. `feat/operator-reception-member-flow`: member search/select/new/edit
-46. `feat/operator-reception-course-picker`: filter 가능한 multiple course selection과 conflict hint
-47. `feat/operator-reception-submit`: validation, atomic submit, conflict/retry UX - 수동 확인
-48. `feat/operator-member-management`: member list/detail/edit/application history
-49. `feat/operator-location-management`: building, floor, space, role management
-50. `feat/operator-course-operations`: term/reference/offering/multiple schedule workflow - 수동 확인
-51. `feat/operator-registration-dashboard`: search/filter/status/cancel/confirm
-52. `feat/operator-lottery`: preparation, execute, result, rerun confirmation
-53. `feat/operator-attendance`: session, bulk attendance, history
-54. `feat/operator-operations`: Excel, backup, setting, audit/job status
-55. `test/operator-e2e-accessibility`: Playwright, keyboard, responsive, Korean IME, reconnect
+38. `feat/lottery-domain-api`: seeded draw, result, waitlist, rerun guard와 잠금
+39. `feat/operator-lottery`: 준비, 실행, 결과, 재추첨 확인 화면
+40. `feat/attendance-domain-api`: 수업 회차와 출석 일괄 저장/query
+41. `feat/operator-attendance`: 출석 입력과 이력 화면
+42. `feat/excel-domain-api`: 회원/강좌 import 검증과 업무별 export job
+43. `feat/operator-excel-operations`: 업로드 오류 확인, 작업 상태, 다운로드
+44. `feat/backup-restore-domain-api`: backup 생성/목록과 restart-required restore queue
+45. `feat/launcher-backup-logs`: backup/restore, 분류 로그, 오류 상세
+46. `feat/audit-operation-jobs`: 감사 로그와 장기 작업 상태/오류
+47. `feat/operator-operations`: audit, job, 운영 설정 화면
+48. `test/core-workflow-characterization`: 접수→추첨→확정→출석→Excel→backup/restore 통합 검증
+49. `feat/launcher-dashboard-settings`: 운영 요약, 네트워크, 서버 설정과 기관 현황
+50. `manual/launcher-operation-ux`: 런처 전체 lifecycle과 장애 표시 검증
 
-종료 기준: 직원이 browser에서 한 회차의 핵심 업무를 수행하고 다른 사용자 변경이 안전하게 반영된다.
+종료 기준: 교육 담당자가 한 운영 회차의 핵심 업무와 백업을 끝까지 수행한다.
 
-## 5. pywebview 호스트 런처
+## E. 보안, 동시성 및 배포 완성
 
-56. `feat/launcher-control-bridge`: typed pywebview bridge, lifecycle state machine, child process control, network resolver
-57. `feat/launcher-shell-foundation`: pywebview React app, persistent tabs, status/error shell, local asset policy
-58. `feat/host-dashboard-server-control`: start/stop/restart, bind mode, port, access URL - 수동 확인
-59. `feat/host-access-management`: access code issue/extend/revoke/delete/presence summary
-60. `feat/host-environment-setup`: organization, logo, building/floor/space/role, default limits
-61. `feat/host-logs-backup-settings`: categorized log, backup/restore, network/config, lab placeholders - 수동 확인
-62. `test/launcher-control-isolation`: remote navigation/bridge 차단, command race, child crash, graceful shutdown
+51. `feat/security-csrf-headers`: CSRF, CSP, security header, upload boundary
+52. `feat/security-login-throttling`: 로그인 실패 제한, lockout, audit
+53. `feat/security-local-https`: 로컬 인증서 생성, 갱신, trust 안내와 Secure cookie
+54. `feat/concurrency-idempotency-locks`: 중복 submit, optimistic conflict, lottery/restore lock
+55. `feat/access-session-presence`: active session과 last-seen 현황
+56. `test/multi-client-concurrency`: 동시 접수, WebSocket 단절/재연결, stale UI 검증
+57. `test/large-dataset-performance`: 회원 1,000명, 강좌 50개, 신청 3,000건
+58. `test/failure-backup-recovery`: 강제 종료, 네트워크 단절, backup/restore 실패 복구
+59. `test/openapi-contract`: endpoint, DTO, error, permission schema snapshot
+60. `ci/frontend-windows-package`: React, Python, OpenAPI client, PyInstaller Windows gate
+61. `feat/windows-portable-package`: versioned ZIP, runtime tree, first-run guide, checksum
+62. `manual/windows-portable-smoke`: 일반 사무용 Windows에서 full package 검증
+63. `docs/operator-guide`: 설치, 런처, 접수, 추첨, 출석, backup 안내
+64. `docs/troubleshooting-security`: 방화벽, 인증서, 백신, 복구, 로그 안내
+65. `manual/prototype-operation-simulation`: 실제 시간표 기반 한 회차 운영 rehearsal
 
-종료 기준: 호스트 담당자가 pywebview 독립 런처만으로 업무 서버와 초기 운영 환경을 관리한다.
-
-## 6. 보안, 동시성, 패키징과 릴리즈
-
-63. `feat/security-csrf-headers`: CSRF, CSP, security header, upload boundary
-64. `feat/security-login-throttling`: login failure rate limit, lockout, audit
-65. `feat/security-local-https`: local certificate generation, trust/renewal guidance, Secure cookie
-66. `feat/concurrency-idempotency-locks`: duplicate submit, optimistic conflict, lottery/restore lock
-67. `feat/access-session-presence`: access code별 active session과 last-seen
-68. `test/multi-client-concurrency`: 2~5 browser concurrent reception and WebSocket reconnect
-69. `test/large-dataset-performance`: member 1,000, course 50, registration 3,000
-70. `test/failure-backup-recovery`: kill/restart, network loss, backup/restore failure
-71. `ci/frontend-windows-package`: React, Python, OpenAPI, PyInstaller Windows CI
-72. `feat/windows-portable-package`: versioned ZIP, config/runtime folder, first-run guide, checksum
-73. `test/windows-portable-smoke`: 일반 사무용 Windows에서 full package 검증 - 수동 확인
-74. `docs/operator-guide`: 설치, host launcher, reception, lottery, backup guide
-75. `docs/troubleshooting-security`: firewall, certificate, antivirus, restore, log guide
-76. `test/prototype-operation-simulation`: 한 회차 전체 운영 rehearsal - 수동 확인
-
-종료 기준: 품질 및 release checklist를 통과하고 `develop`에 Python prototype 기준점을 남긴다. `main` 반영과 release tag는 사용자가 별도로 요청할 때만 진행한다.
+종료 기준: 보안, 성능, 동시성, 복구 및 배포 점검을 통과한 Python 프로토타입을 `develop`에 남긴다. `main` 병합과 release tag는 사용자가 별도로 요청할 때만 진행한다.

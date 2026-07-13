@@ -14,7 +14,7 @@ backend/
   app/
     main.py                   FastAPI operator app 조립
     launcher_main.py          pywebview launcher entry point
-    core/                     config, security, errors, logging, events
+    core/                     runtime path, config, security, errors, logging, events
     db/                       SQLAlchemy base, session, unit of work
     launcher/                 bridge, server lifecycle, network, diagnostics
     modules/
@@ -52,7 +52,7 @@ docs/
 
 GitHub Actions는 Python/React 계약이 안정되기 전까지 비워 두고 로드맵의 CI branch에서 새로 구성한다.
 
-## 기능 모듈 내부
+## 기능 우선 모듈
 
 ```text
 modules/members/
@@ -66,6 +66,25 @@ modules/members/
 ```
 
 모듈이 작을 때 파일을 억지로 모두 만들지 않는다. 하지만 dependency 방향과 transaction 경계는 유지한다.
+
+루트에 전역 `routers/`, `services/`, `repositories/`를 만들지 않는다. 회원 코드는 `modules/members/`, 강좌 코드는 `modules/courses/`처럼 기능별로 모으고, 모듈이 실제로 커질 때만 `api/`, `application/`, `domain/`, `infrastructure/` 하위 디렉터리로 확장한다.
+
+## 런타임 파일
+
+```text
+runtime/
+  config/settings.json
+  config/.env
+  data/baeum-maru.db
+  logs/baeum-maru.log
+  backups/
+  exports/
+  imports/
+  certificates/
+  tmp/
+```
+
+이 디렉터리는 source나 PyInstaller bundle에 포함하지 않는다. 개발 시 저장소 루트, 배포 시 실행 파일 옆에 만들며 `BAEUM_MARU_RUNTIME_DIR`로 재정의할 수 있다.
 
 ## 경계 규칙
 
