@@ -34,7 +34,7 @@
 - Python 3.13과 FastAPI, Pydantic, SQLAlchemy, Alembic, pywebview 의존성 결정은 유지한다.
 - 정규화된 데이터 모델 문서는 ORM, migration과 schema contract의 source of truth로 유지한다.
 - `frontend/`의 operator/launcher React/Vite/TypeScript 보일러플레이트는 유지한다.
-- GitHub Actions는 비워 두었고 API/frontend 계약 안정화 이후 새로 추가한다.
+- GitHub Actions는 `develop` PR/push에서 Python과 React 기본 품질 검사를 각각 실행한다.
 
 ## 코드 탐색 기준
 
@@ -62,9 +62,9 @@ Schema는 router와 service 사이의 API 입력·응답 계약이다. Router는
 
 ## 바로 다음 작업
 
-`ci/python-react-foundation`
+`feat/application-events-audit`
 
-백엔드 Ruff/mypy/pytest와 프론트엔드 typecheck/lint/test/build를 PR에서 검증하는 기본 GitHub Actions를 구성한다. Windows package 검증은 packaging 기반이 생긴 뒤 별도 workflow로 추가한다. `main`은 변경하지 않는다.
+service transaction이 성공한 뒤에만 후속 event와 audit 기록을 전달할 수 있는 단순한 경계를 구현한다. 업무 도메인 구현 전에 실패한 transaction의 event가 외부로 노출되지 않는 계약을 고정한다. `main`은 변경하지 않는다.
 
 ## 현재 검증 범위
 
@@ -76,4 +76,5 @@ Schema는 router와 service 사이의 API 입력·응답 계약이다. Router는
 - Python compile, Ruff와 mypy 통과
 - operator/launcher TypeScript typecheck, oxlint, Vitest와 production build 통과
 - FastAPI lifespan, health, OpenAPI, request ID, 공통 오류와 pagination API 계약 pytest
+- `develop` PR/push에서 backend format/lint/typecheck/test와 frontend typecheck/lint/test/build CI
 - 업무 도메인 endpoint, 인증과 WebSocket은 아직 구현하지 않음
