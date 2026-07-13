@@ -18,7 +18,7 @@ backend/
     launcher_main.py          pywebview launcher entry point
     api/dependencies.py       FastAPI 공통 dependency adapter
     core/                     runtime path, config, security, errors, logging, events
-    db/                       SQLAlchemy base, session, unit of work
+    db/                       SQLAlchemy base, metadata registry, SQLite session
     shared/application.py     command/query handler protocol
     launcher/                 bridge, server lifecycle, network, diagnostics
     modules/
@@ -32,7 +32,7 @@ backend/
       attendance/
       operations/
   alembic/
-    versions/                 최신 기준 스키마부터 시작하는 migration
+    versions/                 `20260713_0001`부터 시작하는 migration
   tests/
     unit/ integration/ contract/
 
