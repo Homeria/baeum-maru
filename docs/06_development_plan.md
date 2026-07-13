@@ -8,6 +8,8 @@
 - 프로젝트 소유자가 읽고 검증할 수 있는 명시적인 코드와 테스트를 우선한다.
 - 큰 전환은 항상 buildable하고 검증 가능한 브랜치로 나눈다.
 - 모든 작업은 `develop`에만 누적하고 사용자 요청 전에는 `main`을 변경하지 않는다.
+- 공통 기반은 수평 계층으로 고정하되, 업무 기능은 DB/application/API/UI/test를 함께 완성하는 세로 슬라이스로 개발한다.
+- 서버는 영속 업무 상태를 메모리에 보관하지 않는 stateless modular monolith로 구성한다.
 
 브랜치별 정확한 순서와 수동 검증 지점은 `18_prototype_branch_roadmap.md`를 단일 기준으로 사용한다.
 
@@ -20,35 +22,35 @@
 - 기존 GitHub Actions를 모두 제거하고 API/frontend 계약이 안정된 뒤 Python/React CI를 새로 추가한다.
 - pywebview와 Windows PyInstaller `onedir` 포터블 실행을 조기에 검증한다.
 
-## 단계 1: 데이터와 application 기반
+## 단계 1: 실행, architecture와 데이터 기반
 
+- feature-first layered module과 composition root의 의존 규칙을 먼저 고정한다.
 - 현재 정규화 스키마를 SQLAlchemy 2 model과 단일 초기 Alembic migration으로 옮긴다.
 - FK, unique, check, index, cascade/null 정책을 실제 SQLite 테스트로 고정한다.
 - request scope session, unit of work, 공통 오류, audit/event 발행 경계를 만든다.
 - config, runtime directory, logging, backup filesystem 경계를 분리한다.
+- REST/WebSocket, React static serving, pywebview와 Windows `onedir` 실행 가능성을 업무 기능보다 먼저 검증한다.
 
-## 단계 2: 업무 모듈
+## 단계 2: 접근과 기관 환경
 
-- identity, members, locations, courses, registrations, lottery, attendance, operations 순서로 구현한다.
-- 회원과 여러 신청을 하나의 transaction으로 저장하는 reception submission을 별도 use case로 만든다.
-- 기존 Go 코드를 줄 단위로 번역하지 않고 스키마 문서와 업무 규칙에서 Python 구현을 작성한다.
-- 각 모듈은 repository integration test와 application test를 가진다.
+- access code, session, role과 만료/폐기 정책을 먼저 구현한다.
+- 직원 로그인 화면과 런처 접속 관리를 같은 session 계약에 연결한다.
+- 기관 정보와 building/floor/space/role 환경 구성을 실제 화면까지 완성한다.
 
-## 단계 3: REST API와 실시간 갱신
+## 단계 3: 강좌, 회원과 접수
 
-- `/api/v1`, 공통 오류, pagination/filter, OpenAPI 규약을 먼저 확정한다.
-- 접속 코드 session, 역할 권한, CSRF, throttling을 server side에서 강제한다.
-- 각 업무 모듈의 REST endpoint와 commit 이후 WebSocket domain event를 추가한다.
-- OpenAPI에서 TypeScript client를 생성하고 계약 차이를 CI에서 검사한다.
+- 강좌 기준정보와 개설 강좌, 복수 시간표를 application/API/UI까지 완성한다.
+- 회원 등록/수정/검색과 신청 이력 조회를 구현한다.
+- 회원과 여러 신청을 하나의 transaction으로 저장하는 reception submission을 별도 command로 만든다.
+- commit 이후 WebSocket event로 다른 직원의 query cache를 갱신한다.
 
-## 단계 4: React 업무 화면
+## 단계 4: 추첨, 출석과 운영
 
-- 디자인 token과 업무용 primitive를 만든 뒤 로그인과 app shell을 구성한다.
-- 접수, 회원, 강좌, 신청, 추첨, 출석, Excel/백업 순서로 화면을 구현한다.
-- TanStack Query와 WebSocket을 연결하고 폼 편집 중 변경 충돌 UX를 제공한다.
-- 한글 입력, 키보드, 좁은 화면, 다중 브라우저를 자동/수동 검증한다.
+- 추첨, 대기자, 출석, Excel 입출력, backup/restore를 각 세로 슬라이스로 구현한다.
+- audit와 장기 작업 상태를 직원 화면과 런처에서 조회한다.
+- 핵심 업무 전체를 실제 SQLite integration test로 연결한다.
 
-## 단계 5: pywebview 호스트 런처
+## 단계 5: 런처 운영 고도화
 
 - pywebview/WebView2 독립 창, React launcher app과 검증된 Python bridge를 만든다.
 - 업무 서버 시작/중지/재시작, bind address, 실제 접속 URL, 접속 코드, 로그, 백업, 초기 공간 설정을 제공한다.

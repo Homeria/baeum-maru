@@ -48,7 +48,7 @@ Python 3.13 + FastAPI + Pydantic v2
 
 ## application 아키텍처
 
-기능 중심 modular monolith와 얇은 layered/hexagonal boundary를 사용한다.
+stateless modular monolith와 기능 우선 layered architecture를 사용한다.
 
 ```text
 api adapter (FastAPI/Pydantic)
@@ -60,11 +60,25 @@ domain rule + repository protocol
 SQLAlchemy / filesystem / Excel adapter
 ```
 
+- 루트 계층별 디렉터리보다 기능 모듈 안에서 router, schema, service, domain, repository, model을 함께 관리한다.
 - 단순 CRUD에 불필요한 abstraction을 강제하지 않는다.
 - 여러 table과 repository를 바꾸는 업무 command는 application transaction으로 묶는다.
 - FastAPI와 SQLAlchemy model을 업무 규칙 자체로 사용하지 않는다.
 - domain event는 audit log와 commit 이후 WebSocket 발행을 HTTP handler 밖에서 연결한다.
 - module 간 호출은 public application interface를 통해 수행한다.
+- 변경 command는 application service와 unit of work를 사용하고 단순 목록/검색 query는 읽기 전용 projection을 허용한다.
+- generic repository, full CQRS framework, event sourcing은 도입하지 않는다.
+
+## stateless 원칙
+
+- FastAPI 프로세스 메모리에 업무 데이터와 로그인 session을 보관하지 않는다.
+- SQLite를 업무 상태의 source of truth로 사용하고 서버 cache는 두지 않는다.
+- session, operation job, lottery lock, idempotency key는 DB에 저장한다.
+- WebSocket connection registry는 일시적인 transport 상태일 뿐이며 재연결 시 REST API로 확정 데이터를 다시 읽는다.
+- pywebview launcher의 child process 상태는 업무 서버와 분리한다.
+- FastAPI 재시작 후 DB와 설정만으로 모든 업무 상태를 복구할 수 있어야 한다.
+
+TanStack Query의 browser cache는 서버 cache와 구분한다. client cache는 WebSocket event 수신과 재연결 시 무효화하고 REST API 응답으로 재구성한다.
 
 ## 데이터 결정
 

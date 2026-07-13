@@ -65,7 +65,9 @@
 
 ## 저장과 복구
 
-- DB와 운영 파일은 PyInstaller bundle과 분리된 writable directory에 둔다.
+- DB와 운영 파일은 PyInstaller bundle과 분리된 `runtime/` writable directory에 둔다.
+- 설정 우선순위는 OS 환경변수, `runtime/config/.env`, `runtime/config/settings.json`, 코드 기본값 순이다.
+- runtime 경로는 개발 시 저장소 루트, 배포 시 실행 파일 옆이며 환경변수로 재정의할 수 있다.
 - SQLite는 WAL, foreign key, busy timeout을 적용한다.
 - 복구는 실행 중 DB 파일을 덮어쓰지 않고 다음 안전한 재기동 시점에 적용한다.
 - 복구 직전 현재 DB를 별도 백업하고 성공 여부를 감사 로그에 남긴다.

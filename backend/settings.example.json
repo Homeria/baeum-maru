@@ -1,0 +1,13 @@
+{
+  "environment": "production",
+  "server": {
+    "host": "127.0.0.1",
+    "port": 18080
+  },
+  "logging": {
+    "level": "INFO",
+    "json_console": false,
+    "max_bytes": 5242880,
+    "backup_count": 5
+  }
+}
