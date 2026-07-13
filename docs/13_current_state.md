@@ -23,6 +23,8 @@
 - architecture test가 하위 계층의 상위 계층 import와 Unit of Work 추상화 재도입을 차단한다.
 - `db/base.py`는 Alembic과 model이 공유할 Declarative Base와 제약조건 이름 규칙을 제공한다.
 - `db/session.py`는 파일 기반 SQLite engine, 운영 PRAGMA와 자동 commit하지 않는 Session factory를 제공한다.
+- `app/models/`의 9개 도메인 파일에 문서 기준 30개 SQLAlchemy table model이 등록되어 있다.
+- `20260713_0001_initial_schema` Alembic revision이 빈 DB에 전체 schema와 성별 기준코드를 생성한다.
 - 독립 pywebview 제어는 `launcher/`, Excel과 backup 장시간 작업은 `jobs/`로 분리했다.
 - Python 3.13과 FastAPI, Pydantic, SQLAlchemy, Alembic, pywebview 의존성 결정은 유지한다.
 - 정규화된 데이터 모델 문서는 이후 ORM과 migration을 다시 구현할 설계 기준으로 유지한다.
@@ -55,15 +57,16 @@ Schema는 router와 service 사이의 API 입력·응답 계약이다. Router는
 
 ## 바로 다음 작업
 
-`feat/database-schema-baseline`
+`test/sqlite-schema-contract`
 
-정규화된 데이터 모델 문서를 기준으로 SQLAlchemy model 전체와 단일 Alembic initial revision을 새로 구성한다. 과거 Go/Python DB 이관 코드는 작성하지 않는다. `main`은 변경하지 않는다.
+실제 SQLite schema snapshot과 대표 위반 SQL을 이용해 FK, UNIQUE, CHECK, partial index, cascade/restrict와 필수 query index를 계약 테스트로 고정한다. `main`은 변경하지 않는다.
 
 ## 현재 검증 범위
 
 - runtime 경로, 설정 source 우선순위, 구조화 logging과 민감값 제거 pytest
 - 하위 계층의 상위 계층 import를 차단하는 architecture test
 - SQLite URL/PRAGMA/FK와 명시적 Session transaction pytest
+- 30개 metadata table, optimistic version, Alembic upgrade/check/downgrade와 seed pytest
 - Python compile, Ruff와 mypy 통과
 - operator/launcher TypeScript typecheck, oxlint, Vitest와 production build 통과
-- 실행 가능한 FastAPI API와 업무 table/migration은 아직 존재하지 않음
+- 실행 가능한 FastAPI API는 아직 존재하지 않음

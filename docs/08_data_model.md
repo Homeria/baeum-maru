@@ -2,7 +2,7 @@
 
 ## 상태와 범위
 
-이 문서는 Python 프로토타입의 단일 초기 SQLAlchemy/Alembic 스키마 설계 명세다. 이전 구현은 폐기했으며 이후 `models/`와 새 initial Alembic revision이 이 기준을 다시 구현해야 한다.
+이 문서는 Python 프로토타입의 단일 초기 SQLAlchemy/Alembic 스키마 설계 명세다. `app/models/`와 `20260713_0001_initial_schema` revision이 이 기준을 구현하며 이후 변경도 이 문서와 함께 갱신한다.
 
 - 과거 Go DB와의 호환 migration은 작성하지 않는다.
 - 초기 Alembic revision 이후 실제 데이터가 생기면 모든 변경을 migration으로 수행한다.

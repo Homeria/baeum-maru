@@ -5,7 +5,7 @@
 ## 현재와 목표
 
 - 보존 구현: `go-prototype-baseline-2026-07` 태그의 Go/SQLite/Go template/Fyne 프로토타입
-- 활성 구현: Python backend는 router-service-repository 보일러플레이트와 공통 runtime/DB 기반, frontend는 React operator/launcher 보일러플레이트 단계
+- 활성 구현: Python backend는 공통 runtime/DB 기반과 30개 테이블 초기 schema, frontend는 React operator/launcher 보일러플레이트 단계
 - 목표 프로토타입: Python 3.13, FastAPI, Pydantic v2, SQLAlchemy 2, SQLite, React/Vite/TypeScript, pywebview, WebSocket
 - 호스트 제어: pywebview와 WebView2 기반 독립 런처를 사용하며 직원 화면은 내부망 브라우저로 제공한다.
 - 배포: Python 설치가 필요 없는 PyInstaller `onedir` 포터블 ZIP을 기본으로 한다.

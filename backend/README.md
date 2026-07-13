@@ -2,7 +2,7 @@
 
 Python 3.13, FastAPI와 uv를 사용할 배움마루 백엔드 보일러플레이트다.
 
-현재 공통 runtime/config/logging과 SQLAlchemy Base/engine/Session factory가 구현되어 있다. 업무 model, Alembic migration과 FastAPI application은 이후 브랜치에서 새 구조에 맞춰 구현한다.
+현재 공통 runtime/config/logging, SQLAlchemy Base/engine/Session factory, 30개 업무 model과 단일 Alembic initial revision이 구현되어 있다. FastAPI application은 이후 브랜치에서 새 구조에 맞춰 구현한다.
 
 ## 읽는 순서
 
@@ -32,13 +32,15 @@ Router는 `Depends(get_db)`로 Session을 받아 service에 전달한다. Reposi
 
 ## 개발 도구
 
-실행 가능한 FastAPI application과 migration은 이후 브랜치에서 구현한다.
+빈 runtime DB에 현재 schema를 적용하려면 다음 명령을 사용한다.
 
 ```powershell
 uv sync --all-groups
 uv run ruff format --check .
 uv run ruff check .
 uv run mypy
+uv run pytest
+uv run alembic upgrade head
 ```
 
-`uv run uvicorn app.main:app`, Alembic과 pytest 명령은 해당 구현 및 테스트가 추가된 뒤 사용한다.
+`uv run uvicorn app.main:app`은 FastAPI application이 추가된 뒤 사용한다.

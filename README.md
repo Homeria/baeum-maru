@@ -4,7 +4,7 @@
 
 ## 현재 전환 상태
 
-기존 Go/Fyne 기능 검증 구현은 `go-prototype-baseline-2026-07` 태그에 보존했습니다. 활성 작업 트리에서는 `Python + FastAPI + SQLite + React/Vite + pywebview` 기반 프로토타입을 다시 구현하고 있습니다. 현재 runtime/config/logging과 SQLAlchemy engine/Session 기반까지 구현되어 있으며 업무 API는 아직 없습니다.
+기존 Go/Fyne 기능 검증 구현은 `go-prototype-baseline-2026-07` 태그에 보존했습니다. 활성 작업 트리에서는 `Python + FastAPI + SQLite + React/Vite + pywebview` 기반 프로토타입을 다시 구현하고 있습니다. 현재 runtime/config/logging, SQLAlchemy engine/Session과 30개 업무 테이블의 초기 Alembic 기준선까지 구현되어 있으며 업무 API는 아직 없습니다.
 
 - 기존 Go 코드는 활성 작업 트리에서 제거했으며 태그에서만 참고합니다.
 - Python 전환 작업은 `develop`에만 누적합니다.

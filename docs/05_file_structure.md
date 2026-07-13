@@ -12,6 +12,10 @@
 backend/
   pyproject.toml
   uv.lock
+  alembic.ini                     Alembic 실행 설정
+  alembic/
+    env.py                        전체 model metadata와 DB 경로 연결
+    versions/                     초기 revision 이후 schema 변경 이력
   app/
     main.py                       FastAPI 생성과 router 등록
     api/
@@ -35,7 +39,7 @@ backend/
     scenarios/                    핵심 사용자 흐름 테스트
 ```
 
-공통 runtime/config/logging과 DB engine/Session 기반부터 구현되어 있다. 업무 model, migration과 FastAPI application은 이후 브랜치에서 순서대로 추가한다.
+공통 runtime/config/logging, DB engine/Session, 업무 model과 초기 migration이 구현되어 있다. FastAPI application과 repository/service는 이후 브랜치에서 순서대로 추가한다.
 
 ## 기능 탐색 규칙
 
