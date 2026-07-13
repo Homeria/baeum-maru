@@ -18,9 +18,9 @@
 ## 현재 위치
 
 - Go checkpoint: `go-prototype-baseline-2026-07`
-- 최근 완료: `refactor/python-project-reset`
-- 현재 작업: `feat/python-config-runtime`
-- 다음 예정: `refactor/python-application-boundaries`
+- 최근 완료: `feat/python-config-runtime`
+- 현재 작업: `refactor/python-application-boundaries`
+- 다음 예정: `docs/python-schema-baseline`
 - merge target: `develop` only
 
 ## A. 실행 및 아키텍처 기반

@@ -69,6 +69,18 @@ SQLAlchemy / filesystem / Excel adapter
 - 변경 command는 application service와 unit of work를 사용하고 단순 목록/검색 query는 읽기 전용 projection을 허용한다.
 - generic repository, full CQRS framework, event sourcing은 도입하지 않는다.
 
+### 코드 경계
+
+- `app/main.py`는 `app/composition.py`만 import한다.
+- composition root가 runtime과 concrete handler를 불변 `ApplicationContainer`로 조립한다.
+- FastAPI dependency adapter는 lifespan에서 준비한 container를 request에 연결할 뿐 업무 상태를 저장하지 않는다.
+- 각 feature는 루트 `public.py`로 module 간 application 계약만 공개한다.
+- 다른 feature의 내부 `api`, `schemas`, `domain`, `repository`, `models`, `infrastructure`는 직접 import하지 않는다.
+- application/domain/port는 FastAPI, Pydantic, SQLAlchemy와 concrete persistence를 import하지 않는다.
+- 이 규칙은 `tests/architecture/test_import_boundaries.py`에서 AST import graph로 검사한다.
+
+변경 입력은 `*Command`와 `CommandHandler.execute()`, 읽기 입력은 `*Query`와 `QueryHandler.fetch()`로 구분한다. 별도 CQRS framework나 bus는 두지 않고 handler를 명시적으로 주입한다. SQLite 접근은 동기 SQLAlchemy transaction을 사용하고 FastAPI의 thread pool 경계를 이용한다.
+
 ## stateless 원칙
 
 - FastAPI 프로세스 메모리에 업무 데이터와 로그인 session을 보관하지 않는다.
