@@ -21,7 +21,9 @@
 ## 구현 원칙
 
 - branch 하나는 하나의 사용자 가치 또는 하나의 architecture boundary만 바꾼다.
-- FastAPI router, Pydantic schema, application service, repository 책임을 분리한다.
+- FastAPI router, Pydantic schema, service, repository와 model 책임을 분리한다.
+- 요청 흐름이 `router → service → repository → database` 순서로 읽히도록 동일한 도메인 파일명을 사용한다.
+- 새 계층, protocol과 handler abstraction은 실제 중복이나 대체 구현이 생기기 전에는 추가하지 않는다.
 - Pydantic validation만 믿지 않고 업무 rule과 DB constraint를 test한다.
 - 여러 repository를 바꾸는 use case는 unit of work transaction 안에서 수행한다.
 - API 변경은 success, validation, permission, conflict response를 test한다.

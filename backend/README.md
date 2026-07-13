@@ -1,55 +1,44 @@
 # Backend
 
-Python 3.13, FastAPI와 uv 기반 백엔드 프로젝트다.
+Python 3.13, FastAPI와 uv를 사용할 배움마루 백엔드 보일러플레이트다.
+
+현재 `app/`의 Python 파일에는 실행 코드가 없으며 각 파일의 책임을 설명하는 module docstring만 있다. 이전 feature-first 구현, SQLAlchemy model, Alembic migration과 자동화 테스트는 새 구조를 확정하기 위해 폐기했다.
+
+## 읽는 순서
+
+하나의 기능은 아래 순서로 읽는다.
+
+```text
+app/api/routers/<domain>.py
+        ↓
+app/services/<domain>_service.py
+        ↓
+app/repositories/<domain>_repository.py
+        ↓
+app/models/<domain>.py + app/db/
+```
+
+- `routers`: HTTP/WebSocket 입출력과 service 호출
+- `schemas`: Pydantic 요청·응답 형식
+- `services`: 업무 규칙과 transaction 흐름
+- `repositories`: SQLAlchemy 조회와 저장
+- `models`: SQLAlchemy table model
+- `db`: engine, Session과 unit of work
+- `core`: 설정, runtime 경로, logging, 보안과 공통 예외
+- `launcher`: pywebview 런처와 서버 process 제어
+- `jobs`: Excel과 backup 같은 장시간 작업
+
+Repository는 `commit()` 또는 `rollback()`하지 않는다. 여러 저장 작업의 transaction 결과는 service가 unit of work를 통해 결정한다.
+
+## 개발 도구
+
+의존성은 유지하지만 실행 가능한 FastAPI application과 migration은 이후 브랜치에서 다시 구현한다.
 
 ```powershell
 uv sync --all-groups
-uv run uvicorn app.main:app --reload
-uv run pytest
 uv run ruff format --check .
 uv run ruff check .
 uv run mypy
 ```
 
-개발 서버의 상태 확인 API는 `GET /api/v1/health`다.
-
-`app/composition.py`가 유일한 composition root이며 `app/main.py`는 이 경계만 import한다. 업무 코드는 `app/modules/<feature>/`에 기능별로 모으고, `pytest`에 포함된 architecture test가 domain/application의 framework·persistence 역참조와 비공개 모듈 간 import를 차단한다.
-
-## 런타임 설정
-
-개발 환경의 기본 writable 경로는 저장소 루트의 `runtime/`이다. 배포 환경에서는 실행 파일 옆의 `runtime/`을 사용한다. `BAEUM_MARU_RUNTIME_DIR`로 다른 경로를 지정할 수 있다.
-
-```text
-runtime/
-├─ config/settings.json
-├─ config/.env
-├─ data/baeum-maru.db
-├─ logs/baeum-maru.log
-├─ backups/
-├─ exports/
-├─ imports/
-├─ certificates/
-└─ tmp/
-```
-
-설정 우선순위는 OS 환경변수, `runtime/config/.env`, `runtime/config/settings.json`, 코드 기본값 순이다. 지원 키는 `.env.example`과 `settings.example.json`에서 확인한다.
-
-## 데이터베이스 migration
-
-새 DB와 schema 변경은 `Base.metadata.create_all()`이 아니라 Alembic으로만 적용한다. 별도 설정이 없으면 저장소의 `runtime/data/baeum-maru.db`를 사용한다.
-
-```powershell
-uv run alembic -c alembic.ini upgrade head
-uv run alembic -c alembic.ini check
-```
-
-현재 기준선은 `20260713_0001_initial_schema.py` 한 개이며 업무 테이블 30개와 성별 코드 3개를 생성한다.
-
-실제 SQLite 결과는 `tests/contracts/sqlite_schema.json` 승인 스냅샷으로 고정한다. migration을 의도적으로 변경한 경우에만 아래 명령을 실행하고, 생성된 컬럼·PK·FK 삭제 정책·UNIQUE·CHECK·index diff를 검토한다.
-
-```powershell
-uv run python -m tests.update_sqlite_schema_contract
-uv run pytest tests/test_sqlite_schema_contract.py
-```
-
-스냅샷만 먼저 갱신해 실패를 없애지 않는다. schema 문서와 SQLAlchemy model, Alembic revision을 함께 변경한 뒤 계약 diff를 승인한다.
+`uv run uvicorn app.main:app`, Alembic과 pytest 명령은 해당 구현 및 테스트가 추가된 뒤 사용한다.

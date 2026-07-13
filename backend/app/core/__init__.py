@@ -1,1 +1,1 @@
-"""Runtime configuration and infrastructure shared by the application."""
+"""업무 영역과 무관한 애플리케이션 공통 기반 패키지."""

@@ -1,18 +1,5 @@
-from typing import Annotated
+"""FastAPI 공통 의존성 제공 모듈.
 
-from fastapi import Depends, Request
-
-from app.container import ApplicationContainer
-
-
-def get_application_container(request: Request) -> ApplicationContainer:
-    container = getattr(request.app.state, "container", None)
-    if not isinstance(container, ApplicationContainer):
-        raise RuntimeError("Application container is not initialized")
-    return container
-
-
-ContainerDependency = Annotated[
-    ApplicationContainer,
-    Depends(get_application_container),
-]
+DB session, 현재 로그인 사용자와 service 생성처럼 여러 router가 공유하는
+Depends 의존성을 정의한다. 업무 규칙은 이 모듈에서 처리하지 않는다.
+"""

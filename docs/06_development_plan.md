@@ -17,14 +17,15 @@
 
 - Go 프로토타입을 annotated tag로 보존한다.
 - Go/Fyne/template 코드와 Go 전용 CI를 제거한다.
-- Python 3.13, uv, FastAPI health endpoint, pytest, Ruff, mypy로 backend 기반을 만든다.
+- Python 3.13, uv, FastAPI, pytest, Ruff와 mypy 의존성 및 읽기 쉬운 backend 보일러플레이트를 만든다.
 - pnpm workspace에 operator/launcher React 앱, typecheck, lint, unit test, production build를 구성한다.
 - 기존 GitHub Actions를 모두 제거하고 API/frontend 계약이 안정된 뒤 Python/React CI를 새로 추가한다.
 - pywebview와 Windows PyInstaller `onedir` 포터블 실행을 조기에 검증한다.
 
 ## 단계 1: 실행, architecture와 데이터 기반
 
-- feature-first layered module과 composition root의 의존 규칙을 먼저 고정한다.
+- `router → service → repository → database` 수평 계층과 파일 이름 규칙을 먼저 고정한다.
+- 각 Python 파일의 책임만 적은 보일러플레이트에서 작은 실행 단위부터 순서대로 구현한다.
 - 현재 정규화 스키마를 SQLAlchemy 2 model과 단일 초기 Alembic migration으로 옮긴다.
 - FK, unique, check, index, cascade/null 정책을 실제 SQLite 테스트로 고정한다.
 - request scope session, unit of work, 공통 오류, audit/event 발행 경계를 만든다.

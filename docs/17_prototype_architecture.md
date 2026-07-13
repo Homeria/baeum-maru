@@ -48,38 +48,38 @@ Python 3.13 + FastAPI + Pydantic v2
 
 ## application 아키텍처
 
-stateless modular monolith와 기능 우선 layered architecture를 사용한다.
+stateless modular monolith를 유지하되, 코드 배치는 프로젝트 소유자가 익숙한 수평 layered architecture를 사용한다.
 
 ```text
-api adapter (FastAPI/Pydantic)
-          ↓
-application use case + unit of work
-          ↓
-domain rule + repository protocol
-          ↑
-SQLAlchemy / filesystem / Excel adapter
+FastAPI router + Pydantic schema
+                ↓
+             service
+                ↓
+            repository
+                ↓
+SQLAlchemy model + Session + SQLite
 ```
 
-- 루트 계층별 디렉터리보다 기능 모듈 안에서 router, schema, service, domain, repository, model을 함께 관리한다.
-- 단순 CRUD에 불필요한 abstraction을 강제하지 않는다.
-- 여러 table과 repository를 바꾸는 업무 command는 application transaction으로 묶는다.
-- FastAPI와 SQLAlchemy model을 업무 규칙 자체로 사용하지 않는다.
-- domain event는 audit log와 commit 이후 WebSocket 발행을 HTTP handler 밖에서 연결한다.
-- module 간 호출은 public application interface를 통해 수행한다.
-- 변경 command는 application service와 unit of work를 사용하고 단순 목록/검색 query는 읽기 전용 projection을 허용한다.
-- generic repository, full CQRS framework, event sourcing은 도입하지 않는다.
+- 요청 흐름은 `api/routers → services → repositories → models/db` 순서로 읽힌다.
+- 동일한 업무 영역은 모든 계층에서 같은 파일 이름을 사용해 탐색 비용을 낮춘다.
+- router는 HTTP와 WebSocket 입출력만 처리한다.
+- service는 업무 규칙과 여러 repository transaction을 조정한다.
+- repository는 SQLAlchemy query와 저장만 담당하며 commit 또는 rollback하지 않는다.
+- Pydantic schema와 SQLAlchemy model은 분리한다.
+- 여러 table을 바꾸는 use case는 service가 unit of work로 원자성을 보장한다.
+- commit 이후 audit log와 WebSocket event 발행 경계를 둔다.
+- generic repository, repository protocol, command/query handler, CQRS bus와 event sourcing은 실제 필요가 생기기 전에는 도입하지 않는다.
 
 ### 코드 경계
 
-- `app/main.py`는 `app/composition.py`만 import한다.
-- composition root가 runtime과 concrete handler를 불변 `ApplicationContainer`로 조립한다.
-- FastAPI dependency adapter는 lifespan에서 준비한 container를 request에 연결할 뿐 업무 상태를 저장하지 않는다.
-- 각 feature는 루트 `public.py`로 module 간 application 계약만 공개한다.
-- 다른 feature의 내부 `api`, `schemas`, `domain`, `repository`, `models`, `infrastructure`는 직접 import하지 않는다.
-- application/domain/port는 FastAPI, Pydantic, SQLAlchemy와 concrete persistence를 import하지 않는다.
-- 이 규칙은 `tests/architecture/test_import_boundaries.py`에서 AST import graph로 검사한다.
+- `app/main.py`는 FastAPI 생성, middleware/lifespan과 router 등록만 담당한다.
+- FastAPI `Depends`, `Request`와 HTTP status는 `api/` 밖으로 전달하지 않는다.
+- SQLAlchemy query와 persistence 예외는 `repositories/` 밖으로 노출하지 않는다.
+- 업무 판단은 service에 두고 router나 model event에 숨기지 않는다.
+- import 시 DB 연결, process 실행과 writable 파일 생성을 수행하지 않는다.
+- 독립 pywebview 제어는 `launcher/`, 장시간 작업은 `jobs/`에 둔다.
 
-변경 입력은 `*Command`와 `CommandHandler.execute()`, 읽기 입력은 `*Query`와 `QueryHandler.fetch()`로 구분한다. 별도 CQRS framework나 bus는 두지 않고 handler를 명시적으로 주입한다. SQLite 접근은 동기 SQLAlchemy transaction을 사용하고 FastAPI의 thread pool 경계를 이용한다.
+이 구조는 `modakbul`의 명시적인 router-service-repository 탐색 방식을 기준으로 삼되, 함수마다 connection을 열고 commit하는 방식은 사용하지 않는다. SQLite 접근은 동기 SQLAlchemy transaction을 사용하며 FastAPI의 thread pool 경계를 이용한다.
 
 ## stateless 원칙
 
@@ -95,7 +95,7 @@ TanStack Query의 browser cache는 서버 cache와 구분한다. client cache는
 ## 데이터 결정
 
 - 과거 Go DB를 변환하는 migration은 작성하지 않는다.
-- 최신 schema 문서와 `001_init.sql`의 의미를 검토해 단일 Alembic initial revision을 새로 작성한다.
+- 최신 schema 문서를 기준으로 SQLAlchemy model과 단일 Alembic initial revision을 새로 작성한다.
 - initial revision 이후부터 모든 schema 변경을 Alembic history로 관리한다.
 - SQLite constraint와 transaction test를 source of truth로 사용한다.
 - 중앙 서버 확장 시 PostgreSQL adapter를 추가하되 domain/API contract를 유지한다.
