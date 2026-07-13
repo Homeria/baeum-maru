@@ -28,7 +28,7 @@
 - 각 Python 파일의 책임만 적은 보일러플레이트에서 작은 실행 단위부터 순서대로 구현한다.
 - 현재 정규화 스키마를 SQLAlchemy 2 model과 단일 초기 Alembic migration으로 옮긴다.
 - FK, unique, check, index, cascade/null 정책을 실제 SQLite 테스트로 고정한다.
-- request scope session, unit of work, 공통 오류, audit/event 발행 경계를 만든다.
+- request scope Session, 공통 오류, audit/event 발행 경계를 만든다.
 - config, runtime directory, logging, backup filesystem 경계를 분리한다.
 - REST/WebSocket, React static serving, pywebview와 Windows `onedir` 실행 가능성을 업무 기능보다 먼저 검증한다.
 

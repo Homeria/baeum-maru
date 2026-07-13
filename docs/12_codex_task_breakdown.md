@@ -25,7 +25,8 @@
 - 요청 흐름이 `router → service → repository → database` 순서로 읽히도록 동일한 도메인 파일명을 사용한다.
 - 새 계층, protocol과 handler abstraction은 실제 중복이나 대체 구현이 생기기 전에는 추가하지 않는다.
 - Pydantic validation만 믿지 않고 업무 rule과 DB constraint를 test한다.
-- 여러 repository를 바꾸는 use case는 unit of work transaction 안에서 수행한다.
+- 여러 repository를 바꾸는 use case는 service에 전달된 같은 Session 안에서 수행하고 service가 commit 또는 rollback한다.
+- 하위 계층에서 상위 계층을 import하는 변경은 허용하지 않으며 architecture test를 항상 통과시킨다.
 - API 변경은 success, validation, permission, conflict response를 test한다.
 - UI 변경은 자동 test 후 Windows desktop과 좁은 화면에서 확인한다.
 - package 관련 변경은 Python 미설치 Windows의 실제 artifact로 확인한다.

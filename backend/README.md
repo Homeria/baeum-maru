@@ -23,12 +23,12 @@ app/models/<domain>.py + app/db/
 - `services`: 업무 규칙과 transaction 흐름
 - `repositories`: SQLAlchemy 조회와 저장
 - `models`: SQLAlchemy table model
-- `db`: engine, Session과 unit of work
+- `db`: engine과 request scope Session
 - `core`: 설정, runtime 경로, logging, 보안과 공통 예외
 - `launcher`: pywebview 런처와 서버 process 제어
 - `jobs`: Excel과 backup 같은 장시간 작업
 
-Repository는 `commit()` 또는 `rollback()`하지 않는다. 여러 저장 작업의 transaction 결과는 service가 unit of work를 통해 결정한다.
+Router는 `Depends(get_db)`로 Session을 받아 service에 전달한다. Repository는 전달받은 Session으로 query, `add()`와 `flush()`만 수행하며 `commit()`, `rollback()`, `close()`하지 않는다. Service가 업무 흐름의 성공 시 `commit()`, 실패 시 `rollback()`을 명시적으로 수행한다.
 
 ## 개발 도구
 

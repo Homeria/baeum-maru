@@ -24,7 +24,6 @@ backend/
     db/
       base.py                     Declarative Base와 metadata
       session.py                  engine, SQLite PRAGMA와 Session
-      unit_of_work.py             commit/rollback transaction 경계
     core/                         설정, runtime, logging, 예외, 보안
     launcher/                     pywebview와 서버 process 제어
     jobs/                         Excel, backup 등 장시간 작업
@@ -61,7 +60,8 @@ models/members.py
 - model은 table mapping과 DB 수준 제약만 표현한다.
 - FastAPI `Depends`, `Request`, HTTP status는 router 바깥으로 전달하지 않는다.
 - SQLAlchemy query는 repository 바깥으로 노출하지 않는다.
-- 여러 repository 변경은 하나의 unit of work로 묶는다.
+- 여러 repository 변경은 service가 받은 같은 Session 안에서 수행하고 service가 commit 또는 rollback한다.
+- 하위 계층은 상위 계층을 import할 수 없으며 architecture test가 역방향 의존성을 검사한다.
 - 별도 저장소 구현이 실제로 필요해지기 전에는 repository protocol이나 generic repository를 만들지 않는다.
 - import 시 DB 연결, process 시작과 파일 생성을 수행하지 않는다.
 
