@@ -63,10 +63,10 @@ SQLAlchemy model + Session + SQLite
 - 요청 흐름은 `api/routers → services → repositories → models/db` 순서로 읽힌다.
 - 동일한 업무 영역은 모든 계층에서 같은 파일 이름을 사용해 탐색 비용을 낮춘다.
 - router는 HTTP와 WebSocket 입출력만 처리한다.
-- service는 업무 규칙과 여러 repository transaction을 조정한다.
+- service는 업무 규칙을 실행하고 전달받은 Session의 commit 또는 rollback을 결정한다.
 - repository는 SQLAlchemy query와 저장만 담당하며 commit 또는 rollback하지 않는다.
 - Pydantic schema와 SQLAlchemy model은 분리한다.
-- 여러 table을 바꾸는 use case는 service가 unit of work로 원자성을 보장한다.
+- 여러 table을 바꾸는 use case는 같은 Session을 사용하는 service method 하나에서 원자성을 보장한다.
 - commit 이후 audit log와 WebSocket event 발행 경계를 둔다.
 - generic repository, repository protocol, command/query handler, CQRS bus와 event sourcing은 실제 필요가 생기기 전에는 도입하지 않는다.
 
@@ -76,6 +76,7 @@ SQLAlchemy model + Session + SQLite
 - FastAPI `Depends`, `Request`와 HTTP status는 `api/` 밖으로 전달하지 않는다.
 - SQLAlchemy query와 persistence 예외는 `repositories/` 밖으로 노출하지 않는다.
 - 업무 판단은 service에 두고 router나 model event에 숨기지 않는다.
+- 하위 계층은 상위 계층을 import하지 않으며 이 규칙을 AST 기반 architecture test로 검증한다.
 - import 시 DB 연결, process 실행과 writable 파일 생성을 수행하지 않는다.
 - 독립 pywebview 제어는 `launcher/`, 장시간 작업은 `jobs/`에 둔다.
 
