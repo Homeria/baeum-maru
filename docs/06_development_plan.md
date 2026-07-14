@@ -4,7 +4,7 @@
 
 - 활성 구현을 Python/FastAPI로 전면 교체하며 Go와 Python을 동시에 유지하지 않는다.
 - Go 구현은 `go-prototype-baseline-2026-07` 태그에서만 참고한다.
-- 실사용 데이터가 없으므로 최신 스키마 하나에서 Alembic 이력을 시작한다.
+- 실사용 데이터가 없으므로 최신 코드 기반 DDL 하나를 유지하고 DB를 재생성한다.
 - 프로젝트 소유자가 읽고 검증할 수 있는 명시적인 코드와 테스트를 우선한다.
 - 큰 전환은 항상 buildable하고 검증 가능한 브랜치로 나눈다.
 - 모든 작업은 `develop`에만 누적하고 사용자 요청 전에는 `main`을 변경하지 않는다.
@@ -26,9 +26,9 @@
 
 - `router → service → repository → database` 수평 계층과 파일 이름 규칙을 먼저 고정한다.
 - 각 Python 파일의 책임만 적은 보일러플레이트에서 작은 실행 단위부터 순서대로 구현한다.
-- 현재 정규화 스키마를 SQLAlchemy 2 model과 단일 초기 Alembic migration으로 옮긴다.
+- 현재 정규화 스키마를 도메인별 Python DDL과 sqlite3 초기화 코드로 옮긴다.
 - FK, unique, check, index, cascade/null 정책을 실제 SQLite 테스트로 고정한다.
-- request scope Session, 공통 오류, audit/event 발행 경계를 만든다.
+- request scope connection, 공통 오류, audit/event 발행 경계를 만든다.
 - config, runtime directory, logging, backup filesystem 경계를 분리한다.
 - REST/WebSocket, React static serving, pywebview와 Windows `onedir` 실행 가능성을 업무 기능보다 먼저 검증한다.
 

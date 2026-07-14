@@ -10,7 +10,7 @@ from uuid import uuid4
 from fastapi import WebSocket, status
 
 from app.core.settings import RealtimeSettings
-from app.db.base import utc_now
+from app.core.time import utc_now
 from app.schemas.realtime import (
     RealtimeHeartbeatMessage,
     RealtimeReadyMessage,

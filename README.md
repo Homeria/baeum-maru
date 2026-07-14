@@ -4,7 +4,7 @@
 
 ## 현재 전환 상태
 
-기존 Go/Fyne 기능 검증 구현은 `go-prototype-baseline-2026-07` 태그에 보존했습니다. 활성 작업 트리에서는 `Python + FastAPI + SQLite + React/Vite + pywebview` 기반 프로토타입을 다시 구현하고 있습니다. 현재 runtime/config/logging, SQLAlchemy engine/Session, 30개 업무 테이블의 초기 Alembic 기준선과 FastAPI 공통 실행 기반까지 구현되어 있으며 업무 API는 아직 없습니다.
+기존 Go/Fyne 기능 검증 구현은 `go-prototype-baseline-2026-07` 태그에 보존했습니다. 활성 작업 트리에서는 `Python + FastAPI + SQLite + React/Vite + pywebview` 기반 프로토타입을 다시 구현하고 있습니다. 현재 runtime/config/logging, 표준 `sqlite3` 연결과 Python 코드 기반 초기 스키마, FastAPI 공통 실행 기반까지 구현되어 있으며 업무 API는 아직 없습니다.
 
 - 기존 Go 코드는 활성 작업 트리에서 제거했으며 태그에서만 참고합니다.
 - Python 전환 작업은 `develop`에만 누적합니다.
@@ -14,7 +14,7 @@
 ## 목표 프로토타입
 
 - FastAPI/Pydantic 기반 `/api/v1` REST API와 OpenAPI 문서
-- SQLAlchemy 2, Alembic, SQLite WAL 기반 로컬 데이터 저장
+- 표준 `sqlite3`, 명시적인 SQL과 SQLite WAL 기반 로컬 데이터 저장
 - React/Vite/TypeScript 기반 접수 및 운영 웹
 - 회원 정보와 여러 희망 강좌를 한 번에 저장하는 접수 흐름
 - FastAPI WebSocket과 TanStack Query를 이용한 다중 사용자 갱신

@@ -1,21 +1,22 @@
-"""request scope DB Session과 pagination 의존성을 검증한다."""
+"""request scope DB connection과 pagination 의존성을 검증한다."""
 
+import sqlite3
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import text
-from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db, get_pagination
 from app.schemas.common import PageMetadata, PaginationParams
 
 
 def test_get_db_yields_configured_request_session(api_app: FastAPI, api_client: TestClient) -> None:
-    def database_probe(session: Annotated[Session, Depends(get_db)]) -> dict[str, int]:
+    def database_probe(
+        connection: Annotated[sqlite3.Connection, Depends(get_db)],
+    ) -> dict[str, int]:
         return {
-            "foreign_keys": int(session.scalar(text("PRAGMA foreign_keys")) or 0),
-            "busy_timeout": int(session.scalar(text("PRAGMA busy_timeout")) or 0),
+            "foreign_keys": int(connection.execute("PRAGMA foreign_keys").fetchone()[0]),
+            "busy_timeout": int(connection.execute("PRAGMA busy_timeout").fetchone()[0]),
         }
 
     api_app.add_api_route("/api/v1/test/database", database_probe, methods=["GET"])

@@ -7,10 +7,9 @@ APP_ROOT = Path(__file__).resolve().parents[2] / "app"
 
 # 각 디렉터리에서 import할 수 없는 상위 계층이다.
 FORBIDDEN_IMPORTS = {
-    "core": ("app.api", "app.services", "app.repositories", "app.models", "app.db"),
+    "core": ("app.api", "app.services", "app.repositories", "app.db"),
     "db": ("app.api", "app.services", "app.repositories"),
-    "models": ("app.api", "app.services", "app.repositories"),
-    "schemas": ("app.api", "app.services", "app.repositories", "app.models", "app.db"),
+    "schemas": ("app.api", "app.services", "app.repositories", "app.db"),
     "repositories": ("app.api", "app.services"),
     "services": ("app.api",),
 }

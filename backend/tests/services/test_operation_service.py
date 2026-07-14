@@ -1,92 +1,97 @@
-"""업무 변경과 감사 로그가 같은 transaction에 남는지 검증한다."""
+"""업무 변경과 감사 로그가 같은 sqlite3 transaction에 남는지 검증한다."""
+
+import sqlite3
 
 import pytest
-from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, sessionmaker
 
-from app.models.members import Member
-from app.models.operations import AuditLog
+from app.db.database import Database
 from app.services.operation_service import record_audit
 from app.services.realtime_service import ResourceEvent, publish_committed_events
 
 
-def test_business_change_and_audit_commit_together(
-    migrated_session_factory: sessionmaker[Session],
-) -> None:
+def _count(database: Database, table_name: str) -> int:
+    with database.connection() as connection:
+        return int(connection.execute(f'SELECT COUNT(*) FROM "{table_name}"').fetchone()[0])
+
+
+def test_business_change_and_audit_commit_together(initialized_database: Database) -> None:
     observed_counts: list[tuple[int, int]] = []
 
     def observe_after_commit(_event: ResourceEvent) -> None:
-        with migrated_session_factory() as observer:
-            member_count = observer.scalar(select(func.count()).select_from(Member)) or 0
-            audit_count = observer.scalar(select(func.count()).select_from(AuditLog)) or 0
-            observed_counts.append((member_count, audit_count))
+        observed_counts.append(
+            (_count(initialized_database, "members"), _count(initialized_database, "audit_logs"))
+        )
 
-    with migrated_session_factory() as session:
-        member = Member(member_no="10-12345", name="남복심", phone="010-0000-0000")
-        session.add(member)
-        session.flush()
+    with initialized_database.transaction() as connection:
+        cursor = connection.execute(
+            "INSERT INTO members (member_no, name, phone) VALUES (?, ?, ?)",
+            ("10-12345", "남복심", "010-0000-0000"),
+        )
+        member_id = cursor.lastrowid
+        assert member_id is not None
         record_audit(
-            session,
+            connection,
             actor_kind="system",
             action="member.created",
             resource_type="members",
-            resource_id=str(member.id),
+            resource_id=str(member_id),
             summary="회원 등록",
             request_id="request-1",
-            metadata={"member_id": member.id},
+            metadata={"member_id": member_id},
         )
         event = ResourceEvent(
             event_type="created",
             resource="members",
-            resource_id=str(member.id),
-            version=member.version,
+            resource_id=str(member_id),
+            version=1,
         )
 
-        session.commit()
-        publish_committed_events([event], observe_after_commit)
-
+    publish_committed_events([event], observe_after_commit)
     assert observed_counts == [(1, 1)]
 
 
 def test_failed_transaction_rolls_back_audit_and_does_not_publish(
-    migrated_session_factory: sessionmaker[Session],
+    initialized_database: Database,
 ) -> None:
-    with migrated_session_factory() as session:
-        session.add(Member(member_no="10-12345", name="기존 회원", phone="010-0000-0000"))
-        session.commit()
+    with initialized_database.transaction() as connection:
+        connection.execute(
+            "INSERT INTO members (member_no, name, phone) VALUES (?, ?, ?)",
+            ("10-12345", "기존 회원", "010-0000-0000"),
+        )
 
     published: list[ResourceEvent] = []
-    with migrated_session_factory() as session:
-        event = ResourceEvent(event_type="created", resource="members", resource_id="2")
-        try:
+    event = ResourceEvent(event_type="created", resource="members", resource_id="2")
+    try:
+        with initialized_database.transaction() as connection:
             record_audit(
-                session,
+                connection,
                 actor_kind="system",
                 action="member.created",
                 resource_type="members",
                 resource_id="2",
                 summary="중복 회원 등록 시도",
             )
-            session.add(Member(member_no="10-12345", name="중복 회원", phone="010-1111-1111"))
-            session.commit()
-        except IntegrityError:
-            session.rollback()
-        else:
-            publish_committed_events([event], published.append)
+            connection.execute(
+                "INSERT INTO members (member_no, name, phone) VALUES (?, ?, ?)",
+                ("10-12345", "중복 회원", "010-1111-1111"),
+            )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        publish_committed_events([event], published.append)
 
-    with migrated_session_factory() as session:
-        assert session.scalar(select(func.count()).select_from(Member)) == 1
-        assert session.scalar(select(func.count()).select_from(AuditLog)) == 0
+    assert _count(initialized_database, "members") == 1
+    assert _count(initialized_database, "audit_logs") == 0
     assert published == []
 
 
-def test_audit_rejects_sensitive_or_invalid_metadata(
-    migrated_session_factory: sessionmaker[Session],
-) -> None:
-    with migrated_session_factory() as session, pytest.raises(ValueError, match="not allowed"):
+def test_audit_rejects_sensitive_or_invalid_metadata(initialized_database: Database) -> None:
+    with (
+        initialized_database.connection() as connection,
+        pytest.raises(ValueError, match="not allowed"),
+    ):
         record_audit(
-            session,
+            connection,
             actor_kind="system",
             action="member.updated",
             resource_type="members",
@@ -95,10 +100,13 @@ def test_audit_rejects_sensitive_or_invalid_metadata(
         )
 
 
-def test_user_actor_requires_user_id(migrated_session_factory: sessionmaker[Session]) -> None:
-    with migrated_session_factory() as session, pytest.raises(ValueError, match="actor_user_id"):
+def test_user_actor_requires_user_id(initialized_database: Database) -> None:
+    with (
+        initialized_database.connection() as connection,
+        pytest.raises(ValueError, match="actor_user_id"),
+    ):
         record_audit(
-            session,
+            connection,
             actor_kind="user",
             action="member.updated",
             resource_type="members",

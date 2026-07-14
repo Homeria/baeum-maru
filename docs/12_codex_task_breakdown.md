@@ -16,7 +16,7 @@
 - Go 파일을 Python 문법으로 기계 번역하지 않고 스키마와 업무 규칙에서 새 구현을 작성한다.
 - Go/Fyne/template compatibility layer를 활성 구현에 남기지 않는다.
 - 실사용 데이터가 없으므로 과거 Go DB에서 변환하는 migration을 작성하지 않는다.
-- Alembic은 최신 기준 스키마 하나에서 시작한다.
+- Python DDL은 최신 기준 스키마 하나만 유지한다.
 
 ## 구현 원칙
 
@@ -25,7 +25,7 @@
 - 요청 흐름이 `router → service → repository → database` 순서로 읽히도록 동일한 도메인 파일명을 사용한다.
 - 새 계층, protocol과 handler abstraction은 실제 중복이나 대체 구현이 생기기 전에는 추가하지 않는다.
 - Pydantic validation만 믿지 않고 업무 rule과 DB constraint를 test한다.
-- 여러 repository를 바꾸는 use case는 service에 전달된 같은 Session 안에서 수행하고 service가 commit 또는 rollback한다.
+- 여러 repository를 바꾸는 use case는 service에 전달된 같은 connection 안에서 수행하고 service가 commit 또는 rollback한다.
 - 하위 계층에서 상위 계층을 import하는 변경은 허용하지 않으며 architecture test를 항상 통과시킨다.
 - API 변경은 success, validation, permission, conflict response를 test한다.
 - UI 변경은 자동 test 후 Windows desktop과 좁은 화면에서 확인한다.
@@ -48,7 +48,7 @@ pnpm test
 pnpm build
 ```
 
-변경 범위에 따라 Playwright, Alembic 빈 DB upgrade, PyInstaller Windows build, multi-client test를 추가한다.
+변경 범위에 따라 Playwright, sqlite3 빈 DB 초기화, PyInstaller Windows build, multi-client test를 추가한다.
 
 ## 브랜치 종료 기준
 

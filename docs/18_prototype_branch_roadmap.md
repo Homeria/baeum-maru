@@ -9,7 +9,7 @@
 - 모든 작업 브랜치는 최신 `develop`에서 만들고 PR 검증 후 `develop`에 병합한다.
 - `main`은 사용자가 명시적으로 요청하기 전까지 변경하거나 PR 대상으로 사용하지 않는다.
 - Go 구현은 `go-prototype-baseline-2026-07` 태그에서만 보존하며 활성 코드에 호환 계층을 두지 않는다.
-- 실사용 데이터가 없으므로 초기 Alembic 이력은 최신 스키마 하나에서 시작한다.
+- 실사용 데이터가 없으므로 코드 기반 DDL은 최신 스키마 하나만 유지한다.
 - 7번 CI 기반 전까지는 로컬 전체 검증과 PR 검토를 병합 조건으로 삼는다. 7번 이후에는 PR CI 통과도 필수다.
 - `manual` 브랜치는 실제 Windows 또는 다중 브라우저 확인이 필요하므로 사용자 피드백 전에는 병합하지 않는다.
 - 백엔드 요청 흐름은 `router → service → repository → database`로 읽혀야 한다.
@@ -28,8 +28,8 @@
 
 1. `refactor/readable-layered-boilerplate`: 기존 Python 구현 폐기, 역할 docstring만 가진 수평 계층 확정
 2. `feat/config-runtime-foundation`: portable runtime path, JSON/env 설정과 structured logging
-3. `feat/database-core`: SQLAlchemy Base, engine, Session factory와 SQLite PRAGMA
-4. `feat/database-schema-baseline`: 최신 모델 전체와 단일 Alembic initial revision 재구현
+3. `feat/database-core`: sqlite3 connection, transaction과 SQLite PRAGMA
+4. `feat/database-schema-baseline`: 최신 모델 전체를 도메인별 Python DDL로 구현
 5. `test/sqlite-schema-contract`: FK, unique, check, index, WAL, busy timeout 재검증
 6. `feat/api-foundation`: FastAPI app, `/api/v1`, 공통 오류, request ID, pagination과 OpenAPI metadata
 7. `ci/python-react-foundation`: backend/frontend 기본 PR quality gate

@@ -9,9 +9,8 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import inspect
 
-from tests.db.test_metadata import EXPECTED_TABLES
+from app.db.schema import TABLE_NAMES
 
 
 def test_lifespan_prepares_runtime_database_and_application_state(
@@ -28,9 +27,14 @@ def test_lifespan_prepares_runtime_database_and_application_state(
         and Path(handler.baseFilename) == paths.application_log_file
         for handler in logging.getLogger().handlers
     )
-    assert set(inspect(api_app.state.engine).get_table_names()) == EXPECTED_TABLES | {
-        "alembic_version"
-    }
+    with api_app.state.database.connection() as connection:
+        table_names = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+            )
+        }
+    assert table_names == TABLE_NAMES
 
 
 def test_health_endpoint_is_versioned(api_client: TestClient) -> None:

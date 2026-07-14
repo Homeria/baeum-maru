@@ -1,10 +1,10 @@
 """SQLite schema 계약 테스트가 공유하는 최소 운영 데이터."""
 
-from sqlalchemy import Engine, text
+from app.db.database import Database
 
 
-def seed_operational_graph(engine: Engine) -> None:
-    with engine.begin() as connection:
+def seed_operational_graph(database: Database) -> None:
+    with database.transaction() as connection:
         statements = (
             "INSERT INTO users (id, display_name, role) VALUES (1, '담당자', 'staff')",
             "INSERT INTO access_codes "
@@ -48,4 +48,4 @@ def seed_operational_graph(engine: Engine) -> None:
             "INSERT INTO operation_job_errors (id, job_id, message) VALUES (1, 1, '예시 오류')",
         )
         for statement in statements:
-            connection.execute(text(statement))
+            connection.execute(statement)

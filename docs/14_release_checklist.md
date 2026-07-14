@@ -5,7 +5,7 @@
 - [ ] `uv lock --check` 통과
 - [ ] Ruff format/lint와 mypy 통과
 - [ ] pytest unit/integration/contract test 통과
-- [ ] Alembic empty DB upgrade test 통과
+- [ ] sqlite3 empty DB initialization test 통과
 - [ ] OpenAPI spec 생성과 TypeScript client diff 검사 통과
 - [ ] React typecheck, lint, unit test, production build 통과
 - [ ] Playwright 핵심 workflow 통과

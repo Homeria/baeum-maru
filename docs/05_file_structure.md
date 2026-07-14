@@ -12,26 +12,20 @@
 backend/
   pyproject.toml
   uv.lock
-  alembic.ini                     Alembic 실행 설정
-  alembic/
-    env.py                        전체 model metadata와 DB 경로 연결
-    versions/                     초기 revision 이후 schema 변경 이력
   app/
     main.py                       FastAPI 생성과 router 등록
     api/
-      dependencies.py             DB session, 인증 등 공통 Depends
+      dependencies.py             DB connection, 인증 등 공통 Depends
       errors.py                   공통 API 오류 응답과 exception handler
       middleware.py               request ID 생성과 응답 header
       realtime.py                 WebSocket 연결, heartbeat와 event broadcast
       routers/                    도메인별 HTTP/WebSocket endpoint
     schemas/                      도메인별 Pydantic 요청·응답
     services/                     업무 규칙과 transaction 조정
-    repositories/                 SQLAlchemy 조회와 저장
-    models/                       도메인별 SQLAlchemy table model
+    repositories/                 parameterized SQL 조회와 저장
     db/
-      base.py                     Declarative Base와 metadata
-      migrations.py               application 시작 시 Alembic upgrade
-      session.py                  engine, SQLite PRAGMA와 Session factory
+      database.py                 sqlite3 연결, PRAGMA와 transaction
+      schema/                     도메인별 Python DDL과 seed
     core/                         설정, runtime, logging, 예외, 보안
     launcher/                     pywebview와 서버 process 제어
     jobs/                         Excel, backup 등 장시간 작업
@@ -43,7 +37,7 @@ backend/
     scenarios/                    핵심 사용자 흐름 테스트
 ```
 
-공통 runtime/config/logging, DB engine/Session, 업무 model과 초기 migration, FastAPI application 기반이 구현되어 있다. 업무 repository/service와 도메인 router는 이후 세로 슬라이스 브랜치에서 함께 추가한다.
+공통 runtime/config/logging, sqlite3 연결/transaction, 코드 기반 초기 schema와 FastAPI application 기반이 구현되어 있다. 업무 repository/service와 도메인 router는 이후 세로 슬라이스 브랜치에서 함께 추가한다.
 
 ## 기능 탐색 규칙
 
@@ -54,7 +48,7 @@ api/routers/members.py
 schemas/members.py
 services/member_service.py
 repositories/member_repository.py
-models/members.py
+db/schema/members.py
 ```
 
 강좌, 공간, 신청, 추첨과 출석도 같은 이름 규칙을 사용한다. 한 계층의 파일이 커질 때만 같은 이름의 하위 package로 분리하며, 기능마다 임의의 추가 계층을 만들지 않는다.
@@ -62,13 +56,13 @@ models/members.py
 ## 계층 규칙
 
 - router는 요청 검증 결과를 service에 전달하고 응답으로 변환한다.
-- schema는 API 계약이며 SQLAlchemy model로 사용하지 않는다.
+- Pydantic schema는 API 계약이며 DB 행이나 DDL로 사용하지 않는다.
 - service는 업무 규칙과 transaction 시작·완료를 담당한다.
-- repository는 전달받은 Session으로 조회·저장하지만 commit하지 않는다.
-- model은 table mapping과 DB 수준 제약만 표현한다.
+- repository는 전달받은 `sqlite3.Connection`으로 조회·저장하지만 commit하지 않는다.
+- `db/schema`는 평문 DDL로 table, index와 DB 수준 제약만 표현한다.
 - FastAPI `Depends`, `Request`, HTTP status는 router 바깥으로 전달하지 않는다.
-- SQLAlchemy query는 repository 바깥으로 노출하지 않는다.
-- 여러 repository 변경은 service가 받은 같은 Session 안에서 수행하고 service가 commit 또는 rollback한다.
+- SQL과 `sqlite3.Row`는 repository 바깥으로 노출하지 않는다.
+- 여러 repository 변경은 service가 받은 같은 연결과 transaction 안에서 수행한다.
 - 감사 로그는 업무 변경과 같은 transaction에 저장하고 resource event는 commit 성공 뒤 전달한다.
 - event 전달 실패로 이미 commit된 업무를 rollback하거나 API 실패로 바꾸지 않는다.
 - 하위 계층은 상위 계층을 import할 수 없으며 architecture test가 역방향 의존성을 검사한다.
