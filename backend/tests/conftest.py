@@ -6,13 +6,10 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session, sessionmaker
 
-from alembic import command
 from app.core.runtime import RuntimePaths
 from app.core.settings import AppSettings, DatabaseSettings
-from app.db.migrations import alembic_configuration
-from app.db.session import create_session_factory, create_sqlite_engine
+from app.db.database import Database
 from app.main import create_app
 
 
@@ -30,12 +27,8 @@ def api_client(api_app: FastAPI) -> Iterator[TestClient]:
 
 
 @pytest.fixture
-def migrated_session_factory(tmp_path: Path) -> Iterator[sessionmaker[Session]]:
+def initialized_database(tmp_path: Path) -> Database:
     database_file = tmp_path / "한글 기관" / "service-tests" / "배움마루.db"
-    database_file.parent.mkdir(parents=True)
-    command.upgrade(alembic_configuration(database_file), "head")
-    engine = create_sqlite_engine(database_file, DatabaseSettings())
-    try:
-        yield create_session_factory(engine)
-    finally:
-        engine.dispose()
+    database = Database(database_file, DatabaseSettings())
+    database.initialize()
+    return database

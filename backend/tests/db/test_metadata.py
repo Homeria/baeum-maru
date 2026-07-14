@@ -1,7 +1,6 @@
-"""SQLAlchemy metadata가 문서의 초기 스키마 전체를 등록하는지 검증한다."""
+"""sqlite3 schema catalog가 문서의 초기 테이블 전체를 등록하는지 검증한다."""
 
-from app import models
-from app.db.base import Base
+from app.db.schema import SCHEMA_MODULES, TABLE_NAMES
 
 EXPECTED_TABLES = {
     "access_codes",
@@ -37,17 +36,11 @@ EXPECTED_TABLES = {
 }
 
 
-def test_metadata_registers_all_schema_baseline_tables() -> None:
-    assert len(models.MODEL_MODULES) == 9
-    assert set(Base.metadata.tables) == EXPECTED_TABLES
+def test_schema_catalog_registers_all_baseline_tables() -> None:
+    assert len(SCHEMA_MODULES) == 9
+    assert TABLE_NAMES == EXPECTED_TABLES
 
 
-def test_version_columns_enable_sqlalchemy_optimistic_concurrency() -> None:
-    versioned_mappers = [
-        mapper for mapper in Base.registry.mappers if "version" in mapper.local_table.c
-    ]
-
-    assert versioned_mappers
-    assert all(
-        mapper.version_id_col is mapper.local_table.c.version for mapper in versioned_mappers
-    )
+def test_schema_uses_plain_sql_statements() -> None:
+    statements = [statement for module in SCHEMA_MODULES for statement in module.STATEMENTS]
+    assert all(isinstance(statement, str) and statement.strip() for statement in statements)

@@ -1,23 +1,24 @@
-"""FastAPI router가 공유하는 DB Session과 pagination 의존성."""
+"""FastAPI router가 공유하는 sqlite3 연결과 pagination 의존성."""
 
+import sqlite3
 from collections.abc import Callable, Iterator
 from typing import Annotated
 from urllib.parse import urlsplit
 
 from fastapi import Query, Request, WebSocket, WebSocketException, status
-from sqlalchemy.orm import Session, sessionmaker
 
+from app.db.database import Database
 from app.schemas.common import PaginationParams
 
 SESSION_COOKIE_NAME = "baeum_maru_session"
 type RealtimeSessionVerifier = Callable[[str], str | None]
 
 
-def get_db(request: Request) -> Iterator[Session]:
-    """요청마다 Session을 열고 응답 후 닫는다. commit 여부는 service가 결정한다."""
-    factory: sessionmaker[Session] = request.app.state.session_factory
-    with factory() as session:
-        yield session
+def get_db(request: Request) -> Iterator[sqlite3.Connection]:
+    """요청마다 연결을 열고 응답 후 닫는다. commit 여부는 service가 결정한다."""
+    database: Database = request.app.state.database
+    with database.connection() as connection:
+        yield connection
 
 
 def get_pagination(

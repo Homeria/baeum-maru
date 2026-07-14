@@ -1,6 +1,6 @@
 """실제 SQLite의 FK 정책과 필수 query index 구조를 검증한다."""
 
-from sqlalchemy import Engine, inspect
+from app.db.database import Database
 
 EXPECTED_INDEXES = {
     "ix_access_codes_lifecycle",
@@ -56,27 +56,42 @@ EXPECTED_CASCADE_FOREIGN_KEYS = {
 }
 
 
-def test_required_query_indexes_exist_without_duplicate_names(migrated_engine: Engine) -> None:
-    inspector = inspect(migrated_engine)
-    indexes = [
-        index
-        for table_name in inspector.get_table_names()
-        for index in inspector.get_indexes(table_name)
-    ]
-    index_names = [str(index["name"]) for index in indexes]
+def test_required_query_indexes_exist_without_duplicate_names(
+    initialized_database: Database,
+) -> None:
+    with initialized_database.connection() as connection:
+        table_names = [
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+            )
+        ]
+        index_names = [
+            str(row[1])
+            for table_name in table_names
+            for row in connection.execute(f'PRAGMA index_list("{table_name}")')
+            if not str(row[1]).startswith("sqlite_autoindex_")
+        ]
 
     assert set(index_names) == EXPECTED_INDEXES
     assert len(index_names) == len(set(index_names))
 
 
-def test_every_foreign_key_has_documented_delete_policy(migrated_engine: Engine) -> None:
-    inspector = inspect(migrated_engine)
-    actual_policies: dict[tuple[str, str], str] = {}
-    for table_name in inspector.get_table_names():
-        for foreign_key in inspector.get_foreign_keys(table_name):
-            column_name = str(foreign_key["constrained_columns"][0])
-            options = foreign_key.get("options", {})
-            actual_policies[(table_name, column_name)] = str(options.get("ondelete", ""))
+def test_every_foreign_key_has_documented_delete_policy(
+    initialized_database: Database,
+) -> None:
+    with initialized_database.connection() as connection:
+        table_names = [
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+            )
+        ]
+        actual_policies = {
+            (table_name, str(row[3])): str(row[6]).upper()
+            for table_name in table_names
+            for row in connection.execute(f'PRAGMA foreign_key_list("{table_name}")')
+        }
 
     assert len(actual_policies) == 35
     assert {

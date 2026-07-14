@@ -9,8 +9,8 @@
 | 언어 | Python 3.13.x | HTTP API, 업무 규칙, 파일/서버 제어 |
 | 백엔드 | FastAPI, Uvicorn, websockets | REST API, OpenAPI, 정적 자산, WebSocket, ASGI 실행 |
 | 검증/설정 | Pydantic v2, pydantic-settings | 요청/응답 DTO와 환경/JSON 설정 검증 |
-| DB | SQLite WAL, SQLAlchemy 2 | 호스트 로컬 데이터와 명시적 repository 구현 |
-| migration | Alembic | 최신 기준 스키마와 이후 변경 이력 |
+| DB | Python 표준 `sqlite3`, SQLite WAL | 호스트 로컬 데이터와 명시적 SQL repository 구현 |
+| schema | Python 코드 기반 DDL | 도메인별 `CREATE TABLE`, index와 seed를 읽을 수 있게 관리 |
 | 데스크톱 런처 | pywebview, Microsoft Edge WebView2 | React 런처를 독립 Windows 창으로 제공하고 Python 제어 기능과 연결 |
 | 웹 UI | React, TypeScript, Vite | 직원 업무 앱과 런처 앱을 별도 entry로 구성 |
 | 서버 상태 | TanStack Query, FastAPI WebSocket | 조회 cache와 서버 변경 이벤트 기반 갱신 |
@@ -56,23 +56,22 @@ SQLite / data / backups / exports / logs는 실행 파일 외부에 저장
 
 - API는 `/api/v1`로 버전 관리하고 리소스 중심 URL과 HTTP method를 사용한다.
 - Pydantic은 transport DTO를 검증하며 업무 규칙은 application service와 DB 제약에서 다시 검증한다.
-- FastAPI router는 `Depends(get_db)`로 request scope Session을 받아 service에 전달하며 HTTP 입출력만 처리한다.
+- FastAPI router는 `Depends(get_db)`로 request scope `sqlite3.Connection`을 받아 service에 전달하며 HTTP 입출력만 처리한다.
 - 오류는 안정된 코드, 사용자 메시지, field detail, correlation ID를 가진 공통 형식으로 응답한다.
 - OpenAPI 문서에서 TypeScript client와 타입을 생성하고 실제 응답과의 계약을 CI에서 검사한다.
 - 동시성, 추첨, 복구처럼 단순 CRUD가 아닌 작업은 명시적인 command endpoint와 작업 상태를 사용한다.
 
 ## Python 아키텍처 원칙
 
-- 수평 계층 `api/routers → services → repositories → models/db` 방향을 지킨다.
+- 수평 계층 `api/routers → services → repositories → db` 방향을 지킨다.
 - 같은 업무 영역은 계층마다 같은 이름을 사용해 파일 탐색 경로를 명확하게 만든다.
-- SQLAlchemy model을 API response로 직접 반환하지 않는다.
 - Pydantic model을 핵심 업무 규칙의 유일한 표현으로 사용하지 않는다.
-- repository는 SQLAlchemy query, `add()`와 `flush()`를 캡슐화하고 commit하지 않는다.
+- repository는 `?` parameter binding을 사용한 SQL과 행 변환을 캡슐화하고 commit하지 않는다.
 - service는 업무 규칙을 실행하고 성공 시 `commit()`, 실패 시 `rollback()`하여 transaction을 완료한다.
-- SQLite 연결은 foreign key, WAL, busy timeout과 `synchronous=NORMAL`을 적용하고 Session은 자동 commit하지 않는다.
+- SQLite 연결은 foreign key, WAL, busy timeout과 `synchronous=NORMAL`을 적용하고 자동 commit하지 않는다.
 - FastAPI `Depends`는 조립과 request scope에만 사용하며 도메인 코드에 유출하지 않는다.
 - 실제 대체 구현이 필요하기 전에는 repository protocol, generic repository와 command/query handler를 도입하지 않는다.
-- import 방향은 `router → service → repository → models/db`로만 허용하며 architecture test로 역방향 참조를 차단한다.
+- import 방향은 `router → service → repository → db`로만 허용하며 architecture test로 역방향 참조를 차단한다.
 
 ## 배포 및 확장
 

@@ -2,13 +2,11 @@
 
 import math
 import re
+import sqlite3
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
-from sqlalchemy.orm import Session
-
-from app.models.operations import AuditLog
-from app.repositories.operation_repository import add_audit_log
+from app.repositories.operation_repository import AuditLogRecord, add_audit_log
 
 ActorKind = Literal["user", "launcher", "system"]
 _ACTOR_KINDS = frozenset({"user", "launcher", "system"})
@@ -60,7 +58,7 @@ def _audit_json(value: Any, path: str) -> Any:
 
 
 def record_audit(
-    session: Session,
+    connection: sqlite3.Connection,
     *,
     actor_kind: ActorKind,
     action: str,
@@ -72,7 +70,7 @@ def record_audit(
     resource_id: str | None = None,
     request_id: str | None = None,
     metadata: Mapping[str, Any] | None = None,
-) -> AuditLog:
+) -> AuditLogRecord:
     """업무 변경과 같은 transaction에 감사 로그를 넣되 commit하지 않는다."""
     if actor_kind not in _ACTOR_KINDS:
         raise ValueError("actor_kind is invalid")
@@ -86,7 +84,7 @@ def record_audit(
         raise ValueError("metadata must be an object")
 
     return add_audit_log(
-        session,
+        connection,
         actor_kind=actor_kind,
         actor_user_id=actor_user_id,
         actor_access_code_id=actor_access_code_id,

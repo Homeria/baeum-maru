@@ -6,7 +6,7 @@
 
 - 보존 구현: `go-prototype-baseline-2026-07` 태그의 Go/SQLite/Go template/Fyne 프로토타입
 - 활성 구현: Python backend는 공통 runtime/DB/API 실행 기반과 30개 테이블 초기 schema, frontend는 React operator/launcher 보일러플레이트 단계
-- 목표 프로토타입: Python 3.13, FastAPI, Pydantic v2, SQLAlchemy 2, SQLite, React/Vite/TypeScript, pywebview, WebSocket
+- 목표 프로토타입: Python 3.13, FastAPI, Pydantic v2, 표준 sqlite3, SQLite, React/Vite/TypeScript, pywebview, WebSocket
 - 호스트 제어: pywebview와 WebView2 기반 독립 런처를 사용하며 직원 화면은 내부망 브라우저로 제공한다.
 - 배포: Python 설치가 필요 없는 PyInstaller `onedir` 포터블 ZIP을 기본으로 한다.
 
@@ -32,6 +32,6 @@
 - 다음 브랜치를 만들기 전에 `18_prototype_branch_roadmap.md`를 확인한다.
 - 현재 구현과 목표 구조를 섞어 쓰지 않는다.
 - Go 기준점은 태그에서만 보존하고 활성 구현에는 이중 유지보수 경로를 만들지 않는다.
-- 아직 실사용 데이터가 없으므로 초기 Alembic migration은 최신 스키마 하나를 기준으로 작성한다.
+- 아직 실사용 데이터가 없으므로 코드 기반 초기 DDL은 최신 스키마 하나만 유지한다.
 - 기능 완성 속도보다 사용자가 코드를 이해하고 업무 규칙을 검증할 수 있는 구조를 우선한다.
 - 기술 스택 변경은 `17_prototype_architecture.md`에 이유와 영향을 기록한다.

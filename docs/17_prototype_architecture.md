@@ -8,7 +8,7 @@
 
 ```text
 Python 3.13 + FastAPI + Pydantic v2
-├─ SQLAlchemy 2 + Alembic + SQLite WAL
+├─ Python sqlite3 + 명시적인 SQL + SQLite WAL
 ├─ React/Vite/TypeScript 직원 업무 앱
 ├─ pywebview/WebView2 + React/Vite/TypeScript 독립 런처
 ├─ REST /api/v1 + OpenAPI + WebSocket
@@ -57,16 +57,16 @@ FastAPI router + Pydantic schema
                 ↓
             repository
                 ↓
-SQLAlchemy model + Session + SQLite
+Python DDL + sqlite3.Connection + SQLite
 ```
 
-- 요청 흐름은 `api/routers → services → repositories → models/db` 순서로 읽힌다.
+- 요청 흐름은 `api/routers → services → repositories → db` 순서로 읽힌다.
 - 동일한 업무 영역은 모든 계층에서 같은 파일 이름을 사용해 탐색 비용을 낮춘다.
 - router는 HTTP와 WebSocket 입출력만 처리한다.
-- service는 업무 규칙을 실행하고 전달받은 Session의 commit 또는 rollback을 결정한다.
-- repository는 SQLAlchemy query와 저장만 담당하며 commit 또는 rollback하지 않는다.
-- Pydantic schema와 SQLAlchemy model은 분리한다.
-- 여러 table을 바꾸는 use case는 같은 Session을 사용하는 service method 하나에서 원자성을 보장한다.
+- service는 업무 규칙을 실행하고 같은 연결의 transaction commit 또는 rollback을 결정한다.
+- repository는 parameterized SQL과 행 변환만 담당하며 commit 또는 rollback하지 않는다.
+- Pydantic schema와 DB DDL을 분리한다.
+- 여러 table을 바꾸는 use case는 같은 `sqlite3.Connection`을 사용하는 service method 하나에서 원자성을 보장한다.
 - commit 이후 audit log와 WebSocket event 발행 경계를 둔다.
 - generic repository, repository protocol, command/query handler, CQRS bus와 event sourcing은 실제 필요가 생기기 전에는 도입하지 않는다.
 
@@ -74,13 +74,13 @@ SQLAlchemy model + Session + SQLite
 
 - `app/main.py`는 FastAPI 생성, middleware/lifespan과 router 등록만 담당한다.
 - FastAPI `Depends`, `Request`와 HTTP status는 `api/` 밖으로 전달하지 않는다.
-- SQLAlchemy query와 persistence 예외는 `repositories/` 밖으로 노출하지 않는다.
+- SQL 문자열, `sqlite3.Row`와 persistence 예외는 `repositories/` 밖으로 노출하지 않는다.
 - 업무 판단은 service에 두고 router나 model event에 숨기지 않는다.
 - 하위 계층은 상위 계층을 import하지 않으며 이 규칙을 AST 기반 architecture test로 검증한다.
 - import 시 DB 연결, process 실행과 writable 파일 생성을 수행하지 않는다.
 - 독립 pywebview 제어는 `launcher/`, 장시간 작업은 `jobs/`에 둔다.
 
-이 구조는 `modakbul`의 명시적인 router-service-repository 탐색 방식을 기준으로 삼되, 함수마다 connection을 열고 commit하는 방식은 사용하지 않는다. SQLite 접근은 동기 SQLAlchemy transaction을 사용하며 FastAPI의 thread pool 경계를 이용한다.
+이 구조는 `modakbul`의 명시적인 router-service-repository 탐색 방식을 기준으로 삼되, repository 함수마다 connection을 열거나 commit하지 않는다. SQLite 접근은 동기 `sqlite3` transaction을 사용하며 FastAPI의 thread pool 경계를 이용한다.
 
 ## stateless 원칙
 
@@ -96,8 +96,8 @@ TanStack Query의 browser cache는 서버 cache와 구분한다. client cache는
 ## 데이터 결정
 
 - 과거 Go DB를 변환하는 migration은 작성하지 않는다.
-- 최신 schema 문서를 기준으로 SQLAlchemy model과 단일 Alembic initial revision을 새로 작성한다.
-- initial revision 이후부터 모든 schema 변경을 Alembic history로 관리한다.
+- 최신 schema 문서를 기준으로 `app/db/schema/`의 Python DDL을 작성한다.
+- 실사용 전에는 DB 파일을 재생성하고, 실사용 데이터가 생긴 뒤에 migration 체계를 별도로 도입한다.
 - SQLite constraint와 transaction test를 source of truth로 사용한다.
 - 중앙 서버 확장 시 PostgreSQL adapter를 추가하되 domain/API contract를 유지한다.
 

@@ -14,8 +14,7 @@ from app.api.routers.realtime import router as realtime_router
 from app.core.logging import configure_logging
 from app.core.runtime import RuntimePaths
 from app.core.settings import AppSettings, load_settings
-from app.db.migrations import upgrade_database
-from app.db.session import create_session_factory, create_sqlite_engine
+from app.db.database import Database
 
 API_PREFIX = "/api/v1"
 
@@ -24,7 +23,7 @@ def create_app(
     *,
     runtime_paths: RuntimePaths | None = None,
     settings: AppSettings | None = None,
-    apply_migrations: bool = True,
+    initialize_schema: bool = True,
     realtime_session_verifier: RealtimeSessionVerifier | None = None,
 ) -> FastAPI:
     @asynccontextmanager
@@ -34,15 +33,14 @@ def create_app(
         app_settings = settings or load_settings(paths)
         configure_logging(app_settings.logging, paths.application_log_file)
 
-        if apply_migrations:
-            upgrade_database(paths.database_file)
+        database = Database(paths.database_file, app_settings.database)
+        if initialize_schema:
+            database.initialize()
 
-        engine = create_sqlite_engine(paths.database_file, app_settings.database)
         realtime_hub = RealtimeHub(app_settings.realtime)
         application.state.runtime_paths = paths
         application.state.settings = app_settings
-        application.state.engine = engine
-        application.state.session_factory = create_session_factory(engine)
+        application.state.database = database
         application.state.realtime_hub = realtime_hub
         application.state.resource_event_sink = realtime_hub.publish
         await realtime_hub.start()
@@ -50,7 +48,6 @@ def create_app(
             yield
         finally:
             await realtime_hub.stop()
-            engine.dispose()
 
     application = FastAPI(
         title="배움마루 API",

@@ -5,7 +5,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from app.db.base import utc_now
+from app.core.time import utc_now
 
 logger = logging.getLogger(__name__)
 

@@ -1,41 +1,31 @@
-"""SQLite 연결 설정과 명시적 Session transaction을 검증한다."""
+"""SQLite 연결 설정과 명시적 sqlite3 transaction을 검증한다."""
 
-from collections.abc import Iterator
+import sqlite3
 from pathlib import Path
 
 import pytest
-from sqlalchemy import Engine, text
-from sqlalchemy.exc import IntegrityError
 
 from app.core.settings import DatabaseSettings
-from app.db.session import create_session_factory, create_sqlite_engine, database_url
+from app.db.database import Database
 
 
 @pytest.fixture
-def engine(tmp_path: Path) -> Iterator[Engine]:
+def database(tmp_path: Path) -> Database:
     database_file = tmp_path / "한글 사용자" / "운영 자료" / "배움마루.db"
-    value = create_sqlite_engine(database_file, DatabaseSettings(busy_timeout_ms=7_000))
-    try:
-        yield value
-    finally:
-        value.dispose()
+    return Database(database_file, DatabaseSettings(busy_timeout_ms=7_000))
 
 
-def test_database_url_preserves_portable_file_path(tmp_path: Path) -> None:
-    database_file = tmp_path / "기관 자료" / "배움마루.db"
-
-    url = database_url(database_file)
-
-    assert url.drivername == "sqlite+pysqlite"
-    assert url.database == str(database_file.resolve())
+def test_database_preserves_portable_file_path(database: Database, tmp_path: Path) -> None:
+    expected = (tmp_path / "한글 사용자" / "운영 자료" / "배움마루.db").resolve()
+    assert database.database_file == expected
 
 
-def test_engine_applies_required_sqlite_pragmas(engine: Engine) -> None:
-    with engine.connect() as connection:
-        foreign_keys = connection.scalar(text("PRAGMA foreign_keys"))
-        busy_timeout = connection.scalar(text("PRAGMA busy_timeout"))
-        journal_mode = connection.scalar(text("PRAGMA journal_mode"))
-        synchronous = connection.scalar(text("PRAGMA synchronous"))
+def test_connection_applies_required_sqlite_pragmas(database: Database) -> None:
+    with database.connection() as connection:
+        foreign_keys = connection.execute("PRAGMA foreign_keys").fetchone()[0]
+        busy_timeout = connection.execute("PRAGMA busy_timeout").fetchone()[0]
+        journal_mode = connection.execute("PRAGMA journal_mode").fetchone()[0]
+        synchronous = connection.execute("PRAGMA synchronous").fetchone()[0]
 
     assert foreign_keys == 1
     assert busy_timeout == 7_000
@@ -43,34 +33,45 @@ def test_engine_applies_required_sqlite_pragmas(engine: Engine) -> None:
     assert synchronous == 1
 
 
-def test_foreign_key_constraint_is_enforced(engine: Engine) -> None:
-    with engine.begin() as connection:
-        connection.execute(text("CREATE TABLE parents (id INTEGER PRIMARY KEY)"))
+def test_foreign_key_constraint_is_enforced(database: Database) -> None:
+    with database.transaction() as connection:
+        connection.execute("CREATE TABLE parents (id INTEGER PRIMARY KEY)")
         connection.execute(
-            text(
-                "CREATE TABLE children ("
-                "id INTEGER PRIMARY KEY, "
-                "parent_id INTEGER NOT NULL REFERENCES parents(id)"
-                ")"
+            """
+            CREATE TABLE children (
+                id INTEGER PRIMARY KEY,
+                parent_id INTEGER NOT NULL REFERENCES parents(id)
             )
+            """
         )
 
-    with pytest.raises(IntegrityError), engine.begin() as connection:
-        connection.execute(text("INSERT INTO children (id, parent_id) VALUES (1, 999)"))
+    with pytest.raises(sqlite3.IntegrityError), database.transaction() as connection:
+        connection.execute("INSERT INTO children (id, parent_id) VALUES (1, 999)")
 
 
-def test_session_does_not_commit_implicitly(engine: Engine) -> None:
-    with engine.begin() as connection:
-        connection.execute(text("CREATE TABLE samples (id INTEGER PRIMARY KEY)"))
+def test_uncommitted_connection_is_rolled_back_on_close(database: Database) -> None:
+    with database.transaction() as connection:
+        connection.execute("CREATE TABLE samples (id INTEGER PRIMARY KEY)")
 
-    factory = create_session_factory(engine)
-    with factory() as session:
-        session.execute(text("INSERT INTO samples (id) VALUES (1)"))
+    with database.connection() as connection:
+        connection.execute("INSERT INTO samples (id) VALUES (1)")
 
-    with factory() as session:
-        assert session.scalar(text("SELECT COUNT(*) FROM samples")) == 0
-        session.execute(text("INSERT INTO samples (id) VALUES (2)"))
-        session.commit()
+    with database.connection() as connection:
+        count = connection.execute("SELECT COUNT(*) FROM samples").fetchone()[0]
+    assert count == 0
 
-    with factory() as session:
-        assert session.scalar(text("SELECT COUNT(*) FROM samples")) == 1
+
+def test_transaction_commits_or_rolls_back_as_one_unit(database: Database) -> None:
+    with database.transaction() as connection:
+        connection.execute("CREATE TABLE samples (id INTEGER PRIMARY KEY)")
+
+    with database.transaction() as connection:
+        connection.execute("INSERT INTO samples (id) VALUES (1)")
+
+    with pytest.raises(sqlite3.IntegrityError), database.transaction() as connection:
+        connection.execute("INSERT INTO samples (id) VALUES (2)")
+        connection.execute("INSERT INTO samples (id) VALUES (1)")
+
+    with database.connection() as connection:
+        ids = [row[0] for row in connection.execute("SELECT id FROM samples ORDER BY id")]
+    assert ids == [1]
