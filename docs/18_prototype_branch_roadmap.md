@@ -76,40 +76,38 @@
 
 종료 기준: 여러 직원이 같은 데이터를 보며 회원과 복수 강좌 신청을 안전하게 접수한다.
 
-## D. 추첨, 출석 및 운영 기능
+## D. 추첨 및 운영 기능
 
 38. `feat/lottery-domain-api`: seeded draw, result, waitlist, rerun guard와 잠금
 39. `feat/operator-lottery`: 준비, 실행, 결과, 재추첨 확인 화면
-40. `feat/attendance-domain-api`: 수업 회차와 출석 일괄 저장/query
-41. `feat/operator-attendance`: 출석 입력과 이력 화면
-42. `feat/excel-domain-api`: 회원/강좌 import 검증과 업무별 export job
-43. `feat/operator-excel-operations`: 업로드 오류 확인, 작업 상태, 다운로드
-44. `feat/backup-restore-domain-api`: backup 생성/목록과 restart-required restore queue
-45. `feat/launcher-backup-logs`: backup/restore, 분류 로그, 오류 상세
-46. `feat/audit-operation-jobs`: 감사 로그와 장기 작업 상태/오류
-47. `feat/operator-operations`: audit, job, 운영 설정 화면
-48. `test/core-workflow-characterization`: 접수→추첨→확정→출석→Excel→backup/restore 통합 검증
-49. `feat/launcher-dashboard-settings`: 운영 요약, 네트워크, 서버 설정과 기관 현황
-50. `manual/launcher-operation-ux`: 런처 전체 lifecycle과 장애 표시 검증
+40. `feat/excel-domain-api`: 회원/강좌 import 검증과 업무별 export job
+41. `feat/operator-excel-operations`: 업로드 오류 확인, 작업 상태, 다운로드
+42. `feat/backup-restore-domain-api`: backup 생성/목록과 restart-required restore queue
+43. `feat/launcher-backup-logs`: backup/restore, 분류 로그, 오류 상세
+44. `feat/audit-operation-jobs`: 감사 로그와 장기 작업 상태/오류
+45. `feat/operator-operations`: audit, job, 운영 설정 화면
+46. `test/core-workflow-characterization`: 접수→추첨→확정→Excel→backup/restore 통합 검증
+47. `feat/launcher-dashboard-settings`: 운영 요약, 네트워크, 서버 설정과 기관 현황
+48. `manual/launcher-operation-ux`: 런처 전체 lifecycle과 장애 표시 검증
 
 종료 기준: 교육 담당자가 한 운영 회차의 핵심 업무와 백업을 끝까지 수행한다.
 
 ## E. 보안, 동시성 및 배포 완성
 
-51. `feat/security-csrf-headers`: CSRF, CSP, security header, upload boundary
-52. `feat/security-login-throttling`: 로그인 실패 제한, lockout, audit
-53. `feat/security-local-https`: 로컬 인증서 생성, 갱신, trust 안내와 Secure cookie
-54. `feat/concurrency-idempotency-locks`: 중복 submit, optimistic conflict, lottery/restore lock
-55. `feat/access-session-presence`: active session과 last-seen 현황
-56. `test/multi-client-concurrency`: 동시 접수, WebSocket 단절/재연결, stale UI 검증
-57. `test/large-dataset-performance`: 회원 1,000명, 강좌 50개, 신청 3,000건
-58. `test/failure-backup-recovery`: 강제 종료, 네트워크 단절, backup/restore 실패 복구
-59. `test/openapi-contract`: endpoint, DTO, error, permission schema snapshot
-60. `ci/frontend-windows-package`: React, Python, OpenAPI client, PyInstaller Windows gate
-61. `feat/windows-portable-package`: versioned ZIP, runtime tree, first-run guide, checksum
-62. `manual/windows-portable-smoke`: 일반 사무용 Windows에서 full package 검증
-63. `docs/operator-guide`: 설치, 런처, 접수, 추첨, 출석, backup 안내
-64. `docs/troubleshooting-security`: 방화벽, 인증서, 백신, 복구, 로그 안내
-65. `manual/prototype-operation-simulation`: 실제 시간표 기반 한 회차 운영 rehearsal
+49. `feat/security-csrf-headers`: CSRF, CSP, security header, upload boundary
+50. `feat/security-login-throttling`: 로그인 실패 제한, lockout, audit
+51. `feat/security-local-https`: 로컬 인증서 생성, 갱신, trust 안내와 Secure cookie
+52. `feat/concurrency-idempotency-locks`: 중복 submit, optimistic conflict, lottery/restore lock
+53. `feat/access-session-presence`: active session과 last-seen 현황
+54. `test/multi-client-concurrency`: 동시 접수, WebSocket 단절/재연결, stale UI 검증
+55. `test/large-dataset-performance`: 회원 1,000명, 강좌 50개, 신청 3,000건
+56. `test/failure-backup-recovery`: 강제 종료, 네트워크 단절, backup/restore 실패 복구
+57. `test/openapi-contract`: endpoint, DTO, error, permission schema snapshot
+58. `ci/frontend-windows-package`: React, Python, OpenAPI client, PyInstaller Windows gate
+59. `feat/windows-portable-package`: versioned ZIP, runtime tree, first-run guide, checksum
+60. `manual/windows-portable-smoke`: 일반 사무용 Windows에서 full package 검증
+61. `docs/operator-guide`: 설치, 런처, 접수, 추첨, backup 안내
+62. `docs/troubleshooting-security`: 방화벽, 인증서, 백신, 복구, 로그 안내
+63. `manual/prototype-operation-simulation`: 실제 시간표 기반 한 회차 운영 rehearsal
 
 종료 기준: 보안, 성능, 동시성, 복구 및 배포 점검을 통과한 Python 프로토타입을 `develop`에 남긴다. `main` 병합과 release tag는 사용자가 별도로 요청할 때만 진행한다.

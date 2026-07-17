@@ -63,10 +63,10 @@ Python DDL + sqlite3.Connection + SQLite
 - 요청 흐름은 `api/routers → services → repositories → db` 순서로 읽힌다.
 - 동일한 업무 영역은 모든 계층에서 같은 파일 이름을 사용해 탐색 비용을 낮춘다.
 - router는 HTTP와 WebSocket 입출력만 처리한다.
-- service는 업무 규칙을 실행하고 같은 연결의 transaction commit 또는 rollback을 결정한다.
-- repository는 parameterized SQL과 행 변환만 담당하며 commit 또는 rollback하지 않는다.
+- service는 프레임워크와 저장소에 독립적인 업무 규칙을 실행한다.
+- repository 공개 함수는 함수형 DB 유틸리티를 직접 호출해 runtime의 단일 운영 DB connection을 얻고 parameterized SQL, 행 변환과 transaction 완료를 담당한다.
 - Pydantic schema와 DB DDL을 분리한다.
-- 여러 table을 바꾸는 use case는 같은 `sqlite3.Connection`을 사용하는 service method 하나에서 원자성을 보장한다.
+- 여러 table을 바꾸는 use case는 해당 작업을 소유한 Repository 공개 함수 하나가 같은 `sqlite3.Connection`으로 원자성을 보장한다.
 - commit 이후 audit log와 WebSocket event 발행 경계를 둔다.
 - generic repository, repository protocol, command/query handler, CQRS bus와 event sourcing은 실제 필요가 생기기 전에는 도입하지 않는다.
 
@@ -80,7 +80,7 @@ Python DDL + sqlite3.Connection + SQLite
 - import 시 DB 연결, process 실행과 writable 파일 생성을 수행하지 않는다.
 - 독립 pywebview 제어는 `launcher/`, 장시간 작업은 `jobs/`에 둔다.
 
-이 구조는 `modakbul`의 명시적인 router-service-repository 탐색 방식을 기준으로 삼되, repository 함수마다 connection을 열거나 commit하지 않는다. SQLite 접근은 동기 `sqlite3` transaction을 사용하며 FastAPI의 thread pool 경계를 이용한다.
+이 구조는 `modakbul`의 명시적인 router-service-repository 탐색 방식을 기준으로 삼는다. DB class나 전역 connection 객체를 두지 않고 Repository 공개 함수가 `get_db_connection()` 또는 `transaction()`을 직접 호출한다. 기본 호출은 runtime 설정의 단일 SQLite 파일을 사용하고 테스트만 DB 경로를 함수 인자로 바꾼다. 동일 use case의 세부 저장 함수는 공개 함수가 연 connection을 공유할 수 있다. SQLite 접근은 동기 `sqlite3` transaction을 사용하며 FastAPI의 thread pool 경계를 이용한다.
 
 ## stateless 원칙
 

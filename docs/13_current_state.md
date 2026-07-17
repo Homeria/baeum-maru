@@ -28,7 +28,7 @@
 - 대표 CHECK/UNIQUE 위반과 aggregate CASCADE/업무 이력 RESTRICT를 실제 SQL로 검증한다.
 - `create_app()`과 lifespan이 runtime/config/logging, SQLite schema와 Database를 순서대로 준비한다.
 - `/api/v1` 아래에 health endpoint와 OpenAPI를 제공하고 request ID, 공통 오류 응답과 pagination 계약을 공유한다.
-- `Depends(get_db)`는 요청마다 `sqlite3.Connection`을 열고 닫되 자동 commit하지 않는다.
+- DB class나 전역 connection 설정 없이 Repository가 함수형 DB 유틸리티를 호출해 runtime의 단일 SQLite 파일에 작업 단위 connection 또는 transaction을 직접 연다.
 - `record_audit()`은 민감 metadata를 거부하고 업무 변경과 같은 연결에 append-only 감사 row를 추가한다.
 - `ResourceEvent`와 `publish_committed_events()`는 commit 이후 개인정보 없는 변경 신호를 best-effort로 전달한다.
 - `RealtimeHub`는 thread-safe event queue, 다중 WebSocket broadcast, heartbeat와 stale/slow connection 정리를 제공한다.
@@ -52,7 +52,7 @@ repositories/<domain>_repository.py
 db/schema/<domain>.py + db/database.py
 ```
 
-Pydantic schema는 router와 service 사이의 API 입력·응답 계약이다. Router는 request scope connection을 service에 전달하고, repository는 commit하지 않으며 service가 transaction을 완료한다.
+Pydantic schema는 router의 HTTP 입력·응답 계약이다. Router가 이를 primitive 또는 표준 라이브러리 dataclass로 풀어 service에 전달하며, service는 Pydantic과 SQLite를 알지 않는다. Repository 공개 함수가 함수형 DB 유틸리티를 직접 호출해 connection과 transaction을 소유한다.
 
 ## 채택한 목표
 

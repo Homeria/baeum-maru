@@ -8,13 +8,8 @@ STATEMENTS = (
         id INTEGER PRIMARY KEY,
         term_id INTEGER NOT NULL REFERENCES terms(id) ON DELETE RESTRICT,
         seed INTEGER NOT NULL,
-        status TEXT NOT NULL DEFAULT 'prepared'
-            CHECK (status IN ('prepared', 'running', 'completed', 'failed', 'cancelled')),
-        executed_by_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        started_at TEXT,
-        completed_at TEXT,
-        note TEXT
+        executed_by_operator_id INTEGER NOT NULL REFERENCES operators(id) ON DELETE RESTRICT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
     """,
     f"""
@@ -28,6 +23,8 @@ STATEMENTS = (
         male_capacity INTEGER,
         female_capacity INTEGER,
         eligible_count INTEGER NOT NULL CHECK (eligible_count >= 0),
+        eligible_male INTEGER CHECK (eligible_male IS NULL OR eligible_male >= 0),
+        eligible_female INTEGER CHECK (eligible_female IS NULL OR eligible_female >= 0),
         UNIQUE (lottery_run_id, offering_id),
         CHECK ({_CAPACITY_CHECK})
     )
@@ -45,10 +42,7 @@ STATEMENTS = (
         UNIQUE (lottery_run_target_id, result, result_order)
     )
     """,
-    """
-    CREATE INDEX IF NOT EXISTS ix_lottery_runs_term_status
-    ON lottery_runs(term_id, status)
-    """,
+    "CREATE INDEX IF NOT EXISTS ix_lottery_runs_term_id ON lottery_runs(term_id)",
     """
     CREATE INDEX IF NOT EXISTS ix_lottery_run_targets_run_id
     ON lottery_run_targets(lottery_run_id)

@@ -56,7 +56,7 @@ SQLite / data / backups / exports / logs는 실행 파일 외부에 저장
 
 - API는 `/api/v1`로 버전 관리하고 리소스 중심 URL과 HTTP method를 사용한다.
 - Pydantic은 transport DTO를 검증하며 업무 규칙은 application service와 DB 제약에서 다시 검증한다.
-- FastAPI router는 `Depends(get_db)`로 request scope `sqlite3.Connection`을 받아 service에 전달하며 HTTP 입출력만 처리한다.
+- FastAPI router는 Pydantic 요청을 primitive 또는 표준 라이브러리 dataclass로 풀어 service에 전달하며 HTTP 입출력만 처리한다.
 - 오류는 안정된 코드, 사용자 메시지, field detail, correlation ID를 가진 공통 형식으로 응답한다.
 - OpenAPI 문서에서 TypeScript client와 타입을 생성하고 실제 응답과의 계약을 CI에서 검사한다.
 - 동시성, 추첨, 복구처럼 단순 CRUD가 아닌 작업은 명시적인 command endpoint와 작업 상태를 사용한다.
@@ -66,10 +66,11 @@ SQLite / data / backups / exports / logs는 실행 파일 외부에 저장
 - 수평 계층 `api/routers → services → repositories → db` 방향을 지킨다.
 - 같은 업무 영역은 계층마다 같은 이름을 사용해 파일 탐색 경로를 명확하게 만든다.
 - Pydantic model을 핵심 업무 규칙의 유일한 표현으로 사용하지 않는다.
-- repository는 `?` parameter binding을 사용한 SQL과 행 변환을 캡슐화하고 commit하지 않는다.
-- service는 업무 규칙을 실행하고 성공 시 `commit()`, 실패 시 `rollback()`하여 transaction을 완료한다.
+- repository는 `?` parameter binding을 사용한 SQL과 행 변환을 캡슐화하고 공개 함수 단위로 connection과 transaction을 소유한다.
+- service는 업무 규칙을 실행하되 FastAPI, Pydantic, `sqlite3`와 transaction 제어에 의존하지 않는다.
 - SQLite 연결은 foreign key, WAL, busy timeout과 `synchronous=NORMAL`을 적용하고 자동 commit하지 않는다.
-- FastAPI `Depends`는 조립과 request scope에만 사용하며 도메인 코드에 유출하지 않는다.
+- FastAPI `Depends`는 인증과 pagination 같은 HTTP 경계에만 사용하며 service와 repository에 유출하지 않는다.
+- 여러 table을 원자적으로 바꾸는 use case는 그 작업을 소유한 Repository 공개 함수 하나에서 같은 connection으로 수행한다.
 - 실제 대체 구현이 필요하기 전에는 repository protocol, generic repository와 command/query handler를 도입하지 않는다.
 - import 방향은 `router → service → repository → db`로만 허용하며 architecture test로 역방향 참조를 차단한다.
 

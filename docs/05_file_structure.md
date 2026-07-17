@@ -15,13 +15,13 @@ backend/
   app/
     main.py                       FastAPI 생성과 router 등록
     api/
-      dependencies.py             DB connection, 인증 등 공통 Depends
+      dependencies.py             인증, pagination 등 HTTP 공통 Depends
       errors.py                   공통 API 오류 응답과 exception handler
       middleware.py               request ID 생성과 응답 header
       realtime.py                 WebSocket 연결, heartbeat와 event broadcast
       routers/                    도메인별 HTTP/WebSocket endpoint
     schemas/                      도메인별 Pydantic 요청·응답
-    services/                     업무 규칙과 transaction 조정
+    services/                     프레임워크와 저장소에 독립적인 업무 규칙
     repositories/                 parameterized SQL 조회와 저장
     db/
       database.py                 sqlite3 연결, PRAGMA와 transaction
@@ -32,7 +32,7 @@ backend/
   tests/
     conftest.py                   공통 DB와 API fixture
     api/                          endpoint 통합 테스트
-    services/                     업무 규칙과 transaction 테스트
+    services/                     저장소를 대역으로 둔 업무 규칙 테스트
     repositories/                 query와 DB 제약 테스트
     scenarios/                    핵심 사용자 흐름 테스트
 ```
@@ -51,18 +51,19 @@ repositories/member_repository.py
 db/schema/members.py
 ```
 
-강좌, 공간, 신청, 추첨과 출석도 같은 이름 규칙을 사용한다. 한 계층의 파일이 커질 때만 같은 이름의 하위 package로 분리하며, 기능마다 임의의 추가 계층을 만들지 않는다.
+강좌, 공간, 신청, 추첨도 같은 이름 규칙을 사용한다. 한 계층의 파일이 커질 때만 같은 이름의 하위 package로 분리하며, 기능마다 임의의 추가 계층을 만들지 않는다.
 
 ## 계층 규칙
 
 - router는 요청 검증 결과를 service에 전달하고 응답으로 변환한다.
-- Pydantic schema는 API 계약이며 DB 행이나 DDL로 사용하지 않는다.
-- service는 업무 규칙과 transaction 시작·완료를 담당한다.
-- repository는 전달받은 `sqlite3.Connection`으로 조회·저장하지만 commit하지 않는다.
+- Pydantic schema는 router의 API 계약이며 DB 행, DDL 또는 service 입력형으로 사용하지 않는다.
+- router는 Pydantic 값을 primitive 또는 표준 라이브러리 dataclass로 풀어 service에 전달한다.
+- service는 업무 규칙을 담당하며 FastAPI, Pydantic, `sqlite3`를 import하지 않는다.
+- repository 공개 함수는 함수형 DB 유틸리티를 직접 호출해 runtime의 단일 운영 DB connection을 얻고 조회 또는 transaction을 완료한다.
 - `db/schema`는 평문 DDL로 table, index와 DB 수준 제약만 표현한다.
 - FastAPI `Depends`, `Request`, HTTP status는 router 바깥으로 전달하지 않는다.
 - SQL과 `sqlite3.Row`는 repository 바깥으로 노출하지 않는다.
-- 여러 repository 변경은 service가 받은 같은 연결과 transaction 안에서 수행한다.
+- 여러 table 변경은 use case를 소유한 Repository 공개 함수가 같은 connection과 transaction 안에서 수행한다.
 - 감사 로그는 업무 변경과 같은 transaction에 저장하고 resource event는 commit 성공 뒤 전달한다.
 - event 전달 실패로 이미 commit된 업무를 rollback하거나 API 실패로 바꾸지 않는다.
 - 하위 계층은 상위 계층을 import할 수 없으며 architecture test가 역방향 의존성을 검사한다.
