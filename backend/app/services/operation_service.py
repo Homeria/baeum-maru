@@ -2,7 +2,6 @@
 
 import math
 import re
-import sqlite3
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
@@ -58,7 +57,6 @@ def _audit_json(value: Any, path: str) -> Any:
 
 
 def record_audit(
-    connection: sqlite3.Connection,
     *,
     actor_kind: ActorKind,
     action: str,
@@ -71,7 +69,7 @@ def record_audit(
     request_id: str | None = None,
     metadata: Mapping[str, Any] | None = None,
 ) -> AuditLogRecord:
-    """업무 변경과 같은 transaction에 감사 로그를 넣되 commit하지 않는다."""
+    """감사 값을 검증한 뒤 Repository가 소유한 transaction으로 저장한다."""
     if actor_kind not in _ACTOR_KINDS:
         raise ValueError("actor_kind is invalid")
     if actor_kind == "user" and actor_user_id is None:
@@ -84,7 +82,6 @@ def record_audit(
         raise ValueError("metadata must be an object")
 
     return add_audit_log(
-        connection,
         actor_kind=actor_kind,
         actor_user_id=actor_user_id,
         actor_access_code_id=actor_access_code_id,

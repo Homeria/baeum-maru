@@ -14,7 +14,7 @@ from app.api.routers.realtime import router as realtime_router
 from app.core.logging import configure_logging
 from app.core.runtime import RuntimePaths
 from app.core.settings import AppSettings, load_settings
-from app.db.database import Database
+from app.db.database import initialize_database
 
 API_PREFIX = "/api/v1"
 
@@ -33,14 +33,12 @@ def create_app(
         app_settings = settings or load_settings(paths)
         configure_logging(app_settings.logging, paths.application_log_file)
 
-        database = Database(paths.database_file, app_settings.database)
         if initialize_schema:
-            database.initialize()
+            initialize_database(paths.database_file, app_settings.database)
 
         realtime_hub = RealtimeHub(app_settings.realtime)
         application.state.runtime_paths = paths
         application.state.settings = app_settings
-        application.state.database = database
         application.state.realtime_hub = realtime_hub
         application.state.resource_event_sink = realtime_hub.publish
         await realtime_hub.start()
