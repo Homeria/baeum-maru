@@ -23,25 +23,32 @@ STATEMENTS = (
     CREATE TABLE IF NOT EXISTS course_categories (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
-        description TEXT,
         sort_order INTEGER NOT NULL DEFAULT 0,
         is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1)
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS course_levels (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS courses (
         id INTEGER PRIMARY KEY,
         category_id INTEGER NOT NULL REFERENCES course_categories(id) ON DELETE RESTRICT,
+        level_id INTEGER REFERENCES course_levels(id) ON DELETE RESTRICT,
         name TEXT NOT NULL,
         description TEXT,
         is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
-        UNIQUE (category_id, name)
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
     """,
     """
@@ -49,11 +56,9 @@ STATEMENTS = (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
         phone TEXT,
-        note TEXT,
         is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1)
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
     """,
     """
@@ -70,7 +75,6 @@ STATEMENTS = (
             CHECK (status IN ('draft', 'open', 'closed', 'finalized')),
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
         CHECK (starts_on IS NULL OR ends_on IS NULL OR starts_on <= ends_on),
         CHECK (
             registration_opens_at IS NULL OR registration_closes_at IS NULL
@@ -88,7 +92,6 @@ STATEMENTS = (
         is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
         CHECK (start_time < end_time),
         UNIQUE (start_time, end_time)
     )
@@ -110,10 +113,8 @@ STATEMENTS = (
         status TEXT NOT NULL DEFAULT 'draft'
             CHECK (status IN ('draft', 'open', 'closed', 'cancelled')),
         sort_order INTEGER NOT NULL DEFAULT 0,
-        note TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
         CHECK ({_CAPACITY_CHECK})
     )
     """,
@@ -123,13 +124,22 @@ STATEMENTS = (
         offering_id INTEGER NOT NULL REFERENCES course_offerings(id) ON DELETE CASCADE,
         weekday INTEGER NOT NULL CHECK (weekday BETWEEN 1 AND 7),
         time_slot_id INTEGER NOT NULL REFERENCES time_slots(id) ON DELETE RESTRICT,
-        location_id INTEGER NOT NULL REFERENCES locations(id) ON DELETE RESTRICT,
+        space_id INTEGER NOT NULL REFERENCES spaces(id) ON DELETE RESTRICT,
         UNIQUE (offering_id, weekday, time_slot_id)
     )
     """,
     """
     CREATE INDEX IF NOT EXISTS ix_courses_category_active
     ON courses(category_id, is_active)
+    """,
+    "CREATE INDEX IF NOT EXISTS ix_courses_level_id ON courses(level_id)",
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_courses_category_name_no_level
+    ON courses(category_id, name) WHERE level_id IS NULL
+    """,
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_courses_category_name_level
+    ON courses(category_id, name, level_id) WHERE level_id IS NOT NULL
     """,
     """
     CREATE INDEX IF NOT EXISTS ix_course_offerings_term_status
@@ -160,7 +170,7 @@ STATEMENTS = (
     ON course_schedules(weekday, time_slot_id)
     """,
     """
-    CREATE INDEX IF NOT EXISTS ix_course_schedules_location_id
-    ON course_schedules(location_id)
+    CREATE INDEX IF NOT EXISTS ix_course_schedules_space_id
+    ON course_schedules(space_id)
     """,
 )
