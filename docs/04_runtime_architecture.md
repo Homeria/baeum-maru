@@ -46,12 +46,12 @@
 ## 동기화 원칙
 
 - 데이터 조회와 변경은 REST API를 사용하고 WebSocket은 변경 알림과 실시간 작업 상태에만 사용한다.
-- DB transaction이 commit된 뒤 `members`, `courses`, `registrations`, `lottery`, `attendance`, `settings` 같은 resource event를 발행한다.
+- DB transaction이 commit된 뒤 `members`, `courses`, `registrations`, `lottery` 같은 resource event를 발행한다.
 - 이벤트에는 개인정보 전체가 아니라 event type, resource, entity ID, version, 발생 시각만 포함한다.
 - React는 수신한 resource의 TanStack Query cache를 무효화하고 REST API로 확정 데이터를 다시 읽는다.
 - 인증, heartbeat, 지수 backoff 재연결, 연결 종료 정리와 재연결 후 active query 재검증을 구현한다.
 - 폼 편집 중에는 자동 덮어쓰지 않고 최신 데이터가 있다는 안내를 표시한다.
-- 최종 정확성은 WebSocket이 아니라 DB 제약, transaction, idempotency와 optimistic version으로 보장한다.
+- 최종 정확성은 WebSocket이 아니라 DB 제약, transaction, idempotency로 보장한다.
 
 ### WebSocket protocol v1
 

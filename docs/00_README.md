@@ -23,8 +23,10 @@
 9. `08_data_model.md`: Python 초기 스키마 구현 기준
 10. `16_schema_redesign_notes.md`: 과거 schema에서 달라진 결정과 이유
 11. `09_screen_flows.md`, `10_business_rules.md`: 화면과 업무 규칙
-12. `11_quality_checklist.md`, `14_release_checklist.md`: 검증과 배포 점검
-13. `13_current_state.md`: 실제 구현 상태와 바로 다음 작업
+12. `19_repository_transaction_and_audit.md`: repository 트랜잭션 경계와 감사 로그 규약
+13. `20_lottery_draw_flow.md`: 추첨 실행 흐름(백엔드 seed·미리보기·확정)
+14. `11_quality_checklist.md`, `14_release_checklist.md`: 검증과 배포 점검
+15. `13_current_state.md`: 실제 구현 상태와 바로 다음 작업
 
 ## 문서 운영 원칙
 

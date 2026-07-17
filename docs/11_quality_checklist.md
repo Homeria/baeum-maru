@@ -5,7 +5,7 @@
 - [ ] `uv lock --check`, Ruff format/lint, mypy 통과
 - [ ] `pytest` unit/integration/contract 전체 통과
 - [ ] 빈 DB에서 sqlite3 schema 초기화, 기준 데이터, backup/restore 확인
-- [ ] 회원/강좌/신청/추첨/출석/Excel 한 cycle integration test
+- [ ] 회원/강좌/신청/추첨/Excel 한 cycle integration test
 - [ ] 다중 신청 저장이 원자적이며 DB 제약과 application rule이 모두 동작
 - [ ] FK, unique, check, index, cascade/null 정책이 실제 workflow와 일치
 - [ ] SQLite connection과 transaction이 request/task 종료 시 정리됨
