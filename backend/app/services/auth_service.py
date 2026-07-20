@@ -95,3 +95,11 @@ def verify_session(token: str) -> dict[str, Any] | None:
 
 def logout(token: str) -> None:
     auth_repo.revoke_session_by_hash(hash_secret(token))
+
+
+def bootstrap_admin(*, ttl_minutes: int) -> str | None:
+    """관계자가 하나도 없으면 최초 관리자와 접속 코드를 만들고 평문 코드를 반환한다."""
+    if operator_repo.list_operators(include_inactive=True):
+        return None
+    operator = operator_repo.create_operator(display_name="최초 관리자", role="staff")
+    return str(issue_access_code(operator["id"], ttl_minutes=ttl_minutes)["code"])

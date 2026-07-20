@@ -57,10 +57,21 @@ def _validate_apply(member_id: int, offering_ids: list[int]) -> None:
             raise ConflictError("max_registrations_exceeded", "최대 신청 개수를 초과했습니다.")
 
 
-def apply(member_id: int, offering_ids: list[int]) -> list[dict[str, Any]]:
+def apply(
+    member_id: int,
+    offering_ids: list[int],
+    *,
+    actor_operator_id: int | None = None,
+    actor_display_name: str | None = None,
+) -> list[dict[str, Any]]:
     offering_ids = list(dict.fromkeys(offering_ids))  # 중복 제거(순서 유지)
     _validate_apply(member_id, offering_ids)
-    return registration_repo.apply_registrations(member_id, offering_ids)
+    return registration_repo.apply_registrations(
+        member_id,
+        offering_ids,
+        actor_operator_id=actor_operator_id,
+        actor_display_name=actor_display_name,
+    )
 
 
 def list_registrations(
@@ -87,8 +98,19 @@ def list_history(registration_id: int) -> list[dict[str, Any]]:
     return registration_repo.list_history(registration_id)
 
 
-def cancel(registration_id: int, *, reason: str | None) -> dict[str, Any]:
-    registration = registration_repo.cancel_registration(registration_id, reason)
+def cancel(
+    registration_id: int,
+    *,
+    reason: str | None,
+    actor_operator_id: int | None = None,
+    actor_display_name: str | None = None,
+) -> dict[str, Any]:
+    registration = registration_repo.cancel_registration(
+        registration_id,
+        reason,
+        actor_operator_id=actor_operator_id,
+        actor_display_name=actor_display_name,
+    )
     if registration is None:
         raise ResourceNotFoundError("registration_not_found", "신청을 찾을 수 없습니다.")
     return registration

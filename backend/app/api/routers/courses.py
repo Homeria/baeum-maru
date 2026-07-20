@@ -1,8 +1,9 @@
 """강좌 기준 정보(분류·난도·강사·학기·교시) CRUD 요청을 받는 router."""
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
 import app.services.course_service as course_service
+from app.api.dependencies import get_current_operator
 from app.schemas.courses import (
     CourseCategoryCreate,
     CourseCategoryResponse,
@@ -24,7 +25,7 @@ from app.schemas.courses import (
     TimeSlotUpdate,
 )
 
-router = APIRouter(tags=["course-masters"])
+router = APIRouter(tags=["course-masters"], dependencies=[Depends(get_current_operator)])
 
 
 # --- course_categories (분류) ---

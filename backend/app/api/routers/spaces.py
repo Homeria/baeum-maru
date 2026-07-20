@@ -1,8 +1,9 @@
 """장소 유형과 장소 CRUD 요청을 받는 router."""
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
 import app.services.space_service as space_service
+from app.api.dependencies import get_current_operator
 from app.schemas.spaces import (
     SpaceCreate,
     SpaceResponse,
@@ -12,7 +13,7 @@ from app.schemas.spaces import (
     SpaceUpdate,
 )
 
-router = APIRouter(tags=["spaces"])
+router = APIRouter(tags=["spaces"], dependencies=[Depends(get_current_operator)])
 
 
 # --- space_types ---

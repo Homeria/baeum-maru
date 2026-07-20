@@ -1,8 +1,9 @@
 """개설 강좌와 시간표 CRUD 요청을 받는 router."""
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
 import app.services.offering_service as offering_service
+from app.api.dependencies import get_current_operator
 from app.schemas.offerings import (
     OfferingCreate,
     OfferingResponse,
@@ -12,7 +13,7 @@ from app.schemas.offerings import (
     ScheduleUpdate,
 )
 
-router = APIRouter(tags=["offerings"])
+router = APIRouter(tags=["offerings"], dependencies=[Depends(get_current_operator)])
 
 
 # --- course_offerings (개설 강좌) ---

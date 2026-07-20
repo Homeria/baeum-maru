@@ -10,7 +10,6 @@ class PreviewRequest(BaseModel):
 class CommitRequest(BaseModel):
     term_id: int
     seed: int
-    executed_by_operator_id: int | None = None
 
 
 class ResultItem(BaseModel):

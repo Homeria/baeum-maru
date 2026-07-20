@@ -1,11 +1,12 @@
 """회원 CRUD 요청을 받는 router."""
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
 import app.services.member_service as member_service
+from app.api.dependencies import get_current_operator
 from app.schemas.members import MemberCreate, MemberResponse, MemberUpdate
 
-router = APIRouter(tags=["members"])
+router = APIRouter(tags=["members"], dependencies=[Depends(get_current_operator)])
 
 
 @router.post(
