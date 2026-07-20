@@ -9,8 +9,10 @@ from app.api.dependencies import RealtimeSessionVerifier
 from app.api.errors import register_exception_handlers
 from app.api.middleware import request_id_middleware
 from app.api.realtime import RealtimeHub
+from app.api.routers.buildings import router as buildings_router
 from app.api.routers.health import router as health_router
 from app.api.routers.realtime import router as realtime_router
+from app.api.routers.spaces import router as spaces_router
 from app.core.logging import configure_logging
 from app.core.runtime import RuntimePaths
 from app.core.settings import AppSettings, load_settings
@@ -61,6 +63,8 @@ def create_app(
     register_exception_handlers(application)
     application.include_router(health_router, prefix=API_PREFIX)
     application.include_router(realtime_router, prefix=API_PREFIX)
+    application.include_router(buildings_router, prefix=API_PREFIX)
+    application.include_router(spaces_router, prefix=API_PREFIX)
     return application
 
 
