@@ -10,6 +10,7 @@ from app.api.errors import register_exception_handlers
 from app.api.middleware import request_id_middleware
 from app.api.realtime import RealtimeHub
 from app.api.routers.buildings import router as buildings_router
+from app.api.routers.courses import router as courses_router
 from app.api.routers.health import router as health_router
 from app.api.routers.members import router as members_router
 from app.api.routers.realtime import router as realtime_router
@@ -67,6 +68,7 @@ def create_app(
     application.include_router(buildings_router, prefix=API_PREFIX)
     application.include_router(spaces_router, prefix=API_PREFIX)
     application.include_router(members_router, prefix=API_PREFIX)
+    application.include_router(courses_router, prefix=API_PREFIX)
     return application
 
 
