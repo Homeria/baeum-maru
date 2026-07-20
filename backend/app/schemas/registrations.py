@@ -35,5 +35,6 @@ class StatusHistoryResponse(BaseModel):
     to_status: str
     reason: str | None
     actor_kind: str
+    actor_operator_id: int | None
     actor_display_name: str | None
     changed_at: str

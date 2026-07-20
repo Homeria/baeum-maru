@@ -1,8 +1,9 @@
 """건물과 층 CRUD 요청을 받는 router."""
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
 import app.services.building_service as building_service
+from app.api.dependencies import get_current_operator
 from app.schemas.buildings import (
     BuildingCreate,
     BuildingFloorCreate,
@@ -12,7 +13,7 @@ from app.schemas.buildings import (
     BuildingUpdate,
 )
 
-router = APIRouter(tags=["buildings"])
+router = APIRouter(tags=["buildings"], dependencies=[Depends(get_current_operator)])
 
 
 # --- buildings ---

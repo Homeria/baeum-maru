@@ -1,8 +1,11 @@
 """강좌 추첨 미리보기, 확정과 결과 조회 요청을 받는 router."""
 
-from fastapi import APIRouter, Query, status
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Depends, Query, status
 
 import app.services.lottery_service as lottery_service
+from app.api.dependencies import get_current_operator
 from app.schemas.lottery import (
     CommitRequest,
     PreviewRequest,
@@ -11,7 +14,7 @@ from app.schemas.lottery import (
     RunResponse,
 )
 
-router = APIRouter(tags=["lottery"])
+router = APIRouter(tags=["lottery"], dependencies=[Depends(get_current_operator)])
 
 
 @router.post(
@@ -27,11 +30,15 @@ def preview(payload: PreviewRequest) -> PreviewResponse:
     status_code=status.HTTP_201_CREATED,
     summary="추첨 확정(같은 seed로 저장)",
 )
-def commit(payload: CommitRequest) -> RunResponse:
+def commit(
+    payload: CommitRequest,
+    operator: Annotated[dict[str, Any], Depends(get_current_operator)],
+) -> RunResponse:
     run = lottery_service.commit(
         payload.term_id,
         seed=payload.seed,
-        executed_by_operator_id=payload.executed_by_operator_id,
+        executed_by_operator_id=operator["id"],
+        actor_display_name=operator["display_name"],
     )
     return RunResponse.model_validate(run)
 

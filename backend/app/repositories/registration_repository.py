@@ -17,14 +17,27 @@ def _history(
     from_status: str | None,
     to_status: str,
     reason: str | None = None,
+    *,
+    actor_operator_id: int | None = None,
+    actor_display_name: str | None = None,
 ) -> None:
+    actor_kind = "operator" if actor_operator_id is not None else "system"
     conn.execute(
         """
         INSERT INTO registration_status_history
-            (registration_id, from_status, to_status, reason, actor_kind)
-        VALUES (?, ?, ?, ?, 'system')
+            (registration_id, from_status, to_status, reason,
+             actor_kind, actor_operator_id, actor_display_name)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (registration_id, from_status, to_status, reason),
+        (
+            registration_id,
+            from_status,
+            to_status,
+            reason,
+            actor_kind,
+            actor_operator_id,
+            actor_display_name,
+        ),
     )
 
 
@@ -117,7 +130,13 @@ def get_offering_slots(offering_id: int) -> list[tuple[int, int]]:
 # --- Write (원자적) ---
 
 
-def apply_registrations(member_id: int, offering_ids: list[int]) -> list[dict[str, Any]]:
+def apply_registrations(
+    member_id: int,
+    offering_ids: list[int],
+    *,
+    actor_operator_id: int | None = None,
+    actor_display_name: str | None = None,
+) -> list[dict[str, Any]]:
     """여러 강좌 신청을 한 transaction으로 처리한다(전부 아니면 전무).
 
     이미 취소/탈락한 신청은 다시 applied로 되살리고, 활성 신청이면 전체를 취소한다.
@@ -137,7 +156,14 @@ def apply_registrations(member_id: int, offering_ids: list[int]) -> list[dict[st
                         (member_id, offering_id),
                     )
                     rid = int(cursor.lastrowid)  # type: ignore[arg-type]
-                    _history(conn, rid, None, "applied")
+                    _history(
+                        conn,
+                        rid,
+                        None,
+                        "applied",
+                        actor_operator_id=actor_operator_id,
+                        actor_display_name=actor_display_name,
+                    )
                 elif existing["status"] in ("cancelled", "rejected"):
                     rid = int(existing["id"])
                     conn.execute(
@@ -145,7 +171,14 @@ def apply_registrations(member_id: int, offering_ids: list[int]) -> list[dict[st
                         "updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                         (rid,),
                     )
-                    _history(conn, rid, str(existing["status"]), "applied")
+                    _history(
+                        conn,
+                        rid,
+                        str(existing["status"]),
+                        "applied",
+                        actor_operator_id=actor_operator_id,
+                        actor_display_name=actor_display_name,
+                    )
                 else:
                     raise ConflictError("already_applied", "이미 신청한 강좌가 있습니다.")
                 ids.append(rid)
@@ -164,7 +197,13 @@ def apply_registrations(member_id: int, offering_ids: list[int]) -> list[dict[st
         ]
 
 
-def cancel_registration(registration_id: int, reason: str | None) -> dict[str, Any] | None:
+def cancel_registration(
+    registration_id: int,
+    reason: str | None,
+    *,
+    actor_operator_id: int | None = None,
+    actor_display_name: str | None = None,
+) -> dict[str, Any] | None:
     """신청을 취소하고, 당첨자였다면 대기 순번대로 승계한다(한 transaction)."""
     with get_db_connection() as conn:
         reg = conn.execute(
@@ -180,7 +219,15 @@ def cancel_registration(registration_id: int, reason: str | None) -> dict[str, A
                 "WHERE id = ?",
                 (registration_id,),
             )
-            _history(conn, registration_id, str(reg["status"]), "cancelled", reason)
+            _history(
+                conn,
+                registration_id,
+                str(reg["status"]),
+                "cancelled",
+                reason,
+                actor_operator_id=actor_operator_id,
+                actor_display_name=actor_display_name,
+            )
             if reg["status"] == "selected":
                 nxt = conn.execute(
                     "SELECT id FROM registrations WHERE offering_id = ? AND status = 'waitlisted' "
@@ -193,7 +240,15 @@ def cancel_registration(registration_id: int, reason: str | None) -> dict[str, A
                         "updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                         (int(nxt["id"]),),
                     )
-                    _history(conn, int(nxt["id"]), "waitlisted", "selected", "대기 승계")
+                    _history(
+                        conn,
+                        int(nxt["id"]),
+                        "waitlisted",
+                        "selected",
+                        "대기 승계",
+                        actor_operator_id=actor_operator_id,
+                        actor_display_name=actor_display_name,
+                    )
             conn.commit()
         except BaseException:
             conn.rollback()

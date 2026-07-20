@@ -75,9 +75,11 @@ def commit_lottery(
     term_id: int,
     seed: int,
     executed_by_operator_id: int | None,
+    actor_display_name: str | None,
     targets: list[dict[str, Any]],
 ) -> int:
     """추첨 결과를 한 transaction으로 저장하고 registrations 상태를 반영한다."""
+    actor_kind = "operator" if executed_by_operator_id is not None else "system"
     with get_db_connection() as conn:
         try:
             run_cursor = conn.execute(
@@ -124,10 +126,17 @@ def commit_lottery(
                     conn.execute(
                         """
                         INSERT INTO registration_status_history
-                            (registration_id, from_status, to_status, reason, actor_kind)
-                        VALUES (?, 'applied', ?, '추첨', 'system')
+                            (registration_id, from_status, to_status, reason,
+                             actor_kind, actor_operator_id, actor_display_name)
+                        VALUES (?, 'applied', ?, '추첨', ?, ?, ?)
                         """,
-                        (res["registration_id"], res["result"]),
+                        (
+                            res["registration_id"],
+                            res["result"],
+                            actor_kind,
+                            executed_by_operator_id,
+                            actor_display_name,
+                        ),
                     )
             conn.commit()
         except BaseException:

@@ -1,10 +1,12 @@
 """FastAPI application 생성, 공통 경계 등록과 lifespan을 담당한다."""
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+import app.services.auth_service as auth_service
 from app.api.dependencies import (
     RealtimeSessionVerifier,
     default_realtime_session_verifier,
@@ -36,6 +38,7 @@ def create_app(
     runtime_paths: RuntimePaths | None = None,
     settings: AppSettings | None = None,
     initialize_schema: bool = True,
+    bootstrap_admin: bool = True,
     realtime_session_verifier: RealtimeSessionVerifier | None = None,
 ) -> FastAPI:
     @asynccontextmanager
@@ -47,6 +50,16 @@ def create_app(
 
         if initialize_schema:
             initialize_database(paths.database_file, app_settings.database)
+
+        if bootstrap_admin:
+            code = auth_service.bootstrap_admin(
+                ttl_minutes=app_settings.auth.access_code_ttl_minutes
+            )
+            if code is not None:
+                logging.getLogger("app.bootstrap").warning(
+                    "최초 관리자 접속 코드: %s (다시 표시되지 않으니 지금 로그인해 두세요)",
+                    code,
+                )
 
         realtime_hub = RealtimeHub(app_settings.realtime)
         application.state.runtime_paths = paths

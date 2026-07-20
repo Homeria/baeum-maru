@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query, status
 
 import app.services.auth_service as auth_service
 import app.services.operator_service as operator_service
-from app.api.dependencies import get_settings
+from app.api.dependencies import get_current_operator, get_settings
 from app.core.settings import AppSettings
 from app.schemas.operators import (
     AccessCodeIssueRequest,
@@ -17,7 +17,7 @@ from app.schemas.operators import (
     OperatorUpdate,
 )
 
-router = APIRouter(tags=["operators"])
+router = APIRouter(tags=["operators"], dependencies=[Depends(get_current_operator)])
 
 
 @router.post(

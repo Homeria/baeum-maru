@@ -1,8 +1,11 @@
 """회원의 강좌 신청, 조회와 상태 변경 요청을 받는 router."""
 
-from fastapi import APIRouter, Query, status
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Depends, Query, status
 
 import app.services.registration_service as registration_service
+from app.api.dependencies import get_current_operator
 from app.schemas.registrations import (
     CancelRequest,
     RegistrationApply,
@@ -10,7 +13,7 @@ from app.schemas.registrations import (
     StatusHistoryResponse,
 )
 
-router = APIRouter(tags=["registrations"])
+router = APIRouter(tags=["registrations"], dependencies=[Depends(get_current_operator)])
 
 
 @router.post(
@@ -19,8 +22,16 @@ router = APIRouter(tags=["registrations"])
     status_code=status.HTTP_201_CREATED,
     summary="수강 신청(다중, 원자적)",
 )
-def apply(payload: RegistrationApply) -> list[RegistrationResponse]:
-    items = registration_service.apply(payload.member_id, payload.offering_ids)
+def apply(
+    payload: RegistrationApply,
+    operator: Annotated[dict[str, Any], Depends(get_current_operator)],
+) -> list[RegistrationResponse]:
+    items = registration_service.apply(
+        payload.member_id,
+        payload.offering_ids,
+        actor_operator_id=operator["id"],
+        actor_display_name=operator["display_name"],
+    )
     return [RegistrationResponse.model_validate(i) for i in items]
 
 
@@ -61,7 +72,16 @@ def get_history(registration_id: int) -> list[StatusHistoryResponse]:
     response_model=RegistrationResponse,
     summary="신청 취소(당첨 시 대기 승계)",
 )
-def cancel(registration_id: int, payload: CancelRequest) -> RegistrationResponse:
+def cancel(
+    registration_id: int,
+    payload: CancelRequest,
+    operator: Annotated[dict[str, Any], Depends(get_current_operator)],
+) -> RegistrationResponse:
     return RegistrationResponse.model_validate(
-        registration_service.cancel(registration_id, reason=payload.reason)
+        registration_service.cancel(
+            registration_id,
+            reason=payload.reason,
+            actor_operator_id=operator["id"],
+            actor_display_name=operator["display_name"],
+        )
     )
