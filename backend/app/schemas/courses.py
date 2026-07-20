@@ -161,3 +161,32 @@ class TimeSlotResponse(BaseModel):
     is_active: bool
     created_at: str
     updated_at: str
+
+
+# --- courses (과목) ---
+
+
+class CourseCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    category_id: int
+    level_id: int | None = None
+    name: str = Field(min_length=1, max_length=160)
+    description: str | None = Field(default=None, max_length=2000)
+
+
+class CourseUpdate(CourseCreate):
+    is_active: bool = True
+
+
+class CourseResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    category_id: int
+    level_id: int | None
+    name: str
+    description: str | None
+    is_active: bool
+    created_at: str
+    updated_at: str

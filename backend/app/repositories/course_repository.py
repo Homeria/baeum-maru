@@ -374,3 +374,78 @@ def delete_time_slot(time_slot_id: int) -> bool:
                 "time_slot_in_use", "시간표에 배정돼 있어 삭제할 수 없습니다. 비활성화하세요."
             ) from error
     return cursor.rowcount > 0
+
+
+# --- courses (과목) ---
+
+
+def list_courses(*, include_inactive: bool = False) -> list[dict[str, Any]]:
+    return _all("courses", include_inactive=include_inactive, order="name")
+
+
+def get_course(course_id: int) -> dict[str, Any] | None:
+    return _one("courses", course_id)
+
+
+def create_course(
+    *, category_id: int, level_id: int | None, name: str, description: str | None
+) -> dict[str, Any]:
+    with get_db_connection() as conn:
+        try:
+            cursor = conn.execute(
+                """
+                INSERT INTO courses (category_id, level_id, name, description)
+                VALUES (?, ?, ?, ?)
+                """,
+                (category_id, level_id, name, description),
+            )
+            conn.commit()
+        except sqlite3.IntegrityError as error:
+            raise ConflictError(
+                "course_exists", "이미 같은 분류·난도에 같은 과목명이 있습니다."
+            ) from error
+        row = conn.execute("SELECT * FROM courses WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    return dict(row)
+
+
+def update_course(
+    course_id: int,
+    *,
+    category_id: int,
+    level_id: int | None,
+    name: str,
+    description: str | None,
+    is_active: bool,
+) -> dict[str, Any] | None:
+    with get_db_connection() as conn:
+        try:
+            cursor = conn.execute(
+                """
+                UPDATE courses
+                SET category_id = ?, level_id = ?, name = ?, description = ?, is_active = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (category_id, level_id, name, description, int(is_active), course_id),
+            )
+            conn.commit()
+        except sqlite3.IntegrityError as error:
+            raise ConflictError(
+                "course_exists", "이미 같은 분류·난도에 같은 과목명이 있습니다."
+            ) from error
+        if cursor.rowcount == 0:
+            return None
+        row = conn.execute("SELECT * FROM courses WHERE id = ?", (course_id,)).fetchone()
+    return dict(row)
+
+
+def delete_course(course_id: int) -> bool:
+    with get_db_connection() as conn:
+        try:
+            cursor = conn.execute("DELETE FROM courses WHERE id = ?", (course_id,))
+            conn.commit()
+        except sqlite3.IntegrityError as error:
+            raise ConflictError(
+                "course_in_use", "개설 강좌가 있어 삭제할 수 없습니다. 비활성화하세요."
+            ) from error
+    return cursor.rowcount > 0
