@@ -37,6 +37,12 @@ class DatabaseSettings(BaseModel):
     echo_sql: bool = False
 
 
+class AuthSettings(BaseModel):
+    # 접속 코드는 오래 쓰는 로그인 수단, 세션은 그 코드로 연 짧은 사용 창이다.
+    access_code_ttl_minutes: int = Field(default=60 * 24 * 30, ge=1)
+    session_ttl_minutes: int = Field(default=60 * 12, ge=1)
+
+
 class RealtimeSettings(BaseModel):
     heartbeat_interval_seconds: float = Field(default=20.0, ge=0.05, le=300.0)
     stale_timeout_seconds: float = Field(default=60.0, ge=0.1, le=900.0)
@@ -65,6 +71,7 @@ class AppSettings(BaseSettings):
     server: ServerSettings = Field(default_factory=ServerSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    auth: AuthSettings = Field(default_factory=AuthSettings)
     realtime: RealtimeSettings = Field(default_factory=RealtimeSettings)
 
     @classmethod
