@@ -12,6 +12,7 @@ from starlette.exceptions import HTTPException
 from app.api.middleware import REQUEST_ID_HEADER
 from app.core.exceptions import (
     ApplicationError,
+    AuthenticationError,
     ConflictError,
     PermissionDeniedError,
     ResourceNotFoundError,
@@ -81,6 +82,8 @@ def application_error_status(error: ApplicationError) -> int:
         return 404
     if isinstance(error, ConflictError):
         return 409
+    if isinstance(error, AuthenticationError):
+        return 401
     if isinstance(error, PermissionDeniedError):
         return 403
     return 400

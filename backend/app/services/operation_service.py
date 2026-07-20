@@ -5,10 +5,10 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
-from app.repositories.operation_repository import AuditLogRecord, add_audit_log
+from app.repositories.operation_repository import add_audit_log
 
-ActorKind = Literal["user", "launcher", "system"]
-_ACTOR_KINDS = frozenset({"user", "launcher", "system"})
+ActorKind = Literal["operator", "launcher", "system"]
+_ACTOR_KINDS = frozenset({"operator", "launcher", "system"})
 _SENSITIVE_METADATA_KEY = re.compile(
     r"password|token|secret|authorization|cookie|access[_-]?code|phone|birth",
     re.IGNORECASE,
@@ -62,20 +62,22 @@ def record_audit(
     action: str,
     resource_type: str,
     summary: str,
-    actor_user_id: int | None = None,
+    actor_operator_id: int | None = None,
     actor_access_code_id: int | None = None,
     actor_display_name: str | None = None,
     resource_id: str | None = None,
     request_id: str | None = None,
     metadata: Mapping[str, Any] | None = None,
-) -> AuditLogRecord:
+) -> dict[str, Any]:
     """감사 값을 검증한 뒤 Repository가 소유한 transaction으로 저장한다."""
     if actor_kind not in _ACTOR_KINDS:
         raise ValueError("actor_kind is invalid")
-    if actor_kind == "user" and actor_user_id is None:
-        raise ValueError("user actor requires actor_user_id")
-    if actor_kind != "user" and (actor_user_id is not None or actor_access_code_id is not None):
-        raise ValueError("launcher and system actors cannot reference user credentials")
+    if actor_kind == "operator" and actor_operator_id is None:
+        raise ValueError("operator actor requires actor_operator_id")
+    if actor_kind != "operator" and (
+        actor_operator_id is not None or actor_access_code_id is not None
+    ):
+        raise ValueError("launcher and system actors cannot reference operator credentials")
 
     metadata_json = _audit_json(metadata, "metadata") if metadata is not None else None
     if metadata_json is not None and not isinstance(metadata_json, dict):
@@ -83,7 +85,7 @@ def record_audit(
 
     return add_audit_log(
         actor_kind=actor_kind,
-        actor_user_id=actor_user_id,
+        actor_operator_id=actor_operator_id,
         actor_access_code_id=actor_access_code_id,
         actor_display_name=_optional_text(actor_display_name, "actor_display_name", 80),
         action=_required_text(action, "action", 80),

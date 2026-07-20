@@ -28,5 +28,9 @@ class ConflictError(ApplicationError):
     """중복, version 불일치 등 현재 상태와 요청이 충돌한 경우."""
 
 
+class AuthenticationError(ApplicationError):
+    """로그인하지 않았거나 세션이 만료·무효한 경우."""
+
+
 class PermissionDeniedError(ApplicationError):
     """현재 인증 주체에게 작업 권한이 없는 경우."""

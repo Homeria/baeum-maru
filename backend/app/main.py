@@ -5,16 +5,21 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api.dependencies import RealtimeSessionVerifier
+from app.api.dependencies import (
+    RealtimeSessionVerifier,
+    default_realtime_session_verifier,
+)
 from app.api.errors import register_exception_handlers
 from app.api.middleware import request_id_middleware
 from app.api.realtime import RealtimeHub
+from app.api.routers.auth import router as auth_router
 from app.api.routers.buildings import router as buildings_router
 from app.api.routers.courses import router as courses_router
 from app.api.routers.health import router as health_router
 from app.api.routers.lottery import router as lottery_router
 from app.api.routers.members import router as members_router
 from app.api.routers.offerings import router as offerings_router
+from app.api.routers.operators import router as operators_router
 from app.api.routers.realtime import router as realtime_router
 from app.api.routers.registrations import router as registrations_router
 from app.api.routers.spaces import router as spaces_router
@@ -64,10 +69,14 @@ def create_app(
         lifespan=lifespan,
     )
     application.middleware("http")(request_id_middleware)
-    application.state.realtime_session_verifier = realtime_session_verifier
+    application.state.realtime_session_verifier = (
+        realtime_session_verifier or default_realtime_session_verifier
+    )
     register_exception_handlers(application)
     application.include_router(health_router, prefix=API_PREFIX)
     application.include_router(realtime_router, prefix=API_PREFIX)
+    application.include_router(auth_router, prefix=API_PREFIX)
+    application.include_router(operators_router, prefix=API_PREFIX)
     application.include_router(buildings_router, prefix=API_PREFIX)
     application.include_router(spaces_router, prefix=API_PREFIX)
     application.include_router(members_router, prefix=API_PREFIX)
