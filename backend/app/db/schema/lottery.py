@@ -8,7 +8,7 @@ STATEMENTS = (
         id INTEGER PRIMARY KEY,
         term_id INTEGER NOT NULL REFERENCES terms(id) ON DELETE RESTRICT,
         seed INTEGER NOT NULL,
-        executed_by_operator_id INTEGER NOT NULL REFERENCES operators(id) ON DELETE RESTRICT,
+        executed_by_operator_id INTEGER REFERENCES operators(id) ON DELETE RESTRICT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
     """,
