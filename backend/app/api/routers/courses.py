@@ -7,9 +7,12 @@ from app.schemas.courses import (
     CourseCategoryCreate,
     CourseCategoryResponse,
     CourseCategoryUpdate,
+    CourseCreate,
     CourseLevelCreate,
     CourseLevelResponse,
     CourseLevelUpdate,
+    CourseResponse,
+    CourseUpdate,
     InstructorCreate,
     InstructorResponse,
     InstructorUpdate,
@@ -247,3 +250,51 @@ def update_time_slot(time_slot_id: int, payload: TimeSlotUpdate) -> TimeSlotResp
 )
 def delete_time_slot(time_slot_id: int) -> None:
     course_service.delete_time_slot(time_slot_id)
+
+
+# --- courses (과목) ---
+
+
+@router.post(
+    "/courses",
+    response_model=CourseResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="과목 등록",
+)
+def create_course(payload: CourseCreate) -> CourseResponse:
+    item = course_service.create_course(
+        category_id=payload.category_id,
+        level_id=payload.level_id,
+        name=payload.name,
+        description=payload.description,
+    )
+    return CourseResponse.model_validate(item)
+
+
+@router.get("/courses", response_model=list[CourseResponse], summary="과목 목록")
+def list_courses(include_inactive: bool = Query(default=False)) -> list[CourseResponse]:
+    items = course_service.list_courses(include_inactive=include_inactive)
+    return [CourseResponse.model_validate(i) for i in items]
+
+
+@router.get("/courses/{course_id}", response_model=CourseResponse, summary="과목 조회")
+def get_course(course_id: int) -> CourseResponse:
+    return CourseResponse.model_validate(course_service.get_course(course_id))
+
+
+@router.patch("/courses/{course_id}", response_model=CourseResponse, summary="과목 수정")
+def update_course(course_id: int, payload: CourseUpdate) -> CourseResponse:
+    item = course_service.update_course(
+        course_id,
+        category_id=payload.category_id,
+        level_id=payload.level_id,
+        name=payload.name,
+        description=payload.description,
+        is_active=payload.is_active,
+    )
+    return CourseResponse.model_validate(item)
+
+
+@router.delete("/courses/{course_id}", status_code=status.HTTP_204_NO_CONTENT, summary="과목 삭제")
+def delete_course(course_id: int) -> None:
+    course_service.delete_course(course_id)

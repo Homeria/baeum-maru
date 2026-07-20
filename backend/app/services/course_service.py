@@ -218,3 +218,61 @@ def update_time_slot(
 def delete_time_slot(time_slot_id: int) -> None:
     if not course_repo.delete_time_slot(time_slot_id):
         raise ResourceNotFoundError("time_slot_not_found", "교시를 찾을 수 없습니다.")
+
+
+# --- courses (과목) ---
+
+
+def _ensure_category_and_level(category_id: int, level_id: int | None) -> None:
+    if course_repo.get_category(category_id) is None:
+        raise ResourceNotFoundError("category_not_found", "분류를 찾을 수 없습니다.")
+    if level_id is not None and course_repo.get_level(level_id) is None:
+        raise ResourceNotFoundError("level_not_found", "난도를 찾을 수 없습니다.")
+
+
+def list_courses(*, include_inactive: bool = False) -> list[dict[str, Any]]:
+    return course_repo.list_courses(include_inactive=include_inactive)
+
+
+def get_course(course_id: int) -> dict[str, Any]:
+    course = course_repo.get_course(course_id)
+    if course is None:
+        raise ResourceNotFoundError("course_not_found", "과목을 찾을 수 없습니다.")
+    return course
+
+
+def create_course(
+    *, category_id: int, level_id: int | None, name: str, description: str | None
+) -> dict[str, Any]:
+    _ensure_category_and_level(category_id, level_id)
+    return course_repo.create_course(
+        category_id=category_id, level_id=level_id, name=name, description=description
+    )
+
+
+def update_course(
+    course_id: int,
+    *,
+    category_id: int,
+    level_id: int | None,
+    name: str,
+    description: str | None,
+    is_active: bool,
+) -> dict[str, Any]:
+    _ensure_category_and_level(category_id, level_id)
+    course = course_repo.update_course(
+        course_id,
+        category_id=category_id,
+        level_id=level_id,
+        name=name,
+        description=description,
+        is_active=is_active,
+    )
+    if course is None:
+        raise ResourceNotFoundError("course_not_found", "과목을 찾을 수 없습니다.")
+    return course
+
+
+def delete_course(course_id: int) -> None:
+    if not course_repo.delete_course(course_id):
+        raise ResourceNotFoundError("course_not_found", "과목을 찾을 수 없습니다.")
