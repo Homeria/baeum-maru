@@ -12,6 +12,7 @@ from app.api.realtime import RealtimeHub
 from app.api.routers.buildings import router as buildings_router
 from app.api.routers.courses import router as courses_router
 from app.api.routers.health import router as health_router
+from app.api.routers.lottery import router as lottery_router
 from app.api.routers.members import router as members_router
 from app.api.routers.offerings import router as offerings_router
 from app.api.routers.realtime import router as realtime_router
@@ -73,6 +74,7 @@ def create_app(
     application.include_router(courses_router, prefix=API_PREFIX)
     application.include_router(offerings_router, prefix=API_PREFIX)
     application.include_router(registrations_router, prefix=API_PREFIX)
+    application.include_router(lottery_router, prefix=API_PREFIX)
     return application
 
 
