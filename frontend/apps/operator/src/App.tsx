@@ -1,7 +1,10 @@
 import { Center, Loader } from '@mantine/core'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './auth'
+import { Layout } from './Layout'
 import { Login } from './pages/Login'
-import { Home } from './pages/Home'
+import { Operators } from './pages/Operators'
+import { Members } from './pages/Members'
 
 export default function App() {
   const { operator, loading } = useAuth()
@@ -11,5 +14,14 @@ export default function App() {
         <Loader />
       </Center>
     )
-  return operator ? <Home /> : <Login />
+  if (!operator) return <Login />
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route path="/operators" element={<Operators />} />
+        <Route path="/members" element={<Members />} />
+        <Route path="*" element={<Navigate to="/operators" replace />} />
+      </Route>
+    </Routes>
+  )
 }
