@@ -17,6 +17,8 @@ export type CrudConfig<Row extends { id: number }, Values extends Record<string,
   toValues: (row: Row) => Values
   renderForm: (form: UseFormReturnType<Values>) => ReactNode
   validate?: Record<string, (value: never) => string | null>
+  // 수정 버튼 앞에 붙일 추가 행 액션(예: 하위 항목 관리)
+  rowActions?: (row: Row) => ReactNode
 }
 
 function errMessage(error: unknown): string {
@@ -82,7 +84,8 @@ export function CrudMaster<Row extends { id: number }, Values extends Record<str
                 <Table.Td key={c.head}>{c.cell(row)}</Table.Td>
               ))}
               <Table.Td>
-                <Group justify="flex-end">
+                <Group gap="xs" justify="flex-end">
+                  {config.rowActions?.(row)}
                   <Button size="xs" variant="subtle" onClick={() => openEdit(row)}>
                     수정
                   </Button>
