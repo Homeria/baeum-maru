@@ -6,6 +6,7 @@ import { Login } from './pages/Login'
 import { Operators } from './pages/Operators'
 import { Members } from './pages/Members'
 import { CourseMasters } from './pages/CourseMasters'
+import { Offerings } from './pages/Offerings'
 
 export default function App() {
   const { operator, loading } = useAuth()
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/operators" element={<Operators />} />
         <Route path="/members" element={<Members />} />
         <Route path="/course-masters" element={<CourseMasters />} />
+        <Route path="/offerings" element={<Offerings />} />
         <Route path="*" element={<Navigate to="/operators" replace />} />
       </Route>
     </Routes>
