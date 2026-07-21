@@ -313,7 +313,7 @@ function SchedulesModal({ offering, onClose }: { offering: Offering | null; onCl
       ),
   })
 
-  const form = useForm({ initialValues: { weekday: '0', time_slot_id: '', space_id: '' } })
+  const form = useForm({ initialValues: { weekday: '1', time_slot_id: '', space_id: '' } })
 
   const add = useMutation({
     mutationFn: async (v: typeof form.values) => {
@@ -364,7 +364,7 @@ function SchedulesModal({ offering, onClose }: { offering: Offering | null; onCl
           <Table.Tbody>
             {schedules.data?.map((s) => (
               <Table.Tr key={s.id}>
-                <Table.Td>{WEEKDAYS[s.weekday]}</Table.Td>
+                <Table.Td>{WEEKDAYS[s.weekday - 1]}</Table.Td>
                 <Table.Td>{tsName(s.time_slot_id)}</Table.Td>
                 <Table.Td>{spName(s.space_id)}</Table.Td>
                 <Table.Td>
@@ -399,7 +399,7 @@ function SchedulesModal({ offering, onClose }: { offering: Offering | null; onCl
                 label="요일"
                 w={90}
                 allowDeselect={false}
-                data={WEEKDAYS.map((w, i) => ({ value: String(i), label: w }))}
+                data={WEEKDAYS.map((w, i) => ({ value: String(i + 1), label: w }))}
                 {...form.getInputProps('weekday')}
               />
               <Select
