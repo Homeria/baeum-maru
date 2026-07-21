@@ -8,6 +8,7 @@ import { Members } from './pages/Members'
 import { CourseMasters } from './pages/CourseMasters'
 import { Offerings } from './pages/Offerings'
 import { Spaces } from './pages/Spaces'
+import { Registrations } from './pages/Registrations'
 
 export default function App() {
   const { operator, loading } = useAuth()
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/course-masters" element={<CourseMasters />} />
         <Route path="/spaces" element={<Spaces />} />
         <Route path="/offerings" element={<Offerings />} />
+        <Route path="/registrations" element={<Registrations />} />
         <Route path="*" element={<Navigate to="/operators" replace />} />
       </Route>
     </Routes>
