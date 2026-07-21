@@ -12,6 +12,7 @@ const NAV = [
   { to: '/spaces', label: '공간' },
   { to: '/offerings', label: '개설 강좌' },
   { to: '/registrations', label: '수강신청' },
+  { to: '/lottery', label: '강좌 추첨' },
 ]
 
 export function Layout() {
