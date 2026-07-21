@@ -1,18 +1,15 @@
-import './App.css'
+import { Center, Loader } from '@mantine/core'
+import { useAuth } from './auth'
+import { Login } from './pages/Login'
+import { Home } from './pages/Home'
 
-function App() {
-  return (
-    <main className="app-shell">
-      <header className="app-header">
-        <strong>배움마루</strong>
-        <span className="status">준비됨</span>
-      </header>
-      <section className="app-content" aria-labelledby="operator-title">
-        <p className="eyebrow">OPERATOR</p>
-        <h1 id="operator-title">업무 웹</h1>
-      </section>
-    </main>
-  )
+export default function App() {
+  const { operator, loading } = useAuth()
+  if (loading)
+    return (
+      <Center h="100vh">
+        <Loader />
+      </Center>
+    )
+  return operator ? <Home /> : <Login />
 }
-
-export default App
