@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Container, Group, Text, Title } from '@mantine/core'
+import { Button, Container, Divider, Group, Text, Title } from '@mantine/core'
 import { api } from '../api/client'
 import { useAuth } from '../auth'
+import { Operators } from './Operators'
 
 export function Home() {
   const { operator } = useAuth()
@@ -26,7 +27,8 @@ export function Home() {
           </Button>
         </Group>
       </Group>
-      <Text mt="xl">로그인됨. 업무 화면은 다음 슬라이스에서 도메인별로 추가합니다.</Text>
+      <Divider my="lg" />
+      <Operators />
     </Container>
   )
 }
