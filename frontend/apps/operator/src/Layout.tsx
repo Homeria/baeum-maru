@@ -11,6 +11,7 @@ const NAV = [
   { to: '/course-masters', label: '강좌 기준정보' },
   { to: '/spaces', label: '공간' },
   { to: '/offerings', label: '개설 강좌' },
+  { to: '/registrations', label: '수강신청' },
 ]
 
 export function Layout() {
