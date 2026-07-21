@@ -8,6 +8,7 @@ import { useAuth } from './auth'
 const NAV = [
   { to: '/operators', label: '관계자' },
   { to: '/members', label: '회원' },
+  { to: '/course-masters', label: '강좌 기준정보' },
 ]
 
 export function Layout() {
