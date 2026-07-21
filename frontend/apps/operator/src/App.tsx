@@ -9,6 +9,7 @@ import { CourseMasters } from './pages/CourseMasters'
 import { Offerings } from './pages/Offerings'
 import { Spaces } from './pages/Spaces'
 import { Registrations } from './pages/Registrations'
+import { Lottery } from './pages/Lottery'
 
 export default function App() {
   const { operator, loading } = useAuth()
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/spaces" element={<Spaces />} />
         <Route path="/offerings" element={<Offerings />} />
         <Route path="/registrations" element={<Registrations />} />
+        <Route path="/lottery" element={<Lottery />} />
         <Route path="*" element={<Navigate to="/operators" replace />} />
       </Route>
     </Routes>
