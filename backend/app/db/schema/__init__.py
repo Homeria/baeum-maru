@@ -54,7 +54,6 @@ TABLE_NAMES = frozenset(
         "registrations",
         "space_types",
         "spaces",
-        "terms",
         "time_slots",
     }
 )

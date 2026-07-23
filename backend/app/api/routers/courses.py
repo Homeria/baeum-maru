@@ -17,9 +17,6 @@ from app.schemas.courses import (
     InstructorCreate,
     InstructorResponse,
     InstructorUpdate,
-    TermCreate,
-    TermResponse,
-    TermUpdate,
     TimeSlotCreate,
     TimeSlotResponse,
     TimeSlotUpdate,
@@ -152,55 +149,6 @@ def update_instructor(instructor_id: int, payload: InstructorUpdate) -> Instruct
 )
 def delete_instructor(instructor_id: int) -> None:
     course_service.delete_instructor(instructor_id)
-
-
-# --- terms (학기) ---
-
-
-@router.post(
-    "/terms", response_model=TermResponse, status_code=status.HTTP_201_CREATED, summary="학기 등록"
-)
-def create_term(payload: TermCreate) -> TermResponse:
-    item = course_service.create_term(
-        name=payload.name,
-        starts_on=payload.starts_on,
-        ends_on=payload.ends_on,
-        registration_opens_at=payload.registration_opens_at,
-        registration_closes_at=payload.registration_closes_at,
-        max_registrations_per_member=payload.max_registrations_per_member,
-        status=payload.status,
-    )
-    return TermResponse.model_validate(item)
-
-
-@router.get("/terms", response_model=list[TermResponse], summary="학기 목록")
-def list_terms() -> list[TermResponse]:
-    return [TermResponse.model_validate(i) for i in course_service.list_terms()]
-
-
-@router.get("/terms/{term_id}", response_model=TermResponse, summary="학기 조회")
-def get_term(term_id: int) -> TermResponse:
-    return TermResponse.model_validate(course_service.get_term(term_id))
-
-
-@router.patch("/terms/{term_id}", response_model=TermResponse, summary="학기 수정")
-def update_term(term_id: int, payload: TermUpdate) -> TermResponse:
-    item = course_service.update_term(
-        term_id,
-        name=payload.name,
-        starts_on=payload.starts_on,
-        ends_on=payload.ends_on,
-        registration_opens_at=payload.registration_opens_at,
-        registration_closes_at=payload.registration_closes_at,
-        max_registrations_per_member=payload.max_registrations_per_member,
-        status=payload.status,
-    )
-    return TermResponse.model_validate(item)
-
-
-@router.delete("/terms/{term_id}", status_code=status.HTTP_204_NO_CONTENT, summary="학기 삭제")
-def delete_term(term_id: int) -> None:
-    course_service.delete_term(term_id)
 
 
 # --- time_slots (교시) ---

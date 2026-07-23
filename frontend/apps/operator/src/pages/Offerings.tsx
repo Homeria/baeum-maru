@@ -7,6 +7,8 @@ import {
   Alert,
   Badge,
   Button,
+  Card,
+  Collapse,
   Group,
   Modal,
   NumberInput,

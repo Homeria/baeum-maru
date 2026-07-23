@@ -3,12 +3,7 @@
 from pydantic import BaseModel, ConfigDict
 
 
-class PreviewRequest(BaseModel):
-    term_id: int
-
-
 class CommitRequest(BaseModel):
-    term_id: int
     seed: int
 
 
@@ -39,7 +34,6 @@ class RunResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    term_id: int
     seed: int
     executed_by_operator_id: int | None
     created_at: str

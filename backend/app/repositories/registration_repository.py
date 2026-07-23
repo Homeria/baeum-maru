@@ -56,7 +56,6 @@ def list_registrations(
     *,
     member_id: int | None = None,
     offering_id: int | None = None,
-    term_id: int | None = None,
     status: str | None = None,
 ) -> list[dict[str, Any]]:
     query = "SELECT * FROM registrations"
@@ -71,9 +70,6 @@ def list_registrations(
     if status is not None:
         conditions.append("status = ?")
         params.append(status)
-    if term_id is not None:
-        conditions.append("offering_id IN (SELECT id FROM course_offerings WHERE term_id = ?)")
-        params.append(term_id)
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
     query += " ORDER BY id"
@@ -90,19 +86,6 @@ def list_history(registration_id: int) -> list[dict[str, Any]]:
             (registration_id,),
         ).fetchall()
     return [dict(row) for row in rows]
-
-
-def count_active_in_term(member_id: int, term_id: int) -> int:
-    with get_db_connection() as conn:
-        row = conn.execute(
-            f"""
-            SELECT COUNT(*) FROM registrations r
-            JOIN course_offerings o ON o.id = r.offering_id
-            WHERE r.member_id = ? AND o.term_id = ? AND r.status IN {_ACTIVE_SQL}
-            """,
-            (member_id, term_id),
-        ).fetchone()
-    return int(row[0])
 
 
 def get_member_active_slots(member_id: int) -> list[tuple[int, int]]:

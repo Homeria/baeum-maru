@@ -9,15 +9,9 @@ from app.db.database import get_db_connection
 # --- course_offerings (개설 강좌) ---
 
 
-def list_offerings(*, term_id: int | None = None) -> list[dict[str, Any]]:
-    query = "SELECT * FROM course_offerings"
-    params: list[Any] = []
-    if term_id is not None:
-        query += " WHERE term_id = ?"
-        params.append(term_id)
-    query += " ORDER BY sort_order, id"
+def list_offerings() -> list[dict[str, Any]]:
     with get_db_connection() as conn:
-        rows = conn.execute(query, params).fetchall()
+        rows = conn.execute("SELECT * FROM course_offerings ORDER BY sort_order, id").fetchall()
     return [dict(row) for row in rows]
 
 
@@ -29,7 +23,6 @@ def get_offering(offering_id: int) -> dict[str, Any] | None:
 
 def create_offering(
     *,
-    term_id: int,
     course_id: int,
     section_label: str | None,
     instructor_id: int | None,
@@ -45,12 +38,11 @@ def create_offering(
             cursor = conn.execute(
                 """
                 INSERT INTO course_offerings (
-                    term_id, course_id, section_label, instructor_id, capacity_type,
+                    course_id, section_label, instructor_id, capacity_type,
                     capacity_total, male_capacity, female_capacity, status, sort_order
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    term_id,
                     course_id,
                     section_label,
                     instructor_id,
@@ -65,7 +57,7 @@ def create_offering(
             conn.commit()
         except sqlite3.IntegrityError as error:
             raise ConflictError(
-                "offering_section_exists", "같은 학기·과목에 같은 분반이 이미 있습니다."
+                "offering_section_exists", "같은 과목에 같은 분반이 이미 있습니다."
             ) from error
         row = conn.execute(
             "SELECT * FROM course_offerings WHERE id = ?", (cursor.lastrowid,)
@@ -76,7 +68,6 @@ def create_offering(
 def update_offering(
     offering_id: int,
     *,
-    term_id: int,
     course_id: int,
     section_label: str | None,
     instructor_id: int | None,
@@ -92,14 +83,13 @@ def update_offering(
             cursor = conn.execute(
                 """
                 UPDATE course_offerings
-                SET term_id = ?, course_id = ?, section_label = ?, instructor_id = ?,
+                SET course_id = ?, section_label = ?, instructor_id = ?,
                     capacity_type = ?, capacity_total = ?, male_capacity = ?,
                     female_capacity = ?, status = ?, sort_order = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """,
                 (
-                    term_id,
                     course_id,
                     section_label,
                     instructor_id,
@@ -115,7 +105,7 @@ def update_offering(
             conn.commit()
         except sqlite3.IntegrityError as error:
             raise ConflictError(
-                "offering_section_exists", "같은 학기·과목에 같은 분반이 이미 있습니다."
+                "offering_section_exists", "같은 과목에 같은 분반이 이미 있습니다."
             ) from error
         if cursor.rowcount == 0:
             return None

@@ -2,13 +2,12 @@
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, status
 
 import app.services.lottery_service as lottery_service
 from app.api.dependencies import get_current_operator
 from app.schemas.lottery import (
     CommitRequest,
-    PreviewRequest,
     PreviewResponse,
     ResultResponse,
     RunResponse,
@@ -20,8 +19,8 @@ router = APIRouter(tags=["lottery"], dependencies=[Depends(get_current_operator)
 @router.post(
     "/lottery/preview", response_model=PreviewResponse, summary="추첨 미리보기(저장 안 함)"
 )
-def preview(payload: PreviewRequest) -> PreviewResponse:
-    return PreviewResponse.model_validate(lottery_service.preview(payload.term_id))
+def preview() -> PreviewResponse:
+    return PreviewResponse.model_validate(lottery_service.preview())
 
 
 @router.post(
@@ -35,7 +34,6 @@ def commit(
     operator: Annotated[dict[str, Any], Depends(get_current_operator)],
 ) -> RunResponse:
     run = lottery_service.commit(
-        payload.term_id,
         seed=payload.seed,
         executed_by_operator_id=operator["id"],
         actor_display_name=operator["display_name"],
@@ -44,8 +42,8 @@ def commit(
 
 
 @router.get("/lottery/runs", response_model=list[RunResponse], summary="추첨 실행 목록")
-def list_runs(term_id: int | None = Query(default=None)) -> list[RunResponse]:
-    return [RunResponse.model_validate(r) for r in lottery_service.list_runs(term_id)]
+def list_runs() -> list[RunResponse]:
+    return [RunResponse.model_validate(r) for r in lottery_service.list_runs()]
 
 
 @router.get("/lottery/runs/{run_id}", response_model=RunResponse, summary="추첨 실행 조회")
