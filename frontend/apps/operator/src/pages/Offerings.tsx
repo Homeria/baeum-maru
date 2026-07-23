@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDisclosure } from '@mantine/hooks'
 import { useForm } from '@mantine/form'
+import { useNavigate } from 'react-router-dom'
 import {
   Alert,
   Badge,
@@ -92,10 +93,12 @@ function buildBody(v: OfferingValues) {
 
 export function Offerings() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const [termFilter, setTermFilter] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formOpen, form] = useDisclosure(false)
   const [schedOffering, setSchedOffering] = useState<Offering | null>(null)
+  const [deleting, setDeleting] = useState<Offering | null>(null)
 
   const terms = useQuery({ queryKey: ['terms'], queryFn: () => unwrap(api.GET('/api/v1/terms')) })
   const courses = useQuery({ queryKey: ['courses'], queryFn: () => unwrap(api.GET('/api/v1/courses')) })
@@ -163,6 +166,18 @@ export function Offerings() {
     },
   })
 
+  const remove = useMutation({
+    mutationFn: async (o: Offering) => {
+      await unwrap(
+        api.DELETE('/api/v1/offerings/{offering_id}', { params: { path: { offering_id: o.id } } }),
+      )
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['offerings'] })
+      setDeleting(null)
+    },
+  })
+
   const courseName = (id: number) => courses.data?.find((c) => c.id === id)?.name ?? id
   const termName = (id: number) => terms.data?.find((t) => t.id === id)?.name ?? id
   const instructorName = (id: number | null) =>
@@ -224,6 +239,9 @@ export function Offerings() {
                   <Button size="xs" variant="subtle" onClick={() => openEdit(o)}>
                     수정
                   </Button>
+                  <Button size="xs" variant="subtle" color="red" onClick={() => setDeleting(o)}>
+                    삭제
+                  </Button>
                 </Group>
               </Table.Td>
             </Table.Tr>
@@ -234,6 +252,22 @@ export function Offerings() {
       <Modal opened={formOpen} onClose={form.close} title={editingId ? '개설 수정' : '개설 추가'}>
         <form onSubmit={formHook.onSubmit((v) => save.mutate(v))}>
           <Stack>
+            {terms.data?.length === 0 && (
+              <Alert color="yellow">
+                등록된 학기가 없습니다.{' '}
+                <Button variant="subtle" size="compact-xs" onClick={() => navigate('/course-masters?tab=terms')}>
+                  강좌 기준정보 › 학기로 이동
+                </Button>
+              </Alert>
+            )}
+            {courses.data?.length === 0 && (
+              <Alert color="yellow">
+                등록된 강좌가 없습니다.{' '}
+                <Button variant="subtle" size="compact-xs" onClick={() => navigate('/course-masters?tab=courses')}>
+                  강좌 기준정보 › 강좌로 이동
+                </Button>
+              </Alert>
+            )}
             <Select
               label="학기"
               withAsterisk
@@ -289,6 +323,26 @@ export function Offerings() {
         </form>
       </Modal>
 
+      <Modal opened={deleting !== null} onClose={() => setDeleting(null)} title="개설 삭제">
+        <Stack>
+          <Text size="sm">
+            {deleting && `${courseName(deleting.course_id)}${deleting.section_label ? ` ${deleting.section_label}` : ''}`} 개설을 삭제할까요?
+          </Text>
+          <Text size="xs" c="dimmed">
+            신청·시간표가 있으면 삭제되지 않습니다. 그때는 상태를 '취소'로 두세요.
+          </Text>
+          {remove.isError && <Alert color="red">{errMessage(remove.error)}</Alert>}
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setDeleting(null)}>
+              취소
+            </Button>
+            <Button color="red" loading={remove.isPending} onClick={() => deleting && remove.mutate(deleting)}>
+              삭제
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
       <SchedulesModal offering={schedOffering} onClose={() => setSchedOffering(null)} />
     </Stack>
   )
@@ -296,6 +350,7 @@ export function Offerings() {
 
 function SchedulesModal({ offering, onClose }: { offering: Offering | null; onClose: () => void }) {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const timeslots = useQuery({
     queryKey: ['time-slots'],
     queryFn: () => unwrap(api.GET('/api/v1/time-slots')),
@@ -390,7 +445,10 @@ function SchedulesModal({ offering, onClose }: { offering: Offering | null; onCl
 
         {noSpaces ? (
           <Alert color="yellow">
-            등록된 공간이 없습니다. 공간을 먼저 등록하면 시간표를 추가할 수 있습니다.
+            등록된 공간이 없습니다. 공간을 먼저 등록하세요.{' '}
+            <Button variant="subtle" size="compact-xs" onClick={() => navigate('/spaces?tab=spaces')}>
+              공간으로 이동
+            </Button>
           </Alert>
         ) : (
           <form onSubmit={form.onSubmit((v) => add.mutate(v))}>

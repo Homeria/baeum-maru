@@ -6,13 +6,13 @@ import { api } from './api/client'
 import { useAuth } from './auth'
 
 const NAV = [
-  { to: '/operators', label: '관계자' },
+  { to: '/enrollment', label: '수강접수' },
+  { to: '/registrations', label: '신청 현황' },
+  { to: '/lottery', label: '강좌 추첨' },
   { to: '/members', label: '회원' },
+  { to: '/offerings', label: '개설 강좌' },
   { to: '/course-masters', label: '강좌 기준정보' },
   { to: '/spaces', label: '공간' },
-  { to: '/offerings', label: '개설 강좌' },
-  { to: '/registrations', label: '수강신청' },
-  { to: '/lottery', label: '강좌 추첨' },
 ]
 
 export function Layout() {

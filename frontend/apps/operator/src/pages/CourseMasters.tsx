@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { Badge, NumberInput, Select, Switch, Tabs, TextInput, Title } from '@mantine/core'
 import { api } from '../api/client'
 import type { components } from '../api/schema'
@@ -29,6 +30,8 @@ async function unwrap<T>(p: Promise<{ data?: T; error?: unknown }>): Promise<T> 
 }
 
 export function CourseMasters() {
+  const [params, setParams] = useSearchParams()
+  const tab = params.get('tab') ?? 'courses'
   // 강좌 탭의 Select 옵션에 쓸 분류·난도 목록
   const categories = useQuery({
     queryKey: ['course-categories'],
@@ -44,7 +47,7 @@ export function CourseMasters() {
       <Title order={4} mb="md">
         강좌 기준정보
       </Title>
-      <Tabs defaultValue="courses">
+      <Tabs value={tab} onChange={(v) => setParams(v ? { tab: v } : {})}>
         <Tabs.List mb="md">
           <Tabs.Tab value="courses">강좌</Tabs.Tab>
           <Tabs.Tab value="categories">분류</Tabs.Tab>
@@ -59,6 +62,10 @@ export function CourseMasters() {
             addLabel="강좌 추가"
             queryKey={['courses']}
             fetchList={() => unwrap(api.GET('/api/v1/courses'))}
+            onDelete={(r) =>
+              unwrap(api.DELETE('/api/v1/courses/{course_id}', { params: { path: { course_id: r.id } } })).then(() => undefined)
+            }
+            rowLabel={(r) => r.name}
             create={(v) =>
               unwrap(
                 api.POST('/api/v1/courses', {
@@ -136,6 +143,10 @@ export function CourseMasters() {
             addLabel="분류 추가"
             queryKey={['course-categories']}
             fetchList={() => unwrap(api.GET('/api/v1/course-categories'))}
+            onDelete={(r) =>
+              unwrap(api.DELETE('/api/v1/course-categories/{category_id}', { params: { path: { category_id: r.id } } })).then(() => undefined)
+            }
+            rowLabel={(r) => r.name}
             create={(v) =>
               unwrap(api.POST('/api/v1/course-categories', { body: { name: v.name, sort_order: v.sort_order } })).then(() => undefined)
             }
@@ -170,6 +181,10 @@ export function CourseMasters() {
             addLabel="난도 추가"
             queryKey={['course-levels']}
             fetchList={() => unwrap(api.GET('/api/v1/course-levels'))}
+            onDelete={(r) =>
+              unwrap(api.DELETE('/api/v1/course-levels/{level_id}', { params: { path: { level_id: r.id } } })).then(() => undefined)
+            }
+            rowLabel={(r) => r.name}
             create={(v) =>
               unwrap(api.POST('/api/v1/course-levels', { body: { name: v.name, sort_order: v.sort_order } })).then(() => undefined)
             }
@@ -204,6 +219,10 @@ export function CourseMasters() {
             addLabel="강사 추가"
             queryKey={['instructors']}
             fetchList={() => unwrap(api.GET('/api/v1/instructors'))}
+            onDelete={(r) =>
+              unwrap(api.DELETE('/api/v1/instructors/{instructor_id}', { params: { path: { instructor_id: r.id } } })).then(() => undefined)
+            }
+            rowLabel={(r) => r.name}
             create={(v) =>
               unwrap(api.POST('/api/v1/instructors', { body: { name: v.name, phone: v.phone || null } })).then(() => undefined)
             }
@@ -238,6 +257,10 @@ export function CourseMasters() {
             addLabel="학기 추가"
             queryKey={['terms']}
             fetchList={() => unwrap(api.GET('/api/v1/terms'))}
+            onDelete={(r) =>
+              unwrap(api.DELETE('/api/v1/terms/{term_id}', { params: { path: { term_id: r.id } } })).then(() => undefined)
+            }
+            rowLabel={(r) => r.name}
             create={(v) =>
               unwrap(
                 api.POST('/api/v1/terms', {
@@ -304,6 +327,10 @@ export function CourseMasters() {
             addLabel="교시 추가"
             queryKey={['time-slots']}
             fetchList={() => unwrap(api.GET('/api/v1/time-slots'))}
+            onDelete={(r) =>
+              unwrap(api.DELETE('/api/v1/time-slots/{time_slot_id}', { params: { path: { time_slot_id: r.id } } })).then(() => undefined)
+            }
+            rowLabel={(r) => r.name}
             create={(v) =>
               unwrap(
                 api.POST('/api/v1/time-slots', {

@@ -3,7 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './auth'
 import { Layout } from './Layout'
 import { Login } from './pages/Login'
-import { Operators } from './pages/Operators'
+import { Enrollment } from './pages/Enrollment'
 import { Members } from './pages/Members'
 import { CourseMasters } from './pages/CourseMasters'
 import { Offerings } from './pages/Offerings'
@@ -23,14 +23,14 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/operators" element={<Operators />} />
-        <Route path="/members" element={<Members />} />
-        <Route path="/course-masters" element={<CourseMasters />} />
-        <Route path="/spaces" element={<Spaces />} />
-        <Route path="/offerings" element={<Offerings />} />
+        <Route path="/enrollment" element={<Enrollment />} />
         <Route path="/registrations" element={<Registrations />} />
         <Route path="/lottery" element={<Lottery />} />
-        <Route path="*" element={<Navigate to="/operators" replace />} />
+        <Route path="/members" element={<Members />} />
+        <Route path="/offerings" element={<Offerings />} />
+        <Route path="/course-masters" element={<CourseMasters />} />
+        <Route path="/spaces" element={<Spaces />} />
+        <Route path="*" element={<Navigate to="/enrollment" replace />} />
       </Route>
     </Routes>
   )

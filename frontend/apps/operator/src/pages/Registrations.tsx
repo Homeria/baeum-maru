@@ -1,21 +1,6 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useDisclosure } from '@mantine/hooks'
-import { useForm } from '@mantine/form'
-import {
-  Alert,
-  Badge,
-  Button,
-  Group,
-  Modal,
-  MultiSelect,
-  Select,
-  Stack,
-  Table,
-  Text,
-  TextInput,
-  Title,
-} from '@mantine/core'
+import { useQuery } from '@tanstack/react-query'
+import { Badge, Button, Group, Modal, Select, Stack, Table, Text, Title } from '@mantine/core'
 import { api } from '../api/client'
 import type { components } from '../api/schema'
 
@@ -32,10 +17,6 @@ const STATUS = [
 ]
 const statusInfo = (s: string) => STATUS.find((x) => x.value === s) ?? { label: s, color: 'gray' }
 
-function errMessage(error: unknown): string {
-  const e = error as { error?: { message?: string } } | undefined
-  return e?.error?.message ?? '요청을 처리하지 못했습니다.'
-}
 async function unwrap<T>(p: Promise<{ data?: T; error?: unknown }>): Promise<T> {
   const { data, error } = await p
   if (error) throw error
@@ -43,12 +24,9 @@ async function unwrap<T>(p: Promise<{ data?: T; error?: unknown }>): Promise<T> 
 }
 
 export function Registrations() {
-  const qc = useQueryClient()
   const [term, setTerm] = useState<string | null>(null)
   const [offering, setOffering] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
-  const [applyOpen, apply] = useDisclosure(false)
-  const [cancelReg, setCancelReg] = useState<Registration | null>(null)
   const [historyReg, setHistoryReg] = useState<Registration | null>(null)
 
   const members = useQuery({ queryKey: ['members'], queryFn: () => unwrap(api.GET('/api/v1/members')) })
@@ -63,12 +41,11 @@ export function Registrations() {
   }
   const offeringLabel = (id: number) => {
     const o = offerings.data?.find((x) => x.id === id)
-    if (!o) return String(id)
-    return `${courseName(o.course_id)}${o.section_label ? ` ${o.section_label}` : ''}`
+    return o ? `${courseName(o.course_id)}${o.section_label ? ` ${o.section_label}` : ''}` : String(id)
   }
 
   const list = useQuery({
-    queryKey: ['registrations', term, offering, status],
+    queryKey: ['registrations', 'overview', term, offering, status],
     queryFn: () =>
       unwrap(
         api.GET('/api/v1/registrations', {
@@ -83,61 +60,14 @@ export function Registrations() {
       ),
   })
 
-  // 필터 학기에 속한 개설만 offering 필터 옵션으로
   const offeringOptions = (offerings.data ?? [])
     .filter((o) => !term || o.term_id === Number(term))
     .map((o) => ({ value: String(o.id), label: offeringLabel(o.id) }))
 
-  const applyForm = useForm<{ member_id: string; offering_ids: string[] }>({
-    initialValues: { member_id: '', offering_ids: [] },
-    validate: {
-      member_id: (v) => (v ? null : '회원을 선택하세요.'),
-      offering_ids: (v) => (v.length ? null : '강좌를 하나 이상 선택하세요.'),
-    },
-  })
-  const doApply = useMutation({
-    mutationFn: async (v: typeof applyForm.values) => {
-      await unwrap(
-        api.POST('/api/v1/registrations', {
-          body: { member_id: Number(v.member_id), offering_ids: v.offering_ids.map(Number) },
-        }),
-      )
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['registrations'] })
-      apply.close()
-      applyForm.reset()
-    },
-  })
-
-  const cancelForm = useForm({ initialValues: { reason: '' } })
-  const doCancel = useMutation({
-    mutationFn: async (v: { reason: string }) => {
-      await unwrap(
-        api.POST('/api/v1/registrations/{registration_id}/cancel', {
-          params: { path: { registration_id: cancelReg!.id } },
-          body: { reason: v.reason || null },
-        }),
-      )
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['registrations'] })
-      setCancelReg(null)
-      cancelForm.reset()
-    },
-  })
-
-  const openApplyOfferings = (offerings.data ?? [])
-    .filter((o) => o.status === 'open')
-    .map((o) => {
-      const t = terms.data?.find((x) => x.id === o.term_id)
-      return { value: String(o.id), label: `${offeringLabel(o.id)} · ${t?.name ?? o.term_id}` }
-    })
-
   return (
     <Stack>
       <Group justify="space-between">
-        <Title order={4}>수강신청</Title>
+        <Title order={4}>신청 현황</Title>
         <Group>
           <Select
             placeholder="학기"
@@ -167,11 +97,12 @@ export function Registrations() {
             value={status}
             onChange={setStatus}
           />
-          <Button onClick={apply.open}>수강신청</Button>
         </Group>
       </Group>
 
-      {list.isError && <Alert color="red">{errMessage(list.error)}</Alert>}
+      <Text size="sm" c="dimmed">
+        조회 전용입니다. 신청·취소는 &lsquo;수강접수&rsquo;에서 하세요.
+      </Text>
 
       <Table striped highlightOnHover>
         <Table.Thead>
@@ -195,16 +126,9 @@ export function Registrations() {
                 </Table.Td>
                 <Table.Td>{r.waitlist_order ?? '-'}</Table.Td>
                 <Table.Td>
-                  <Group gap="xs" justify="flex-end">
-                    <Button size="xs" variant="subtle" onClick={() => setHistoryReg(r)}>
-                      이력
-                    </Button>
-                    {r.status !== 'cancelled' && (
-                      <Button size="xs" variant="light" color="red" onClick={() => setCancelReg(r)}>
-                        취소
-                      </Button>
-                    )}
-                  </Group>
+                  <Button size="xs" variant="subtle" onClick={() => setHistoryReg(r)}>
+                    이력
+                  </Button>
                 </Table.Td>
               </Table.Tr>
             )
@@ -212,67 +136,6 @@ export function Registrations() {
         </Table.Tbody>
       </Table>
 
-      {/* 신청 */}
-      <Modal opened={applyOpen} onClose={apply.close} title="수강신청">
-        <form onSubmit={applyForm.onSubmit((v) => doApply.mutate(v))}>
-          <Stack>
-            <Select
-              label="회원"
-              withAsterisk
-              searchable
-              data={(members.data ?? [])
-                .filter((m) => m.is_active)
-                .map((m) => ({ value: String(m.id), label: `${m.name} (${m.member_no})` }))}
-              {...applyForm.getInputProps('member_id')}
-            />
-            <MultiSelect
-              label="개설 강좌 (신청중)"
-              withAsterisk
-              searchable
-              data={openApplyOfferings}
-              {...applyForm.getInputProps('offering_ids')}
-            />
-            {doApply.isError && <Alert color="red">{errMessage(doApply.error)}</Alert>}
-            <Text size="xs" c="dimmed">
-              시간 충돌·인당 최대 초과 등은 저장 시 함께 검사됩니다(전부 아니면 전무).
-            </Text>
-            <Group justify="flex-end">
-              <Button variant="default" onClick={apply.close}>
-                취소
-              </Button>
-              <Button type="submit" loading={doApply.isPending}>
-                신청
-              </Button>
-            </Group>
-          </Stack>
-        </form>
-      </Modal>
-
-      {/* 취소 */}
-      <Modal opened={cancelReg !== null} onClose={() => setCancelReg(null)} title="수강 취소">
-        <form onSubmit={cancelForm.onSubmit((v) => doCancel.mutate(v))}>
-          <Stack>
-            <Text size="sm">
-              {cancelReg && `${memberName(cancelReg.member_id)} · ${offeringLabel(cancelReg.offering_id)}`}
-            </Text>
-            <Text size="xs" c="dimmed">
-              당첨자를 취소하면 대기 순번대로 자동 승계됩니다.
-            </Text>
-            <TextInput label="사유(선택)" {...cancelForm.getInputProps('reason')} />
-            {doCancel.isError && <Alert color="red">{errMessage(doCancel.error)}</Alert>}
-            <Group justify="flex-end">
-              <Button variant="default" onClick={() => setCancelReg(null)}>
-                닫기
-              </Button>
-              <Button type="submit" color="red" loading={doCancel.isPending}>
-                취소 처리
-              </Button>
-            </Group>
-          </Stack>
-        </form>
-      </Modal>
-
-      {/* 이력 */}
       <HistoryModal registration={historyReg} onClose={() => setHistoryReg(null)} />
     </Stack>
   )
