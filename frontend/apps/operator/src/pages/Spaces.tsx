@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { useForm } from '@mantine/form'
 import {
   Alert,
@@ -42,6 +43,8 @@ async function unwrap<T>(p: Promise<{ data?: T; error?: unknown }>): Promise<T> 
 }
 
 export function Spaces() {
+  const [params, setParams] = useSearchParams()
+  const tab = params.get('tab') ?? 'spaces'
   // 모든 건물의 층을 모아 공간 탭의 위치 Select·표시에 쓴다(전역 층 목록 API가 없어 합침).
   const floors = useQuery({
     queryKey: ['all-floors'],
@@ -75,7 +78,7 @@ export function Spaces() {
       <Title order={4} mb="md">
         공간
       </Title>
-      <Tabs defaultValue="spaces">
+      <Tabs value={tab} onChange={(v) => setParams(v ? { tab: v } : {})}>
         <Tabs.List mb="md">
           <Tabs.Tab value="spaces">공간</Tabs.Tab>
           <Tabs.Tab value="buildings">건물·층</Tabs.Tab>
@@ -87,6 +90,10 @@ export function Spaces() {
             addLabel="공간 추가"
             queryKey={['spaces']}
             fetchList={() => unwrap(api.GET('/api/v1/spaces'))}
+            onDelete={(r) =>
+              unwrap(api.DELETE('/api/v1/spaces/{space_id}', { params: { path: { space_id: r.id } } })).then(() => undefined)
+            }
+            rowLabel={(r) => r.name}
             create={(v) =>
               unwrap(
                 api.POST('/api/v1/spaces', {
@@ -172,6 +179,10 @@ export function Spaces() {
             addLabel="유형 추가"
             queryKey={['space-types']}
             fetchList={() => unwrap(api.GET('/api/v1/space-types'))}
+            onDelete={(r) =>
+              unwrap(api.DELETE('/api/v1/space-types/{space_type_id}', { params: { path: { space_type_id: r.id } } })).then(() => undefined)
+            }
+            rowLabel={(r) => r.name}
             create={(v) =>
               unwrap(
                 api.POST('/api/v1/space-types', {
@@ -234,6 +245,10 @@ function BuildingsTab() {
         addLabel="건물 추가"
         queryKey={['buildings']}
         fetchList={() => unwrap(api.GET('/api/v1/buildings'))}
+        onDelete={(r) =>
+          unwrap(api.DELETE('/api/v1/buildings/{building_id}', { params: { path: { building_id: r.id } } })).then(() => undefined)
+        }
+        rowLabel={(r) => r.name}
         create={(v) =>
           unwrap(
             api.POST('/api/v1/buildings', {

@@ -12,6 +12,7 @@ import {
   Stack,
   Switch,
   Table,
+  Text,
   TextInput,
   Title,
 } from '@mantine/core'
@@ -37,6 +38,7 @@ export function Members() {
   const [q, setQ] = useState('')
   const [includeInactive, setIncludeInactive] = useState(false)
   const [editing, setEditing] = useState<Member | null>(null)
+  const [deleting, setDeleting] = useState<Member | null>(null)
   const [formOpen, form] = useDisclosure(false)
 
   const list = useQuery({
@@ -97,6 +99,19 @@ export function Members() {
     },
   })
 
+  const remove = useMutation({
+    mutationFn: async (m: Member) => {
+      const { error } = await api.DELETE('/api/v1/members/{member_id}', {
+        params: { path: { member_id: m.id } },
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members'] })
+      setDeleting(null)
+    },
+  })
+
   return (
     <Stack>
       <Group justify="space-between">
@@ -143,9 +158,12 @@ export function Members() {
                 </Badge>
               </Table.Td>
               <Table.Td>
-                <Group justify="flex-end">
+                <Group gap="xs" justify="flex-end">
                   <Button size="xs" variant="subtle" onClick={() => openEdit(m)}>
                     수정
+                  </Button>
+                  <Button size="xs" variant="subtle" color="red" onClick={() => setDeleting(m)}>
+                    삭제
                   </Button>
                 </Group>
               </Table.Td>
@@ -190,6 +208,26 @@ export function Members() {
             </Group>
           </Stack>
         </form>
+      </Modal>
+
+      <Modal opened={deleting !== null} onClose={() => setDeleting(null)} title="회원 삭제">
+        <Stack>
+          <Text size="sm">
+            {deleting && `${deleting.name} (${deleting.member_no})`} 회원을 삭제할까요?
+          </Text>
+          <Text size="xs" c="dimmed">
+            신청 이력이 있으면 삭제되지 않습니다. 그때는 비활성화하세요.
+          </Text>
+          {remove.isError && <Alert color="red">{errMessage(remove.error)}</Alert>}
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setDeleting(null)}>
+              취소
+            </Button>
+            <Button color="red" loading={remove.isPending} onClick={() => deleting && remove.mutate(deleting)}>
+              삭제
+            </Button>
+          </Group>
+        </Stack>
       </Modal>
     </Stack>
   )

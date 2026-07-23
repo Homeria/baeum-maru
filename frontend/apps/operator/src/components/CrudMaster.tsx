@@ -1,10 +1,10 @@
-import { useRef, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDisclosure } from '@mantine/hooks'
 import { useForm, type UseFormReturnType } from '@mantine/form'
-import { Alert, Button, Group, Modal, Stack, Table } from '@mantine/core'
+import { Alert, Button, Group, Modal, Stack, Table, Text } from '@mantine/core'
 
-// 여러 기준정보 탭이 공유하는 목록·생성·수정 배관.
+// 여러 기준정보 탭이 공유하는 목록·생성·수정·삭제 배관.
 // API 호출은 각 엔티티가 타입 있는 클로저로 주입 → 타입 안전성은 호출부에 남는다.
 export type CrudConfig<Row extends { id: number }, Values extends Record<string, unknown>> = {
   addLabel: string
@@ -19,6 +19,9 @@ export type CrudConfig<Row extends { id: number }, Values extends Record<string,
   validate?: Record<string, (value: never) => string | null>
   // 수정 버튼 앞에 붙일 추가 행 액션(예: 하위 항목 관리)
   rowActions?: (row: Row) => ReactNode
+  // 있으면 삭제 버튼 노출. 참조 중이면 백엔드가 409를 주고 그 메시지를 안내한다.
+  onDelete?: (row: Row) => Promise<void>
+  rowLabel?: (row: Row) => string
 }
 
 function errMessage(error: unknown): string {
@@ -31,6 +34,7 @@ export function CrudMaster<Row extends { id: number }, Values extends Record<str
 ) {
   const qc = useQueryClient()
   const [opened, modal] = useDisclosure(false)
+  const [deleting, setDeleting] = useState<Row | null>(null)
   const list = useQuery({ queryKey: config.queryKey, queryFn: config.fetchList })
   const form = useForm<Values>({
     initialValues: config.initial,
@@ -57,6 +61,16 @@ export function CrudMaster<Row extends { id: number }, Values extends Record<str
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: config.queryKey })
       modal.close()
+    },
+  })
+
+  const remove = useMutation({
+    mutationFn: async (row: Row) => {
+      await config.onDelete!(row)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: config.queryKey })
+      setDeleting(null)
     },
   })
 
@@ -89,6 +103,11 @@ export function CrudMaster<Row extends { id: number }, Values extends Record<str
                   <Button size="xs" variant="subtle" onClick={() => openEdit(row)}>
                     수정
                   </Button>
+                  {config.onDelete && (
+                    <Button size="xs" variant="subtle" color="red" onClick={() => setDeleting(row)}>
+                      삭제
+                    </Button>
+                  )}
                 </Group>
               </Table.Td>
             </Table.Tr>
@@ -111,6 +130,23 @@ export function CrudMaster<Row extends { id: number }, Values extends Record<str
             </Group>
           </Stack>
         </form>
+      </Modal>
+
+      <Modal opened={deleting !== null} onClose={() => setDeleting(null)} title="삭제 확인">
+        <Stack>
+          <Text size="sm">
+            {deleting && config.rowLabel ? config.rowLabel(deleting) : '이 항목'}을(를) 삭제할까요?
+          </Text>
+          {remove.isError && <Alert color="red">{errMessage(remove.error)}</Alert>}
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setDeleting(null)}>
+              취소
+            </Button>
+            <Button color="red" loading={remove.isPending} onClick={() => deleting && remove.mutate(deleting)}>
+              삭제
+            </Button>
+          </Group>
+        </Stack>
       </Modal>
     </Stack>
   )
