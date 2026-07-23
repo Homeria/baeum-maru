@@ -16,6 +16,8 @@ import {
 } from '@mantine/core'
 import { api } from '../api/client'
 import type { components } from '../api/schema'
+import { useTerm } from '../term'
+import { TermNotice } from '../components/TermNotice'
 
 type Member = components['schemas']['MemberResponse']
 type Gender = Member['gender']
@@ -42,23 +44,24 @@ async function unwrap<T>(p: Promise<{ data?: T; error?: unknown }>): Promise<T> 
 export function Enrollment() {
   const qc = useQueryClient()
   const navigate = useNavigate()
+  const { termId } = useTerm()
   const [done, setDone] = useState<{ name: string; count: number } | null>(null)
 
-  const offerings = useQuery({ queryKey: ['offerings', null], queryFn: () => unwrap(api.GET('/api/v1/offerings')) })
+  const offerings = useQuery({
+    queryKey: ['offerings', termId],
+    enabled: termId !== null,
+    queryFn: () =>
+      unwrap(api.GET('/api/v1/offerings', { params: { query: { term_id: termId ?? undefined } } })),
+  })
   const courses = useQuery({ queryKey: ['courses'], queryFn: () => unwrap(api.GET('/api/v1/courses')) })
-  const terms = useQuery({ queryKey: ['terms'], queryFn: () => unwrap(api.GET('/api/v1/terms')) })
 
   const courseName = (id: number) => courses.data?.find((c) => c.id === id)?.name ?? id
   const openOfferings = (offerings.data ?? [])
     .filter((o) => o.status === 'open')
-    .map((o) => {
-      const t = terms.data?.find((x) => x.id === o.term_id)
-      return {
-        id: String(o.id),
-        label: `${courseName(o.course_id)}${o.section_label ? ` ${o.section_label}` : ''}`,
-        term: t?.name ?? String(o.term_id),
-      }
-    })
+    .map((o) => ({
+      id: String(o.id),
+      label: `${courseName(o.course_id)}${o.section_label ? ` ${o.section_label}` : ''}`,
+    }))
 
   const form = useForm({
     initialValues: {
@@ -118,6 +121,8 @@ export function Enrollment() {
 
   const selectedCount = form.values.offering_ids.length
 
+  if (!termId) return <TermNotice />
+
   return (
     <Stack maw={560}>
       <Title order={4}>수강접수</Title>
@@ -161,14 +166,7 @@ export function Enrollment() {
                         key={o.id}
                         value={o.id}
                         disabled={!checked && selectedCount >= MAX_COURSES}
-                        label={
-                          <span>
-                            {o.label}{' '}
-                            <Text span c="dimmed" size="sm">
-                              · {o.term}
-                            </Text>
-                          </span>
-                        }
+                        label={o.label}
                       />
                     )
                   })}

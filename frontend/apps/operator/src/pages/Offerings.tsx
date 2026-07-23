@@ -19,6 +19,8 @@ import {
 } from '@mantine/core'
 import { api } from '../api/client'
 import type { components } from '../api/schema'
+import { useTerm } from '../term'
+import { TermNotice } from '../components/TermNotice'
 
 type Offering = components['schemas']['OfferingResponse']
 type Schedule = components['schemas']['ScheduleResponse']
@@ -49,7 +51,6 @@ async function unwrap<T>(p: Promise<{ data?: T; error?: unknown }>): Promise<T> 
 }
 
 type OfferingValues = {
-  term_id: string
   course_id: string
   section_label: string
   instructor_id: string | null
@@ -62,7 +63,6 @@ type OfferingValues = {
 }
 
 const EMPTY: OfferingValues = {
-  term_id: '',
   course_id: '',
   section_label: '',
   instructor_id: null,
@@ -76,9 +76,9 @@ const EMPTY: OfferingValues = {
 
 const num = (x: number | string) => (x === '' || x == null ? null : Number(x))
 
-function buildBody(v: OfferingValues) {
+function buildBody(v: OfferingValues, termId: number) {
   return {
-    term_id: Number(v.term_id),
+    term_id: termId,
     course_id: Number(v.course_id),
     section_label: v.section_label || null,
     instructor_id: v.instructor_id ? Number(v.instructor_id) : null,
@@ -94,13 +94,12 @@ function buildBody(v: OfferingValues) {
 export function Offerings() {
   const qc = useQueryClient()
   const navigate = useNavigate()
-  const [termFilter, setTermFilter] = useState<string | null>(null)
+  const { termId } = useTerm()
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formOpen, form] = useDisclosure(false)
   const [schedOffering, setSchedOffering] = useState<Offering | null>(null)
   const [deleting, setDeleting] = useState<Offering | null>(null)
 
-  const terms = useQuery({ queryKey: ['terms'], queryFn: () => unwrap(api.GET('/api/v1/terms')) })
   const courses = useQuery({ queryKey: ['courses'], queryFn: () => unwrap(api.GET('/api/v1/courses')) })
   const instructors = useQuery({
     queryKey: ['instructors'],
@@ -108,11 +107,12 @@ export function Offerings() {
   })
 
   const list = useQuery({
-    queryKey: ['offerings', termFilter],
+    queryKey: ['offerings', termId],
+    enabled: termId !== null,
     queryFn: () =>
       unwrap(
         api.GET('/api/v1/offerings', {
-          params: { query: { term_id: termFilter ? Number(termFilter) : undefined } },
+          params: { query: { term_id: termId ?? undefined } },
         }),
       ),
   })
@@ -120,7 +120,6 @@ export function Offerings() {
   const formHook = useForm<OfferingValues>({
     initialValues: EMPTY,
     validate: {
-      term_id: (v) => (v ? null : '학기를 선택하세요.'),
       course_id: (v) => (v ? null : '강좌를 선택하세요.'),
     },
   })
@@ -133,7 +132,6 @@ export function Offerings() {
   const openEdit = (o: Offering) => {
     setEditingId(o.id)
     formHook.setValues({
-      term_id: String(o.term_id),
       course_id: String(o.course_id),
       section_label: o.section_label ?? '',
       instructor_id: o.instructor_id ? String(o.instructor_id) : null,
@@ -150,12 +148,12 @@ export function Offerings() {
   const save = useMutation({
     mutationFn: async (v: OfferingValues) => {
       if (editingId === null) {
-        await unwrap(api.POST('/api/v1/offerings', { body: buildBody(v) }))
+        await unwrap(api.POST('/api/v1/offerings', { body: buildBody(v, termId!) }))
       } else {
         await unwrap(
           api.PATCH('/api/v1/offerings/{offering_id}', {
             params: { path: { offering_id: editingId } },
-            body: buildBody(v),
+            body: buildBody(v, termId!),
           }),
         )
       }
@@ -179,7 +177,6 @@ export function Offerings() {
   })
 
   const courseName = (id: number) => courses.data?.find((c) => c.id === id)?.name ?? id
-  const termName = (id: number) => terms.data?.find((t) => t.id === id)?.name ?? id
   const instructorName = (id: number | null) =>
     id ? (instructors.data?.find((i) => i.id === id)?.name ?? id) : '-'
   const capacityText = (o: Offering) =>
@@ -189,21 +186,13 @@ export function Offerings() {
         ? `남 ${o.male_capacity ?? '-'} / 여 ${o.female_capacity ?? '-'}`
         : '제한없음'
 
+  if (!termId) return <TermNotice />
+
   return (
     <Stack>
       <Group justify="space-between">
         <Title order={4}>개설 강좌</Title>
-        <Group>
-          <Select
-            placeholder="학기 전체"
-            clearable
-            data={(terms.data ?? []).map((t) => ({ value: String(t.id), label: t.name }))}
-            value={termFilter}
-            onChange={setTermFilter}
-            w={200}
-          />
-          <Button onClick={openCreate}>개설 추가</Button>
-        </Group>
+        <Button onClick={openCreate}>개설 추가</Button>
       </Group>
 
       {list.isError && <Alert color="red">{errMessage(list.error)}</Alert>}
@@ -212,7 +201,6 @@ export function Offerings() {
         <Table.Thead>
           <Table.Tr>
             <Table.Th>강좌</Table.Th>
-            <Table.Th>학기</Table.Th>
             <Table.Th>분반</Table.Th>
             <Table.Th>강사</Table.Th>
             <Table.Th>정원</Table.Th>
@@ -224,7 +212,6 @@ export function Offerings() {
           {list.data?.map((o) => (
             <Table.Tr key={o.id}>
               <Table.Td>{courseName(o.course_id)}</Table.Td>
-              <Table.Td>{termName(o.term_id)}</Table.Td>
               <Table.Td>{o.section_label ?? '-'}</Table.Td>
               <Table.Td>{instructorName(o.instructor_id)}</Table.Td>
               <Table.Td>{capacityText(o)}</Table.Td>
@@ -252,28 +239,14 @@ export function Offerings() {
       <Modal opened={formOpen} onClose={form.close} title={editingId ? '개설 수정' : '개설 추가'}>
         <form onSubmit={formHook.onSubmit((v) => save.mutate(v))}>
           <Stack>
-            {terms.data?.length === 0 && (
-              <Alert color="yellow">
-                등록된 학기가 없습니다.{' '}
-                <Button variant="subtle" size="compact-xs" onClick={() => navigate('/course-masters?tab=terms')}>
-                  강좌 기준정보 › 학기로 이동
-                </Button>
-              </Alert>
-            )}
             {courses.data?.length === 0 && (
               <Alert color="yellow">
-                등록된 강좌가 없습니다.{' '}
-                <Button variant="subtle" size="compact-xs" onClick={() => navigate('/course-masters?tab=courses')}>
-                  강좌 기준정보 › 강좌로 이동
+                등록된 과목이 없습니다.{' '}
+                <Button variant="subtle" size="compact-xs" onClick={() => navigate('/catalog?tab=courses')}>
+                  과목·강사 › 과목으로 이동
                 </Button>
               </Alert>
             )}
-            <Select
-              label="학기"
-              withAsterisk
-              data={(terms.data ?? []).map((t) => ({ value: String(t.id), label: t.name }))}
-              {...formHook.getInputProps('term_id')}
-            />
             <Select
               label="강좌"
               withAsterisk
