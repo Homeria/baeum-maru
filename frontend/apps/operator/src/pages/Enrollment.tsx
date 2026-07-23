@@ -1,20 +1,15 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useDisclosure } from '@mantine/hooks'
 import { useForm } from '@mantine/form'
 import { useNavigate } from 'react-router-dom'
 import {
   Alert,
-  Badge,
   Button,
-  Card,
-  Divider,
+  Checkbox,
   Group,
-  Modal,
-  MultiSelect,
+  Paper,
   Select,
   Stack,
-  Table,
   Text,
   TextInput,
   Title,
@@ -25,22 +20,18 @@ import type { components } from '../api/schema'
 type Member = components['schemas']['MemberResponse']
 type Gender = Member['gender']
 
-const STATUS: Record<string, { label: string; color: string }> = {
-  applied: { label: '신청', color: 'blue' },
-  selected: { label: '당첨', color: 'teal' },
-  waitlisted: { label: '대기', color: 'yellow' },
-  confirmed: { label: '확정', color: 'green' },
-  rejected: { label: '탈락', color: 'gray' },
-  cancelled: { label: '취소', color: 'red' },
-}
 const GENDERS = [
   { value: 'male', label: '남' },
   { value: 'female', label: '여' },
 ]
+const MAX_COURSES = 4
 
 function errMessage(error: unknown): string {
   const e = error as { error?: { message?: string } } | undefined
   return e?.error?.message ?? '요청을 처리하지 못했습니다.'
+}
+function errCode(error: unknown): string | undefined {
+  return (error as { error?: { code?: string } } | undefined)?.error?.code
 }
 async function unwrap<T>(p: Promise<{ data?: T; error?: unknown }>): Promise<T> {
   const { data, error } = await p
@@ -51,238 +42,152 @@ async function unwrap<T>(p: Promise<{ data?: T; error?: unknown }>): Promise<T> 
 export function Enrollment() {
   const qc = useQueryClient()
   const navigate = useNavigate()
-  const [memberId, setMemberId] = useState<string | null>(null)
-  const [newOpen, newModal] = useDisclosure(false)
-  const [cancelReg, setCancelReg] = useState<components['schemas']['RegistrationResponse'] | null>(null)
-  const [addIds, setAddIds] = useState<string[]>([])
+  const [done, setDone] = useState<{ name: string; count: number } | null>(null)
 
-  const members = useQuery({ queryKey: ['members'], queryFn: () => unwrap(api.GET('/api/v1/members')) })
   const offerings = useQuery({ queryKey: ['offerings', null], queryFn: () => unwrap(api.GET('/api/v1/offerings')) })
   const courses = useQuery({ queryKey: ['courses'], queryFn: () => unwrap(api.GET('/api/v1/courses')) })
   const terms = useQuery({ queryKey: ['terms'], queryFn: () => unwrap(api.GET('/api/v1/terms')) })
 
-  const member = members.data?.find((m) => String(m.id) === memberId) ?? null
   const courseName = (id: number) => courses.data?.find((c) => c.id === id)?.name ?? id
-  const offeringLabel = (id: number) => {
-    const o = offerings.data?.find((x) => x.id === id)
-    return o ? `${courseName(o.course_id)}${o.section_label ? ` ${o.section_label}` : ''}` : String(id)
-  }
-
-  const regs = useQuery({
-    queryKey: ['registrations', memberId],
-    enabled: member !== null,
-    queryFn: () =>
-      unwrap(
-        api.GET('/api/v1/registrations', {
-          params: { query: { member_id: Number(memberId) } },
-        }),
-      ),
-  })
-
-  // 신규 회원 등록 → 등록 후 그 회원으로 바로 선택
-  const newForm = useForm({
-    initialValues: { member_no: '', name: '', gender: 'female' as Gender, phone: '' },
-    validate: {
-      member_no: (v) => (v.trim() ? null : '회원번호를 입력하세요.'),
-      name: (v) => (v.trim() ? null : '이름을 입력하세요.'),
-      phone: (v) => (v.trim() ? null : '연락처를 입력하세요.'),
-    },
-  })
-  const createMember = useMutation({
-    mutationFn: (v: typeof newForm.values) => unwrap(api.POST('/api/v1/members', { body: v })),
-    onSuccess: (created) => {
-      qc.invalidateQueries({ queryKey: ['members'] })
-      setMemberId(String(created.id))
-      newModal.close()
-      newForm.reset()
-    },
-  })
-
   const openOfferings = (offerings.data ?? [])
     .filter((o) => o.status === 'open')
     .map((o) => {
       const t = terms.data?.find((x) => x.id === o.term_id)
-      return { value: String(o.id), label: `${offeringLabel(o.id)} · ${t?.name ?? o.term_id}` }
+      return {
+        id: String(o.id),
+        label: `${courseName(o.course_id)}${o.section_label ? ` ${o.section_label}` : ''}`,
+        term: t?.name ?? String(o.term_id),
+      }
     })
 
-  const addRegs = useMutation({
-    mutationFn: () =>
-      unwrap(
-        api.POST('/api/v1/registrations', {
-          body: { member_id: Number(memberId), offering_ids: addIds.map(Number) },
-        }),
-      ),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['registrations', memberId] })
-      setAddIds([])
+  const form = useForm({
+    initialValues: {
+      member_no: '',
+      name: '',
+      gender: 'female' as Gender,
+      phone: '',
+      offering_ids: [] as string[],
+    },
+    validate: {
+      member_no: (v) => (v.trim() ? null : '회원번호를 입력하세요.'),
+      name: (v) => (v.trim() ? null : '이름을 입력하세요.'),
+      phone: (v) => (v.trim() ? null : '연락처를 입력하세요.'),
+      offering_ids: (v) =>
+        v.length < 1 ? '강좌를 1개 이상 선택하세요.' : v.length > MAX_COURSES ? `최대 ${MAX_COURSES}개까지 선택할 수 있습니다.` : null,
     },
   })
 
-  const cancel = useMutation({
-    mutationFn: (reason: string) =>
-      unwrap(
-        api.POST('/api/v1/registrations/{registration_id}/cancel', {
-          params: { path: { registration_id: cancelReg!.id } },
-          body: { reason: reason || null },
+  const submit = useMutation({
+    mutationFn: async (v: typeof form.values) => {
+      // 1) 회원 생성. 이미 있는 회원번호면 그 회원을 재사용.
+      let memberId: number
+      const created = await api.POST('/api/v1/members', {
+        body: { member_no: v.member_no, name: v.name, gender: v.gender, phone: v.phone },
+      })
+      if (created.error) {
+        if (errCode(created.error) === 'member_no_exists') {
+          const found = await unwrap(
+            api.GET('/api/v1/members', {
+              params: { query: { q: v.member_no, include_inactive: true } },
+            }),
+          )
+          const existing = found.find((m) => m.member_no === v.member_no)
+          if (!existing) throw created.error
+          memberId = existing.id
+        } else {
+          throw created.error
+        }
+      } else {
+        memberId = created.data.id
+      }
+      // 2) 선택 강좌 신청(전부 아니면 전무)
+      await unwrap(
+        api.POST('/api/v1/registrations', {
+          body: { member_id: memberId, offering_ids: v.offering_ids.map(Number) },
         }),
-      ),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['registrations', memberId] })
-      setCancelReg(null)
+      )
+      return { name: v.name, count: v.offering_ids.length }
+    },
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ['registrations'] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+      setDone(result)
+      form.reset()
     },
   })
-  const cancelForm = useForm({ initialValues: { reason: '' } })
+
+  const selectedCount = form.values.offering_ids.length
 
   return (
-    <Stack>
+    <Stack maw={560}>
       <Title order={4}>수강접수</Title>
 
-      <Group align="flex-end">
-        <Select
-          label="회원"
-          placeholder="이름·회원번호로 검색"
-          searchable
-          w={320}
-          data={(members.data ?? []).map((m) => ({
-            value: String(m.id),
-            label: `${m.name} (${m.member_no})${m.is_active ? '' : ' · 비활성'}`,
-          }))}
-          value={memberId}
-          onChange={setMemberId}
-        />
-        <Button variant="light" onClick={newModal.open}>
-          신규 회원 등록
-        </Button>
-      </Group>
-
-      {member && (
-        <Card withBorder>
-          <Group justify="space-between">
-            <div>
-              <Text fw={600} size="lg">
-                {member.name}{' '}
-                <Text span c="dimmed" size="sm">
-                  {member.member_no}
-                </Text>
-              </Text>
-              <Text size="sm" c="dimmed">
-                {member.gender === 'male' ? '남' : '여'} · {member.phone}
-                {!member.is_active && ' · 비활성'}
-              </Text>
-            </div>
-          </Group>
-
-          <Divider my="md" label="신청 현황" labelPosition="left" />
-          <Table>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>강좌</Table.Th>
-                <Table.Th>상태</Table.Th>
-                <Table.Th>대기순번</Table.Th>
-                <Table.Th />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {regs.data?.map((r) => {
-                const info = STATUS[r.status] ?? { label: r.status, color: 'gray' }
-                return (
-                  <Table.Tr key={r.id}>
-                    <Table.Td>{offeringLabel(r.offering_id)}</Table.Td>
-                    <Table.Td>
-                      <Badge color={info.color}>{info.label}</Badge>
-                    </Table.Td>
-                    <Table.Td>{r.waitlist_order ?? '-'}</Table.Td>
-                    <Table.Td>
-                      {r.status !== 'cancelled' && (
-                        <Button size="xs" variant="subtle" color="red" onClick={() => setCancelReg(r)}>
-                          취소
-                        </Button>
-                      )}
-                    </Table.Td>
-                  </Table.Tr>
-                )
-              })}
-            </Table.Tbody>
-          </Table>
-          {regs.data?.length === 0 && (
-            <Text c="dimmed" size="sm" ta="center" py="sm">
-              신청 내역이 없습니다.
-            </Text>
-          )}
-
-          <Divider my="md" label="강좌 추가" labelPosition="left" />
-          {openOfferings.length === 0 ? (
-            <Alert color="yellow">
-              신청 받는(신청중) 개설 강좌가 없습니다.{' '}
-              <Button variant="subtle" size="compact-xs" onClick={() => navigate('/offerings')}>
-                개설 강좌로 이동
-              </Button>
-            </Alert>
-          ) : (
-            <Group align="flex-end">
-              <MultiSelect
-                flex={1}
-                placeholder="추가할 강좌 선택"
-                searchable
-                data={openOfferings}
-                value={addIds}
-                onChange={setAddIds}
-              />
-              <Button
-                onClick={() => addRegs.mutate()}
-                loading={addRegs.isPending}
-                disabled={!addIds.length}
-              >
-                신청
-              </Button>
-            </Group>
-          )}
-          {addRegs.isError && <Alert color="red" mt="xs">{errMessage(addRegs.error)}</Alert>}
-        </Card>
+      {done && (
+        <Alert color="teal" withCloseButton onClose={() => setDone(null)}>
+          {done.name} 님, {done.count}개 강좌 신청 완료.
+        </Alert>
       )}
 
-      {/* 신규 회원 */}
-      <Modal opened={newOpen} onClose={newModal.close} title="신규 회원 등록">
-        <form onSubmit={newForm.onSubmit((v) => createMember.mutate(v))}>
+      <Paper withBorder p="lg">
+        <form onSubmit={form.onSubmit((v) => submit.mutate(v))}>
           <Stack>
-            <TextInput label="회원번호" placeholder="예: 26-00001" withAsterisk {...newForm.getInputProps('member_no')} />
-            <TextInput label="이름" withAsterisk {...newForm.getInputProps('name')} />
-            <Select label="성별" data={GENDERS} allowDeselect={false} {...newForm.getInputProps('gender')} />
-            <TextInput label="연락처" withAsterisk {...newForm.getInputProps('phone')} />
-            {createMember.isError && <Alert color="red">{errMessage(createMember.error)}</Alert>}
-            <Group justify="flex-end">
-              <Button variant="default" onClick={newModal.close}>
-                취소
-              </Button>
-              <Button type="submit" loading={createMember.isPending}>
-                등록
-              </Button>
+            <Group grow>
+              <TextInput label="회원번호" placeholder="예: 26-00001" withAsterisk {...form.getInputProps('member_no')} />
+              <TextInput label="이름" withAsterisk {...form.getInputProps('name')} />
             </Group>
-          </Stack>
-        </form>
-      </Modal>
+            <Group grow>
+              <Select label="성별" data={GENDERS} allowDeselect={false} {...form.getInputProps('gender')} />
+              <TextInput label="연락처" withAsterisk {...form.getInputProps('phone')} />
+            </Group>
 
-      {/* 취소 */}
-      <Modal opened={cancelReg !== null} onClose={() => setCancelReg(null)} title="수강 취소">
-        <form onSubmit={cancelForm.onSubmit((v) => cancel.mutate(v.reason))}>
-          <Stack>
-            <Text size="sm">{cancelReg && offeringLabel(cancelReg.offering_id)} 신청을 취소합니다.</Text>
+            <Checkbox.Group
+              label={`선택 강좌 (1~${MAX_COURSES}개)`}
+              withAsterisk
+              {...form.getInputProps('offering_ids')}
+            >
+              {openOfferings.length === 0 ? (
+                <Alert color="yellow" mt="xs">
+                  신청 받는(신청중) 개설 강좌가 없습니다.{' '}
+                  <Button variant="subtle" size="compact-xs" onClick={() => navigate('/offerings')}>
+                    개설 강좌로 이동
+                  </Button>
+                </Alert>
+              ) : (
+                <Stack gap="xs" mt="xs">
+                  {openOfferings.map((o) => {
+                    const checked = form.values.offering_ids.includes(o.id)
+                    return (
+                      <Checkbox
+                        key={o.id}
+                        value={o.id}
+                        disabled={!checked && selectedCount >= MAX_COURSES}
+                        label={
+                          <span>
+                            {o.label}{' '}
+                            <Text span c="dimmed" size="sm">
+                              · {o.term}
+                            </Text>
+                          </span>
+                        }
+                      />
+                    )
+                  })}
+                </Stack>
+              )}
+            </Checkbox.Group>
+
+            {submit.isError && <Alert color="red">{errMessage(submit.error)}</Alert>}
             <Text size="xs" c="dimmed">
-              당첨자를 취소하면 대기 순번대로 자동 승계됩니다.
+              이미 등록된 회원번호면 기존 회원으로 신청됩니다. 시간 충돌·인당 최대 초과 등은 저장 시 함께 검사됩니다.
             </Text>
-            <TextInput label="사유(선택)" {...cancelForm.getInputProps('reason')} />
-            {cancel.isError && <Alert color="red">{errMessage(cancel.error)}</Alert>}
             <Group justify="flex-end">
-              <Button variant="default" onClick={() => setCancelReg(null)}>
-                닫기
-              </Button>
-              <Button type="submit" color="red" loading={cancel.isPending}>
-                취소 처리
+              <Button type="submit" loading={submit.isPending} disabled={openOfferings.length === 0}>
+                접수
               </Button>
             </Group>
           </Stack>
         </form>
-      </Modal>
+      </Paper>
     </Stack>
   )
 }
