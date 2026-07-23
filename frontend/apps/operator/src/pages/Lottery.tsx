@@ -17,8 +17,6 @@ import {
 } from '@mantine/core'
 import { api } from '../api/client'
 import type { components } from '../api/schema'
-import { useTerm } from '../term'
-import { TermNotice } from '../components/TermNotice'
 
 type Preview = components['schemas']['PreviewResponse']
 type TargetPlan = components['schemas']['TargetPlan']
@@ -38,16 +36,15 @@ async function unwrap<T>(p: Promise<{ data?: T; error?: unknown }>): Promise<T> 
 
 export function Lottery() {
   const qc = useQueryClient()
-  const { termId } = useTerm()
   const [preview, setPreview] = useState<Preview | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [resultsRun, setResultsRun] = useState<Run | null>(null)
 
-  const offerings = useQuery({ queryKey: ['offerings', null], queryFn: () => unwrap(api.GET('/api/v1/offerings')) })
+  const offerings = useQuery({ queryKey: ['offerings'], queryFn: () => unwrap(api.GET('/api/v1/offerings')) })
   const courses = useQuery({ queryKey: ['courses'], queryFn: () => unwrap(api.GET('/api/v1/courses')) })
   const members = useQuery({ queryKey: ['members'], queryFn: () => unwrap(api.GET('/api/v1/members')) })
   const registrations = useQuery({
-    queryKey: ['registrations', null, null, null],
+    queryKey: ['registrations', 'overview', null, null],
     queryFn: () => unwrap(api.GET('/api/v1/registrations')),
   })
 
@@ -63,29 +60,18 @@ export function Lottery() {
   }
 
   const runs = useQuery({
-    queryKey: ['lottery-runs', termId],
-    enabled: termId !== null,
-    queryFn: () =>
-      unwrap(
-        api.GET('/api/v1/lottery/runs', {
-          params: { query: { term_id: termId ?? undefined } },
-        }),
-      ),
+    queryKey: ['lottery-runs'],
+    queryFn: () => unwrap(api.GET('/api/v1/lottery/runs')),
   })
 
   const doPreview = useMutation({
-    mutationFn: () =>
-      unwrap(api.POST('/api/v1/lottery/preview', { body: { term_id: termId! } })),
+    mutationFn: () => unwrap(api.POST('/api/v1/lottery/preview')),
     onSuccess: (data) => setPreview(data),
   })
 
   const doCommit = useMutation({
     mutationFn: () =>
-      unwrap(
-        api.POST('/api/v1/lottery/commit', {
-          body: { term_id: termId!, seed: preview!.seed },
-        }),
-      ),
+      unwrap(api.POST('/api/v1/lottery/commit', { body: { seed: preview!.seed } })),
     onSuccess: () => {
       setConfirmOpen(false)
       setPreview(null)
@@ -98,8 +84,6 @@ export function Lottery() {
     selected: t.results.filter((r) => r.result === 'selected').length,
     waitlisted: t.results.filter((r) => r.result === 'waitlisted').length,
   })
-
-  if (!termId) return <TermNotice />
 
   return (
     <Stack>
@@ -191,7 +175,7 @@ export function Lottery() {
       </Table>
       {runs.data?.length === 0 && (
         <Text c="dimmed" size="sm">
-          이 학기의 추첨 기록이 없습니다.
+          추첨 기록이 없습니다.
         </Text>
       )}
 

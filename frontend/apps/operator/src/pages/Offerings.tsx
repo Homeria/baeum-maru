@@ -7,8 +7,6 @@ import {
   Alert,
   Badge,
   Button,
-  Card,
-  Collapse,
   Group,
   Modal,
   NumberInput,
@@ -21,8 +19,6 @@ import {
 } from '@mantine/core'
 import { api } from '../api/client'
 import type { components } from '../api/schema'
-import { useTerm } from '../term'
-import { TermNotice } from '../components/TermNotice'
 
 type Offering = components['schemas']['OfferingResponse']
 type Schedule = components['schemas']['ScheduleResponse']
@@ -78,9 +74,8 @@ const EMPTY: OfferingValues = {
 
 const num = (x: number | string) => (x === '' || x == null ? null : Number(x))
 
-function buildBody(v: OfferingValues, termId: number) {
+function buildBody(v: OfferingValues) {
   return {
-    term_id: termId,
     course_id: Number(v.course_id),
     section_label: v.section_label || null,
     instructor_id: v.instructor_id ? Number(v.instructor_id) : null,
@@ -96,7 +91,6 @@ function buildBody(v: OfferingValues, termId: number) {
 export function Offerings() {
   const qc = useQueryClient()
   const navigate = useNavigate()
-  const { termId } = useTerm()
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formOpen, form] = useDisclosure(false)
   const [schedOffering, setSchedOffering] = useState<Offering | null>(null)
@@ -109,14 +103,8 @@ export function Offerings() {
   })
 
   const list = useQuery({
-    queryKey: ['offerings', termId],
-    enabled: termId !== null,
-    queryFn: () =>
-      unwrap(
-        api.GET('/api/v1/offerings', {
-          params: { query: { term_id: termId ?? undefined } },
-        }),
-      ),
+    queryKey: ['offerings'],
+    queryFn: () => unwrap(api.GET('/api/v1/offerings')),
   })
 
   const formHook = useForm<OfferingValues>({
@@ -150,12 +138,12 @@ export function Offerings() {
   const save = useMutation({
     mutationFn: async (v: OfferingValues) => {
       if (editingId === null) {
-        await unwrap(api.POST('/api/v1/offerings', { body: buildBody(v, termId!) }))
+        await unwrap(api.POST('/api/v1/offerings', { body: buildBody(v) }))
       } else {
         await unwrap(
           api.PATCH('/api/v1/offerings/{offering_id}', {
             params: { path: { offering_id: editingId } },
-            body: buildBody(v, termId!),
+            body: buildBody(v),
           }),
         )
       }
@@ -187,8 +175,6 @@ export function Offerings() {
       : o.capacity_type === 'gender_split'
         ? `남 ${o.male_capacity ?? '-'} / 여 ${o.female_capacity ?? '-'}`
         : '제한없음'
-
-  if (!termId) return <TermNotice />
 
   return (
     <Stack>
@@ -243,9 +229,9 @@ export function Offerings() {
           <Stack>
             {courses.data?.length === 0 && (
               <Alert color="yellow">
-                등록된 과목이 없습니다.{' '}
-                <Button variant="subtle" size="compact-xs" onClick={() => navigate('/catalog?tab=courses')}>
-                  과목·강사 › 과목으로 이동
+                등록된 강좌가 없습니다.{' '}
+                <Button variant="subtle" size="compact-xs" onClick={() => navigate('/course-masters?tab=courses')}>
+                  강좌 기준정보 › 강좌로 이동
                 </Button>
               </Alert>
             )}

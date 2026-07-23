@@ -3,8 +3,6 @@ import { useQuery } from '@tanstack/react-query'
 import { Badge, Button, Group, Modal, Select, Stack, Table, Text, Title } from '@mantine/core'
 import { api } from '../api/client'
 import type { components } from '../api/schema'
-import { useTerm } from '../term'
-import { TermNotice } from '../components/TermNotice'
 
 type Registration = components['schemas']['RegistrationResponse']
 type History = components['schemas']['StatusHistoryResponse']
@@ -26,13 +24,12 @@ async function unwrap<T>(p: Promise<{ data?: T; error?: unknown }>): Promise<T> 
 }
 
 export function Registrations() {
-  const { termId } = useTerm()
   const [offering, setOffering] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [historyReg, setHistoryReg] = useState<Registration | null>(null)
 
   const members = useQuery({ queryKey: ['members'], queryFn: () => unwrap(api.GET('/api/v1/members')) })
-  const offerings = useQuery({ queryKey: ['offerings', null], queryFn: () => unwrap(api.GET('/api/v1/offerings')) })
+  const offerings = useQuery({ queryKey: ['offerings'], queryFn: () => unwrap(api.GET('/api/v1/offerings')) })
   const courses = useQuery({ queryKey: ['courses'], queryFn: () => unwrap(api.GET('/api/v1/courses')) })
 
   const courseName = (id: number) => courses.data?.find((c) => c.id === id)?.name ?? id
@@ -46,14 +43,12 @@ export function Registrations() {
   }
 
   const list = useQuery({
-    queryKey: ['registrations', 'overview', termId, offering, status],
-    enabled: termId !== null,
+    queryKey: ['registrations', 'overview', offering, status],
     queryFn: () =>
       unwrap(
         api.GET('/api/v1/registrations', {
           params: {
             query: {
-              term_id: termId ?? undefined,
               offering_id: offering ? Number(offering) : undefined,
               status: status || undefined,
             },
@@ -62,11 +57,10 @@ export function Registrations() {
       ),
   })
 
-  const offeringOptions = (offerings.data ?? [])
-    .filter((o) => o.term_id === termId)
-    .map((o) => ({ value: String(o.id), label: offeringLabel(o.id) }))
-
-  if (!termId) return <TermNotice />
+  const offeringOptions = (offerings.data ?? []).map((o) => ({
+    value: String(o.id),
+    label: offeringLabel(o.id),
+  }))
 
   return (
     <Stack>

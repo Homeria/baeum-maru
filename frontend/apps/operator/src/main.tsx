@@ -6,7 +6,6 @@ import { BrowserRouter } from 'react-router-dom'
 import '@mantine/core/styles.css'
 import App from './App.tsx'
 import { AuthProvider } from './auth'
-import { TermProvider } from './term'
 
 const queryClient = new QueryClient()
 
@@ -15,11 +14,9 @@ createRoot(document.getElementById('root')!).render(
     <MantineProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <TermProvider>
-            <BrowserRouter>
-              <App />
-            </BrowserRouter>
-          </TermProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
         </AuthProvider>
       </QueryClientProvider>
     </MantineProvider>

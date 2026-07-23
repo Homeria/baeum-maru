@@ -21,10 +21,10 @@ async function unwrap<T>(p: Promise<{ data?: T; error?: unknown }>): Promise<T> 
   return data as T
 }
 
-export function Catalog() {
+export function CourseMasters() {
   const [params, setParams] = useSearchParams()
   const tab = params.get('tab') ?? 'courses'
-  // 과목 탭의 Select 옵션에 쓸 분류·난도 목록
+  // 강좌 탭의 Select 옵션에 쓸 분류·난도 목록
   const categories = useQuery({
     queryKey: ['course-categories'],
     queryFn: () => unwrap(api.GET('/api/v1/course-categories')),
@@ -37,11 +37,11 @@ export function Catalog() {
   return (
     <>
       <Title order={4} mb="md">
-        과목·강사
+        강좌 기준정보
       </Title>
       <Tabs value={tab} onChange={(v) => setParams(v ? { tab: v } : {})}>
         <Tabs.List mb="md">
-          <Tabs.Tab value="courses">과목</Tabs.Tab>
+          <Tabs.Tab value="courses">강좌</Tabs.Tab>
           <Tabs.Tab value="categories">분류</Tabs.Tab>
           <Tabs.Tab value="levels">난도</Tabs.Tab>
           <Tabs.Tab value="instructors">강사</Tabs.Tab>
@@ -50,7 +50,7 @@ export function Catalog() {
 
         <Tabs.Panel value="courses">
           <CrudMaster<Course, { category_id: string; level_id: string | null; name: string; description: string; is_active: boolean }>
-            addLabel="과목 추가"
+            addLabel="강좌 추가"
             queryKey={['courses']}
             fetchList={() => unwrap(api.GET('/api/v1/courses'))}
             onDelete={(r) =>
