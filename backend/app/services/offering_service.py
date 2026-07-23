@@ -10,17 +10,15 @@ from app.repositories import space_repository as space_repo
 # --- course_offerings (개설 강좌) ---
 
 
-def _ensure_offering_refs(term_id: int, course_id: int, instructor_id: int | None) -> None:
-    if course_repo.get_term(term_id) is None:
-        raise ResourceNotFoundError("term_not_found", "학기를 찾을 수 없습니다.")
+def _ensure_offering_refs(course_id: int, instructor_id: int | None) -> None:
     if course_repo.get_course(course_id) is None:
         raise ResourceNotFoundError("course_not_found", "과목을 찾을 수 없습니다.")
     if instructor_id is not None and course_repo.get_instructor(instructor_id) is None:
         raise ResourceNotFoundError("instructor_not_found", "강사를 찾을 수 없습니다.")
 
 
-def list_offerings(*, term_id: int | None = None) -> list[dict[str, Any]]:
-    return offering_repo.list_offerings(term_id=term_id)
+def list_offerings() -> list[dict[str, Any]]:
+    return offering_repo.list_offerings()
 
 
 def get_offering(offering_id: int) -> dict[str, Any]:
@@ -32,7 +30,6 @@ def get_offering(offering_id: int) -> dict[str, Any]:
 
 def create_offering(
     *,
-    term_id: int,
     course_id: int,
     section_label: str | None,
     instructor_id: int | None,
@@ -43,9 +40,8 @@ def create_offering(
     status: str,
     sort_order: int,
 ) -> dict[str, Any]:
-    _ensure_offering_refs(term_id, course_id, instructor_id)
+    _ensure_offering_refs(course_id, instructor_id)
     return offering_repo.create_offering(
-        term_id=term_id,
         course_id=course_id,
         section_label=section_label,
         instructor_id=instructor_id,
@@ -61,7 +57,6 @@ def create_offering(
 def update_offering(
     offering_id: int,
     *,
-    term_id: int,
     course_id: int,
     section_label: str | None,
     instructor_id: int | None,
@@ -72,10 +67,9 @@ def update_offering(
     status: str,
     sort_order: int,
 ) -> dict[str, Any]:
-    _ensure_offering_refs(term_id, course_id, instructor_id)
+    _ensure_offering_refs(course_id, instructor_id)
     offering = offering_repo.update_offering(
         offering_id,
-        term_id=term_id,
         course_id=course_id,
         section_label=section_label,
         instructor_id=instructor_id,

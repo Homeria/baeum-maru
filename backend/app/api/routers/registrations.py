@@ -39,11 +39,10 @@ def apply(
 def list_registrations(
     member_id: int | None = Query(default=None),
     offering_id: int | None = Query(default=None),
-    term_id: int | None = Query(default=None),
     status: str | None = Query(default=None),
 ) -> list[RegistrationResponse]:
     items = registration_service.list_registrations(
-        member_id=member_id, offering_id=offering_id, term_id=term_id, status=status
+        member_id=member_id, offering_id=offering_id, status=status
     )
     return [RegistrationResponse.model_validate(i) for i in items]
 

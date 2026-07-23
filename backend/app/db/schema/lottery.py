@@ -6,7 +6,6 @@ STATEMENTS = (
     """
     CREATE TABLE IF NOT EXISTS lottery_runs (
         id INTEGER PRIMARY KEY,
-        term_id INTEGER NOT NULL REFERENCES terms(id) ON DELETE RESTRICT,
         seed INTEGER NOT NULL,
         executed_by_operator_id INTEGER REFERENCES operators(id) ON DELETE RESTRICT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -42,7 +41,6 @@ STATEMENTS = (
         UNIQUE (lottery_run_target_id, result, result_order)
     )
     """,
-    "CREATE INDEX IF NOT EXISTS ix_lottery_runs_term_id ON lottery_runs(term_id)",
     """
     CREATE INDEX IF NOT EXISTS ix_lottery_run_targets_run_id
     ON lottery_run_targets(lottery_run_id)

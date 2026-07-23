@@ -7,8 +7,8 @@ from app.db.database import get_db_connection
 # --- Read ---
 
 
-def get_draw_candidates(term_id: int) -> list[dict[str, Any]]:
-    """학기의 'applied' 신청자를 개설강좌·성별과 함께 조회한다(알고리즘 입력)."""
+def get_draw_candidates() -> list[dict[str, Any]]:
+    """전체 'applied' 신청자를 개설강좌·성별과 함께 조회한다(알고리즘 입력)."""
     with get_db_connection() as conn:
         rows = conn.execute(
             """
@@ -18,23 +18,15 @@ def get_draw_candidates(term_id: int) -> list[dict[str, Any]]:
             FROM course_offerings o
             JOIN registrations r ON r.offering_id = o.id AND r.status = 'applied'
             JOIN members m ON m.id = r.member_id
-            WHERE o.term_id = ?
             ORDER BY o.id, r.id
-            """,
-            (term_id,),
+            """
         ).fetchall()
     return [dict(row) for row in rows]
 
 
-def list_runs(term_id: int | None = None) -> list[dict[str, Any]]:
-    query = "SELECT * FROM lottery_runs"
-    params: list[Any] = []
-    if term_id is not None:
-        query += " WHERE term_id = ?"
-        params.append(term_id)
-    query += " ORDER BY id DESC"
+def list_runs() -> list[dict[str, Any]]:
     with get_db_connection() as conn:
-        rows = conn.execute(query, params).fetchall()
+        rows = conn.execute("SELECT * FROM lottery_runs ORDER BY id DESC").fetchall()
     return [dict(row) for row in rows]
 
 
@@ -72,7 +64,6 @@ def get_run_results(run_id: int) -> list[dict[str, Any]]:
 
 def commit_lottery(
     *,
-    term_id: int,
     seed: int,
     executed_by_operator_id: int | None,
     actor_display_name: str | None,
@@ -83,9 +74,8 @@ def commit_lottery(
     with get_db_connection() as conn:
         try:
             run_cursor = conn.execute(
-                "INSERT INTO lottery_runs (term_id, seed, executed_by_operator_id) "
-                "VALUES (?, ?, ?)",
-                (term_id, seed, executed_by_operator_id),
+                "INSERT INTO lottery_runs (seed, executed_by_operator_id) VALUES (?, ?)",
+                (seed, executed_by_operator_id),
             )
             run_id = int(run_cursor.lastrowid)  # type: ignore[arg-type]
             for target in targets:

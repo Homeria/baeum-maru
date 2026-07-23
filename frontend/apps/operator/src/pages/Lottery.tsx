@@ -10,7 +10,6 @@ import {
   List,
   Modal,
   Paper,
-  Select,
   Stack,
   Table,
   Text,
@@ -37,17 +36,15 @@ async function unwrap<T>(p: Promise<{ data?: T; error?: unknown }>): Promise<T> 
 
 export function Lottery() {
   const qc = useQueryClient()
-  const [term, setTerm] = useState<string | null>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [resultsRun, setResultsRun] = useState<Run | null>(null)
 
-  const terms = useQuery({ queryKey: ['terms'], queryFn: () => unwrap(api.GET('/api/v1/terms')) })
-  const offerings = useQuery({ queryKey: ['offerings', null], queryFn: () => unwrap(api.GET('/api/v1/offerings')) })
+  const offerings = useQuery({ queryKey: ['offerings'], queryFn: () => unwrap(api.GET('/api/v1/offerings')) })
   const courses = useQuery({ queryKey: ['courses'], queryFn: () => unwrap(api.GET('/api/v1/courses')) })
   const members = useQuery({ queryKey: ['members'], queryFn: () => unwrap(api.GET('/api/v1/members')) })
   const registrations = useQuery({
-    queryKey: ['registrations', null, null, null],
+    queryKey: ['registrations', 'overview', null, null],
     queryFn: () => unwrap(api.GET('/api/v1/registrations')),
   })
 
@@ -63,29 +60,18 @@ export function Lottery() {
   }
 
   const runs = useQuery({
-    queryKey: ['lottery-runs', term],
-    enabled: term !== null,
-    queryFn: () =>
-      unwrap(
-        api.GET('/api/v1/lottery/runs', {
-          params: { query: { term_id: term ? Number(term) : undefined } },
-        }),
-      ),
+    queryKey: ['lottery-runs'],
+    queryFn: () => unwrap(api.GET('/api/v1/lottery/runs')),
   })
 
   const doPreview = useMutation({
-    mutationFn: () =>
-      unwrap(api.POST('/api/v1/lottery/preview', { body: { term_id: Number(term) } })),
+    mutationFn: () => unwrap(api.POST('/api/v1/lottery/preview')),
     onSuccess: (data) => setPreview(data),
   })
 
   const doCommit = useMutation({
     mutationFn: () =>
-      unwrap(
-        api.POST('/api/v1/lottery/commit', {
-          body: { term_id: Number(term), seed: preview!.seed },
-        }),
-      ),
+      unwrap(api.POST('/api/v1/lottery/commit', { body: { seed: preview!.seed } })),
     onSuccess: () => {
       setConfirmOpen(false)
       setPreview(null)
@@ -104,17 +90,7 @@ export function Lottery() {
       <Title order={4}>강좌 추첨</Title>
 
       <Group>
-        <Select
-          placeholder="학기 선택"
-          w={220}
-          data={(terms.data ?? []).map((t) => ({ value: String(t.id), label: t.name }))}
-          value={term}
-          onChange={(v) => {
-            setTerm(v)
-            setPreview(null)
-          }}
-        />
-        <Button disabled={!term} loading={doPreview.isPending} onClick={() => doPreview.mutate()}>
+        <Button loading={doPreview.isPending} onClick={() => doPreview.mutate()}>
           미리보기
         </Button>
       </Group>
@@ -173,39 +149,33 @@ export function Lottery() {
       )}
 
       <Divider label="지난 추첨" labelPosition="left" mt="md" />
-      {!term ? (
-        <Text c="dimmed" size="sm">
-          학기를 선택하면 지난 추첨 기록을 볼 수 있습니다.
-        </Text>
-      ) : (
-        <Table striped>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>일시</Table.Th>
-              <Table.Th>seed</Table.Th>
-              <Table.Th>실행자</Table.Th>
-              <Table.Th />
+      <Table striped>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>일시</Table.Th>
+            <Table.Th>seed</Table.Th>
+            <Table.Th>실행자</Table.Th>
+            <Table.Th />
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {runs.data?.map((r) => (
+            <Table.Tr key={r.id}>
+              <Table.Td>{r.created_at}</Table.Td>
+              <Table.Td>{r.seed}</Table.Td>
+              <Table.Td>{r.executed_by_operator_id ?? '-'}</Table.Td>
+              <Table.Td>
+                <Button size="xs" variant="subtle" onClick={() => setResultsRun(r)}>
+                  결과 보기
+                </Button>
+              </Table.Td>
             </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {runs.data?.map((r) => (
-              <Table.Tr key={r.id}>
-                <Table.Td>{r.created_at}</Table.Td>
-                <Table.Td>{r.seed}</Table.Td>
-                <Table.Td>{r.executed_by_operator_id ?? '-'}</Table.Td>
-                <Table.Td>
-                  <Button size="xs" variant="subtle" onClick={() => setResultsRun(r)}>
-                    결과 보기
-                  </Button>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      )}
-      {term && runs.data?.length === 0 && (
+          ))}
+        </Table.Tbody>
+      </Table>
+      {runs.data?.length === 0 && (
         <Text c="dimmed" size="sm">
-          이 학기의 추첨 기록이 없습니다.
+          추첨 기록이 없습니다.
         </Text>
       )}
 

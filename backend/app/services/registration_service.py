@@ -3,7 +3,6 @@
 from typing import Any
 
 from app.core.exceptions import ConflictError, ResourceNotFoundError
-from app.repositories import course_repository as course_repo
 from app.repositories import member_repository as member_repo
 from app.repositories import offering_repository as offering_repo
 from app.repositories import registration_repository as registration_repo
@@ -25,7 +24,6 @@ def _validate_apply(member_id: int, offering_ids: list[int]) -> None:
     }
     existing_slots = set(registration_repo.get_member_active_slots(member_id))
     batch_slots: set[tuple[int, int]] = set()
-    batch_by_term: dict[int, int] = {}
 
     for offering_id in offering_ids:
         if offering_id in active_offering_ids:
@@ -35,26 +33,11 @@ def _validate_apply(member_id: int, offering_ids: list[int]) -> None:
             raise ResourceNotFoundError("offering_not_found", "개설 강좌를 찾을 수 없습니다.")
         if offering["status"] != "open":
             raise ConflictError("offering_not_open", "신청을 받지 않는 개설 강좌입니다.")
-        term = course_repo.get_term(offering["term_id"])
-        if term is None or term["status"] != "open":
-            raise ConflictError("term_not_open", "신청 기간이 아닙니다.")
-        batch_by_term[offering["term_id"]] = batch_by_term.get(offering["term_id"], 0) + 1
         # 시간 충돌 검사 (정책 seam: 기본 차단)
         for slot in registration_repo.get_offering_slots(offering_id):
             if slot in existing_slots or slot in batch_slots:
                 raise ConflictError("time_conflict", "시간이 겹치는 강좌가 있습니다.")
             batch_slots.add(slot)
-
-    # 인당 최대 신청 수 (term.max_registrations_per_member, 0=무제한)
-    for term_id, batch_count in batch_by_term.items():
-        term = course_repo.get_term(term_id)
-        assert term is not None
-        max_regs = term["max_registrations_per_member"]
-        if (
-            max_regs
-            and registration_repo.count_active_in_term(member_id, term_id) + batch_count > max_regs
-        ):
-            raise ConflictError("max_registrations_exceeded", "최대 신청 개수를 초과했습니다.")
 
 
 def apply(
@@ -78,11 +61,10 @@ def list_registrations(
     *,
     member_id: int | None = None,
     offering_id: int | None = None,
-    term_id: int | None = None,
     status: str | None = None,
 ) -> list[dict[str, Any]]:
     return registration_repo.list_registrations(
-        member_id=member_id, offering_id=offering_id, term_id=term_id, status=status
+        member_id=member_id, offering_id=offering_id, status=status
     )
 
 

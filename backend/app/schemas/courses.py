@@ -1,11 +1,6 @@
-"""강좌 기준 정보(분류·난도·강사·학기·교시) API의 요청·응답 schema."""
-
-from typing import Literal
+"""강좌 기준 정보(분류·난도·강사·교시) API의 요청·응답 schema."""
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-
-TermStatus = Literal["draft", "open", "closed", "finalized"]
-
 
 # --- course_categories (분류) ---
 
@@ -78,52 +73,6 @@ class InstructorResponse(BaseModel):
     name: str
     phone: str | None
     is_active: bool
-    created_at: str
-    updated_at: str
-
-
-# --- terms (학기) ---
-
-
-class TermCreate(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
-
-    name: str = Field(min_length=1, max_length=120)
-    starts_on: str | None = None
-    ends_on: str | None = None
-    registration_opens_at: str | None = None
-    registration_closes_at: str | None = None
-    max_registrations_per_member: int = Field(default=0, ge=0)
-    status: TermStatus = "draft"
-
-    @model_validator(mode="after")
-    def _check_order(self) -> "TermCreate":
-        if self.starts_on and self.ends_on and self.starts_on > self.ends_on:
-            raise ValueError("starts_on must be on or before ends_on")
-        if (
-            self.registration_opens_at
-            and self.registration_closes_at
-            and self.registration_opens_at >= self.registration_closes_at
-        ):
-            raise ValueError("registration_opens_at must be before registration_closes_at")
-        return self
-
-
-class TermUpdate(TermCreate):
-    pass
-
-
-class TermResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    name: str
-    starts_on: str | None
-    ends_on: str | None
-    registration_opens_at: str | None
-    registration_closes_at: str | None
-    max_registrations_per_member: int
-    status: TermStatus
     created_at: str
     updated_at: str
 

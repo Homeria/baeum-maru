@@ -11,7 +11,6 @@ OfferingStatus = Literal["draft", "open", "closed", "cancelled"]
 class OfferingCreate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    term_id: int
     course_id: int
     section_label: str | None = Field(default=None, max_length=80)
     instructor_id: int | None = None
@@ -59,7 +58,6 @@ class OfferingResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    term_id: int
     course_id: int
     section_label: str | None
     instructor_id: int | None

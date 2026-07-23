@@ -1,6 +1,6 @@
 """개설 강좌와 시간표 CRUD 요청을 받는 router."""
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, status
 
 import app.services.offering_service as offering_service
 from app.api.dependencies import get_current_operator
@@ -27,7 +27,6 @@ router = APIRouter(tags=["offerings"], dependencies=[Depends(get_current_operato
 )
 def create_offering(payload: OfferingCreate) -> OfferingResponse:
     item = offering_service.create_offering(
-        term_id=payload.term_id,
         course_id=payload.course_id,
         section_label=payload.section_label,
         instructor_id=payload.instructor_id,
@@ -42,8 +41,8 @@ def create_offering(payload: OfferingCreate) -> OfferingResponse:
 
 
 @router.get("/offerings", response_model=list[OfferingResponse], summary="개설 강좌 목록")
-def list_offerings(term_id: int | None = Query(default=None)) -> list[OfferingResponse]:
-    items = offering_service.list_offerings(term_id=term_id)
+def list_offerings() -> list[OfferingResponse]:
+    items = offering_service.list_offerings()
     return [OfferingResponse.model_validate(i) for i in items]
 
 
@@ -56,7 +55,6 @@ def get_offering(offering_id: int) -> OfferingResponse:
 def update_offering(offering_id: int, payload: OfferingUpdate) -> OfferingResponse:
     item = offering_service.update_offering(
         offering_id,
-        term_id=payload.term_id,
         course_id=payload.course_id,
         section_label=payload.section_label,
         instructor_id=payload.instructor_id,

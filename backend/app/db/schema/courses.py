@@ -62,27 +62,6 @@ STATEMENTS = (
     )
     """,
     """
-    CREATE TABLE IF NOT EXISTS terms (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL UNIQUE,
-        starts_on TEXT,
-        ends_on TEXT,
-        registration_opens_at TEXT,
-        registration_closes_at TEXT,
-        max_registrations_per_member INTEGER NOT NULL DEFAULT 0
-            CHECK (max_registrations_per_member >= 0),
-        status TEXT NOT NULL DEFAULT 'draft'
-            CHECK (status IN ('draft', 'open', 'closed', 'finalized')),
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CHECK (starts_on IS NULL OR ends_on IS NULL OR starts_on <= ends_on),
-        CHECK (
-            registration_opens_at IS NULL OR registration_closes_at IS NULL
-            OR registration_opens_at < registration_closes_at
-        )
-    )
-    """,
-    """
     CREATE TABLE IF NOT EXISTS time_slots (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
@@ -99,7 +78,6 @@ STATEMENTS = (
     f"""
     CREATE TABLE IF NOT EXISTS course_offerings (
         id INTEGER PRIMARY KEY,
-        term_id INTEGER NOT NULL REFERENCES terms(id) ON DELETE RESTRICT,
         course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE RESTRICT,
         section_label TEXT CHECK (
             section_label IS NULL OR length(trim(section_label)) > 0
@@ -142,8 +120,8 @@ STATEMENTS = (
     ON courses(category_id, name, level_id) WHERE level_id IS NOT NULL
     """,
     """
-    CREATE INDEX IF NOT EXISTS ix_course_offerings_term_status
-    ON course_offerings(term_id, status)
+    CREATE INDEX IF NOT EXISTS ix_course_offerings_status
+    ON course_offerings(status)
     """,
     """
     CREATE INDEX IF NOT EXISTS ix_course_offerings_course_id
@@ -154,12 +132,12 @@ STATEMENTS = (
     ON course_offerings(instructor_id)
     """,
     """
-    CREATE UNIQUE INDEX IF NOT EXISTS uq_course_offerings_term_course_no_section
-    ON course_offerings(term_id, course_id) WHERE section_label IS NULL
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_course_offerings_course_no_section
+    ON course_offerings(course_id) WHERE section_label IS NULL
     """,
     """
-    CREATE UNIQUE INDEX IF NOT EXISTS uq_course_offerings_term_course_section
-    ON course_offerings(term_id, course_id, section_label) WHERE section_label IS NOT NULL
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_course_offerings_course_section
+    ON course_offerings(course_id, section_label) WHERE section_label IS NOT NULL
     """,
     """
     CREATE INDEX IF NOT EXISTS ix_course_schedules_offering_id

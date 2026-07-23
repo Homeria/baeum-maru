@@ -440,43 +440,6 @@ export interface paths {
         patch: operations["update_instructor_api_v1_instructors__instructor_id__patch"];
         trace?: never;
     };
-    "/api/v1/terms": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 학기 목록 */
-        get: operations["list_terms_api_v1_terms_get"];
-        put?: never;
-        /** 학기 등록 */
-        post: operations["create_term_api_v1_terms_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/terms/{term_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 학기 조회 */
-        get: operations["get_term_api_v1_terms__term_id__get"];
-        put?: never;
-        post?: never;
-        /** 학기 삭제 */
-        delete: operations["delete_term_api_v1_terms__term_id__delete"];
-        options?: never;
-        head?: never;
-        /** 학기 수정 */
-        patch: operations["update_term_api_v1_terms__term_id__patch"];
-        trace?: never;
-    };
     "/api/v1/time-slots": {
         parameters: {
             query?: never;
@@ -921,8 +884,6 @@ export interface components {
         };
         /** CommitRequest */
         CommitRequest: {
-            /** Term Id */
-            term_id: number;
             /** Seed */
             seed: number;
         };
@@ -1166,8 +1127,6 @@ export interface components {
         };
         /** OfferingCreate */
         OfferingCreate: {
-            /** Term Id */
-            term_id: number;
             /** Course Id */
             course_id: number;
             /** Section Label */
@@ -1202,8 +1161,6 @@ export interface components {
         OfferingResponse: {
             /** Id */
             id: number;
-            /** Term Id */
-            term_id: number;
             /** Course Id */
             course_id: number;
             /** Section Label */
@@ -1235,8 +1192,6 @@ export interface components {
         };
         /** OfferingUpdate */
         OfferingUpdate: {
-            /** Term Id */
-            term_id: number;
             /** Course Id */
             course_id: number;
             /** Section Label */
@@ -1325,11 +1280,6 @@ export interface components {
              */
             is_active: boolean;
         };
-        /** PreviewRequest */
-        PreviewRequest: {
-            /** Term Id */
-            term_id: number;
-        };
         /** PreviewResponse */
         PreviewResponse: {
             /** Seed */
@@ -1392,8 +1342,6 @@ export interface components {
         RunResponse: {
             /** Id */
             id: number;
-            /** Term Id */
-            term_id: number;
             /** Seed */
             seed: number;
             /** Executed By Operator Id */
@@ -1583,80 +1531,6 @@ export interface components {
             eligible_female: number | null;
             /** Results */
             results: components["schemas"]["ResultItem"][];
-        };
-        /** TermCreate */
-        TermCreate: {
-            /** Name */
-            name: string;
-            /** Starts On */
-            starts_on?: string | null;
-            /** Ends On */
-            ends_on?: string | null;
-            /** Registration Opens At */
-            registration_opens_at?: string | null;
-            /** Registration Closes At */
-            registration_closes_at?: string | null;
-            /**
-             * Max Registrations Per Member
-             * @default 0
-             */
-            max_registrations_per_member: number;
-            /**
-             * Status
-             * @default draft
-             * @enum {string}
-             */
-            status: "draft" | "open" | "closed" | "finalized";
-        };
-        /** TermResponse */
-        TermResponse: {
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-            /** Starts On */
-            starts_on: string | null;
-            /** Ends On */
-            ends_on: string | null;
-            /** Registration Opens At */
-            registration_opens_at: string | null;
-            /** Registration Closes At */
-            registration_closes_at: string | null;
-            /** Max Registrations Per Member */
-            max_registrations_per_member: number;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "draft" | "open" | "closed" | "finalized";
-            /** Created At */
-            created_at: string;
-            /** Updated At */
-            updated_at: string;
-        };
-        /** TermUpdate */
-        TermUpdate: {
-            /** Name */
-            name: string;
-            /** Starts On */
-            starts_on?: string | null;
-            /** Ends On */
-            ends_on?: string | null;
-            /** Registration Opens At */
-            registration_opens_at?: string | null;
-            /** Registration Closes At */
-            registration_closes_at?: string | null;
-            /**
-             * Max Registrations Per Member
-             * @default 0
-             */
-            max_registrations_per_member: number;
-            /**
-             * Status
-             * @default draft
-             * @enum {string}
-             */
-            status: "draft" | "open" | "closed" | "finalized";
         };
         /** TimeSlotCreate */
         TimeSlotCreate: {
@@ -3357,154 +3231,6 @@ export interface operations {
             };
         };
     };
-    list_terms_api_v1_terms_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TermResponse"][];
-                };
-            };
-        };
-    };
-    create_term_api_v1_terms_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TermCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TermResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_term_api_v1_terms__term_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                term_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TermResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_term_api_v1_terms__term_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                term_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_term_api_v1_terms__term_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                term_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TermUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TermResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_time_slots_api_v1_time_slots_get: {
         parameters: {
             query?: {
@@ -3825,9 +3551,7 @@ export interface operations {
     };
     list_offerings_api_v1_offerings_get: {
         parameters: {
-            query?: {
-                term_id?: number | null;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -3841,15 +3565,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OfferingResponse"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -4148,7 +3863,6 @@ export interface operations {
             query?: {
                 member_id?: number | null;
                 offering_id?: number | null;
-                term_id?: number | null;
                 status?: string | null;
             };
             header?: never;
@@ -4314,11 +4028,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PreviewRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -4327,15 +4037,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PreviewResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -4375,9 +4076,7 @@ export interface operations {
     };
     list_runs_api_v1_lottery_runs_get: {
         parameters: {
-            query?: {
-                term_id?: number | null;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -4391,15 +4090,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunResponse"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

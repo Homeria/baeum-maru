@@ -5,7 +5,6 @@ import secrets
 from typing import Any
 
 from app.core.exceptions import ConflictError, ResourceNotFoundError
-from app.repositories import course_repository as course_repo
 from app.repositories import lottery_repository as lottery_repo
 
 
@@ -61,8 +60,8 @@ def _draw_offering(offering: dict[str, Any], seed: int) -> dict[str, Any]:
     }
 
 
-def _compute_plan(term_id: int, seed: int) -> list[dict[str, Any]]:
-    rows = lottery_repo.get_draw_candidates(term_id)
+def _compute_plan(seed: int) -> list[dict[str, Any]]:
+    rows = lottery_repo.get_draw_candidates()
     offerings: dict[int, dict[str, Any]] = {}
     for row in rows:
         oid = int(row["offering_id"])
@@ -81,32 +80,23 @@ def _compute_plan(term_id: int, seed: int) -> list[dict[str, Any]]:
     return [_draw_offering(offerings[oid], seed) for oid in sorted(offerings)]
 
 
-def _require_term(term_id: int) -> None:
-    if course_repo.get_term(term_id) is None:
-        raise ResourceNotFoundError("term_not_found", "학기를 찾을 수 없습니다.")
-
-
-def preview(term_id: int) -> dict[str, Any]:
+def preview() -> dict[str, Any]:
     """seed를 생성하고 결과를 계산해 반환한다(저장하지 않음)."""
-    _require_term(term_id)
     seed = secrets.randbits(63)
-    return {"seed": seed, "offerings": _compute_plan(term_id, seed)}
+    return {"seed": seed, "offerings": _compute_plan(seed)}
 
 
 def commit(
-    term_id: int,
     *,
     seed: int,
     executed_by_operator_id: int | None = None,
     actor_display_name: str | None = None,
 ) -> dict[str, Any]:
     """같은 seed로 재계산해 결과를 원자적으로 저장하고 registrations에 반영한다."""
-    _require_term(term_id)
-    targets = _compute_plan(term_id, seed)
+    targets = _compute_plan(seed)
     if not targets:
         raise ConflictError("no_applicants", "추첨할 신청자가 없습니다.")
     run_id = lottery_repo.commit_lottery(
-        term_id=term_id,
         seed=seed,
         executed_by_operator_id=executed_by_operator_id,
         actor_display_name=actor_display_name,
@@ -117,8 +107,8 @@ def commit(
     return run
 
 
-def list_runs(term_id: int | None = None) -> list[dict[str, Any]]:
-    return lottery_repo.list_runs(term_id)
+def list_runs() -> list[dict[str, Any]]:
+    return lottery_repo.list_runs()
 
 
 def get_run(run_id: int) -> dict[str, Any]:

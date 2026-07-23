@@ -24,15 +24,13 @@ async function unwrap<T>(p: Promise<{ data?: T; error?: unknown }>): Promise<T> 
 }
 
 export function Registrations() {
-  const [term, setTerm] = useState<string | null>(null)
   const [offering, setOffering] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [historyReg, setHistoryReg] = useState<Registration | null>(null)
 
   const members = useQuery({ queryKey: ['members'], queryFn: () => unwrap(api.GET('/api/v1/members')) })
-  const offerings = useQuery({ queryKey: ['offerings', null], queryFn: () => unwrap(api.GET('/api/v1/offerings')) })
+  const offerings = useQuery({ queryKey: ['offerings'], queryFn: () => unwrap(api.GET('/api/v1/offerings')) })
   const courses = useQuery({ queryKey: ['courses'], queryFn: () => unwrap(api.GET('/api/v1/courses')) })
-  const terms = useQuery({ queryKey: ['terms'], queryFn: () => unwrap(api.GET('/api/v1/terms')) })
 
   const courseName = (id: number) => courses.data?.find((c) => c.id === id)?.name ?? id
   const memberName = (id: number) => {
@@ -45,13 +43,12 @@ export function Registrations() {
   }
 
   const list = useQuery({
-    queryKey: ['registrations', 'overview', term, offering, status],
+    queryKey: ['registrations', 'overview', offering, status],
     queryFn: () =>
       unwrap(
         api.GET('/api/v1/registrations', {
           params: {
             query: {
-              term_id: term ? Number(term) : undefined,
               offering_id: offering ? Number(offering) : undefined,
               status: status || undefined,
             },
@@ -60,26 +57,16 @@ export function Registrations() {
       ),
   })
 
-  const offeringOptions = (offerings.data ?? [])
-    .filter((o) => !term || o.term_id === Number(term))
-    .map((o) => ({ value: String(o.id), label: offeringLabel(o.id) }))
+  const offeringOptions = (offerings.data ?? []).map((o) => ({
+    value: String(o.id),
+    label: offeringLabel(o.id),
+  }))
 
   return (
     <Stack>
       <Group justify="space-between">
         <Title order={4}>신청 현황</Title>
         <Group>
-          <Select
-            placeholder="학기"
-            clearable
-            w={150}
-            data={(terms.data ?? []).map((t) => ({ value: String(t.id), label: t.name }))}
-            value={term}
-            onChange={(v) => {
-              setTerm(v)
-              setOffering(null)
-            }}
-          />
           <Select
             placeholder="개설강좌"
             clearable
