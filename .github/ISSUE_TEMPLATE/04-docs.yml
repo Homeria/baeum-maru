@@ -1,4 +1,4 @@
-name: 문서
+name: 문서 (docs)
 description: README, 도메인 문서, ADR, 안내 문서를 고치거나 추가할 때 (브랜치 docs/…)
 title: "docs: "
 labels: ["documentation"]

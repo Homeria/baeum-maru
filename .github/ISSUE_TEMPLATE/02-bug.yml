@@ -1,4 +1,4 @@
-name: 버그
+name: 버그 (fix)
 description: 프로그램이 기대와 다르게 동작할 때 (브랜치 fix/…)
 title: "fix: "
 labels: ["bug"]
