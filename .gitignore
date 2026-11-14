@@ -16,6 +16,9 @@ target/
 .env
 .env.*
 
+# 로컬 초안 (이슈·PR 본문 등, 레포에 올리지 않음)
+/.drafts/
+
 # 개인 Claude Code 설정
 .claude/settings.local.json
 CLAUDE.local.md
