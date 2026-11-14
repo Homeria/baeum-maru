@@ -1,0 +1,27 @@
+# 임시 .gitignore — 아키텍처(4단계) 결정 후 다시 정리한다.
+
+# Rust 빌드 결과물
+/target/
+
+# 실제 운영 데이터 (회원 개인정보) — 절대 커밋 금지
+/runtime/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.xlsx
+*.csv
+
+# 비밀값
+.env
+.env.*
+
+# 개인 Claude Code 설정
+.claude/settings.local.json
+CLAUDE.local.md
+
+# OS / 편집기
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
