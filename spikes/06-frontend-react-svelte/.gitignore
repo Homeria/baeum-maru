@@ -1,0 +1,3 @@
+# npm이 받아온 패키지와 빌드 결과
+node_modules/
+dist/

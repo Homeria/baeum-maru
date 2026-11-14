@@ -9,3 +9,4 @@
 | 03 | [Tauri 한글 입력](03-tauri-ime-lan/) | 통과 (Windows 11) | WebView2 한글 입력 문제없음. 서명 없는 exe는 Chrome 차단·SmartScreen·방화벽 세 관문 |
 | 04 | [다른 기기에서 접속](03-tauri-ime-lan/) (03과 같은 앱) | 부분 통과 | 방화벽 허용 후 휴대폰 삼성 인터넷 접속 됨. 휴대폰 Chrome은 "Too Many Requests"로 실패, 원인 미확인 |
 | 05 | 서버 PC 자동 찾기 (mDNS) | 보류 (PC가 한 대뿐) | 자동 찾기가 안 돼도 주소 직접 입력으로 대신할 수 있어 위험도가 가장 낮음. PC 두 대가 생기면 확인 |
+| 06 | [화면 기술 비교 (React vs Svelte)](06-frontend-react-svelte/) | 통과 (Ubuntu Chrome) | 버벅임은 도구보다 그리는 줄 수가 좌우(페이지 나누기 필수). Svelte가 크기 1/5, 첫 표시 25~40% 빠름. React도 이 규모엔 충분 |
