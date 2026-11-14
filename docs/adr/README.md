@@ -13,3 +13,4 @@
 | [0003](0003-login-access.md) | 로그인: 기기 승인(요청형) + 직원 PIN | 채택 |
 | [0004](0004-host-discovery.md) | 호스트 찾기: 주소 입력 + 기억, 포트 47800 고정, 자동 찾기는 나중 | 채택 |
 | [0005](0005-storage.md) | 저장소: SQLite + sqlx, 구조 변경은 자동 적용 + 사전 백업 | 채택 |
+| [0006](0006-crate-layout.md) | 코드 나누기: 업무 규칙 crate(`crates/domain`) + 앱 crate(`src-tauri`) | 채택 |
