@@ -5,7 +5,7 @@
 | 번호 | 실험 | 상태 | 결론 한 줄 |
 |---|---|---|---|
 | 01 | [SQLite 동시 저장](01-sqlite-concurrency/) | 통과 (Ubuntu) | 직원 8명 동시 접수 감당. 확인과 저장은 `BEGIN IMMEDIATE`로 묶어야 함. Windows·HDD 재확인 남음 |
-| 02 | Excel 출력 | 예정 | |
+| 02 | [Excel 출력과 가져오기](02-excel-export/) | 통과 (Ubuntu) | 만들기·읽기 모두 됨. 회원번호·연락처는 글자로 저장, 가져오기는 미리 보기와 경고 화면 필요. Windows Excel에서 모양 확인 남음 |
 | 03 | Tauri 한글 입력 | 예정 (Windows) | |
 | 04 | 다른 기기에서 접속 | 예정 (Windows + 휴대폰) | |
 | 05 | 서버 PC 자동 찾기 (mDNS) | 예정 (PC 두 대) | |

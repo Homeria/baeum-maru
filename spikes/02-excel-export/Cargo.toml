@@ -1,0 +1,14 @@
+# 버린 코드: 3단계 기술 실험용. 유지보수하지 않는다.
+[package]
+name = "spike-excel"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+rust_xlsxwriter = "0.102.0"                            # .xlsx 만들기
+calamine = { version = "0.38.0", features = ["dates"] } # .xlsx/.xls 읽기
+chrono = "0.4.45"                                      # 날짜
+
+# 상위 폴더의 Cargo 작업 공간에 묶이지 않도록 독립 프로젝트로 둔다.
+[workspace]
