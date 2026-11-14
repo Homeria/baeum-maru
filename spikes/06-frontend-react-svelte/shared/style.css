@@ -1,0 +1,10 @@
+body { font-family: "Malgun Gothic", "Noto Sans CJK KR", sans-serif; font-size: 16px; margin: 0; padding: 16px; background: #f6f6f4; color: #1d1d1b; }
+h1 { font-size: 20px; margin: 0 0 8px; }
+.bar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+input { font: inherit; padding: 6px 8px; width: 280px; border: 1px solid #aaa; border-radius: 6px; }
+button { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid #2e7d32; background: #2e7d32; color: #fff; }
+pre { background: #fff; border: 1px solid #ddd; padding: 8px; white-space: pre-wrap; }
+table { border-collapse: collapse; background: #fff; width: 100%; }
+th, td { border: 1px solid #ddd; padding: 3px 8px; text-align: left; }
+th { background: #eee; position: sticky; top: 0; }
+tr.changed td { background: #fff3c4; }

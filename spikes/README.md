@@ -1,0 +1,12 @@
+# 기술 실험 (spike)
+
+4단계 아키텍처 결정 전에 위험한 가정이 실제로 되는지 작게 확인하는 **버린 코드**다. 유지보수하지 않으며, 본 프로젝트 코드는 여기서 가져다 쓰지 않는다. 각 실험은 독립된 Rust 프로젝트이고, 결과와 결론은 실험 폴더의 `README.md`에 있다.
+
+| 번호 | 실험 | 상태 | 결론 한 줄 |
+|---|---|---|---|
+| 01 | [SQLite 동시 저장](01-sqlite-concurrency/) | 통과 (Ubuntu) | 직원 8명 동시 접수 감당. 확인과 저장은 `BEGIN IMMEDIATE`로 묶어야 함. Windows·HDD 재확인 남음 |
+| 02 | [Excel 출력과 가져오기](02-excel-export/) | 통과 (Ubuntu) | 만들기·읽기 모두 됨. 회원번호·연락처는 글자로 저장, 가져오기는 미리 보기와 경고 화면 필요. Windows Excel에서 모양 확인 남음 |
+| 03 | [Tauri 한글 입력](03-tauri-ime-lan/) | 통과 (Windows 11) | WebView2 한글 입력 문제없음. 서명 없는 exe는 Chrome 차단·SmartScreen·방화벽 세 관문 |
+| 04 | [다른 기기에서 접속](03-tauri-ime-lan/) (03과 같은 앱) | 부분 통과 | 방화벽 허용 후 휴대폰 삼성 인터넷 접속 됨. 휴대폰 Chrome은 "Too Many Requests"로 실패, 원인 미확인 |
+| 05 | 서버 PC 자동 찾기 (mDNS) | 보류 (PC가 한 대뿐) | 자동 찾기가 안 돼도 주소 직접 입력으로 대신할 수 있어 위험도가 가장 낮음. PC 두 대가 생기면 확인 |
+| 06 | [화면 기술 비교 (React vs Svelte)](06-frontend-react-svelte/) | 통과 (Ubuntu Chrome) | 버벅임은 도구보다 그리는 줄 수가 좌우(페이지 나누기 필수). Svelte가 크기 1/5, 첫 표시 25~40% 빠름. React도 이 규모엔 충분 |

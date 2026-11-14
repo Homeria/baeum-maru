@@ -1,0 +1,80 @@
+name: 버그
+description: 프로그램이 기대와 다르게 동작할 때 (브랜치 fix/…)
+title: "fix: "
+labels: ["bug"]
+body:
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: 개인정보 확인
+      options:
+        - label: 실제 회원의 이름·연락처·생년월일, DB·백업·Excel 파일을 올리지 않았습니다. 스크린샷의 개인정보도 가렸습니다.
+          required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 어떻게 하면 생기나요
+      placeholder: |
+        1. 호스트 PC에서 배움마루를 켬
+        2. 다른 PC에서 [신청] 탭을 열고 회원 검색
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대한 동작
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 실제 동작
+      description: 화면에 나온 오류 문구가 있으면 그대로 적어 주세요.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 배움마루 버전
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: edition
+    attributes:
+      label: 설치 형태
+      options:
+        - 설치판
+        - 포터블판
+        - 모름
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: 어느 PC에서 생겼나요
+      options:
+        - 호스트 PC
+        - 호스트에 접속한 다른 PC
+        - 둘 다
+        - 모름
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Windows 버전
+      placeholder: "Windows 11"
+  - type: textarea
+    id: logs
+    attributes:
+      label: 기록(로그) 일부 (있으면)
+      description: 개인정보가 없는지 확인한 뒤 붙여 주세요.
+      render: text
+  - type: input
+    id: rules
+    attributes:
+      label: 관련 업무 규칙 (알면)
+      description: docs/domain/BUSINESS_RULES.md의 번호
+      placeholder: "BR-A1"

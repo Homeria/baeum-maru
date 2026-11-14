@@ -1,0 +1,28 @@
+# 버린 코드: 3단계 기술 실험 03(Tauri 한글 입력) + 04(다른 기기에서 접속). 유지보수하지 않는다.
+[package]
+name = "spike-tauri-lan"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+tauri = "2.12.5"                                                      # 데스크톱 앱 창 (Windows는 WebView2)
+axum = "0.8.9"                                                        # 앱 안에서 도는 웹 서버
+tokio = { version = "1.54.1", features = ["net", "rt-multi-thread"] }
+serde = { version = "1.0.229", features = ["derive"] }                # JSON 주고받기
+serde_json = "1.0.154"
+local-ip-address = "0.6.13"                                           # 이 PC의 내부망 주소 찾기
+
+[build-dependencies]
+tauri-build = "2.7.4"
+
+[features]
+# tauri CLI 없이 `cargo build`만으로 화면 파일을 실행 파일에 넣기 위한 설정
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+strip = true
+
+# 상위 폴더의 Cargo 작업 공간에 묶이지 않도록 독립 프로젝트로 둔다.
+[workspace]

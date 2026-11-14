@@ -1,0 +1,66 @@
+name: 기능
+description: 새 기능, 기존 기능 개선, 업무 규칙 변경 (브랜치 feat/…)
+title: "feat: "
+labels: ["feature"]
+body:
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: 개인정보 확인
+      options:
+        - label: 실제 개인정보나 기관을 알아볼 수 있는 정보를 적지 않았습니다.
+          required: true
+  - type: textarea
+    id: story
+    attributes:
+      label: 누가, 어떤 업무에서, 왜
+      placeholder: 접수 직원이 접수 첫날 줄이 길 때, 이름 검색 없이 연락처 뒷자리로 바로 회원을 찾고 싶다. 동명이인이 많아 이름 검색이 느리기 때문.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: 다 됐다고 볼 기준
+      description: 확인할 수 있는 항목으로 적어 주세요. 각 항목이 테스트가 됩니다.
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+  - type: dropdown
+    id: rule-change
+    attributes:
+      label: 업무 규칙이 바뀌나요?
+      description: docs/domain/BUSINESS_RULES.md 기준
+      options:
+        - 아니요
+        - 기존 규칙을 바꿈
+        - 새 규칙을 추가함
+    validations:
+      required: true
+  - type: textarea
+    id: rule
+    attributes:
+      label: 업무 규칙 (바뀐다면)
+      description: 규칙이 바뀔 때만 적어 주세요. 허용 예와 거부 예는 그대로 테스트가 됩니다.
+      value: |
+        - 규칙 번호: (새 규칙이면 비워 두기)
+        - 지금 규칙:
+        - 바뀔 규칙 ("누가 / 언제 / 무엇을 할 수 있다·없다"):
+        - 현장 근거 (기관 유형만):
+        - 허용 예:
+        - 거부 예:
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: 영향 범위 (예상)
+      options:
+        - label: DB 구조 (마이그레이션)
+        - label: 화면
+        - label: 로그인·기기 승인·권한
+        - label: Excel 출력·가져오기
+        - label: 백업·데이터 넘기기
+  - type: textarea
+    id: out
+    attributes:
+      label: 이번에 하지 않는 것

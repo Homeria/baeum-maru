@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>배움마루 실험 03·04</title>
+<style>
+  :root { color-scheme: light; }
+  body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+         font-size: 17px; margin: 0; padding: 16px; background: #f6f6f4; color: #1d1d1b; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 0 0 8px; }
+  section { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 14px; margin: 12px 0; }
+  input, textarea { font: inherit; width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #aaa; border-radius: 6px; }
+  textarea { height: 90px; }
+  button { font: inherit; padding: 8px 14px; margin-top: 8px; border-radius: 6px; border: 1px solid #2e7d32; background: #2e7d32; color: #fff; }
+  .hint { color: #666; font-size: 15px; margin: 4px 0 8px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #e3f2e5; color: #1b5e20; font-weight: bold; }
+  .mono { font-family: Consolas, "D2Coding", monospace; font-size: 15px; }
+  #addresses li { margin: 4px 0; font-size: 20px; }
+  #log { height: 180px; overflow: auto; background: #fafafa; border: 1px solid #ddd; padding: 6px; white-space: pre; }
+  ol li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<h1>배움마루 실험 03·04</h1>
+<div>지금 화면: <span class="badge" id="where"></span> · 컴퓨터: <span id="computer">…</span></div>
+
+<section>
+  <h2>실험 04: 다른 기기에서 접속</h2>
+  <p class="hint">같은 Wi-Fi에 연결된 휴대폰 브라우저 주소창에 아래 주소 중 하나를 그대로 입력하세요.</p>
+  <ul id="addresses"><li>불러오는 중…</li></ul>
+</section>
+
+<section>
+  <h2>시험 1: 일반 입력칸</h2>
+  <p class="hint">예: 홍길동, 남궁하늘, 김 철수 (띄어쓰기 포함)</p>
+  <input id="t1" placeholder="이름을 입력해 보세요">
+</section>
+
+<section>
+  <h2>시험 2: 여러 줄 입력칸</h2>
+  <p class="hint">예: 안녕하세요. 배움마루 실험입니다. (줄바꿈, 마침표, 숫자 섞기)</p>
+  <textarea id="t2" placeholder="여러 줄을 입력해 보세요"></textarea>
+</section>
+
+<section>
+  <h2>시험 3: 입력하자마자 반응하는 칸 (검색칸 흉내)</h2>
+  <p class="hint">글자를 칠 때마다 아래에 바로 보여야 합니다. 조합 중인 글자가 이상하게 보이는지 보세요.</p>
+  <input id="t3" placeholder="예: 스마트폰">
+  <div>보이는 값: <b id="t3out"></b></div>
+</section>
+
+<section>
+  <h2>시험 4: Enter로 추가하는 칸</h2>
+  <p class="hint">두 칸 모두 한글을 치고 <b>바로</b> Enter를 누르세요. 마지막 글자가 따로 한 줄 더 추가되면 문제입니다.</p>
+  <p>4-가. 보호 없음 (흔한 코드)</p>
+  <input id="t4" placeholder="예: 요가 (치고 바로 Enter)">
+  <ol id="t4list"></ol>
+  <p>4-나. 조합 중 Enter 무시</p>
+  <input id="t4b" placeholder="예: 요가 (치고 바로 Enter)">
+  <ol id="t4blist"></ol>
+</section>
+
+<section>
+  <h2>시험 5: 서버로 보내기</h2>
+  <p class="hint">시험 2에 쓴 글을 앱 안 서버로 보냈다가 돌려받습니다. 글자 수가 같아야 합니다.</p>
+  <button id="send">시험 2 내용 보내기</button>
+  <div id="echo" class="mono"></div>
+</section>
+
+<section>
+  <h2>입력 기록 (문제가 생기면 이 화면을 사진 찍어 주세요)</h2>
+  <div id="log" class="mono"></div>
+</section>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  $("where").textContent = params.get("from") === "app" ? "앱 창 (Tauri)" : "브라우저";
+
+  // 접속 주소
+  fetch("/api/info").then(r => r.json()).then(info => {
+    $("computer").textContent = info.computer;
+    const ul = $("addresses");
+    ul.innerHTML = "";
+    if (info.addresses.length === 0) {
+      ul.innerHTML = "<li>내부망 주소를 찾지 못했습니다</li>";
+    }
+    for (const a of info.addresses) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="mono">${a.url}</span> <span class="hint">(${a.interface})</span>`;
+      ul.appendChild(li);
+    }
+  }).catch(e => { $("addresses").innerHTML = `<li>주소를 불러오지 못함: ${e}</li>`; });
+
+  // 입력 기록: 한글 조합(composition) 이벤트와 Enter 키를 남긴다
+  const log = (msg) => {
+    const t = new Date().toLocaleTimeString("ko-KR", { hour12: false });
+    $("log").textContent = `${t} ${msg}\n` + $("log").textContent.split("\n").slice(0, 60).join("\n");
+  };
+  for (const id of ["t1", "t2", "t3", "t4", "t4b"]) {
+    const el = $(id);
+    el.addEventListener("compositionstart", () => log(`[${id}] 조합 시작`));
+    el.addEventListener("compositionend", (e) => log(`[${id}] 조합 끝 "${e.data}" → 값 "${el.value}"`));
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") log(`[${id}] Enter (조합 중=${e.isComposing}) 값 "${el.value}"`);
+    });
+  }
+
+  // 시험 3: 입력할 때마다 바로 표시
+  $("t3").addEventListener("input", () => { $("t3out").textContent = $("t3").value; });
+
+  // 시험 4: Enter로 목록에 추가.
+  // 4-가는 보호 없이, 4-나는 조합 중 Enter를 무시한다. 브라우저에 따라 4-가에서 마지막 글자가 한 번 더 추가된다.
+  const addOnEnter = (id, guard) => $(id).addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    if (guard && (e.isComposing || e.keyCode === 229)) { log(`[${id}] 조합 중 Enter라 무시함`); return; }
+    const v = $(id).value;
+    const li = document.createElement("li");
+    li.textContent = v === "" ? "(빈 값)" : `${v} (${[...v].length}글자)`;
+    $(id + "list").appendChild(li);
+    $(id).value = "";
+  });
+  addOnEnter("t4", false);
+  addOnEnter("t4b", true);
+
+  // 시험 5: 서버 왕복
+  $("send").addEventListener("click", async () => {
+    const text = $("t2").value;
+    try {
+      const r = await fetch("/api/echo", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
+      });
+      const j = await r.json();
+      const same = j.text === text;
+      $("echo").textContent =
+        `보낸 글자 수 ${[...text].length} / 받은 글자 수 ${j.chars} / 서버 바이트 ${j.bytes} → ${same ? "같음 ✔" : "다름 ✘"}`;
+    } catch (e) {
+      $("echo").textContent = `보내지 못함: ${e}`;
+    }
+  });
+</script>
+</body>
+</html>
