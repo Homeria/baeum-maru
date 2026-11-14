@@ -9,6 +9,7 @@
 - 업무 규칙: `docs/domain/BUSINESS_RULES.md`. 규칙마다 `BR-…` 번호가 있다.
 - 개념 ERD: `docs/domain/ERD.md`
 - 아키텍처 결정: `docs/adr/`. 채택한 결정을 따르고, 바꿔야 하면 새 ADR을 제안한다.
+- 코드 규칙: `docs/conventions.md` (주석, 문서 주석, TODO, 테스트 이름)
 
 ## 언어
 
