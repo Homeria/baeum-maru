@@ -1,0 +1,15 @@
+[package]
+name = "baeum-domain"
+description = "배움마루 업무 규칙 (DB, 서버, 화면을 모른다)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+# sqlx, axum, tauri에 의존하지 않는다 (ADR 0006).
+[dependencies]
+
+[lints]
+workspace = true
