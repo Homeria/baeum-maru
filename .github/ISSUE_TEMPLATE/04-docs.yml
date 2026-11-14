@@ -1,6 +1,6 @@
 name: 문서
 description: README, 도메인 문서, ADR, 안내 문서를 고치거나 추가할 때 (브랜치 docs/…)
-title: "[문서] "
+title: "docs: "
 labels: ["documentation"]
 body:
   - type: checkboxes

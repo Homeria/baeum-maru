@@ -1,6 +1,6 @@
 name: 잡일
 description: 빌드, CI, 의존성 업데이트, 개발 환경 설정 (브랜치 chore/…)
-title: "[잡일] "
+title: "chore: "
 labels: ["chore"]
 body:
   - type: dropdown

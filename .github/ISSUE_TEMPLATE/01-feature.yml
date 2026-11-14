@@ -1,6 +1,6 @@
 name: 기능
 description: 새 기능, 기존 기능 개선, 업무 규칙 변경 (브랜치 feat/…)
-title: "[기능] "
+title: "feat: "
 labels: ["feature"]
 body:
   - type: checkboxes

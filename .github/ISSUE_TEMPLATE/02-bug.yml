@@ -1,6 +1,6 @@
 name: 버그
 description: 프로그램이 기대와 다르게 동작할 때 (브랜치 fix/…)
-title: "[버그] "
+title: "fix: "
 labels: ["bug"]
 body:
   - type: checkboxes
