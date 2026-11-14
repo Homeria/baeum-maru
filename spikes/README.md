@@ -8,4 +8,4 @@
 | 02 | [Excel 출력과 가져오기](02-excel-export/) | 통과 (Ubuntu) | 만들기·읽기 모두 됨. 회원번호·연락처는 글자로 저장, 가져오기는 미리 보기와 경고 화면 필요. Windows Excel에서 모양 확인 남음 |
 | 03 | [Tauri 한글 입력](03-tauri-ime-lan/) | 통과 (Windows 11) | WebView2 한글 입력 문제없음. 서명 없는 exe는 Chrome 차단·SmartScreen·방화벽 세 관문 |
 | 04 | [다른 기기에서 접속](03-tauri-ime-lan/) (03과 같은 앱) | 부분 통과 | 방화벽 허용 후 휴대폰 삼성 인터넷 접속 됨. 휴대폰 Chrome은 "Too Many Requests"로 실패, 원인 미확인 |
-| 05 | 서버 PC 자동 찾기 (mDNS) | 예정 (PC 두 대) | |
+| 05 | 서버 PC 자동 찾기 (mDNS) | 보류 (PC가 한 대뿐) | 자동 찾기가 안 돼도 주소 직접 입력으로 대신할 수 있어 위험도가 가장 낮음. PC 두 대가 생기면 확인 |
