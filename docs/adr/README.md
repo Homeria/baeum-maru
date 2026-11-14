@@ -19,3 +19,4 @@
 | [0009](0009-frontend.md) | 화면 기술: React + Vite, 한 번에 그리는 줄 수 제한 | 채택 |
 | [0010](0010-distribution.md) | 배포와 업데이트: 설치판 + 완전 포터블판, 출시는 서명 필수, 버전 번호로 호환 판단 | 채택 |
 | [0011](0011-backup.md) | 백업과 복원: 자동 백업(하루·종료·작업 직전), 두 번째 위치, 통째 복원 | 채택 |
+| [0012](0012-skeleton.md) | 뼈대: TypeScript·앱 내장 화면·TanStack Query·React Compiler·ts-rs, just check, GitHub Flow, CI 경로 제한, Dependabot·cargo-deny | 채택 |
