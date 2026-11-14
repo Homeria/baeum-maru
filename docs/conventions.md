@@ -155,9 +155,71 @@ mod tests {
 }
 ```
 
-## 아직 정하지 않은 것
+## unwrap과 expect
 
-- 오류 처리 방식
-- 모듈 파일 배치
+- `unwrap()`은 쓰지 않는다. clippy `unwrap_used`가 막는다.
+- `expect("무엇이 실패했는지")`는 앱을 처음 켜는 코드에서만 쓴다. 실패하면 어차피 켤 수 없는 곳이다.
+- 요청 처리, 업무 규칙, DB 코드에서는 `expect`도 쓰지 않고 `?`로 넘긴다.
+- 테스트와 문서 예제에서는 둘 다 쓴다.
 
-뼈대 코드에서 처음 나올 때 정해서 여기에 적는다.
+## 오류 처리
+
+- 업무 규칙 crate: 오류 종류를 enum으로 정의하고 `thiserror`로 만든다.
+- 앱 crate: 요청 처리의 오류는 `ApiError` enum으로 모으고, axum `IntoResponse`로 JSON 응답을 만든다.
+- 앱 시작 코드는 `Box<dyn Error>`로 돌려준다. `anyhow`는 쓰지 않는다.
+- 내부 오류(DB, 파일)는 로그에만 남기고, 화면에는 일반 문구만 보낸다.
+
+오류 응답 모양:
+
+```json
+{ "code": "TIME_CONFLICT", "message": "수업 시간이 겹칩니다", "rule": "BR-A1" }
+```
+
+- `code`: 영어 대문자. 한 번 정하면 바꾸지 않는다. 바꾸면 버전 둘째 자리를 올린다.
+- `message`: 직원에게 그대로 보여 줘도 되는 한국어 문장
+- `rule`: 업무 규칙 위반일 때만
+
+## 로그와 개인정보
+
+- 도구: `tracing`, 날짜별 파일은 `tracing-appender`
+- 위치: 데이터 폴더의 `logs/`. 30일 지나면 지운다. 백업에 넣지 않는다.
+- 기본 수준은 `info`, 문제를 찾을 때만 `debug`
+- 회원 정보(이름, 연락처, 생년월일, 회원번호)는 로그에 쓰지 않는다. DB 내부 id를 쓴다.
+- 요청 로그에는 경로만 남긴다. `?` 뒤의 검색어와 요청 본문은 남기지 않는다.
+- 개인정보 필드는 디버그 출력에서 `***`로 찍히는 감싼 타입(`Personal<T>`)에 담는다. 회원이 처음 나오는 기능에서 만든다.
+- 접속 기록(ADR 0003)은 로그 파일이 아니라 DB에 남긴다.
+
+```rust
+// 피할 것:
+tracing::info!("신청 저장: {}", member.name);
+// 이렇게:
+tracing::info!(application_id = %id, "신청 저장");
+```
+
+## JSON
+
+- 요청·응답 구조체에는 `#[serde(rename_all = "camelCase")]`를 붙인다. `member_no` → `memberNo`
+- enum 값도 camelCase로 보낸다. `Waitlisted` → `"waitlisted"`
+- 오류 `code`만 영어 대문자로 쓴다.
+
+## 모듈 파일 배치
+
+- `server.rs` + `server/` 폴더 방식을 쓴다. `mod.rs`는 쓰지 않는다. clippy `mod_module_files`가 막는다.
+- 하는 일 단위로 모듈을 나눈다. 한 파일이 수백 줄을 넘으면 폴더로 나눈다.
+
+```text
+src-tauri/src/
+├─ main.rs
+├─ server.rs
+└─ server/
+   └─ version.rs
+```
+
+## 나중에 정할 것
+
+| 정할 것 | 언제 |
+|---|---|
+| 화면 파일 이름, 내보내기 방식, CSS 클래스 이름 | 화면 뼈대(`ui/`) |
+| 요청 주소 이름 규칙 | 6단계 첫 기능 |
+| DB 테이블·컬럼 이름, 마이그레이션 파일 이름 | 6단계 첫 DB 작업 |
+| 날짜와 시간 다루기 | 6단계 접수 시각이 처음 나올 때 |

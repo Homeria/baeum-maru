@@ -1,4 +1,4 @@
-# Rust 버전 고정 (ADR 0012). 올릴 때는 별도 PR로 올린다.
+# [ADR 0012]: Rust 버전 고정. 올릴 때는 별도 PR로.
 [toolchain]
 channel = "1.100.0"
 components = ["rustfmt", "clippy"]
