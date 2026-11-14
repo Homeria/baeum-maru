@@ -26,7 +26,8 @@
 - 앱: Tauri 2.12 (Windows에서는 WebView2로 화면을 그림), 서버: axum 0.8
 - 서버는 `0.0.0.0:47800`(이 PC의 모든 네트워크 주소)에서 뜬다. 포트가 쓰이고 있으면 빈 포트를 쓴다.
 - 앱 창은 `http://127.0.0.1:47800`을 연다. 화면에 다른 기기용 접속 주소가 나온다.
-- Windows 실행 파일은 `.github/workflows/spike-windows-build.yml`(실험용 워크플로)이 만든다.
+- Windows 실행 파일은 실험용 GitHub Actions 워크플로(`spike-windows-build.yml`)로 만들었다. 실험이 끝나 지웠고, git 기록에 남아 있다.
+  - 교훈: 실험 폴더 전체를 빌드 조건으로 걸었더니 결과 문서만 고쳐도 빌드가 돌았다. 정식 CI에서는 빌드 조건을 코드 파일로 좁혀야 한다.
 - Ubuntu에서는 Windows 대상으로 코드 검사(`cargo check`)만 했다. 이 PC에 Linux용 Tauri 라이브러리와 Windows 리소스 컴파일러가 없어서, 리소스 컴파일러는 빈 파일을 만드는 가짜로 대신했다.
 
 ## 결과
@@ -69,5 +70,4 @@
 
 ## 실행 방법
 
-- Windows: GitHub Actions의 `spike-windows-build` 실행 결과에서 `spike-tauri-lan-windows`를 내려받아 압축을 풀고 `spike-tauri-lan.exe` 실행
 - 직접 빌드(Windows): `cargo build --release`
