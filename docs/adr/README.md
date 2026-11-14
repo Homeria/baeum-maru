@@ -16,3 +16,4 @@
 | [0006](0006-crate-layout.md) | 코드 나누기: 업무 규칙 crate(`crates/domain`) + 앱 crate(`src-tauri`) | 채택 |
 | [0007](0007-app-only-access.md) | 앱으로만 접속 (0001의 웹 예비 대체) | 채택 |
 | [0008](0008-http-json-sse.md) | 화면과 서버의 대화: HTTP + JSON 요청, SSE 변경 알림 | 채택 |
+| [0009](0009-frontend.md) | 화면 기술: React + Vite, 한 번에 그리는 줄 수 제한 | 채택 |
