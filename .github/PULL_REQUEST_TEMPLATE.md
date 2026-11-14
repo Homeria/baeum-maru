@@ -1,3 +1,5 @@
+<!-- PR 제목은 커밋 메시지 형식으로: `type: 한국어 요약` (feat, fix, refactor, docs, chore). Squash로 합치면 PR 제목이 main의 커밋 메시지가 된다. 이슈 제목에는 type을 붙이지 않는다(라벨이 대신함). -->
+
 ## 연결 이슈
 
 Closes #

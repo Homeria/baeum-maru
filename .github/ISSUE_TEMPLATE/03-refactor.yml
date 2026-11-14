@@ -1,6 +1,5 @@
-name: 리팩터링
+name: 리팩터링 (refactor)
 description: 동작은 그대로 두고 코드 구조를 고칠 때 (브랜치 refactor/…)
-title: "refactor: "
 labels: ["refactor"]
 body:
   - type: textarea
