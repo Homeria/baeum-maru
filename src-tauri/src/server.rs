@@ -2,13 +2,16 @@
 //!
 //! ADR 0008: 요청은 HTTP + JSON.
 
+mod access_logs;
 mod auth;
 mod courses;
 mod error;
 mod login;
 mod members;
+mod paging;
 mod rooms;
 mod setup;
+mod staff;
 mod subjects;
 mod terms;
 #[cfg(test)]
@@ -129,6 +132,16 @@ pub fn router(state: AppState) -> Router {
                 .patch(courses::update_course)
                 .delete(courses::delete_course),
         )
+        .route(
+            "/api/staff",
+            get(staff::list_staff).post(staff::create_staff),
+        )
+        .route(
+            "/api/staff/{id}",
+            get(staff::get_staff).patch(staff::update_staff),
+        )
+        .route("/api/staff/{id}/pin", post(staff::reset_staff_pin))
+        .route("/api/access-logs", get(access_logs::list_access_logs))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::require_session,

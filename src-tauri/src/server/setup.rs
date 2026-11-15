@@ -7,11 +7,12 @@ use axum::extract::State;
 use axum::extract::rejection::JsonRejection;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use baeum_domain::{NewStaff, Pin, RecoveryCode, StaffError};
+use baeum_domain::{NewStaff, Pin, RecoveryCode};
 use chrono::Utc;
 use sqlx::SqlitePool;
 
 use super::error::ApiError;
+use super::staff::field_name;
 use crate::db::staff::{self, SetupError};
 use crate::secret::{self, SecretError};
 
@@ -81,16 +82,6 @@ impl Secrets {
             recovery_code_hash: secret::hash(recovery_code.as_str())?,
             recovery_code,
         })
-    }
-}
-
-/// 오류가 난 칸의 요청 JSON 이름.
-fn field_name(error: &StaffError) -> &'static str {
-    match error {
-        StaffError::EmptyName | StaffError::NameTooLong => "name",
-        StaffError::InvalidPin | StaffError::AdminPinTooShort => "pin",
-        // 관리자는 유효기간이 없어도 되어 처음 설정에서는 나오지 않는다
-        StaffError::MissingValidUntil => "validUntil",
     }
 }
 

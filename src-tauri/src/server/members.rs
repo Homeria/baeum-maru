@@ -12,7 +12,8 @@ use chrono::{Local, Utc};
 use sqlx::SqlitePool;
 
 use super::auth::CurrentStaff;
-use super::error::{ApiError, FieldError};
+use super::error::ApiError;
+use super::paging::Paging;
 use crate::db::members::{self, SaveMemberError};
 
 use json::{
@@ -23,9 +24,6 @@ use json::{
 /// 한 쪽에 보여 주는 기본 인원.
 const DEFAULT_PAGE_SIZE: u32 = 20;
 
-/// 한 쪽에 보여 주는 최대 인원.
-const MAX_PAGE_SIZE: u32 = 100;
-
 /// 검색어로 회원을 찾는다. 이름순, 같으면 회원번호순.
 // [docs/conventions.md]: 검색어는 로그에 남기지 않음
 pub async fn search_members(
@@ -33,25 +31,8 @@ pub async fn search_members(
     params: Result<Query<SearchMembersParams>, QueryRejection>,
 ) -> Result<Json<MemberListResponse>, ApiError> {
     let Query(params) = params?;
-    let page = params.page.unwrap_or(1);
-    let page_size = params.page_size.unwrap_or(DEFAULT_PAGE_SIZE);
-
-    let mut fields = Vec::new();
-    if page < 1 {
-        fields.push(FieldError {
-            field: "page".to_owned(),
-            message: "쪽 번호는 1부터입니다".to_owned(),
-        });
-    }
-    if !(1..=MAX_PAGE_SIZE).contains(&page_size) {
-        fields.push(FieldError {
-            field: "pageSize".to_owned(),
-            message: format!("한 쪽 인원은 1~{MAX_PAGE_SIZE}명입니다"),
-        });
-    }
-    if !fields.is_empty() {
-        return Err(ApiError::InvalidInput(fields));
-    }
+    let Paging { page, page_size } =
+        Paging::parse(params.page, params.page_size, DEFAULT_PAGE_SIZE)?;
 
     let query = params.query.as_deref().unwrap_or("");
     let found = members::search(&db, query, page, page_size)

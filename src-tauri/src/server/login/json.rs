@@ -2,11 +2,11 @@
 //!
 //! PIN과 세션 증표가 들어 있어 `Debug`를 직접 써서 글자를 가린다.
 
-use baeum_domain::Role;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::db::staff::LoginChoice;
+use crate::server::staff::RoleCode;
 
 /// 로그인 화면에서 고를 직원 하나.
 #[derive(Debug, Serialize, TS)]
@@ -65,28 +65,6 @@ impl std::fmt::Debug for UnlockRequest {
         f.debug_struct("UnlockRequest")
             .field("pin", &"***")
             .finish()
-    }
-}
-
-/// 역할. BR-K3
-#[derive(Debug, Clone, Copy, Serialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(export)]
-pub enum RoleCode {
-    Admin,
-    Staff,
-    TempStaff,
-    ReadOnly,
-}
-
-impl From<Role> for RoleCode {
-    fn from(role: Role) -> Self {
-        match role {
-            Role::Admin => RoleCode::Admin,
-            Role::Staff => RoleCode::Staff,
-            Role::TempStaff => RoleCode::TempStaff,
-            Role::ReadOnly => RoleCode::ReadOnly,
-        }
     }
 }
 

@@ -50,6 +50,10 @@ pub enum ApiError {
     SetupAlreadyDone,
     /// 주소나 본문의 id인 직원이 없다.
     StaffNotFound,
+    /// BR-K2: 직원 이름은 겹치지 않는다.
+    DuplicateStaffName,
+    /// BR-K9: 사용 중인 관리자가 하나도 남지 않게 된다.
+    LastAdmin,
     /// 로그인하거나 화면 잠금을 풀 때 PIN이 틀렸다.
     WrongPin,
     /// BR-K7: PIN을 5번 연속 틀려 계정이 잠겼다.
@@ -122,6 +126,8 @@ pub enum ErrorCode {
     CourseNotFound,
     SetupAlreadyDone,
     StaffNotFound,
+    DuplicateStaffName,
+    LastAdmin,
     WrongPin,
     AccountLocked,
     AccountUnavailable,
@@ -274,6 +280,20 @@ impl IntoResponse for ApiError {
                 ErrorCode::StaffNotFound,
                 "직원을 찾지 못했습니다",
                 None,
+                Vec::new(),
+            ),
+            ApiError::DuplicateStaffName => (
+                StatusCode::CONFLICT,
+                ErrorCode::DuplicateStaffName,
+                "같은 이름의 직원이 있습니다. 띄어쓰기만 달라도 같은 이름으로 봅니다",
+                Some("BR-K2"),
+                Vec::new(),
+            ),
+            ApiError::LastAdmin => (
+                StatusCode::CONFLICT,
+                ErrorCode::LastAdmin,
+                "사용 중인 관리자가 한 명뿐이라 사용 중지하거나 역할을 바꿀 수 없습니다. 다른 관리자를 먼저 만들어 주세요",
+                Some("BR-K9"),
                 Vec::new(),
             ),
             ApiError::WrongPin => (

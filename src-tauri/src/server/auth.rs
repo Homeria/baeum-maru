@@ -116,7 +116,7 @@ mod tests {
     use crate::server::version::VERSION_HEADER;
 
     /// 로그인이 필요한 주소마다 하나씩. id는 없는 값이어도 된다 (로그인 확인이 먼저다).
-    const SIGNED_IN_ROUTES: [(&str, &str); 15] = [
+    const SIGNED_IN_ROUTES: [(&str, &str); 18] = [
         ("GET", "/api/members"),
         ("POST", "/api/members"),
         ("GET", "/api/members/1"),
@@ -132,6 +132,9 @@ mod tests {
         ("GET", "/api/terms/1/courses"),
         ("POST", "/api/terms/1/courses"),
         ("GET", "/api/courses/1"),
+        ("GET", "/api/staff"),
+        ("POST", "/api/staff/1/pin"),
+        ("GET", "/api/access-logs"),
     ];
 
     async fn send(router: Router, method: &str, uri: &str, token: Option<&str>) -> Value {

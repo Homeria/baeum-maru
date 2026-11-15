@@ -1,11 +1,11 @@
 //! 직원 계정과 복구 코드 저장.
 
-use baeum_domain::{FailedPin, Role, StaffName, record_failed_pin};
+use baeum_domain::{FailedPin, NewStaff, Role, StaffName, StaffProfile, record_failed_pin};
 use chrono::{DateTime, NaiveDate, Utc};
 use sqlx::SqlitePool;
 
 use super::access_logs::{self, AccessEvent};
-use super::timestamp_text;
+use super::{is_unique_violation, timestamp_text};
 
 /// 처음 설정을 하지 못했다.
 #[derive(Debug, thiserror::Error)]
@@ -125,8 +125,7 @@ impl TryFrom<LoginAccountRow> for LoginAccount {
     type Error = sqlx::Error;
 
     fn try_from(row: LoginAccountRow) -> Result<Self, Self::Error> {
-        let role = Role::from_code(&row.role)
-            .ok_or_else(|| sqlx::Error::Decode(format!("모르는 역할: {}", row.role).into()))?;
+        let role = decode_role(&row.role)?;
         Ok(LoginAccount {
             id: row.id,
             name: row.name,
@@ -182,6 +181,190 @@ pub async fn add_failed_pin(
 
     tx.commit().await?;
     Ok(failed)
+}
+
+/// 직원 계정을 저장하지 못했다.
+#[derive(Debug, thiserror::Error)]
+pub enum SaveStaffError {
+    /// BR-K2: 직원 이름은 겹치지 않는다.
+    #[error("같은 이름의 직원이 있습니다")]
+    DuplicateName,
+    /// BR-K9: 사용 중인 관리자가 하나도 남지 않게 된다.
+    #[error("사용 중인 관리자가 한 명은 있어야 합니다")]
+    LastAdmin,
+    #[error("직원을 저장하지 못했습니다: {0}")]
+    Db(sqlx::Error),
+}
+
+impl From<sqlx::Error> for SaveStaffError {
+    fn from(error: sqlx::Error) -> Self {
+        // staff에서 UNIQUE는 name_key 하나뿐이다
+        if is_unique_violation(&error) {
+            SaveStaffError::DuplicateName
+        } else {
+            SaveStaffError::Db(error)
+        }
+    }
+}
+
+/// 직원 관리 화면에 보여 주는 직원 하나. PIN 해시는 담지 않는다.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StaffRecord {
+    pub id: i64,
+    pub name: String,
+    pub role: Role,
+    pub valid_until: Option<NaiveDate>,
+    pub disabled: bool,
+    pub locked_until: Option<DateTime<Utc>>,
+}
+
+#[derive(sqlx::FromRow)]
+struct StaffRow {
+    id: i64,
+    name: String,
+    role: String,
+    valid_until: Option<NaiveDate>,
+    disabled: bool,
+    locked_until: Option<DateTime<Utc>>,
+}
+
+impl TryFrom<StaffRow> for StaffRecord {
+    type Error = sqlx::Error;
+
+    fn try_from(row: StaffRow) -> Result<Self, Self::Error> {
+        Ok(StaffRecord {
+            id: row.id,
+            name: row.name,
+            role: decode_role(&row.role)?,
+            valid_until: row.valid_until,
+            disabled: row.disabled,
+            locked_until: row.locked_until,
+        })
+    }
+}
+
+/// DB의 역할 글자를 [`Role`]로 읽는다. 마이그레이션의 CHECK가 막아서 틀릴 일은 없다.
+fn decode_role(code: &str) -> Result<Role, sqlx::Error> {
+    Role::from_code(code).ok_or_else(|| sqlx::Error::Decode(format!("모르는 역할: {code}").into()))
+}
+
+/// 직원을 모두 읽는다. 사용 중인 직원 먼저, 이름 순서.
+pub async fn list(pool: &SqlitePool) -> Result<Vec<StaffRecord>, sqlx::Error> {
+    let rows: Vec<StaffRow> = sqlx::query_as(
+        "SELECT id, name, role, valid_until, disabled, locked_until FROM staff
+         ORDER BY disabled, name, id",
+    )
+    .fetch_all(pool)
+    .await?;
+    rows.into_iter().map(StaffRecord::try_from).collect()
+}
+
+/// `id`인 직원을 읽는다. 없으면 `None`.
+pub async fn get(pool: &SqlitePool, id: i64) -> Result<Option<StaffRecord>, sqlx::Error> {
+    let row: Option<StaffRow> = sqlx::query_as(
+        "SELECT id, name, role, valid_until, disabled, locked_until FROM staff WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+    row.map(StaffRecord::try_from).transpose()
+}
+
+/// 확인을 통과한 새 직원을 저장하고 새 `id`를 돌려준다. PIN 해시는 부르는 쪽이 만든다.
+pub async fn insert(
+    pool: &SqlitePool,
+    staff: &NewStaff,
+    pin_hash: &str,
+    now: DateTime<Utc>,
+) -> Result<i64, SaveStaffError> {
+    let profile = staff.profile();
+    let now = timestamp_text(now);
+    let result = sqlx::query(
+        "INSERT INTO staff (name, name_key, pin_hash, role, valid_until, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(profile.name().as_str())
+    .bind(profile.name().key())
+    .bind(pin_hash)
+    .bind(profile.role().code())
+    .bind(profile.valid_until())
+    .bind(&now)
+    .bind(&now)
+    .execute(pool)
+    .await?;
+    Ok(result.last_insert_rowid())
+}
+
+/// `id`인 직원의 이름·역할·유효기간·사용 중지를 바꾸고 바꾼 뒤 모습을 돌려준다. 없으면 `None`.
+///
+/// BR-K9: 바꾼 뒤 `today`에 사용 중인 관리자가 하나도 없으면 되돌리고
+/// [`SaveStaffError::LastAdmin`]. 두 관리자를 동시에 막지 못하게 `BEGIN IMMEDIATE`로 한다.
+pub async fn update(
+    pool: &SqlitePool,
+    id: i64,
+    profile: &StaffProfile,
+    disabled: bool,
+    today: NaiveDate,
+    now: DateTime<Utc>,
+) -> Result<Option<StaffRecord>, SaveStaffError> {
+    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
+
+    let row: Option<StaffRow> = sqlx::query_as(
+        "UPDATE staff SET name = ?, name_key = ?, role = ?, valid_until = ?, disabled = ?,
+                          updated_at = ?
+         WHERE id = ?
+         RETURNING id, name, role, valid_until, disabled, locked_until",
+    )
+    .bind(profile.name().as_str())
+    .bind(profile.name().key())
+    .bind(profile.role().code())
+    .bind(profile.valid_until())
+    .bind(disabled)
+    .bind(timestamp_text(now))
+    .bind(id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
+
+    let has_admin: bool = sqlx::query_scalar(
+        "SELECT EXISTS (
+             SELECT 1 FROM staff
+             WHERE role = 'admin' AND disabled = 0
+               AND (valid_until IS NULL OR valid_until >= ?)
+         )",
+    )
+    .bind(today)
+    .fetch_one(&mut *tx)
+    .await?;
+    if !has_admin {
+        // tx를 저장하지 않고 버려 바꾼 것을 되돌린다
+        return Err(SaveStaffError::LastAdmin);
+    }
+
+    tx.commit().await?;
+    Ok(Some(StaffRecord::try_from(row)?))
+}
+
+/// BR-K10: `id`인 직원의 PIN을 새 해시로 바꾼다. 틀린 횟수와 계정 잠금도 푼다.
+/// 바꿨으면 `true`, 없으면 `false`.
+pub async fn reset_pin(
+    pool: &SqlitePool,
+    id: i64,
+    pin_hash: &str,
+    now: DateTime<Utc>,
+) -> Result<bool, sqlx::Error> {
+    let result = sqlx::query(
+        "UPDATE staff SET pin_hash = ?, failed_pin_count = 0, locked_until = NULL, updated_at = ?
+         WHERE id = ?",
+    )
+    .bind(pin_hash)
+    .bind(timestamp_text(now))
+    .bind(id)
+    .execute(pool)
+    .await?;
+    Ok(result.rows_affected() > 0)
 }
 
 #[cfg(test)]
@@ -354,5 +537,149 @@ mod tests {
                 "unlock_failed"
             ]
         );
+    }
+
+    fn profile(name: &str, role: Role, valid_until: Option<&str>) -> StaffProfile {
+        StaffProfile::parse(baeum_domain::StaffInput {
+            name,
+            role,
+            valid_until: valid_until.map(date),
+        })
+        .unwrap()
+    }
+
+    fn new_staff(name: &str, role: Role) -> NewStaff {
+        let input = baeum_domain::StaffInput {
+            name,
+            role,
+            valid_until: None,
+        };
+        NewStaff::parse(input, "123456").unwrap()
+    }
+
+    #[tokio::test]
+    async fn saves_and_lists_staff_active_first() {
+        let (_dir, pool) = open_temp().await;
+        let admin = insert(&pool, &new_staff("관리자", Role::Admin), "h1", now())
+            .await
+            .unwrap();
+        let staff = insert(&pool, &new_staff("가직원", Role::Staff), "h2", now())
+            .await
+            .unwrap();
+        update(
+            &pool,
+            staff,
+            &profile("가직원", Role::Staff, None),
+            true,
+            date("2026-11-15"),
+            now(),
+        )
+        .await
+        .unwrap();
+
+        let records = list(&pool).await.unwrap();
+
+        let ids: Vec<i64> = records.iter().map(|record| record.id).collect();
+        assert_eq!(ids, [admin, staff]);
+        assert_eq!(
+            get(&pool, staff).await.unwrap(),
+            Some(StaffRecord {
+                id: staff,
+                name: "가직원".to_owned(),
+                role: Role::Staff,
+                valid_until: None,
+                disabled: true,
+                locked_until: None,
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn rejects_name_differing_only_in_spaces() {
+        let (_dir, pool) = open_temp().await;
+        insert(&pool, &new_staff("김 직원", Role::Staff), "h", now())
+            .await
+            .unwrap();
+
+        let result = insert(&pool, &new_staff("김직원", Role::Staff), "h", now()).await;
+
+        assert!(
+            matches!(result, Err(SaveStaffError::DuplicateName)),
+            "{result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn last_usable_admin_cannot_be_disabled_demoted_or_expired() {
+        let (_dir, pool) = open_temp().await;
+        let admin = insert(&pool, &new_staff("관리자", Role::Admin), "h", now())
+            .await
+            .unwrap();
+        let today = date("2026-11-15");
+        let changes = [
+            (profile("관리자", Role::Admin, None), true),
+            (profile("관리자", Role::Staff, None), false),
+            (profile("관리자", Role::Admin, Some("2026-11-14")), false),
+        ];
+
+        for (change, disabled) in &changes {
+            let result = update(&pool, admin, change, *disabled, today, now()).await;
+            assert!(
+                matches!(result, Err(SaveStaffError::LastAdmin)),
+                "{result:?}"
+            );
+        }
+        let record = get(&pool, admin).await.unwrap().unwrap();
+        assert_eq!((record.role, record.disabled), (Role::Admin, false));
+
+        // 다른 관리자가 있으면 바꿀 수 있다
+        insert(&pool, &new_staff("관리자2", Role::Admin), "h", now())
+            .await
+            .unwrap();
+        let (change, disabled) = &changes[0];
+        let record = update(&pool, admin, change, *disabled, today, now())
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(record.disabled);
+    }
+
+    #[tokio::test]
+    async fn update_of_missing_staff_is_none() {
+        let (_dir, pool) = open_temp().await;
+        insert(&pool, &new_staff("관리자", Role::Admin), "h", now())
+            .await
+            .unwrap();
+
+        let result = update(
+            &pool,
+            999,
+            &profile("없음", Role::Staff, None),
+            false,
+            date("2026-11-15"),
+            now(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result, None);
+    }
+
+    #[tokio::test]
+    async fn reset_pin_replaces_hash_and_unlocks() {
+        let (_dir, pool) = open_temp().await;
+        let id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
+        for _ in 0..5 {
+            add_failed_pin(&pool, id, AccessEvent::LoginFailed, now())
+                .await
+                .unwrap();
+        }
+
+        assert!(reset_pin(&pool, id, "new-hash", now()).await.unwrap());
+
+        let account = get_login_account(&pool, id).await.unwrap().unwrap();
+        assert_eq!(account.pin_hash, "new-hash");
+        assert_eq!(account.locked_until, None);
+        assert!(!reset_pin(&pool, 999, "h", now()).await.unwrap());
     }
 }
