@@ -4,6 +4,7 @@ import {
   EMPTY_MEMBER_FORM,
   firstErrorField,
   memberFormErrorsFrom,
+  memberFormValuesFrom,
   toMemberRequest,
 } from "./memberForm";
 
@@ -109,5 +110,39 @@ describe("firstErrorField", () => {
 
   test("오류가 없으면 null", () => {
     expect(firstErrorField({})).toBeNull();
+  });
+});
+
+describe("memberFormValuesFrom", () => {
+  const member = {
+    id: 1,
+    memberNo: "00001",
+    name: "회원1",
+    phoneNumber: "01000000001",
+    birthDate: null,
+    gender: null,
+    createdAt: "2026-11-15T00:00:00.000Z",
+    updatedAt: "2026-11-15T00:00:00.000Z",
+  };
+
+  test("연락처에 하이픈을 넣고 빈 선택 칸은 빈 글자로", () => {
+    expect(memberFormValuesFrom(member)).toEqual({
+      memberNo: "00001",
+      name: "회원1",
+      phoneNumber: "010-0000-0001",
+      birthDate: "",
+      gender: "",
+    });
+  });
+
+  test("채운 선택 칸은 그대로", () => {
+    const values = memberFormValuesFrom({
+      ...member,
+      birthDate: "1950-03-01",
+      gender: "male",
+    });
+
+    expect(values.birthDate).toBe("1950-03-01");
+    expect(values.gender).toBe("male");
   });
 });

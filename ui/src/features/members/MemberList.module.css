@@ -48,6 +48,24 @@
   background: var(--color-surface);
 }
 
+.row {
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--color-surface);
+}
+
+.row[aria-current="true"] {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg));
+  font-weight: 700;
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
 .message {
   margin: var(--space-4);
   color: var(--color-text-muted);

@@ -12,8 +12,15 @@ const GENDER_LABEL: Record<Gender, string> = {
   female: "여",
 };
 
-/** 검색창과 회원 목록. 이름, 회원번호, 연락처 일부로 찾는다. */
-export function MemberList() {
+/** {@link MemberList}의 속성. */
+export interface MemberListProps {
+  /** 고치는 중인 회원. 그 줄을 강조한다. */
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+}
+
+/** 검색창과 회원 목록. 이름, 회원번호, 연락처 일부로 찾는다. 줄을 누르면 그 회원을 고른다. */
+export function MemberList({ selectedId, onSelect }: MemberListProps) {
   const { query, inputProps } = useSearchText();
   // 검색어가 바뀌면 첫 쪽부터
   const [paging, setPaging] = useState({ query, page: 1 });
@@ -45,7 +52,7 @@ export function MemberList() {
       ) : (
         <>
           <div className={styles.tableWrap} aria-busy={isPlaceholderData}>
-            <table className={styles.table}>
+            <table className={styles.table} aria-label="회원 목록">
               <thead>
                 <tr>
                   <th scope="col">회원번호</th>
@@ -57,7 +64,19 @@ export function MemberList() {
               </thead>
               <tbody>
                 {data.items.map((member) => (
-                  <tr key={member.id}>
+                  <tr
+                    key={member.id}
+                    className={styles.row}
+                    tabIndex={0}
+                    aria-current={member.id === selectedId ? "true" : undefined}
+                    onClick={() => onSelect(member.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onSelect(member.id);
+                      }
+                    }}
+                  >
                     <td>{member.memberNo}</td>
                     <td>{member.name}</td>
                     <td>{formatPhoneNumber(member.phoneNumber)}</td>

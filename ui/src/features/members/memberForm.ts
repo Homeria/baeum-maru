@@ -1,6 +1,8 @@
 import { HostError } from "../../api/client";
 import type { Gender } from "../../api/generated/Gender";
 import type { MemberRequest } from "../../api/generated/MemberRequest";
+import type { MemberResponse } from "../../api/generated/MemberResponse";
+import { formatPhoneNumber } from "./formatPhoneNumber";
 
 /** 입력 칸 이름. 호스트 오류의 `field`와 같다. */
 export type MemberField = keyof MemberRequest;
@@ -30,6 +32,17 @@ export const MEMBER_FIELDS: readonly MemberField[] = [
   "birthDate",
   "gender",
 ];
+
+/** 고칠 회원으로 입력 칸을 채운다. 연락처는 읽기 쉽게 하이픈을 넣는다. */
+export function memberFormValuesFrom(member: MemberResponse): MemberFormValues {
+  return {
+    memberNo: member.memberNo,
+    name: member.name,
+    phoneNumber: formatPhoneNumber(member.phoneNumber),
+    birthDate: member.birthDate ?? "",
+    gender: member.gender ?? "",
+  };
+}
 
 /** 입력 칸 값을 호스트 요청으로 바꾼다. 비운 선택 칸은 `null`. 확인은 호스트가 한다. */
 export function toMemberRequest(values: MemberFormValues): MemberRequest {
