@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchSetupStatus } from "../api/setup";
+import { LoginPage } from "../features/auth/LoginPage";
 import { RecoveryCodeNotice } from "../features/auth/RecoveryCodeNotice";
 import { SetupPage } from "../features/auth/SetupPage";
+import { useSession } from "../features/auth/useSession";
 import formStyles from "../components/form/form.module.css";
 import { MainScreen } from "./MainScreen";
 
 /**
- * 앱의 첫 갈림길. 처음 설정이 필요하면 처음 설정, 아니면 메인 화면을 띄운다.
+ * 앱의 첫 갈림길: 처음 설정, 로그인, 메인 화면 중 하나를 띄운다.
  *
  * 처음 설정을 마치면 복구 코드 안내를 먼저 보여 준다.
  */
@@ -18,6 +20,7 @@ export function App() {
   });
   // 처음 설정에서 받은 복구 코드. 안내를 닫을 때까지만 메모리에 둔다
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  const session = useSession();
 
   if (recoveryCode !== null) {
     return (
@@ -49,5 +52,8 @@ export function App() {
   if (status.data.needed) {
     return <SetupPage onDone={setRecoveryCode} />;
   }
-  return <MainScreen />;
+  if (session === null) {
+    return <LoginPage />;
+  }
+  return <MainScreen session={session} />;
 }

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Tabs, type TabItem } from "../components/Tabs/Tabs";
 import { CoursesPage } from "../features/courses/CoursesPage";
+import type { Session } from "../api/session";
+import { SignedInStaff } from "../features/auth/SignedInStaff";
 import { HostStatus } from "../features/host/HostStatus";
 import { MembersPage } from "../features/members/MembersPage";
 import { ReferenceDataPage } from "../features/reference-data/ReferenceDataPage";
@@ -17,15 +19,23 @@ const MENU: readonly TabItem<MenuKey>[] = [
   { key: "referenceData", label: "기초 정보" },
 ];
 
+/** {@link MainScreen}의 속성. */
+export interface MainScreenProps {
+  session: Session;
+}
+
 /** 로그인한 뒤의 화면: 위쪽 메뉴와 고른 메뉴의 내용. */
-export function MainScreen() {
+export function MainScreen({ session }: MainScreenProps) {
   const [menu, setMenu] = useState<MenuKey>("members");
 
   return (
     <div className={styles.app}>
       <header className={styles.header}>
         <h1 className={styles.title}>배움마루</h1>
-        <HostStatus />
+        <div className={styles.headerRight}>
+          <HostStatus />
+          <SignedInStaff session={session} />
+        </div>
       </header>
       <nav className={styles.nav}>
         <Tabs items={MENU} selected={menu} onSelect={setMenu} />

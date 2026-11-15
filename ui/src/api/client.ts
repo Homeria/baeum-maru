@@ -1,5 +1,6 @@
 import type { ErrorCode } from "./generated/ErrorCode";
 import type { FieldError } from "./generated/FieldError";
+import { clearSession, getSession } from "./session";
 
 /** 이 앱의 버전. 요청마다 호스트에 알린다. */
 export const APP_VERSION = __APP_VERSION__;
@@ -84,10 +85,17 @@ function isErrorBody(body: unknown): body is ErrorBody {
 
 type Method = "GET" | "POST" | "PATCH" | "DELETE";
 
+/** 이 오류를 받으면 세션이 더는 쓸 수 없다. 로그인 화면으로 돌아간다. */
+const SESSION_ENDED: readonly ErrorCode[] = [
+  "LOGIN_REQUIRED",
+  "ACCOUNT_UNAVAILABLE",
+];
+
 /**
  * 호스트에 요청을 보낸다. 실패하면 {@link HostError}를 던진다.
  *
  * ADR 0012: 모든 요청에 앱 버전을 싣는다.
+ * ADR 0014: 로그인했으면 세션 증표를 싣는다. 호스트가 세션을 끝냈다고 답하면 세션을 비운다.
  */
 async function send(
   method: Method,
@@ -95,6 +103,10 @@ async function send(
   body?: unknown,
 ): Promise<Response> {
   const headers: Record<string, string> = { [VERSION_HEADER]: APP_VERSION };
+  const session = getSession();
+  if (session !== null) {
+    headers.authorization = `Bearer ${session.token}`;
+  }
   if (body !== undefined) {
     headers["content-type"] = "application/json";
   }
@@ -116,7 +128,16 @@ async function send(
 
   if (!response.ok) {
     const errorBody: unknown = await response.json().catch(() => null);
-    throw hostErrorFrom(response.status, errorBody);
+    const error = hostErrorFrom(response.status, errorBody);
+    // 증표를 실은 요청만. 로그인 요청의 ACCOUNT_UNAVAILABLE은 세션과 상관없다
+    if (
+      session !== null &&
+      error.code !== null &&
+      SESSION_ENDED.includes(error.code)
+    ) {
+      clearSession();
+    }
+    throw error;
   }
   return response;
 }
@@ -137,6 +158,14 @@ export async function postJson<T>(path: string, body: unknown): Promise<T> {
 export async function patchJson<T>(path: string, body: unknown): Promise<T> {
   const response = await send("PATCH", path, body);
   return (await response.json()) as T;
+}
+
+/** POST 요청을 보낸다. 성공하면 본문이 없다(204). */
+export async function postNoContent(
+  path: string,
+  body?: unknown,
+): Promise<void> {
+  await send("POST", path, body);
 }
 
 /** DELETE 요청을 보낸다. 성공하면 본문이 없다(204). */

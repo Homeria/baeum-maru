@@ -1,5 +1,6 @@
-import { describe, expect, test } from "vitest";
-import { hostErrorFrom } from "./client";
+import { afterEach, describe, expect, test, vi } from "vitest";
+import { getJson, hostErrorFrom } from "./client";
+import { clearSession, getSession, setSession } from "./session";
 
 describe("hostErrorFrom", () => {
   test("호스트 오류 모양이면 내용을 그대로 담는다", () => {
@@ -42,5 +43,80 @@ describe("hostErrorFrom", () => {
 
     expect(error.code).toBeNull();
     expect(error.message).not.toBe("다른 서버의 오류");
+  });
+});
+
+describe("세션 증표", () => {
+  const SESSION = {
+    token: "b".repeat(64),
+    staff: { id: 1, name: "관리자", role: "admin" as const },
+  };
+
+  afterEach(() => {
+    clearSession();
+    vi.unstubAllGlobals();
+  });
+
+  function stubFetch(status: number, body: unknown) {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(body), {
+          status,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  function sentHeaders(fetchMock: ReturnType<typeof stubFetch>) {
+    const init = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    return init[1].headers as Record<string, string>;
+  }
+
+  test("로그인했으면 요청마다 증표를 싣는다", async () => {
+    setSession(SESSION);
+    const fetchMock = stubFetch(200, { items: [] });
+
+    await getJson("/api/rooms");
+
+    expect(sentHeaders(fetchMock).authorization).toBe(
+      `Bearer ${SESSION.token}`,
+    );
+  });
+
+  test("로그인하지 않았으면 싣지 않는다", async () => {
+    const fetchMock = stubFetch(200, { needed: true });
+
+    await getJson("/api/setup");
+
+    expect(sentHeaders(fetchMock).authorization).toBeUndefined();
+  });
+
+  test("호스트가 로그인이 필요하다고 하면 세션을 비운다", async () => {
+    setSession(SESSION);
+    stubFetch(401, {
+      code: "LOGIN_REQUIRED",
+      message: "로그인해 주세요",
+      rule: "BR-K1",
+      fields: [],
+    });
+
+    await expect(getJson("/api/rooms")).rejects.toThrow("로그인해 주세요");
+    expect(getSession()).toBeNull();
+  });
+
+  test("다른 오류에는 세션을 그대로 둔다", async () => {
+    setSession(SESSION);
+    stubFetch(403, {
+      code: "NOT_ALLOWED",
+      message: "이 역할로는 할 수 없는 일입니다",
+      rule: "BR-K3",
+      fields: [],
+    });
+
+    await expect(getJson("/api/rooms")).rejects.toThrow();
+    expect(getSession()).toEqual(SESSION);
   });
 });
