@@ -4,6 +4,7 @@
 
 pub mod members;
 pub mod rooms;
+pub mod subjects;
 
 use std::path::Path;
 use std::time::Duration;
