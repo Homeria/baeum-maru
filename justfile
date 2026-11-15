@@ -18,7 +18,20 @@ build:
     ui/node_modules/.bin/tauri build --no-bundle
 
 # 전부 검사한다. CI도 이 명령을 쓴다
-check: check-rust check-bindings check-ui check-deps
+check: check-names check-rust check-bindings check-ui check-deps
+
+# Windows는 대소문자를 가리지 않고, import는 확장자 없이 찾는다.
+# MemberForm.tsx와 memberForm.ts가 같은 폴더에 있으면 Windows 빌드만 깨진다.
+check-names:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    same=$(git ls-files --cached --others --exclude-standard \
+        | sed -E 's/\.(tsx?|jsx?)$//' | tr '[:upper:]' '[:lower:]' | sort | uniq -d)
+    if [ -n "$same" ]; then
+        echo "Windows에서 같은 이름으로 보이는 파일이 있습니다:"
+        echo "$same"
+        exit 1
+    fi
 
 check-rust:
     cargo fmt --all --check

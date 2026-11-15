@@ -299,6 +299,7 @@ src-tauri/src/
 - 이름 붙은 export만 쓴다. `export default`는 쓰지 않는다. ESLint가 막는다.
   - 도구가 default를 요구하는 설정 파일(`vite.config.ts`, `eslint.config.js`)만 예외다.
 - import할 때 파일 이름의 대소문자가 틀리면 TypeScript가 오류를 낸다. Windows는 대소문자를 가리지 않아 놓치기 쉽다.
+- 같은 폴더에 대소문자와 확장자만 다른 파일을 두지 않는다. `MemberForm.tsx` 옆의 계산 파일은 `memberForm.ts`가 아니라 `memberFormData.ts`처럼 이름을 다르게 짓는다. Windows는 둘을 같은 파일로 봐서 Windows 빌드만 깨진다. `just check`가 막는다.
 - CSS Modules가 클래스 이름을 파일마다 바꿔 주므로 BEM처럼 긴 이름은 쓰지 않는다.
 
 ```tsx

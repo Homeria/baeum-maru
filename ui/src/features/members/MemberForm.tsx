@@ -13,7 +13,7 @@ import {
   type MemberField,
   type MemberFormErrors,
   type MemberFormValues,
-} from "./memberForm";
+} from "./memberFormData";
 import styles from "./MemberForm.module.css";
 
 const NO_ERRORS: MemberFormErrors = { fields: {}, form: null };

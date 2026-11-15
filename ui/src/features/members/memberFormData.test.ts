@@ -6,7 +6,7 @@ import {
   memberFormErrorsFrom,
   memberFormValuesFrom,
   toMemberRequest,
-} from "./memberForm";
+} from "./memberFormData";
 
 describe("toMemberRequest", () => {
   test("비운 선택 칸은 null로 보낸다", () => {
