@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useCan } from "../auth/useCan";
+import { ViewOnlyNotice } from "../auth/ViewOnlyNotice";
 import { useQuery } from "@tanstack/react-query";
 import { listCourses } from "../../api/courses";
 import { listRooms } from "../../api/rooms";
@@ -20,11 +22,13 @@ import styles from "./CoursesPage.module.css";
  *
  * 처음에는 시작일이 가장 늦은 학기를 보여 준다. 학기가 하나도 없으면 학기 등록 칸부터 띄운다.
  * 강좌 목록은 왼쪽, 입력 칸은 오른쪽이다. 목록에서 강좌를 고르면 그 강좌 고치기로 바뀐다.
+ * 학기·강좌를 바꿀 수 없는 역할(BR-K3)에게는 입력 칸과 학기 버튼을 보여 주지 않는다.
  */
 export function CoursesPage() {
   const terms = useQuery({ queryKey: ["terms"], queryFn: listTerms });
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const canEdit = useCan("editCourses");
   const current = terms.data ? currentTerm(terms.data.items, selectedId) : null;
   const termId = current?.id ?? null;
 
@@ -51,6 +55,16 @@ export function CoursesPage() {
   }
 
   if (!current) {
+    if (!canEdit) {
+      return (
+        <div className={styles.empty}>
+          <p className={styles.emptyMessage}>
+            아직 등록된 학기가 없습니다. 직원이나 관리자에게 등록을 부탁해
+            주세요.
+          </p>
+        </div>
+      );
+    }
     return (
       <div className={styles.empty}>
         <p className={styles.emptyMessage}>
@@ -85,6 +99,7 @@ export function CoursesPage() {
         }}
         notice={notice}
         onNotice={setNotice}
+        canEdit={canEdit}
       />
       <div className={`${listStyles.page} ${styles.content}`}>
         <CourseList
@@ -97,7 +112,9 @@ export function CoursesPage() {
           }}
         />
         <aside className={listStyles.side}>
-          {subjects.data && rooms.data && courses.data ? (
+          {!canEdit ? (
+            <ViewOnlyNotice />
+          ) : subjects.data && rooms.data && courses.data ? (
             // 학기나 강좌를 바꾸거나 등록으로 돌아오면 칸을 새로 만듦
             <CourseForm
               key={`${current.id}-${selectedCourse?.id ?? "new"}`}

@@ -6,6 +6,7 @@ import { SignedInStaff } from "../features/auth/SignedInStaff";
 import { HostStatus } from "../features/host/HostStatus";
 import { MembersPage } from "../features/members/MembersPage";
 import { ReferenceDataPage } from "../features/reference-data/ReferenceDataPage";
+import { can } from "../features/auth/roles";
 import { StaffAdminPage } from "../features/staff/StaffAdminPage";
 import styles from "./App.module.css";
 
@@ -25,7 +26,7 @@ const MENU: readonly TabItem<MenuKey>[] = [
   { key: "referenceData", label: "기초 정보" },
 ];
 
-/** 관리자에게만 더 보이는 메뉴 (BR-K3). */
+/** 직원 관리를 할 수 있는 역할(관리자)에게만 더 보이는 메뉴 (BR-K3). */
 const ADMIN_MENU: readonly TabItem<MenuKey>[] = [
   ...MENU,
   { key: "staff", label: "직원 관리" },
@@ -39,6 +40,7 @@ export interface MainScreenProps {
 /** 로그인한 뒤의 화면: 위쪽 메뉴와 고른 메뉴의 내용. */
 export function MainScreen({ session }: MainScreenProps) {
   const [menu, setMenu] = useState<MenuKey>("members");
+  const manageStaff = can(session.staff.role, "manageStaff");
 
   return (
     // 잠긴 동안에는 눌리거나 읽히지 않게 (잠금 화면이 위를 덮는다)
@@ -52,7 +54,7 @@ export function MainScreen({ session }: MainScreenProps) {
       </header>
       <nav className={styles.nav}>
         <Tabs
-          items={session.staff.role === "admin" ? ADMIN_MENU : MENU}
+          items={manageStaff ? ADMIN_MENU : MENU}
           selected={menu}
           onSelect={setMenu}
         />
@@ -64,7 +66,7 @@ export function MainScreen({ session }: MainScreenProps) {
           <CoursesPage />
         ) : menu === "referenceData" ? (
           <ReferenceDataPage />
-        ) : menu === "staff" && session.staff.role === "admin" ? (
+        ) : menu === "staff" && manageStaff ? (
           <StaffAdminPage />
         ) : (
           "준비 중입니다."

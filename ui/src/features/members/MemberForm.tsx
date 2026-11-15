@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createMember, deleteMember, updateMember } from "../../api/members";
 import { DeleteDialog } from "../../components/dialog/DeleteDialog";
+import { useCan } from "../auth/useCan";
 import type { Gender } from "../../api/generated/Gender";
 import type { MemberResponse } from "../../api/generated/MemberResponse";
 import {
@@ -50,6 +51,7 @@ export function MemberForm({
   const [errors, setErrors] = useState<MemberFormErrors>(NO_FORM_ERRORS);
   const [notice, setNotice] = useState<string | null>(initialNotice ?? null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const canDelete = useCan("deleteMembers");
   const inputs = useRef<Partial<Record<MemberField, HTMLInputElement | null>>>(
     {},
   );
@@ -225,14 +227,16 @@ export function MemberForm({
             >
               새 회원 등록으로
             </button>
-            <button
-              type="button"
-              className={styles.danger}
-              onClick={() => setConfirmingDelete(true)}
-              disabled={busy}
-            >
-              지우기
-            </button>
+            {canDelete && (
+              <button
+                type="button"
+                className={styles.danger}
+                onClick={() => setConfirmingDelete(true)}
+                disabled={busy}
+              >
+                지우기
+              </button>
+            )}
           </>
         )}
       </div>
