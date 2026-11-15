@@ -224,6 +224,7 @@ tracing::info!(application_id = %id, "신청 저장");
 - 이름은 용어집의 영어 이름을 따른다.
 - `?` 뒤 검색 조건은 camelCase로 쓴다: `?pageSize=20`
 - 목록 응답은 `{ items, total, page, pageSize }`다. `page`는 1부터, `pageSize`는 기본 20, 최대 100이다.
+- 강의실처럼 많아야 수십 개인 목록은 쪽을 나누지 않고 `{ items }`로 전부 돌려준다.
 - 숫자는 DB 내부 ID다. 회원번호(`member_no`)를 주소에 쓰지 않는다.
 - 요청 로그에는 `?` 앞 경로만 남긴다(로그와 개인정보 참고).
 
