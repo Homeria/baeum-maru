@@ -16,6 +16,8 @@ export interface TermBarProps {
   /** 보여 줄 알림. 예: "등록했습니다: 2027년 2학기" */
   notice: string | null;
   onNotice: (notice: string | null) => void;
+  /** 학기를 바꿀 수 있는 역할인지 (BR-K3). 아니면 고치기·새 학기 버튼을 숨긴다. */
+  canEdit: boolean;
 }
 
 /**
@@ -29,6 +31,7 @@ export function TermBar({
   onSelect,
   notice,
   onNotice,
+  canEdit,
 }: TermBarProps) {
   const [dialog, setDialog] = useState<"new" | "edit" | null>(null);
   const selectId = useId();
@@ -59,20 +62,24 @@ export function TermBar({
         ))}
       </select>
       <span className={styles.period}>{termPeriodLabel(current)}</span>
-      <button
-        type="button"
-        className={formStyles.secondary}
-        onClick={() => open("edit")}
-      >
-        학기 고치기
-      </button>
-      <button
-        type="button"
-        className={formStyles.secondary}
-        onClick={() => open("new")}
-      >
-        새 학기
-      </button>
+      {canEdit && (
+        <>
+          <button
+            type="button"
+            className={formStyles.secondary}
+            onClick={() => open("edit")}
+          >
+            학기 고치기
+          </button>
+          <button
+            type="button"
+            className={formStyles.secondary}
+            onClick={() => open("new")}
+          >
+            새 학기
+          </button>
+        </>
+      )}
       {notice && (
         <p className={formStyles.notice} role="status">
           {notice}

@@ -46,6 +46,30 @@ pub enum ApiError {
     DuplicateCourse,
     /// 주소의 id인 강좌가 없다.
     CourseNotFound,
+    /// BR-K11: 처음 설정은 직원이 하나도 없을 때 한 번만 한다.
+    SetupAlreadyDone,
+    /// 주소나 본문의 id인 직원이 없다.
+    StaffNotFound,
+    /// BR-K2: 직원 이름은 겹치지 않는다.
+    DuplicateStaffName,
+    /// BR-K9: 사용 중인 관리자가 하나도 남지 않게 된다.
+    LastAdmin,
+    /// 로그인하거나 화면 잠금을 풀 때 PIN이 틀렸다.
+    WrongPin,
+    /// BR-K7: PIN을 5번 연속 틀려 계정이 잠겼다.
+    AccountLocked,
+    /// BR-K5, BR-K6: 사용 중지했거나 유효기간이 지난 계정이다.
+    AccountUnavailable,
+    /// BR-K12: 복구 코드가 맞지 않거나 이미 썼다.
+    WrongRecoveryCode,
+    /// BR-K12: 복구 코드로는 관리자 PIN만 다시 정한다.
+    RecoveryAdminOnly,
+    /// BR-K1: 로그인하지 않았거나 세션이 끝났다.
+    LoginRequired,
+    /// BR-K8: 10분 동안 요청이 없어 세션이 잠겼다.
+    SessionLocked,
+    /// BR-K3: 이 직원의 역할로는 할 수 없는 일이다.
+    NotAllowed,
     /// ADR 0012: 앱과 호스트의 버전 앞 두 자리가 다르다.
     VersionMismatch,
     /// DB 같은 내부 문제. 자세한 내용은 로그에만 있다.
@@ -104,6 +128,18 @@ pub enum ErrorCode {
     TermInUse,
     DuplicateCourse,
     CourseNotFound,
+    SetupAlreadyDone,
+    StaffNotFound,
+    DuplicateStaffName,
+    LastAdmin,
+    WrongPin,
+    AccountLocked,
+    AccountUnavailable,
+    WrongRecoveryCode,
+    RecoveryAdminOnly,
+    LoginRequired,
+    SessionLocked,
+    NotAllowed,
     VersionMismatch,
     Internal,
 }
@@ -236,6 +272,90 @@ impl IntoResponse for ApiError {
                 ErrorCode::CourseNotFound,
                 "강좌를 찾지 못했습니다. 지워졌을 수 있습니다",
                 None,
+                Vec::new(),
+            ),
+            ApiError::SetupAlreadyDone => (
+                StatusCode::CONFLICT,
+                ErrorCode::SetupAlreadyDone,
+                "이미 처음 설정을 마쳤습니다. 관리자 계정으로 로그인해 주세요",
+                Some("BR-K11"),
+                Vec::new(),
+            ),
+            ApiError::StaffNotFound => (
+                StatusCode::NOT_FOUND,
+                ErrorCode::StaffNotFound,
+                "직원을 찾지 못했습니다",
+                None,
+                Vec::new(),
+            ),
+            ApiError::DuplicateStaffName => (
+                StatusCode::CONFLICT,
+                ErrorCode::DuplicateStaffName,
+                "같은 이름의 직원이 있습니다. 띄어쓰기만 달라도 같은 이름으로 봅니다",
+                Some("BR-K2"),
+                Vec::new(),
+            ),
+            ApiError::LastAdmin => (
+                StatusCode::CONFLICT,
+                ErrorCode::LastAdmin,
+                "사용 중인 관리자가 한 명뿐이라 사용 중지하거나 역할을 바꿀 수 없습니다. 다른 관리자를 먼저 만들어 주세요",
+                Some("BR-K9"),
+                Vec::new(),
+            ),
+            ApiError::WrongPin => (
+                StatusCode::UNAUTHORIZED,
+                ErrorCode::WrongPin,
+                "PIN이 맞지 않습니다. 5번 연속 틀리면 5분 동안 잠깁니다",
+                None,
+                Vec::new(),
+            ),
+            ApiError::AccountLocked => (
+                StatusCode::FORBIDDEN,
+                ErrorCode::AccountLocked,
+                "PIN을 5번 연속 틀려 잠겼습니다. 5분이 지나면 다시 할 수 있습니다",
+                Some("BR-K7"),
+                Vec::new(),
+            ),
+            ApiError::AccountUnavailable => (
+                StatusCode::FORBIDDEN,
+                ErrorCode::AccountUnavailable,
+                "사용 중지했거나 유효기간이 지난 계정입니다. 관리자에게 물어 주세요",
+                None,
+                Vec::new(),
+            ),
+            ApiError::WrongRecoveryCode => (
+                StatusCode::UNAUTHORIZED,
+                ErrorCode::WrongRecoveryCode,
+                "복구 코드가 맞지 않습니다. 가장 최근에 인쇄해 둔 코드를 넣어 주세요",
+                Some("BR-K12"),
+                Vec::new(),
+            ),
+            ApiError::RecoveryAdminOnly => (
+                StatusCode::FORBIDDEN,
+                ErrorCode::RecoveryAdminOnly,
+                "복구 코드로는 관리자 PIN만 다시 정할 수 있습니다. 다른 직원의 PIN은 관리자에게 부탁해 주세요",
+                Some("BR-K12"),
+                Vec::new(),
+            ),
+            ApiError::LoginRequired => (
+                StatusCode::UNAUTHORIZED,
+                ErrorCode::LoginRequired,
+                "로그인해 주세요",
+                Some("BR-K1"),
+                Vec::new(),
+            ),
+            ApiError::SessionLocked => (
+                StatusCode::UNAUTHORIZED,
+                ErrorCode::SessionLocked,
+                "10분 동안 쓰지 않아 화면이 잠겼습니다. PIN을 넣어 다시 열어 주세요",
+                Some("BR-K8"),
+                Vec::new(),
+            ),
+            ApiError::NotAllowed => (
+                StatusCode::FORBIDDEN,
+                ErrorCode::NotAllowed,
+                "이 역할로는 할 수 없는 일입니다",
+                Some("BR-K3"),
                 Vec::new(),
             ),
             ApiError::VersionMismatch => (

@@ -1,0 +1,152 @@
+/* 로그인 전 화면(처음 설정, 복구 코드 안내) 공통. 창 가운데 칸 하나. */
+
+.page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: var(--space-6);
+}
+
+.card {
+  width: min(440px, 100%);
+}
+
+.intro {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+/* 복구 코드 안내 */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.code {
+  margin: 0;
+  padding: var(--space-4);
+  border: 2px dashed var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+.warning {
+  margin: 0;
+  color: var(--color-bad);
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.steps {
+  margin: 0;
+  padding-left: var(--space-6);
+  line-height: 1.6;
+}
+
+/* 인쇄할 때만 보이는 안내 */
+.printOnly {
+  display: none;
+}
+
+/* 인쇄하면 복구 코드 칸만 종이에 나온다 */
+@media print {
+  :global(body *) {
+    visibility: hidden;
+  }
+
+  .sheet,
+  .sheet * {
+    visibility: visible;
+  }
+
+  .sheet {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    border: none;
+    background: none;
+  }
+
+  .printOnly {
+    display: block;
+  }
+
+  .noPrint {
+    display: none;
+  }
+}
+
+/* 로그인: 이름 고르기. 누르기 쉽게 이름마다 큰 칸 */
+
+.roleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.roleTitle {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.names {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-2);
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  font-size: var(--font-size-lg);
+  cursor: pointer;
+}
+
+.name:has(input:checked) {
+  border-color: var(--color-primary);
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  font-weight: 700;
+}
+
+.name input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+/* 화면 잠금: 뒤의 화면을 완전히 가린다 (회원 정보가 보이지 않게) */
+.lockOverlay {
+  width: min(440px, calc(100vw - 32px));
+  max-width: none;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+}
+
+.lockOverlay::backdrop {
+  background: var(--color-surface);
+}

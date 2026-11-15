@@ -115,3 +115,25 @@ pub async fn insert_schedule(
     .await
     .map(|result| result.last_insert_rowid())
 }
+
+/// PIN 해시 칸은 아무 글자나 넣는다. 해시는 직원 기능의 테스트가 확인한다.
+pub async fn insert_staff(
+    pool: &SqlitePool,
+    name_key: &str,
+    role: &str,
+    valid_until: Option<&str>,
+) -> Result<i64, sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO staff (name, name_key, pin_hash, role, valid_until, created_at, updated_at)
+         VALUES (?, ?, 'hash', ?, ?, ?, ?)",
+    )
+    .bind(name_key)
+    .bind(name_key)
+    .bind(role)
+    .bind(valid_until)
+    .bind(NOW)
+    .bind(NOW)
+    .execute(pool)
+    .await
+    .map(|result| result.last_insert_rowid())
+}

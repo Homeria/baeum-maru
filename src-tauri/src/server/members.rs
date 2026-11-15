@@ -7,11 +7,13 @@ use axum::extract::rejection::{JsonRejection, PathRejection, QueryRejection};
 use axum::extract::{Path, Query, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
-use baeum_domain::{MemberError, NewMember};
+use baeum_domain::{Action, MemberError, NewMember};
 use chrono::{Local, Utc};
 use sqlx::SqlitePool;
 
-use super::error::{ApiError, FieldError};
+use super::auth::CurrentStaff;
+use super::error::ApiError;
+use super::paging::Paging;
 use crate::db::members::{self, SaveMemberError};
 
 use json::{
@@ -22,9 +24,6 @@ use json::{
 /// 한 쪽에 보여 주는 기본 인원.
 const DEFAULT_PAGE_SIZE: u32 = 20;
 
-/// 한 쪽에 보여 주는 최대 인원.
-const MAX_PAGE_SIZE: u32 = 100;
-
 /// 검색어로 회원을 찾는다. 이름순, 같으면 회원번호순.
 // [docs/conventions.md]: 검색어는 로그에 남기지 않음
 pub async fn search_members(
@@ -32,25 +31,8 @@ pub async fn search_members(
     params: Result<Query<SearchMembersParams>, QueryRejection>,
 ) -> Result<Json<MemberListResponse>, ApiError> {
     let Query(params) = params?;
-    let page = params.page.unwrap_or(1);
-    let page_size = params.page_size.unwrap_or(DEFAULT_PAGE_SIZE);
-
-    let mut fields = Vec::new();
-    if page < 1 {
-        fields.push(FieldError {
-            field: "page".to_owned(),
-            message: "쪽 번호는 1부터입니다".to_owned(),
-        });
-    }
-    if !(1..=MAX_PAGE_SIZE).contains(&page_size) {
-        fields.push(FieldError {
-            field: "pageSize".to_owned(),
-            message: format!("한 쪽 인원은 1~{MAX_PAGE_SIZE}명입니다"),
-        });
-    }
-    if !fields.is_empty() {
-        return Err(ApiError::InvalidInput(fields));
-    }
+    let Paging { page, page_size } =
+        Paging::parse(params.page, params.page_size, DEFAULT_PAGE_SIZE)?;
 
     let query = params.query.as_deref().unwrap_or("");
     let found = members::search(&db, query, page, page_size)
@@ -81,8 +63,10 @@ pub async fn get_member(
 /// 새 회원을 저장한다. 성공하면 201과 새 id를 돌려준다.
 pub async fn create_member(
     State(db): State<SqlitePool>,
+    staff: CurrentStaff,
     body: Result<Json<MemberRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, ApiError> {
+    staff.require(Action::EditMembers)?;
     let Json(request) = body?;
     let now = Utc::now();
     // 생년월일은 이 PC의 날짜로 비교 (한국에서 쓰므로 한국 날짜)
@@ -91,7 +75,7 @@ pub async fn create_member(
     let member = NewMember::parse(request.as_input(), today)
         .map_err(|errors| ApiError::invalid_input(errors, field_name))?;
     let id = members::insert(&db, &member, now).await?;
-    tracing::info!(member_id = id, "회원 저장");
+    tracing::info!(staff_id = staff.id, member_id = id, "회원 저장");
 
     let location = format!("/api/members/{id}");
     Ok((
@@ -104,9 +88,11 @@ pub async fn create_member(
 /// `id`인 회원의 칸을 모두 본문 값으로 바꾼다. 확인 규칙은 등록과 같다.
 pub async fn update_member(
     State(db): State<SqlitePool>,
+    staff: CurrentStaff,
     id: Result<Path<i64>, PathRejection>,
     body: Result<Json<MemberRequest>, JsonRejection>,
 ) -> Result<Json<MemberResponse>, ApiError> {
+    staff.require(Action::EditMembers)?;
     let Path(id) = id?;
     let Json(request) = body?;
     let now = Utc::now();
@@ -117,7 +103,7 @@ pub async fn update_member(
     let record = members::update(&db, id, &member, now)
         .await?
         .ok_or(ApiError::MemberNotFound)?;
-    tracing::info!(member_id = id, "회원 고침");
+    tracing::info!(staff_id = staff.id, member_id = id, "회원 고침");
     Ok(Json(MemberResponse::from(record)))
 }
 
@@ -126,14 +112,16 @@ pub async fn update_member(
 /// BR-M5: 신청 기록이 있는 회원은 신청 기능에서 409로 막는다.
 pub async fn delete_member(
     State(db): State<SqlitePool>,
+    staff: CurrentStaff,
     id: Result<Path<i64>, PathRejection>,
 ) -> Result<StatusCode, ApiError> {
+    staff.require(Action::DeleteMembers)?;
     let Path(id) = id?;
     let deleted = members::delete(&db, id).await.map_err(ApiError::internal)?;
     if !deleted {
         return Err(ApiError::MemberNotFound);
     }
-    tracing::info!(member_id = id, "회원 지움");
+    tracing::info!(staff_id = staff.id, member_id = id, "회원 지움");
     Ok(StatusCode::NO_CONTENT)
 }
 

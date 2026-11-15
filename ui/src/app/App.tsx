@@ -1,45 +1,81 @@
 import { useState } from "react";
-import { Tabs, type TabItem } from "../components/Tabs/Tabs";
-import { CoursesPage } from "../features/courses/CoursesPage";
-import { HostStatus } from "../features/host/HostStatus";
-import { MembersPage } from "../features/members/MembersPage";
-import { ReferenceDataPage } from "../features/reference-data/ReferenceDataPage";
-import styles from "./App.module.css";
+import { useQuery } from "@tanstack/react-query";
+import { fetchSetupStatus } from "../api/setup";
+import { LockScreen } from "../features/auth/LockScreen";
+import { LoginPage } from "../features/auth/LoginPage";
+import { RecoveryCodeNotice } from "../features/auth/RecoveryCodeNotice";
+import { RecoveryPage } from "../features/auth/RecoveryPage";
+import { SetupPage } from "../features/auth/SetupPage";
+import { useIdleLock } from "../features/auth/useIdleLock";
+import { useSession } from "../features/auth/useSession";
+import formStyles from "../components/form/form.module.css";
+import { MainScreen } from "./MainScreen";
 
-type MenuKey =
-  "members" | "courses" | "applications" | "selection" | "referenceData";
-
-const MENU: readonly TabItem<MenuKey>[] = [
-  { key: "members", label: "회원" },
-  { key: "courses", label: "강좌" },
-  { key: "applications", label: "신청" },
-  { key: "selection", label: "선발" },
-  { key: "referenceData", label: "기초 정보" },
-];
-
+/**
+ * 앱의 첫 갈림길: 처음 설정, 로그인, 메인 화면 중 하나를 띄운다.
+ *
+ * 처음 설정을 마치거나 복구 코드로 PIN을 다시 정하면 새 복구 코드 안내를 먼저 보여 준다.
+ */
 export function App() {
-  const [menu, setMenu] = useState<MenuKey>("members");
+  const status = useQuery({
+    queryKey: ["setupStatus"],
+    queryFn: fetchSetupStatus,
+  });
+  // 처음 설정이나 복구에서 받은 복구 코드. 안내를 닫을 때까지만 메모리에 둔다
+  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  // 로그인 화면에서 "PIN을 잊었어요"를 눌렀다
+  const [recovering, setRecovering] = useState(false);
+  const session = useSession();
+  useIdleLock(session !== null && !session.locked);
 
+  if (recoveryCode !== null) {
+    return (
+      <RecoveryCodeNotice
+        code={recoveryCode}
+        onDone={() => setRecoveryCode(null)}
+      />
+    );
+  }
+  if (status.isPending) {
+    return <p className={formStyles.loading}>호스트에 연결하는 중…</p>;
+  }
+  if (status.isError) {
+    return (
+      <div className={formStyles.loading}>
+        <p className={formStyles.formError} role="alert">
+          {status.error.message}
+        </p>
+        <button
+          type="button"
+          className={formStyles.secondary}
+          onClick={() => void status.refetch()}
+        >
+          다시 해 보기
+        </button>
+      </div>
+    );
+  }
+  if (status.data.needed) {
+    return <SetupPage onDone={setRecoveryCode} />;
+  }
+  if (session === null) {
+    if (recovering) {
+      return (
+        <RecoveryPage
+          onBack={() => setRecovering(false)}
+          onDone={(code) => {
+            setRecovering(false);
+            setRecoveryCode(code);
+          }}
+        />
+      );
+    }
+    return <LoginPage onForgotPin={() => setRecovering(true)} />;
+  }
   return (
-    <div className={styles.app}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>배움마루</h1>
-        <HostStatus />
-      </header>
-      <nav className={styles.nav}>
-        <Tabs items={MENU} selected={menu} onSelect={setMenu} />
-      </nav>
-      <main role="tabpanel" className={styles.main}>
-        {menu === "members" ? (
-          <MembersPage />
-        ) : menu === "courses" ? (
-          <CoursesPage />
-        ) : menu === "referenceData" ? (
-          <ReferenceDataPage />
-        ) : (
-          "준비 중입니다."
-        )}
-      </main>
-    </div>
+    <>
+      <MainScreen session={session} />
+      {session.locked && <LockScreen session={session} />}
+    </>
   );
 }

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useCan } from "../auth/useCan";
+import { ViewOnlyNotice } from "../auth/ViewOnlyNotice";
 import { useQuery } from "@tanstack/react-query";
 import { listRooms } from "../../api/rooms";
 import formStyles from "../../components/form/form.module.css";
@@ -11,11 +13,13 @@ import styles from "../../components/layout/listPage.module.css";
  *
  * 평소 오른쪽은 새 강의실 등록이고, 목록에서 강의실을 고르면 그 강의실 고치기로 바뀐다.
  * 강의실은 칸이 적어 목록에 받은 값으로 바로 고친다.
+ * 기초 정보를 바꿀 수 없는 역할(BR-K3)에게는 입력 칸 대신 안내를 보여 준다.
  */
 export function RoomsPage() {
   const rooms = useQuery({ queryKey: ["rooms"], queryFn: listRooms });
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const canEdit = useCan("editReferenceData");
 
   const selected =
     rooms.data?.items.find((room) => room.id === selectedId) ?? null;
@@ -34,7 +38,9 @@ export function RoomsPage() {
     <div className={styles.page}>
       <RoomList rooms={rooms} selectedId={selectedId} onSelect={select} />
       <aside className={styles.side}>
-        {rooms.data ? (
+        {!canEdit ? (
+          <ViewOnlyNotice />
+        ) : rooms.data ? (
           // 다른 강의실을 고르거나 등록으로 돌아오면 칸을 새로 만듦
           <RoomForm
             key={selected?.id ?? "new"}

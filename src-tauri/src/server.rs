@@ -2,10 +2,17 @@
 //!
 //! ADR 0008: 요청은 HTTP + JSON.
 
+mod access_logs;
+mod auth;
 mod courses;
 mod error;
+mod login;
 mod members;
+mod paging;
+mod recovery;
 mod rooms;
+mod setup;
+mod staff;
 mod subjects;
 mod terms;
 #[cfg(test)]
@@ -16,7 +23,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use axum::extract::FromRef;
 use axum::http::{HeaderName, HeaderValue, Method, header};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Router, middleware};
 use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
@@ -74,7 +81,8 @@ impl FromRef<AppState> for SqlitePool {
 
 /// 모든 요청 주소를 묶은 라우터.
 pub fn router(state: AppState) -> Router {
-    let checked = Router::new()
+    // BR-K1: 로그인한 요청만 받는다
+    let signed_in = Router::new()
         .route(
             "/api/members",
             get(members::search_members).post(members::create_member),
@@ -125,6 +133,36 @@ pub fn router(state: AppState) -> Router {
                 .patch(courses::update_course)
                 .delete(courses::delete_course),
         )
+        .route(
+            "/api/staff",
+            get(staff::list_staff).post(staff::create_staff),
+        )
+        .route(
+            "/api/staff/{id}",
+            get(staff::get_staff).patch(staff::update_staff),
+        )
+        .route("/api/staff/{id}/pin", post(staff::reset_staff_pin))
+        .route("/api/access-logs", get(access_logs::list_access_logs))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth::require_session,
+        ));
+
+    // 버전 확인은 로그인 확인보다 먼저 한다 (route_layer는 나중에 붙인 것이 바깥)
+    let checked = Router::new()
+        // 처음 설정은 직원이 없을 때 하므로 로그인 없이 받는다
+        .route(
+            "/api/setup",
+            get(setup::get_setup_status).post(setup::setup),
+        )
+        // 로그인 화면과 잠긴 화면은 로그인 확인을 거치지 않고 스스로 세션을 본다
+        .route("/api/login/staff", get(login::list_login_staff))
+        .route("/api/login", post(login::login))
+        .route("/api/unlock", post(login::unlock))
+        .route("/api/logout", post(login::logout))
+        // PIN을 잊은 관리자는 로그인하지 못하므로 그대로 받는다
+        .route("/api/recovery", post(recovery::recover))
+        .merge(signed_in)
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             version::require_compatible,
@@ -150,6 +188,8 @@ fn cors() -> CorsLayer {
         .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
         .allow_headers([
             header::CONTENT_TYPE,
+            // 세션 증표 (ADR 0014)
+            header::AUTHORIZATION,
             HeaderName::from_static(version::VERSION_HEADER),
         ])
 }
@@ -233,7 +273,10 @@ mod tests {
             let request = Request::options("/api/members/1")
                 .header(header::ORIGIN, APP_ORIGINS[0])
                 .header(header::ACCESS_CONTROL_REQUEST_METHOD, method)
-                .header(header::ACCESS_CONTROL_REQUEST_HEADERS, "content-type")
+                .header(
+                    header::ACCESS_CONTROL_REQUEST_HEADERS,
+                    "content-type, authorization",
+                )
                 .body(Body::empty())
                 .unwrap();
 
@@ -248,6 +291,7 @@ mod tests {
                 .to_str()
                 .unwrap();
             assert!(allowed.contains("content-type"), "{allowed}");
+            assert!(allowed.contains("authorization"), "{allowed}");
         }
     }
 
@@ -284,7 +328,13 @@ mod tests {
     async fn accepts_request_when_only_patch_differs() {
         let response = post_member(Some("0.1.9")).await;
 
-        assert_eq!(response.status(), StatusCode::CREATED);
+        // 버전 확인을 지나 로그인 확인에서 멈춘다 (로그인하지 않은 요청)
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(body["code"], "LOGIN_REQUIRED");
     }
 
     #[tokio::test]
