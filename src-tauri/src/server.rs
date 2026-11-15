@@ -11,6 +11,8 @@ use axum::http::{HeaderName, HeaderValue, Method};
 use axum::routing::get;
 use tower_http::cors::CorsLayer;
 
+use crate::data_dir::DataDir;
+use crate::db::{self, DbError};
 use crate::version::Version;
 
 /// ADR 0004: 포트 47800 고정.
@@ -40,19 +42,33 @@ fn cors() -> CorsLayer {
         .allow_headers([HeaderName::from_static(version::VERSION_HEADER)])
 }
 
-/// 서버를 띄우고 끝날 때까지 돈다. 실패하면 로그만 남긴다.
-pub async fn serve(host: Version) {
-    if let Err(error) = listen(host).await {
-        tracing::error!(%error, port = PORT, "서버를 시작하지 못했습니다");
+/// 서버를 시작하지 못했다.
+#[derive(Debug, thiserror::Error)]
+enum ServeError {
+    #[error(transparent)]
+    Db(#[from] DbError),
+    #[error("포트 {PORT}을 열지 못했습니다: {0}")]
+    Listen(#[from] std::io::Error),
+}
+
+/// DB를 열고 서버를 띄워 끝날 때까지 돈다. 실패하면 로그만 남긴다.
+pub async fn serve(host: Version, data_dir: DataDir) {
+    if let Err(error) = listen(host, &data_dir).await {
+        tracing::error!(%error, "서버를 시작하지 못했습니다");
     }
 }
 
-async fn listen(host: Version) -> std::io::Result<()> {
+async fn listen(host: Version, data_dir: &DataDir) -> Result<(), ServeError> {
+    // 서버가 도는 동안 DB 연결을 열어 둠
+    let _db = db::open(data_dir.path()).await?;
+    tracing::info!(portable = data_dir.is_portable(), "DB 열림");
+
     // [ADR 0001]: 다른 PC도 접속하므로 모든 주소에서 받음
     let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, PORT));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!(%addr, version = crate::version::CURRENT, "서버 시작");
-    axum::serve(listener, router(host)).await
+    axum::serve(listener, router(host)).await?;
+    Ok(())
 }
 
 #[cfg(test)]
