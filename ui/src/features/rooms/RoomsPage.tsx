@@ -4,7 +4,7 @@ import { listRooms } from "../../api/rooms";
 import formStyles from "../../components/form/form.module.css";
 import { RoomForm } from "./RoomForm";
 import { RoomList } from "./RoomList";
-import styles from "./RoomsPage.module.css";
+import styles from "../../components/layout/listPage.module.css";
 
 /**
  * 강의실 탭. 왼쪽은 강의실 목록, 오른쪽은 입력 칸.

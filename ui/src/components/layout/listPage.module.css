@@ -1,3 +1,5 @@
+/* 기능 탭의 좌우 배치. 왼쪽은 목록, 오른쪽은 입력 칸. */
+
 .page {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(360px, 2fr);

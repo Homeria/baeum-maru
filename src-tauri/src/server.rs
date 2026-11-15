@@ -5,6 +5,7 @@
 mod error;
 mod members;
 mod rooms;
+mod subjects;
 #[cfg(test)]
 mod test_support;
 mod version;
@@ -84,6 +85,16 @@ pub fn router(state: AppState) -> Router {
             get(rooms::get_room)
                 .patch(rooms::update_room)
                 .delete(rooms::delete_room),
+        )
+        .route(
+            "/api/subjects",
+            get(subjects::list_subjects).post(subjects::create_subject),
+        )
+        .route(
+            "/api/subjects/{id}",
+            get(subjects::get_subject)
+                .patch(subjects::update_subject)
+                .delete(subjects::delete_subject),
         )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

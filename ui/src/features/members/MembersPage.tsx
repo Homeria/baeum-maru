@@ -2,7 +2,7 @@ import { useState } from "react";
 import { MemberEditor } from "./MemberEditor";
 import { MemberForm } from "./MemberForm";
 import { MemberList } from "./MemberList";
-import styles from "./MembersPage.module.css";
+import styles from "../../components/layout/listPage.module.css";
 
 /**
  * 회원 탭. 왼쪽은 찾기와 목록, 오른쪽은 입력 칸.
