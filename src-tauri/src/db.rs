@@ -5,6 +5,7 @@
 pub mod members;
 pub mod rooms;
 pub mod subjects;
+pub mod terms;
 
 use std::path::Path;
 use std::time::Duration;
@@ -42,6 +43,35 @@ fn is_unique_violation(error: &sqlx::Error) -> bool {
     error
         .as_database_error()
         .is_some_and(|db_error| db_error.is_unique_violation())
+}
+
+/// 외래 키를 어겨서 난 오류인지. 예: 강좌가 쓰는 학기를 지우려 할 때.
+///
+/// 마이그레이션은 `ON DELETE NO ACTION`으로 막는다. `RESTRICT`는 다른 오류 코드를 내서 여기서 알아보지 못한다.
+fn is_foreign_key_violation(error: &sqlx::Error) -> bool {
+    error
+        .as_database_error()
+        .is_some_and(|db_error| db_error.is_foreign_key_violation())
+}
+
+/// 지우지 못했다.
+#[derive(Debug, thiserror::Error)]
+pub enum DeleteError {
+    /// 다른 데이터가 쓰고 있다. 예: 강좌가 있는 학기 (BR-T5)
+    #[error("다른 데이터가 쓰고 있어 지울 수 없습니다")]
+    InUse,
+    #[error("지우지 못했습니다: {0}")]
+    Db(sqlx::Error),
+}
+
+impl From<sqlx::Error> for DeleteError {
+    fn from(error: sqlx::Error) -> Self {
+        if is_foreign_key_violation(&error) {
+            DeleteError::InUse
+        } else {
+            DeleteError::Db(error)
+        }
+    }
 }
 
 /// 테스트용: 임시 폴더에 새 DB를 연다. 폴더는 돌려준 `TempDir`가 사라질 때 지워진다.
@@ -384,12 +414,6 @@ mod tests {
             .await
             .unwrap();
         (dir, pool, term_id, subject_id)
-    }
-
-    fn is_foreign_key_violation(error: &sqlx::Error) -> bool {
-        error
-            .as_database_error()
-            .is_some_and(|db_error| db_error.is_foreign_key_violation())
     }
 
     #[tokio::test]

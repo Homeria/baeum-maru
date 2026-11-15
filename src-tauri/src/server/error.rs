@@ -30,6 +30,12 @@ pub enum ApiError {
     DuplicateSubjectName,
     /// 주소의 id인 과목이 없다.
     SubjectNotFound,
+    /// BR-T1: 학기 이름은 겹치지 않는다.
+    DuplicateTermName,
+    /// 주소의 id인 학기가 없다.
+    TermNotFound,
+    /// BR-T5: 강좌가 있는 학기는 지울 수 없다.
+    TermInUse,
     /// ADR 0012: 앱과 호스트의 버전 앞 두 자리가 다르다.
     VersionMismatch,
     /// DB 같은 내부 문제. 자세한 내용은 로그에만 있다.
@@ -73,6 +79,9 @@ pub enum ErrorCode {
     RoomNotFound,
     DuplicateSubjectName,
     SubjectNotFound,
+    DuplicateTermName,
+    TermNotFound,
+    TermInUse,
     VersionMismatch,
     Internal,
 }
@@ -156,6 +165,27 @@ impl IntoResponse for ApiError {
                 ErrorCode::SubjectNotFound,
                 "과목을 찾지 못했습니다. 지워졌을 수 있습니다",
                 None,
+                Vec::new(),
+            ),
+            ApiError::DuplicateTermName => (
+                StatusCode::CONFLICT,
+                ErrorCode::DuplicateTermName,
+                "같은 이름의 학기가 있습니다",
+                Some("BR-T1"),
+                Vec::new(),
+            ),
+            ApiError::TermNotFound => (
+                StatusCode::NOT_FOUND,
+                ErrorCode::TermNotFound,
+                "학기를 찾지 못했습니다. 지워졌을 수 있습니다",
+                None,
+                Vec::new(),
+            ),
+            ApiError::TermInUse => (
+                StatusCode::CONFLICT,
+                ErrorCode::TermInUse,
+                "강좌가 있는 학기는 지울 수 없습니다. 강좌를 먼저 지워 주세요",
+                Some("BR-T5"),
                 Vec::new(),
             ),
             ApiError::VersionMismatch => (
