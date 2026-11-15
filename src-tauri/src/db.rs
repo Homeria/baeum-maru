@@ -240,4 +240,68 @@ mod tests {
             assert!(result.is_err(), "{floor}");
         }
     }
+
+    async fn insert_subject(
+        pool: &SqlitePool,
+        name: &str,
+        name_key: &str,
+        category: Option<&str>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "INSERT INTO subjects (name, name_key, category, created_at, updated_at)
+             VALUES (?, ?, ?, '2026-11-15T00:00:00.000Z', '2026-11-15T00:00:00.000Z')",
+        )
+        .bind(name)
+        .bind(name_key)
+        .bind(category)
+        .execute(pool)
+        .await
+        .map(|_| ())
+    }
+
+    #[tokio::test]
+    async fn br_j1_rejects_same_name_key() {
+        let (_dir, pool) = open_temp().await;
+
+        insert_subject(&pool, "한글교실", "한글교실", None)
+            .await
+            .unwrap();
+        // 분류가 달라도 겹친 것으로 봄
+        let duplicate = insert_subject(&pool, "한글 교실", "한글교실", Some("평생교육"))
+            .await
+            .unwrap_err();
+
+        assert!(is_unique_violation(&duplicate), "{duplicate}");
+    }
+
+    #[tokio::test]
+    async fn br_j1_allows_different_names() {
+        let (_dir, pool) = open_temp().await;
+
+        insert_subject(&pool, "스마트폰", "스마트폰", None)
+            .await
+            .unwrap();
+        insert_subject(&pool, "스마트폰 활용", "스마트폰활용", None)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn subjects_keep_no_category_as_null_not_empty_text() {
+        let (_dir, pool) = open_temp().await;
+
+        insert_subject(&pool, "요가", "요가", None).await.unwrap();
+        assert!(
+            insert_subject(&pool, "댄스", "댄스", Some(""))
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn subjects_reject_empty_name_key() {
+        let (_dir, pool) = open_temp().await;
+
+        assert!(insert_subject(&pool, " ", "", None).await.is_err());
+    }
 }
