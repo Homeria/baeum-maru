@@ -5,7 +5,7 @@
 //! 세션 증표는 길고 무작위라 빠른 SHA-256으로 충분하다.
 
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
-use baeum_domain::RecoveryCode;
+use baeum_domain::{Pin, RecoveryCode};
 use sha2::{Digest, Sha256};
 
 /// 해시나 난수를 만들지 못했다. 오류 문장에 비밀 글자는 들어가지 않는다.
@@ -41,6 +41,27 @@ pub fn new_recovery_code() -> Result<RecoveryCode, SecretError> {
     let mut bytes = [0; RecoveryCode::LEN];
     getrandom::fill(&mut bytes).map_err(SecretError::Random)?;
     Ok(RecoveryCode::from_random(bytes))
+}
+
+/// 관리자의 새 PIN 해시와 새 복구 코드. 처음 설정(BR-K11)과 복구 코드 사용(BR-K12)에서 만든다.
+///
+/// 복구 코드 글자는 응답에 한 번 싣고 버린다. DB에는 두 해시만 둔다.
+pub struct AdminSecrets {
+    pub pin_hash: String,
+    pub recovery_code: RecoveryCode,
+    pub recovery_code_hash: String,
+}
+
+impl AdminSecrets {
+    /// `pin`을 해시하고 새 복구 코드를 만들어 해시한다. 해시 두 번이라 느리다.
+    pub fn new(pin: &Pin) -> Result<Self, SecretError> {
+        let recovery_code = new_recovery_code()?;
+        Ok(AdminSecrets {
+            pin_hash: hash(pin.as_str())?,
+            recovery_code_hash: hash(recovery_code.as_str())?,
+            recovery_code,
+        })
+    }
 }
 
 /// 로그인하면 앱에 주는 세션 증표. 운영체제의 난수 32바이트다.

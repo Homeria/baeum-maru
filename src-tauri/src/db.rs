@@ -5,6 +5,7 @@
 pub mod access_logs;
 pub mod courses;
 pub mod members;
+pub mod recovery;
 pub mod rooms;
 pub mod sessions;
 pub mod staff;

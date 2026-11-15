@@ -3,4 +3,4 @@
 /**
  * 접속 기록에 남은 일. BR-K13
  */
-export type AccessEventCode = "login" | "login_failed" | "logout" | "unlock_failed";
+export type AccessEventCode = "login" | "login_failed" | "logout" | "unlock_failed" | "recovery_used";

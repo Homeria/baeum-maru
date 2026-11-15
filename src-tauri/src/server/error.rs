@@ -60,6 +60,10 @@ pub enum ApiError {
     AccountLocked,
     /// BR-K5, BR-K6: 사용 중지했거나 유효기간이 지난 계정이다.
     AccountUnavailable,
+    /// BR-K12: 복구 코드가 맞지 않거나 이미 썼다.
+    WrongRecoveryCode,
+    /// BR-K12: 복구 코드로는 관리자 PIN만 다시 정한다.
+    RecoveryAdminOnly,
     /// BR-K1: 로그인하지 않았거나 세션이 끝났다.
     LoginRequired,
     /// BR-K8: 10분 동안 요청이 없어 세션이 잠겼다.
@@ -131,6 +135,8 @@ pub enum ErrorCode {
     WrongPin,
     AccountLocked,
     AccountUnavailable,
+    WrongRecoveryCode,
+    RecoveryAdminOnly,
     LoginRequired,
     SessionLocked,
     NotAllowed,
@@ -315,6 +321,20 @@ impl IntoResponse for ApiError {
                 ErrorCode::AccountUnavailable,
                 "사용 중지했거나 유효기간이 지난 계정입니다. 관리자에게 물어 주세요",
                 None,
+                Vec::new(),
+            ),
+            ApiError::WrongRecoveryCode => (
+                StatusCode::UNAUTHORIZED,
+                ErrorCode::WrongRecoveryCode,
+                "복구 코드가 맞지 않습니다. 가장 최근에 인쇄해 둔 코드를 넣어 주세요",
+                Some("BR-K12"),
+                Vec::new(),
+            ),
+            ApiError::RecoveryAdminOnly => (
+                StatusCode::FORBIDDEN,
+                ErrorCode::RecoveryAdminOnly,
+                "복구 코드로는 관리자 PIN만 다시 정할 수 있습니다. 다른 직원의 PIN은 관리자에게 부탁해 주세요",
+                Some("BR-K12"),
                 Vec::new(),
             ),
             ApiError::LoginRequired => (

@@ -9,6 +9,7 @@ mod error;
 mod login;
 mod members;
 mod paging;
+mod recovery;
 mod rooms;
 mod setup;
 mod staff;
@@ -159,6 +160,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/login", post(login::login))
         .route("/api/unlock", post(login::unlock))
         .route("/api/logout", post(login::logout))
+        // PIN을 잊은 관리자는 로그인하지 못하므로 그대로 받는다
+        .route("/api/recovery", post(recovery::recover))
         .merge(signed_in)
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

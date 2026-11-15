@@ -16,15 +16,18 @@ pub enum AccessEvent {
     Logout,
     /// BR-K8: 화면 잠금을 풀 때 PIN이 틀렸거나 계정이 잠겼거나 쓸 수 없다.
     UnlockFailed,
+    /// BR-K12: 복구 코드로 관리자 PIN을 다시 정했다.
+    RecoveryUsed,
 }
 
 impl AccessEvent {
     /// 모든 값.
-    const ALL: [AccessEvent; 4] = [
+    const ALL: [AccessEvent; 5] = [
         AccessEvent::Login,
         AccessEvent::LoginFailed,
         AccessEvent::Logout,
         AccessEvent::UnlockFailed,
+        AccessEvent::RecoveryUsed,
     ];
 
     /// DB `access_logs.event`에 쓰는 값.
@@ -34,6 +37,7 @@ impl AccessEvent {
             AccessEvent::LoginFailed => "login_failed",
             AccessEvent::Logout => "logout",
             AccessEvent::UnlockFailed => "unlock_failed",
+            AccessEvent::RecoveryUsed => "recovery_used",
         }
     }
 

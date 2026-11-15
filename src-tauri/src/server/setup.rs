@@ -7,14 +7,14 @@ use axum::extract::State;
 use axum::extract::rejection::JsonRejection;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use baeum_domain::{NewStaff, Pin, RecoveryCode};
+use baeum_domain::NewStaff;
 use chrono::Utc;
 use sqlx::SqlitePool;
 
 use super::error::ApiError;
 use super::staff::field_name;
 use crate::db::staff::{self, SetupError};
-use crate::secret::{self, SecretError};
+use crate::secret::AdminSecrets;
 
 use json::{SetupRequest, SetupResponse, SetupStatusResponse};
 
@@ -42,7 +42,7 @@ pub async fn setup(
     // 해시는 일부러 느려서, 요청을 받는 스레드를 막지 않게 따로 돌린다.
     // 다른 스레드로 넘어가므로 admin을 통째로 넘겼다가 돌려받는다
     let (admin, secrets) = tokio::task::spawn_blocking(move || {
-        let secrets = Secrets::make(admin.pin());
+        let secrets = AdminSecrets::new(admin.pin());
         (admin, secrets)
     })
     .await
@@ -67,24 +67,6 @@ pub async fn setup(
     ))
 }
 
-/// 처음 설정에서 만드는 비밀들. 복구 코드 글자는 응답에 한 번 싣고 버린다.
-struct Secrets {
-    pin_hash: String,
-    recovery_code: RecoveryCode,
-    recovery_code_hash: String,
-}
-
-impl Secrets {
-    fn make(pin: &Pin) -> Result<Self, SecretError> {
-        let recovery_code = secret::new_recovery_code()?;
-        Ok(Secrets {
-            pin_hash: secret::hash(pin.as_str())?,
-            recovery_code_hash: secret::hash(recovery_code.as_str())?,
-            recovery_code,
-        })
-    }
-}
-
 impl From<SetupError> for ApiError {
     fn from(error: SetupError) -> Self {
         match error {
@@ -98,7 +80,10 @@ impl From<SetupError> for ApiError {
 mod tests {
     use serde_json::json;
 
+    use baeum_domain::RecoveryCode;
+
     use super::*;
+    use crate::secret;
     use crate::server::test_support::{app_without_staff, get, json_body, post};
 
     fn admin(name: &str, pin: &str) -> String {
