@@ -2,14 +2,19 @@
 //!
 //! ADR 0008: 요청은 HTTP + JSON.
 
+mod error;
+mod members;
 mod version;
 
 use std::net::{Ipv4Addr, SocketAddr};
 
 use axum::Router;
-use axum::http::{HeaderName, HeaderValue, Method};
-use axum::routing::get;
+use axum::extract::FromRef;
+use axum::http::{HeaderName, HeaderValue, Method, header};
+use axum::routing::{get, post};
+use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
+use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::data_dir::DataDir;
 use crate::db::{self, DbError};
@@ -26,20 +31,58 @@ const APP_ORIGINS: [&str; 2] = [
     "tauri://localhost",
 ];
 
-/// 모든 요청 주소를 묶은 라우터. `host`는 이 PC(호스트)의 버전이다.
-pub fn router(host: Version) -> Router {
+/// 요청 처리 함수들이 함께 쓰는 것.
+#[derive(Debug, Clone)]
+pub struct AppState {
+    /// 이 PC(호스트)의 버전.
+    host: Version,
+    db: SqlitePool,
+}
+
+impl AppState {
+    pub fn new(host: Version, db: SqlitePool) -> Self {
+        AppState { host, db }
+    }
+}
+
+// 처리 함수가 State<Version>, State<SqlitePool>로 필요한 것만 꺼내게 함
+impl FromRef<AppState> for Version {
+    fn from_ref(state: &AppState) -> Self {
+        state.host
+    }
+}
+
+impl FromRef<AppState> for SqlitePool {
+    fn from_ref(state: &AppState) -> Self {
+        // 연결 묶음을 함께 가리키는 손잡이만 복사됨
+        state.db.clone()
+    }
+}
+
+/// 모든 요청 주소를 묶은 라우터.
+pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/api/version", get(version::get_version))
-        .with_state(host)
+        .route("/api/members", post(members::create_member))
+        .with_state(state)
+        .layer(no_store())
         .layer(cors())
+}
+
+/// 응답에 회원 정보가 담기므로 창(WebView)이 디스크에 캐시하지 않게 한다.
+fn no_store() -> SetResponseHeaderLayer<HeaderValue> {
+    SetResponseHeaderLayer::overriding(header::CACHE_CONTROL, HeaderValue::from_static("no-store"))
 }
 
 /// 창의 화면은 주소가 달라서(CORS) 서버가 허락해야 응답을 읽는다.
 fn cors() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(APP_ORIGINS.map(HeaderValue::from_static))
-        .allow_methods([Method::GET])
-        .allow_headers([HeaderName::from_static(version::VERSION_HEADER)])
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers([
+            header::CONTENT_TYPE,
+            HeaderName::from_static(version::VERSION_HEADER),
+        ])
 }
 
 /// 서버를 시작하지 못했다.
@@ -59,35 +102,40 @@ pub async fn serve(host: Version, data_dir: DataDir) {
 }
 
 async fn listen(host: Version, data_dir: &DataDir) -> Result<(), ServeError> {
-    // 서버가 도는 동안 DB 연결을 열어 둠
-    let _db = db::open(data_dir.path()).await?;
+    let db = db::open(data_dir.path()).await?;
     tracing::info!(portable = data_dir.is_portable(), "DB 열림");
 
     // [ADR 0001]: 다른 PC도 접속하므로 모든 주소에서 받음
     let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, PORT));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!(%addr, version = crate::version::CURRENT, "서버 시작");
-    axum::serve(listener, router(host)).await?;
+    axum::serve(listener, router(AppState::new(host, db))).await?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use axum::body::Body;
-    use axum::http::{Request, header};
+    use axum::http::{Request, Response};
     use tower::ServiceExt;
 
     use super::*;
+
+    async fn send(request: Request<Body>) -> Response<Body> {
+        let dir = tempfile::tempdir().unwrap();
+        let db = db::open(dir.path()).await.unwrap();
+        router(AppState::new("0.1.0".parse().unwrap(), db))
+            .oneshot(request)
+            .await
+            .unwrap()
+    }
 
     async fn allowed_origin(origin: &str) -> Option<HeaderValue> {
         let request = Request::get("/api/version")
             .header(header::ORIGIN, origin)
             .body(Body::empty())
             .unwrap();
-        let response = router("0.1.0".parse().unwrap())
-            .oneshot(request)
-            .await
-            .unwrap();
+        let response = send(request).await;
         response
             .headers()
             .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
@@ -104,5 +152,36 @@ mod tests {
     #[tokio::test]
     async fn cors_rejects_other_pages() {
         assert_eq!(allowed_origin("http://example.com").await, None);
+    }
+
+    #[tokio::test]
+    async fn cors_allows_json_post_from_app_window() {
+        let request = Request::options("/api/members")
+            .header(header::ORIGIN, APP_ORIGINS[0])
+            .header(header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
+            .header(header::ACCESS_CONTROL_REQUEST_HEADERS, "content-type")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = send(request).await;
+
+        let headers = response.headers();
+        let methods = headers[header::ACCESS_CONTROL_ALLOW_METHODS]
+            .to_str()
+            .unwrap();
+        assert!(methods.contains("POST"), "{methods}");
+        let allowed = headers[header::ACCESS_CONTROL_ALLOW_HEADERS]
+            .to_str()
+            .unwrap();
+        assert!(allowed.contains("content-type"), "{allowed}");
+    }
+
+    #[tokio::test]
+    async fn responses_are_not_cached() {
+        let request = Request::get("/api/version").body(Body::empty()).unwrap();
+
+        let response = send(request).await;
+
+        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
     }
 }

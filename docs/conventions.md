@@ -172,12 +172,14 @@ mod tests {
 오류 응답 모양:
 
 ```json
-{ "code": "TIME_CONFLICT", "message": "수업 시간이 겹칩니다", "rule": "BR-A1" }
+{ "code": "TIME_CONFLICT", "message": "수업 시간이 겹칩니다", "rule": "BR-A1", "fields": [] }
 ```
 
 - `code`: 영어 대문자. 한 번 정하면 바꾸지 않는다. 바꾸면 버전 둘째 자리를 올린다.
 - `message`: 직원에게 그대로 보여 줘도 되는 한국어 문장
-- `rule`: 업무 규칙 위반일 때만
+- `rule`: 업무 규칙 위반일 때만. 아니면 `null`
+- `fields`: 입력 칸이 형식에 맞지 않을 때(`INVALID_INPUT`) 틀린 칸을 모두 담는다. `{ "field": "memberNo", "message": "..." }`. 그 밖에는 빈 배열
+- 상태 코드: 요청 모양이 틀림 400, 입력 칸이 틀림 422, 이미 있음 409, 내부 오류 500
 
 ## 로그와 개인정보
 

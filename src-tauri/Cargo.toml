@@ -21,7 +21,7 @@ sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio",
 tauri = { version = "2", features = [] }
 thiserror = "2"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
-tower-http = { version = "0.7", features = ["cors"] }
+tower-http = { version = "0.7", features = ["cors", "set-header"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 ts-rs = { version = "12", features = ["chrono-impl"] }
@@ -30,6 +30,7 @@ ts-rs = { version = "12", features = ["chrono-impl"] }
 tauri-build = { version = "2", features = [] }
 
 [dev-dependencies]
+serde_json = "1"
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
 
