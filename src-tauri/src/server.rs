@@ -29,6 +29,13 @@ use crate::version::Version;
 /// ADR 0004: 포트 47800 고정.
 pub const PORT: u16 = 47800;
 
+/// 요청을 받는 주소. 지금은 이 PC 안(127.0.0.1)에서만 받는다.
+///
+/// ADR 0001은 다른 PC도 접속하게 하지만, 아직 다른 PC의 앱이 붙는 기능(ADR 0004)과
+/// 로그인·기기 승인(ADR 0003)이 없다. 그 전에 모든 주소에서 받으면 같은 네트워크의
+/// 누구든 요청할 수 있어서, 기기 승인을 만들 때 모든 주소(`Ipv4Addr::UNSPECIFIED`)로 연다.
+const LISTEN_ADDR: Ipv4Addr = Ipv4Addr::LOCALHOST;
+
 /// 응답을 읽어도 되는 Tauri 창의 주소.
 const APP_ORIGINS: [&str; 2] = [
     // Windows
@@ -167,8 +174,7 @@ async fn listen(host: Version, data_dir: &DataDir) -> Result<(), ServeError> {
     let db = db::open(data_dir.path()).await?;
     tracing::info!(portable = data_dir.is_portable(), "DB 열림");
 
-    // [ADR 0001]: 다른 PC도 접속하므로 모든 주소에서 받음
-    let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, PORT));
+    let addr = SocketAddr::from((LISTEN_ADDR, PORT));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!(%addr, version = crate::version::CURRENT, "서버 시작");
     axum::serve(listener, router(AppState::new(host, db))).await?;
@@ -182,6 +188,11 @@ mod tests {
     use tower::ServiceExt;
 
     use super::*;
+
+    #[test]
+    fn listens_only_inside_this_pc_until_device_approval() {
+        assert!(LISTEN_ADDR.is_loopback());
+    }
 
     async fn send(request: Request<Body>) -> Response<Body> {
         let dir = tempfile::tempdir().unwrap();
