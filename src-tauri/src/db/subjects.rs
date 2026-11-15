@@ -4,7 +4,7 @@ use baeum_domain::{CategoryName, NewSubject};
 use chrono::{DateTime, Utc};
 use sqlx::SqlitePool;
 
-use super::{is_unique_violation, timestamp_text};
+use super::{DeleteError, is_unique_violation, timestamp_text};
 
 /// 과목을 저장하지 못했다.
 #[derive(Debug, thiserror::Error)]
@@ -98,8 +98,8 @@ pub async fn update(
 
 /// `id`인 과목을 지운다. 지웠으면 `true`, 없으면 `false`.
 ///
-/// 강좌가 쓰는 과목은 강좌 테이블의 외래 키가 막는다(강좌 기능에서 추가).
-pub async fn delete(pool: &SqlitePool, id: i64) -> Result<bool, sqlx::Error> {
+/// BR-J2: 강좌가 쓰는 과목은 외래 키가 막아 [`DeleteError::InUse`].
+pub async fn delete(pool: &SqlitePool, id: i64) -> Result<bool, DeleteError> {
     let result = sqlx::query("DELETE FROM subjects WHERE id = ?")
         .bind(id)
         .execute(pool)
@@ -278,5 +278,32 @@ mod tests {
         assert!(delete(&pool, id).await.unwrap());
         assert!(!delete(&pool, id).await.unwrap());
         assert!(list(&pool).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn br_j2_subject_used_by_course_is_in_use() {
+        let (_dir, pool) = open_temp().await;
+        let id = insert(&pool, &new_subject("요가", None), now())
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO terms (name, starts_on, ends_on, created_at, updated_at)
+             VALUES ('2027년 1학기', '2027-03-02', '2027-06-30', '', '')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO courses (term_id, subject_id, capacity, created_at, updated_at)
+             VALUES ((SELECT id FROM terms), ?, 20, '', '')",
+        )
+        .bind(id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let error = delete(&pool, id).await.unwrap_err();
+
+        assert!(matches!(error, DeleteError::InUse), "{error}");
     }
 }

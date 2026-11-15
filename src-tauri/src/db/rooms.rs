@@ -4,7 +4,7 @@ use baeum_domain::{Floor, NewRoom};
 use chrono::{DateTime, Utc};
 use sqlx::SqlitePool;
 
-use super::{is_unique_violation, timestamp_text};
+use super::{DeleteError, is_unique_violation, timestamp_text};
 
 /// 강의실을 저장하지 못했다.
 #[derive(Debug, thiserror::Error)]
@@ -99,8 +99,8 @@ pub async fn update(
 
 /// `id`인 강의실을 지운다. 지웠으면 `true`, 없으면 `false`.
 ///
-/// 강좌가 쓰는 강의실은 강좌 테이블의 외래 키가 막는다(강좌 기능에서 추가).
-pub async fn delete(pool: &SqlitePool, id: i64) -> Result<bool, sqlx::Error> {
+/// BR-R2: 수업 시간이 쓰는 강의실은 외래 키가 막아 [`DeleteError::InUse`].
+pub async fn delete(pool: &SqlitePool, id: i64) -> Result<bool, DeleteError> {
     let result = sqlx::query("DELETE FROM rooms WHERE id = ?")
         .bind(id)
         .execute(pool)
@@ -276,5 +276,35 @@ mod tests {
         assert!(delete(&pool, id).await.unwrap());
         assert!(!delete(&pool, id).await.unwrap());
         assert!(list(&pool).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn br_r2_room_used_by_schedule_is_in_use() {
+        let (_dir, pool) = open_temp().await;
+        let id = insert(&pool, &new_room("본관", Some(2), "201호"), now())
+            .await
+            .unwrap();
+        for sql in [
+            "INSERT INTO terms (name, starts_on, ends_on, created_at, updated_at)
+             VALUES ('2027년 1학기', '2027-03-02', '2027-06-30', '', '')",
+            "INSERT INTO subjects (name, name_key, created_at, updated_at)
+             VALUES ('요가', '요가', '', '')",
+            "INSERT INTO courses (term_id, subject_id, capacity, created_at, updated_at)
+             VALUES ((SELECT id FROM terms), (SELECT id FROM subjects), 20, '', '')",
+        ] {
+            sqlx::query(sql).execute(&pool).await.unwrap();
+        }
+        sqlx::query(
+            "INSERT INTO course_schedules (course_id, weekday, start_minute, end_minute, room_id)
+             VALUES ((SELECT id FROM courses), 1, 600, 660, ?)",
+        )
+        .bind(id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let error = delete(&pool, id).await.unwrap_err();
+
+        assert!(matches!(error, DeleteError::InUse), "{error}");
     }
 }

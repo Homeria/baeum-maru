@@ -11,6 +11,8 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use ts_rs::TS;
 
+use crate::db::DeleteError;
+
 /// 요청을 처리하지 못했다.
 #[derive(Debug)]
 pub enum ApiError {
@@ -30,6 +32,10 @@ pub enum ApiError {
     DuplicateSubjectName,
     /// 주소의 id인 과목이 없다.
     SubjectNotFound,
+    /// BR-J2: 강좌가 쓰는 과목은 지울 수 없다.
+    SubjectInUse,
+    /// BR-R2: 수업 시간이 쓰는 강의실은 지울 수 없다.
+    RoomInUse,
     /// BR-T1: 학기 이름은 겹치지 않는다.
     DuplicateTermName,
     /// 주소의 id인 학기가 없다.
@@ -53,6 +59,14 @@ impl ApiError {
     pub fn internal(error: impl Display) -> Self {
         tracing::error!(%error, "요청을 처리하지 못했습니다");
         ApiError::Internal
+    }
+
+    /// 지우기 실패를 바꾼다. 다른 데이터가 쓰고 있으면 `in_use`, DB 문제면 [`ApiError::Internal`].
+    pub fn from_delete(error: DeleteError, in_use: ApiError) -> Self {
+        match error {
+            DeleteError::InUse => in_use,
+            DeleteError::Db(error) => ApiError::internal(error),
+        }
     }
 
     /// 업무 규칙 확인에서 나온 오류를 칸마다 [`ApiError::InvalidInput`]으로 모은다.
@@ -83,6 +97,8 @@ pub enum ErrorCode {
     RoomNotFound,
     DuplicateSubjectName,
     SubjectNotFound,
+    SubjectInUse,
+    RoomInUse,
     DuplicateTermName,
     TermNotFound,
     TermInUse,
@@ -171,6 +187,20 @@ impl IntoResponse for ApiError {
                 ErrorCode::SubjectNotFound,
                 "과목을 찾지 못했습니다. 지워졌을 수 있습니다",
                 None,
+                Vec::new(),
+            ),
+            ApiError::SubjectInUse => (
+                StatusCode::CONFLICT,
+                ErrorCode::SubjectInUse,
+                "강좌가 쓰는 과목은 지울 수 없습니다. 지난 학기 강좌도 이 과목을 씁니다",
+                Some("BR-J2"),
+                Vec::new(),
+            ),
+            ApiError::RoomInUse => (
+                StatusCode::CONFLICT,
+                ErrorCode::RoomInUse,
+                "강좌의 수업 시간이 쓰는 강의실은 지울 수 없습니다. 지난 학기 강좌도 이 강의실을 씁니다",
+                Some("BR-R2"),
                 Vec::new(),
             ),
             ApiError::DuplicateTermName => (

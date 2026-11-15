@@ -75,7 +75,7 @@ pub async fn update_subject(
     Ok(Json(SubjectResponse::from(record)))
 }
 
-/// `id`인 과목을 지운다. 성공하면 204(본문 없음).
+/// `id`인 과목을 지운다. 성공하면 204(본문 없음). BR-J2: 강좌가 쓰면 409.
 pub async fn delete_subject(
     State(db): State<SqlitePool>,
     id: Result<Path<i64>, PathRejection>,
@@ -83,7 +83,7 @@ pub async fn delete_subject(
     let Path(id) = id?;
     let deleted = subjects::delete(&db, id)
         .await
-        .map_err(ApiError::internal)?;
+        .map_err(|error| ApiError::from_delete(error, ApiError::SubjectInUse))?;
     if !deleted {
         return Err(ApiError::SubjectNotFound);
     }
@@ -279,5 +279,44 @@ mod tests {
         let response = router.oneshot(request).await.unwrap();
 
         assert_eq!(response.status(), StatusCode::CONFLICT);
+    }
+
+    #[tokio::test]
+    async fn br_j2_subject_used_by_course_is_conflict() {
+        let (_dir, _db, router) = app().await;
+        let subject_id = json_body(
+            post(router.clone(), "/api/subjects", &subject("요가", None)).await,
+        )
+        .await["id"]
+            .as_i64()
+            .unwrap();
+        let room_id: Option<i64> = None;
+        let term =
+            json!({ "name": "2027년 1학기", "startsOn": "2027-03-02", "endsOn": "2027-06-30" });
+        let term_id = json_body(post(router.clone(), "/api/terms", &term.to_string()).await).await
+            ["id"]
+            .as_i64()
+            .unwrap();
+        let course = json!({
+            "subjectId": subject_id,
+            "level": null,
+            "section": null,
+            "capacity": 20,
+            "schedules": [{ "weekday": 1, "start": "10:00", "end": "11:00", "roomId": room_id }],
+        });
+        let response = post(
+            router.clone(),
+            &format!("/api/terms/{term_id}/courses"),
+            &course.to_string(),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::CREATED);
+
+        let response = delete(router, &format!("/api/subjects/{subject_id}")).await;
+
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        let body = json_body(response).await;
+        assert_eq!(body["code"], "SUBJECT_IN_USE");
+        assert_eq!(body["rule"], "BR-J2");
     }
 }

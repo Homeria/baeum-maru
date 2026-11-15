@@ -73,13 +73,15 @@ pub async fn update_room(
     Ok(Json(RoomResponse::from(record)))
 }
 
-/// `id`인 강의실을 지운다. 성공하면 204(본문 없음).
+/// `id`인 강의실을 지운다. 성공하면 204(본문 없음). BR-R2: 수업 시간이 쓰면 409.
 pub async fn delete_room(
     State(db): State<SqlitePool>,
     id: Result<Path<i64>, PathRejection>,
 ) -> Result<StatusCode, ApiError> {
     let Path(id) = id?;
-    let deleted = rooms::delete(&db, id).await.map_err(ApiError::internal)?;
+    let deleted = rooms::delete(&db, id)
+        .await
+        .map_err(|error| ApiError::from_delete(error, ApiError::RoomInUse))?;
     if !deleted {
         return Err(ApiError::RoomNotFound);
     }
@@ -287,5 +289,49 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         let again = delete(router, &uri).await;
         assert_eq!(again.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn br_r2_room_used_by_schedule_is_conflict() {
+        let (_dir, _db, router) = app().await;
+        let room = json!({ "name": "201호", "building": "본관", "floor": 2 });
+        let room_id = json_body(post(router.clone(), "/api/rooms", &room.to_string()).await).await
+            ["id"]
+            .as_i64()
+            .unwrap();
+        let term =
+            json!({ "name": "2027년 1학기", "startsOn": "2027-03-02", "endsOn": "2027-06-30" });
+        let term_id = json_body(post(router.clone(), "/api/terms", &term.to_string()).await).await
+            ["id"]
+            .as_i64()
+            .unwrap();
+        let subject = json!({ "name": "요가", "category": null });
+        let subject_id = json_body(
+            post(router.clone(), "/api/subjects", &subject.to_string()).await,
+        )
+        .await["id"]
+            .as_i64()
+            .unwrap();
+        let course = json!({
+            "subjectId": subject_id,
+            "level": null,
+            "section": null,
+            "capacity": 20,
+            "schedules": [{ "weekday": 1, "start": "10:00", "end": "11:00", "roomId": room_id }],
+        });
+        let response = post(
+            router.clone(),
+            &format!("/api/terms/{term_id}/courses"),
+            &course.to_string(),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::CREATED);
+
+        let response = delete(router, &format!("/api/rooms/{room_id}")).await;
+
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        let body = json_body(response).await;
+        assert_eq!(body["code"], "ROOM_IN_USE");
+        assert_eq!(body["rule"], "BR-R2");
     }
 }

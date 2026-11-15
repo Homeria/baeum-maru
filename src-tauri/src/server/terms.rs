@@ -12,7 +12,6 @@ use chrono::Utc;
 use sqlx::SqlitePool;
 
 use super::error::ApiError;
-use crate::db::DeleteError;
 use crate::db::terms::{self, SaveTermError};
 
 use json::{CreateTermResponse, TermListResponse, TermRequest, TermResponse};
@@ -80,10 +79,9 @@ pub async fn delete_term(
     id: Result<Path<i64>, PathRejection>,
 ) -> Result<StatusCode, ApiError> {
     let Path(id) = id?;
-    let deleted = terms::delete(&db, id).await.map_err(|error| match error {
-        DeleteError::InUse => ApiError::TermInUse,
-        DeleteError::Db(error) => ApiError::internal(error),
-    })?;
+    let deleted = terms::delete(&db, id)
+        .await
+        .map_err(|error| ApiError::from_delete(error, ApiError::TermInUse))?;
     if !deleted {
         return Err(ApiError::TermNotFound);
     }
