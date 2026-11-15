@@ -140,7 +140,8 @@ let count = members.len(); // 회원 수
 - 규칙마다 허용 예와 거부 예를 하나 이상 만든다.
 - 데이터는 지어낸 것만 쓴다. 가짜인 게 바로 보이는 값을 쓴다. 예: `회원1`, `010-0000-0001`
 - 단위 테스트는 같은 파일의 `#[cfg(test)] mod tests`에 둔다.
-- 여러 부분을 엮는 통합 테스트는 crate의 `tests/` 폴더에 둔다.
+- 요청 주소부터 DB까지 거치는 테스트는 그 기능의 요청 처리 파일(예: `server/members.rs`)의 `tests`에 둔다. 라우터에 요청을 직접 보내므로(`oneshot`) 내부 모듈을 공개하지 않아도 된다.
+- crate의 `tests/` 폴더는 공개 API만으로 시험할 수 있을 때 쓴다.
 
 ```rust
 #[cfg(test)]
@@ -256,14 +257,32 @@ tracing::info!(application_id = %id, "신청 저장");
 ## 모듈 파일 배치
 
 - `server.rs` + `server/` 폴더 방식을 쓴다. `mod.rs`는 쓰지 않는다. clippy `mod_module_files`가 막는다.
-- 하는 일 단위로 모듈을 나눈다. 한 파일이 수백 줄을 넘으면 폴더로 나눈다.
+- 줄 수가 아니라 하는 일 단위로 나눈다. 같은 파일의 테스트는 길이에 세지 않는다.
+- 기능 하나(회원, 강좌, 신청…)는 세 곳에 나뉜다.
+
+| 곳 | 하는 일 |
+|---|---|
+| `crates/domain/src/member.rs` | 업무 규칙과 확인. DB와 HTTP를 모른다 |
+| `src-tauri/src/db/members.rs` | SQL |
+| `src-tauri/src/server/members.rs` | 요청 처리 함수. 확인 → 저장 순서를 엮는다 |
+| `src-tauri/src/server/members/json.rs` | 요청·응답 JSON 타입과 변환 |
+
+- 요청 처리 함수는 요청 주소 표의 순서(찾기, 보기, 만들기, 고치기, 지우기)로 둔다.
+- 한 요청이 여러 테이블을 한 트랜잭션으로 다루게 되면(접수 등) 그때 순서를 엮는 층을 따로 둘지 정한다.
 
 ```text
 src-tauri/src/
 ├─ main.rs
+├─ db.rs
+├─ db/
+│  └─ members.rs
 ├─ server.rs
 └─ server/
-   └─ version.rs
+   ├─ error.rs
+   ├─ version.rs
+   ├─ members.rs
+   └─ members/
+      └─ json.rs
 ```
 
 ## 화면 파일
