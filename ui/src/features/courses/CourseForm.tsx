@@ -185,7 +185,11 @@ export function CourseForm({
     );
   };
 
-  const textInput = (name: "level" | "section", label: string) =>
+  const textInput = (
+    name: "level" | "section",
+    label: string,
+    placeholder: string,
+  ) =>
     field(name, label, false, (props) => (
       <input
         {...props}
@@ -195,6 +199,7 @@ export function CourseForm({
         className={styles.input}
         type="text"
         autoComplete="off"
+        placeholder={placeholder}
         value={values[name]}
         onChange={(event) => change({ [name]: event.target.value }, name)}
       />
@@ -235,8 +240,12 @@ export function CourseForm({
           )}
         </>
       ))}
-      {textInput("level", "수준")}
-      {textInput("section", "반")}
+      {textInput("level", "수준", "예: 초급, 중급")}
+      {textInput("section", "반", "예: 1반, 오전반")}
+      <p className={rowStyles.hint}>
+        같은 과목을 여러 강좌로 열 때 수준이나 반으로 나눕니다. 하나만 열면 비워
+        두세요.
+      </p>
       {field("capacity", "정원", true, (props) => (
         <input
           {...props}

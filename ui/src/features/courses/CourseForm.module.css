@@ -33,6 +33,8 @@
   color: var(--color-bad);
 }
 
+/* 칸 아래 도움말 */
+.hint,
 .empty {
   margin: 0;
   color: var(--color-text-muted);
