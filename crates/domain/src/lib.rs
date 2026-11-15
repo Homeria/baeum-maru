@@ -11,7 +11,9 @@
 mod course;
 mod member;
 mod personal;
+mod recovery_code;
 mod room;
+mod staff;
 mod subject;
 mod term;
 
@@ -21,6 +23,11 @@ pub use course::{
 };
 pub use member::{Gender, MemberError, MemberInput, MemberName, MemberNo, NewMember, PhoneNumber};
 pub use personal::Personal;
+pub use recovery_code::RecoveryCode;
 pub use room::{BuildingName, Floor, NewRoom, RoomError, RoomInput, RoomName};
+pub use staff::{
+    ACCOUNT_LOCK, Action, FailedPin, MAX_FAILED_PINS, NewStaff, Pin, Role, SCREEN_LOCK, StaffError,
+    StaffInput, StaffName, StaffProfile, is_valid_on, record_failed_pin,
+};
 pub use subject::{CategoryName, NewSubject, SubjectError, SubjectInput, SubjectName};
 pub use term::{NewTerm, TermError, TermInput, TermName, TermPeriod};
