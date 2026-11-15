@@ -1,5 +1,9 @@
 //! 회원 정보 항목과 형식 확인.
 
+use chrono::NaiveDate;
+
+use crate::Personal;
+
 /// 회원 정보 항목이 형식에 맞지 않는다.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum MemberError {
@@ -15,6 +19,9 @@ pub enum MemberError {
     /// 연락처가 전화번호 모양이 아니다.
     #[error("연락처는 0으로 시작하는 숫자 9~11자리입니다")]
     InvalidPhoneNumber,
+    /// 생년월일이 오늘보다 뒤다.
+    #[error("생년월일이 오늘보다 뒤입니다")]
+    BirthDateInFuture,
 }
 
 /// 기관이 회원에게 붙인 번호. 글자로 다뤄서 앞자리 0을 지킨다.
@@ -135,6 +142,94 @@ pub enum Gender {
     Female,
 }
 
+/// 화면에서 받은 새 회원 입력. 확인 전이라 글자 그대로다.
+#[derive(Debug, Clone, Copy)]
+pub struct MemberInput<'a> {
+    /// 회원번호.
+    pub member_no: &'a str,
+    /// 이름.
+    pub name: &'a str,
+    /// 연락처.
+    pub phone_number: &'a str,
+    /// 생년월일. 선택.
+    pub birth_date: Option<NaiveDate>,
+    /// 성별. 선택.
+    pub gender: Option<Gender>,
+}
+
+/// 확인을 통과한 새 회원. DB에 저장하기 전의 모양이다.
+///
+/// BR-M4: 이름, 회원번호, 연락처는 반드시 있다. 생년월일과 성별은 없어도 된다.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NewMember {
+    member_no: Personal<MemberNo>,
+    name: Personal<MemberName>,
+    phone_number: Personal<PhoneNumber>,
+    birth_date: Option<Personal<NaiveDate>>,
+    gender: Option<Personal<Gender>>,
+}
+
+impl NewMember {
+    /// 입력을 모두 확인한다. `today`는 생년월일이 미래인지 볼 때 쓴다.
+    ///
+    /// # Errors
+    ///
+    /// 틀린 항목이 있으면 [`MemberError`]를 항목 순서대로 **모두** 모아 돌려준다.
+    /// 직원이 한 번에 모든 칸을 고칠 수 있게 하려는 것이다.
+    pub fn parse(input: MemberInput<'_>, today: NaiveDate) -> Result<Self, Vec<MemberError>> {
+        let member_no = MemberNo::parse(input.member_no);
+        let name = MemberName::parse(input.name);
+        let phone_number = PhoneNumber::parse(input.phone_number);
+        let birth_date_ok = input.birth_date.is_none_or(|date| date <= today);
+
+        match (member_no, name, phone_number) {
+            (Ok(member_no), Ok(name), Ok(phone_number)) if birth_date_ok => Ok(NewMember {
+                member_no: Personal::new(member_no),
+                name: Personal::new(name),
+                phone_number: Personal::new(phone_number),
+                birth_date: input.birth_date.map(Personal::new),
+                gender: input.gender.map(Personal::new),
+            }),
+            (member_no, name, phone_number) => {
+                let mut errors: Vec<MemberError> =
+                    [member_no.err(), name.err(), phone_number.err()]
+                        .into_iter()
+                        .flatten()
+                        .collect();
+                if !birth_date_ok {
+                    errors.push(MemberError::BirthDateInFuture);
+                }
+                Err(errors)
+            }
+        }
+    }
+
+    /// 회원번호.
+    pub fn member_no(&self) -> &Personal<MemberNo> {
+        &self.member_no
+    }
+
+    /// 이름.
+    pub fn name(&self) -> &Personal<MemberName> {
+        &self.name
+    }
+
+    /// 연락처.
+    pub fn phone_number(&self) -> &Personal<PhoneNumber> {
+        &self.phone_number
+    }
+
+    /// 생년월일.
+    pub fn birth_date(&self) -> Option<&Personal<NaiveDate>> {
+        self.birth_date.as_ref()
+    }
+
+    /// 성별.
+    pub fn gender(&self) -> Option<&Personal<Gender>> {
+        self.gender.as_ref()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -230,5 +325,112 @@ mod tests {
                 "{bad}"
             );
         }
+    }
+
+    fn today() -> NaiveDate {
+        NaiveDate::from_ymd_opt(2026, 11, 15).unwrap()
+    }
+
+    fn input() -> MemberInput<'static> {
+        MemberInput {
+            member_no: "00001",
+            name: "회원1",
+            phone_number: "010-0000-0001",
+            birth_date: None,
+            gender: None,
+        }
+    }
+
+    #[test]
+    fn br_m4_allows_only_required_fields() {
+        let member = NewMember::parse(input(), today()).unwrap();
+
+        assert_eq!(member.member_no().expose().as_str(), "00001");
+        assert_eq!(member.phone_number().expose().as_str(), "01000000001");
+        assert!(member.birth_date().is_none());
+        assert!(member.gender().is_none());
+    }
+
+    #[test]
+    fn br_m4_allows_optional_fields() {
+        let birth_date = NaiveDate::from_ymd_opt(1950, 3, 1).unwrap();
+        let member = NewMember::parse(
+            MemberInput {
+                birth_date: Some(birth_date),
+                gender: Some(Gender::Female),
+                ..input()
+            },
+            today(),
+        )
+        .unwrap();
+
+        assert_eq!(member.birth_date().map(|d| *d.expose()), Some(birth_date));
+        assert_eq!(member.gender().map(|g| *g.expose()), Some(Gender::Female));
+    }
+
+    #[test]
+    fn br_m4_rejects_missing_required_fields() {
+        let result = NewMember::parse(
+            MemberInput {
+                member_no: "",
+                name: " ",
+                phone_number: "",
+                ..input()
+            },
+            today(),
+        );
+
+        assert_eq!(
+            result,
+            Err(vec![
+                MemberError::InvalidMemberNo,
+                MemberError::EmptyName,
+                MemberError::InvalidPhoneNumber,
+            ])
+        );
+    }
+
+    #[test]
+    fn collects_every_error_in_field_order() {
+        let result = NewMember::parse(
+            MemberInput {
+                phone_number: "123",
+                birth_date: NaiveDate::from_ymd_opt(2026, 11, 16),
+                ..input()
+            },
+            today(),
+        );
+
+        assert_eq!(
+            result,
+            Err(vec![
+                MemberError::InvalidPhoneNumber,
+                MemberError::BirthDateInFuture,
+            ])
+        );
+    }
+
+    #[test]
+    fn birth_date_today_is_allowed() {
+        let result = NewMember::parse(
+            MemberInput {
+                birth_date: Some(today()),
+                ..input()
+            },
+            today(),
+        );
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn debug_output_hides_member_details() {
+        let member = NewMember::parse(input(), today()).unwrap();
+
+        let printed = format!("{member:?}");
+
+        assert!(!printed.contains("회원1"));
+        assert!(!printed.contains("00001"));
+        assert!(!printed.contains("01000000001"));
     }
 }

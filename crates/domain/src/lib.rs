@@ -11,5 +11,5 @@
 mod member;
 mod personal;
 
-pub use member::{Gender, MemberError, MemberName, MemberNo, PhoneNumber};
+pub use member::{Gender, MemberError, MemberInput, MemberName, MemberNo, NewMember, PhoneNumber};
 pub use personal::Personal;
