@@ -102,6 +102,14 @@ describe("roomFormErrorsFrom", () => {
     });
   });
 
+  test("수업 시간이 쓰는 강의실을 지우려 하면 칸이 아닌 전체 문구로 (BR-R2)", () => {
+    const message =
+      "강좌의 수업 시간이 쓰는 강의실은 지울 수 없습니다. 지난 학기 강좌도 이 강의실을 씁니다";
+    const error = new HostError(409, message, "ROOM_IN_USE", "BR-R2");
+
+    expect(roomFormErrorsFrom(error)).toEqual({ fields: {}, form: message });
+  });
+
   test("이름이 겹치면 이름 칸에 붙인다 (BR-R1)", () => {
     const error = new HostError(
       409,

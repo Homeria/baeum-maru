@@ -75,7 +75,7 @@ pub async fn update_subject(
     Ok(Json(SubjectResponse::from(record)))
 }
 
-/// `id`인 과목을 지운다. 성공하면 204(본문 없음).
+/// `id`인 과목을 지운다. 성공하면 204(본문 없음). BR-J2: 강좌가 쓰면 409.
 pub async fn delete_subject(
     State(db): State<SqlitePool>,
     id: Result<Path<i64>, PathRejection>,
@@ -83,7 +83,7 @@ pub async fn delete_subject(
     let Path(id) = id?;
     let deleted = subjects::delete(&db, id)
         .await
-        .map_err(ApiError::internal)?;
+        .map_err(|error| ApiError::from_delete(error, ApiError::SubjectInUse))?;
     if !deleted {
         return Err(ApiError::SubjectNotFound);
     }
@@ -110,23 +110,19 @@ impl From<SaveSubjectError> for ApiError {
 
 #[cfg(test)]
 mod tests {
-    use axum::Router;
     use axum::body::Body;
     use axum::http::Request;
     use serde_json::json;
     use tower::ServiceExt;
 
     use super::*;
-    use crate::server::test_support::{app, delete, get, json_body, patch, post};
+    use crate::server::test_support::{
+        app, create, create_course, create_subject, create_term, delete, get, json_body, patch,
+        post,
+    };
 
     fn subject(name: &str, category: Option<&str>) -> String {
         json!({ "name": name, "category": category }).to_string()
-    }
-
-    async fn created_id(router: Router, body: String) -> i64 {
-        json_body(post(router, "/api/subjects", &body).await).await["id"]
-            .as_i64()
-            .unwrap()
     }
 
     #[tokio::test]
@@ -201,7 +197,12 @@ mod tests {
     #[tokio::test]
     async fn gets_one_subject() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), subject("요가", Some("취미여가"))).await;
+        let id = create(
+            router.clone(),
+            "/api/subjects",
+            &subject("요가", Some("취미여가")),
+        )
+        .await;
 
         let response = get(router, &format!("/api/subjects/{id}")).await;
 
@@ -234,7 +235,12 @@ mod tests {
     #[tokio::test]
     async fn updates_subject() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), subject("요가", Some("취미여가"))).await;
+        let id = create(
+            router.clone(),
+            "/api/subjects",
+            &subject("요가", Some("취미여가")),
+        )
+        .await;
 
         let uri = format!("/api/subjects/{id}");
         let response = patch(router, &uri, &subject("필라테스", None)).await;
@@ -249,8 +255,8 @@ mod tests {
     #[tokio::test]
     async fn br_j1_update_to_taken_name_is_conflict() {
         let (_dir, _db, router) = app().await;
-        created_id(router.clone(), subject("한글교실", None)).await;
-        let id = created_id(router.clone(), subject("요가", None)).await;
+        create(router.clone(), "/api/subjects", &subject("한글교실", None)).await;
+        let id = create(router.clone(), "/api/subjects", &subject("요가", None)).await;
 
         let uri = format!("/api/subjects/{id}");
         let response = patch(router, &uri, &subject("한글 교실", None)).await;
@@ -262,7 +268,7 @@ mod tests {
     #[tokio::test]
     async fn deletes_subject() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), subject("요가", None)).await;
+        let id = create(router.clone(), "/api/subjects", &subject("요가", None)).await;
         let uri = format!("/api/subjects/{id}");
 
         let response = delete(router.clone(), &uri).await;
@@ -279,5 +285,20 @@ mod tests {
         let response = router.oneshot(request).await.unwrap();
 
         assert_eq!(response.status(), StatusCode::CONFLICT);
+    }
+
+    #[tokio::test]
+    async fn br_j2_subject_used_by_course_is_conflict() {
+        let (_dir, _db, router) = app().await;
+        let subject_id = create_subject(router.clone(), "요가").await;
+        let term_id = create_term(router.clone()).await;
+        create_course(router.clone(), term_id, subject_id, None).await;
+
+        let response = delete(router, &format!("/api/subjects/{subject_id}")).await;
+
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        let body = json_body(response).await;
+        assert_eq!(body["code"], "SUBJECT_IN_USE");
+        assert_eq!(body["rule"], "BR-J2");
     }
 }

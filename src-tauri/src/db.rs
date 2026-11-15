@@ -2,9 +2,13 @@
 //!
 //! ADR 0005: SQLite + sqlx. 구조 변경은 시작할 때 자동으로 적용한다.
 
+pub mod courses;
 pub mod members;
 pub mod rooms;
 pub mod subjects;
+pub mod terms;
+#[cfg(test)]
+pub(crate) mod test_support;
 
 use std::path::Path;
 use std::time::Duration;
@@ -44,6 +48,35 @@ fn is_unique_violation(error: &sqlx::Error) -> bool {
         .is_some_and(|db_error| db_error.is_unique_violation())
 }
 
+/// 외래 키를 어겨서 난 오류인지. 예: 강좌가 쓰는 학기를 지우려 할 때.
+///
+/// 마이그레이션은 `ON DELETE NO ACTION`으로 막는다. `RESTRICT`는 다른 오류 코드를 내서 여기서 알아보지 못한다.
+fn is_foreign_key_violation(error: &sqlx::Error) -> bool {
+    error
+        .as_database_error()
+        .is_some_and(|db_error| db_error.is_foreign_key_violation())
+}
+
+/// 지우지 못했다.
+#[derive(Debug, thiserror::Error)]
+pub enum DeleteError {
+    /// 다른 데이터가 쓰고 있다. 예: 강좌가 있는 학기 (BR-T5)
+    #[error("다른 데이터가 쓰고 있어 지울 수 없습니다")]
+    InUse,
+    #[error("지우지 못했습니다: {0}")]
+    Db(sqlx::Error),
+}
+
+impl From<sqlx::Error> for DeleteError {
+    fn from(error: sqlx::Error) -> Self {
+        if is_foreign_key_violation(&error) {
+            DeleteError::InUse
+        } else {
+            DeleteError::Db(error)
+        }
+    }
+}
+
 /// 테스트용: 임시 폴더에 새 DB를 연다. 폴더는 돌려준 `TempDir`가 사라질 때 지워진다.
 #[cfg(test)]
 pub(crate) async fn open_temp() -> (tempfile::TempDir, SqlitePool) {
@@ -77,6 +110,9 @@ pub async fn open(dir: &Path) -> Result<SqlitePool, DbError> {
 
 #[cfg(test)]
 mod tests {
+    use super::test_support::{
+        NOW, insert_course, insert_room, insert_schedule, insert_subject, insert_term,
+    };
     use super::*;
 
     async fn text(pool: &SqlitePool, sql: &'static str) -> String {
@@ -162,24 +198,6 @@ mod tests {
         assert!(result.is_err());
     }
 
-    async fn insert_room(
-        pool: &SqlitePool,
-        building: Option<&str>,
-        floor: Option<i64>,
-        name: &str,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            "INSERT INTO rooms (building, floor, name, created_at, updated_at)
-             VALUES (?, ?, ?, '2026-11-15T00:00:00.000Z', '2026-11-15T00:00:00.000Z')",
-        )
-        .bind(building)
-        .bind(floor)
-        .bind(name)
-        .execute(pool)
-        .await
-        .map(|_| ())
-    }
-
     #[tokio::test]
     async fn br_r1_rejects_same_name_in_same_building() {
         let (_dir, pool) = open_temp().await;
@@ -242,24 +260,6 @@ mod tests {
         }
     }
 
-    async fn insert_subject(
-        pool: &SqlitePool,
-        name: &str,
-        name_key: &str,
-        category: Option<&str>,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            "INSERT INTO subjects (name, name_key, category, created_at, updated_at)
-             VALUES (?, ?, ?, '2026-11-15T00:00:00.000Z', '2026-11-15T00:00:00.000Z')",
-        )
-        .bind(name)
-        .bind(name_key)
-        .bind(category)
-        .execute(pool)
-        .await
-        .map(|_| ())
-    }
-
     #[tokio::test]
     async fn br_j1_rejects_same_name_key() {
         let (_dir, pool) = open_temp().await;
@@ -304,5 +304,228 @@ mod tests {
         let (_dir, pool) = open_temp().await;
 
         assert!(insert_subject(&pool, " ", "", None).await.is_err());
+    }
+
+    /// 학기 하나, 과목 하나를 넣어 둔 DB. (폴더, DB, 학기 id, 과목 id)
+    async fn with_term_and_subject() -> (tempfile::TempDir, SqlitePool, i64, i64) {
+        let (dir, pool) = open_temp().await;
+        let term_id = insert_term(&pool, "2027년 1학기", "2027-03-02", "2027-06-30")
+            .await
+            .unwrap();
+        let subject_id = insert_subject(&pool, "요가", "요가", None).await.unwrap();
+        (dir, pool, term_id, subject_id)
+    }
+
+    #[tokio::test]
+    async fn br_t1_rejects_same_term_name() {
+        let (_dir, pool) = open_temp().await;
+        insert_term(&pool, "2027년 1학기", "2027-03-02", "2027-06-30")
+            .await
+            .unwrap();
+
+        let duplicate = insert_term(&pool, "2027년 1학기", "2027-09-01", "2027-12-31")
+            .await
+            .unwrap_err();
+
+        assert!(is_unique_violation(&duplicate), "{duplicate}");
+    }
+
+    #[tokio::test]
+    async fn br_t2_rejects_end_before_start_and_allows_one_day() {
+        let (_dir, pool) = open_temp().await;
+
+        assert!(
+            insert_term(&pool, "거꾸로", "2027-06-30", "2027-03-02")
+                .await
+                .is_err()
+        );
+        insert_term(&pool, "하루", "2027-03-02", "2027-03-02")
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn br_t3_rejects_same_course_in_same_term() {
+        let (_dir, pool, term_id, subject_id) = with_term_and_subject().await;
+        insert_course(&pool, term_id, subject_id, Some("초급"), Some("1반"))
+            .await
+            .unwrap();
+
+        let duplicate = insert_course(&pool, term_id, subject_id, Some("초급"), Some("1반"))
+            .await
+            .unwrap_err();
+
+        assert!(is_unique_violation(&duplicate), "{duplicate}");
+    }
+
+    #[tokio::test]
+    async fn br_t3_treats_empty_level_and_section_as_one_value() {
+        let (_dir, pool, term_id, subject_id) = with_term_and_subject().await;
+        insert_course(&pool, term_id, subject_id, None, None)
+            .await
+            .unwrap();
+
+        let duplicate = insert_course(&pool, term_id, subject_id, None, None)
+            .await
+            .unwrap_err();
+
+        assert!(is_unique_violation(&duplicate), "{duplicate}");
+    }
+
+    #[tokio::test]
+    async fn br_t3_allows_other_section_or_other_term() {
+        let (_dir, pool, term_id, subject_id) = with_term_and_subject().await;
+        let next_term = insert_term(&pool, "2027년 2학기", "2027-09-01", "2027-12-31")
+            .await
+            .unwrap();
+
+        insert_course(&pool, term_id, subject_id, Some("초급"), Some("1반"))
+            .await
+            .unwrap();
+        insert_course(&pool, term_id, subject_id, Some("초급"), Some("2반"))
+            .await
+            .unwrap();
+        insert_course(&pool, next_term, subject_id, Some("초급"), Some("1반"))
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn courses_reject_capacity_out_of_range() {
+        let (_dir, pool, term_id, subject_id) = with_term_and_subject().await;
+
+        for capacity in [0, 201] {
+            let result = sqlx::query(
+                "INSERT INTO courses (term_id, subject_id, capacity, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?)",
+            )
+            .bind(term_id)
+            .bind(subject_id)
+            .bind(capacity)
+            .bind(NOW)
+            .bind(NOW)
+            .execute(&pool)
+            .await;
+            assert!(result.is_err(), "{capacity}");
+        }
+    }
+
+    #[tokio::test]
+    async fn courses_need_existing_term_and_subject() {
+        let (_dir, pool, term_id, subject_id) = with_term_and_subject().await;
+
+        let no_term = insert_course(&pool, 999, subject_id, None, None)
+            .await
+            .unwrap_err();
+        let no_subject = insert_course(&pool, term_id, 999, None, None)
+            .await
+            .unwrap_err();
+
+        assert!(is_foreign_key_violation(&no_term), "{no_term}");
+        assert!(is_foreign_key_violation(&no_subject), "{no_subject}");
+    }
+
+    #[tokio::test]
+    async fn br_t4_schedule_end_must_be_after_start() {
+        let (_dir, pool, term_id, subject_id) = with_term_and_subject().await;
+        let course_id = insert_course(&pool, term_id, subject_id, None, None)
+            .await
+            .unwrap();
+
+        insert_schedule(&pool, course_id, 1, 600, 660, None)
+            .await
+            .unwrap();
+        assert!(
+            insert_schedule(&pool, course_id, 1, 660, 660, None)
+                .await
+                .is_err()
+        );
+        assert!(
+            insert_schedule(&pool, course_id, 8, 600, 660, None)
+                .await
+                .is_err()
+        );
+        assert!(
+            insert_schedule(&pool, course_id, 1, 600, 1440, None)
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn br_t5_rejects_deleting_term_with_course() {
+        let (_dir, pool, term_id, subject_id) = with_term_and_subject().await;
+        insert_course(&pool, term_id, subject_id, None, None)
+            .await
+            .unwrap();
+
+        let error = sqlx::query("DELETE FROM terms WHERE id = ?")
+            .bind(term_id)
+            .execute(&pool)
+            .await
+            .unwrap_err();
+
+        assert!(is_foreign_key_violation(&error), "{error}");
+    }
+
+    #[tokio::test]
+    async fn br_j2_rejects_deleting_subject_used_by_course() {
+        let (_dir, pool, term_id, subject_id) = with_term_and_subject().await;
+        insert_course(&pool, term_id, subject_id, None, None)
+            .await
+            .unwrap();
+
+        let error = sqlx::query("DELETE FROM subjects WHERE id = ?")
+            .bind(subject_id)
+            .execute(&pool)
+            .await
+            .unwrap_err();
+
+        assert!(is_foreign_key_violation(&error), "{error}");
+    }
+
+    #[tokio::test]
+    async fn br_r2_rejects_deleting_room_used_by_schedule() {
+        let (_dir, pool, term_id, subject_id) = with_term_and_subject().await;
+        let room_id = insert_room(&pool, Some("본관"), None, "다목적실")
+            .await
+            .unwrap();
+        let course_id = insert_course(&pool, term_id, subject_id, None, None)
+            .await
+            .unwrap();
+        insert_schedule(&pool, course_id, 1, 600, 660, Some(room_id))
+            .await
+            .unwrap();
+
+        let error = sqlx::query("DELETE FROM rooms WHERE id = ?")
+            .bind(room_id)
+            .execute(&pool)
+            .await
+            .unwrap_err();
+
+        assert!(is_foreign_key_violation(&error), "{error}");
+    }
+
+    #[tokio::test]
+    async fn deleting_course_removes_its_schedules() {
+        let (_dir, pool, term_id, subject_id) = with_term_and_subject().await;
+        let course_id = insert_course(&pool, term_id, subject_id, None, None)
+            .await
+            .unwrap();
+        insert_schedule(&pool, course_id, 1, 600, 660, None)
+            .await
+            .unwrap();
+
+        sqlx::query("DELETE FROM courses WHERE id = ?")
+            .bind(course_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let left: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM course_schedules")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(left, 0);
     }
 }

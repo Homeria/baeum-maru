@@ -84,6 +84,14 @@ describe("subjectFormErrorsFrom", () => {
     });
   });
 
+  test("강좌가 쓰는 과목을 지우려 하면 칸이 아닌 전체 문구로 (BR-J2)", () => {
+    const message =
+      "강좌가 쓰는 과목은 지울 수 없습니다. 지난 학기 강좌도 이 과목을 씁니다";
+    const error = new HostError(409, message, "SUBJECT_IN_USE", "BR-J2");
+
+    expect(subjectFormErrorsFrom(error)).toEqual({ fields: {}, form: message });
+  });
+
   test("입력 오류는 과목 칸 이름으로 나눈다", () => {
     const error = new HostError(
       422,

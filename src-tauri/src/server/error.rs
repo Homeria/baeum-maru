@@ -11,6 +11,8 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use ts_rs::TS;
 
+use crate::db::DeleteError;
+
 /// 요청을 처리하지 못했다.
 #[derive(Debug)]
 pub enum ApiError {
@@ -30,6 +32,20 @@ pub enum ApiError {
     DuplicateSubjectName,
     /// 주소의 id인 과목이 없다.
     SubjectNotFound,
+    /// BR-J2: 강좌가 쓰는 과목은 지울 수 없다.
+    SubjectInUse,
+    /// BR-R2: 수업 시간이 쓰는 강의실은 지울 수 없다.
+    RoomInUse,
+    /// BR-T1: 학기 이름은 겹치지 않는다.
+    DuplicateTermName,
+    /// 주소의 id인 학기가 없다.
+    TermNotFound,
+    /// BR-T5: 강좌가 있는 학기는 지울 수 없다.
+    TermInUse,
+    /// BR-T3: 같은 학기 안에서 과목·수준·반이 모두 같은 강좌는 하나뿐이다.
+    DuplicateCourse,
+    /// 주소의 id인 강좌가 없다.
+    CourseNotFound,
     /// ADR 0012: 앱과 호스트의 버전 앞 두 자리가 다르다.
     VersionMismatch,
     /// DB 같은 내부 문제. 자세한 내용은 로그에만 있다.
@@ -43,6 +59,14 @@ impl ApiError {
     pub fn internal(error: impl Display) -> Self {
         tracing::error!(%error, "요청을 처리하지 못했습니다");
         ApiError::Internal
+    }
+
+    /// 지우기 실패를 바꾼다. 다른 데이터가 쓰고 있으면 `in_use`, DB 문제면 [`ApiError::Internal`].
+    pub fn from_delete(error: DeleteError, in_use: ApiError) -> Self {
+        match error {
+            DeleteError::InUse => in_use,
+            DeleteError::Db(error) => ApiError::internal(error),
+        }
     }
 
     /// 업무 규칙 확인에서 나온 오류를 칸마다 [`ApiError::InvalidInput`]으로 모은다.
@@ -73,6 +97,13 @@ pub enum ErrorCode {
     RoomNotFound,
     DuplicateSubjectName,
     SubjectNotFound,
+    SubjectInUse,
+    RoomInUse,
+    DuplicateTermName,
+    TermNotFound,
+    TermInUse,
+    DuplicateCourse,
+    CourseNotFound,
     VersionMismatch,
     Internal,
 }
@@ -155,6 +186,55 @@ impl IntoResponse for ApiError {
                 StatusCode::NOT_FOUND,
                 ErrorCode::SubjectNotFound,
                 "과목을 찾지 못했습니다. 지워졌을 수 있습니다",
+                None,
+                Vec::new(),
+            ),
+            ApiError::SubjectInUse => (
+                StatusCode::CONFLICT,
+                ErrorCode::SubjectInUse,
+                "강좌가 쓰는 과목은 지울 수 없습니다. 지난 학기 강좌도 이 과목을 씁니다",
+                Some("BR-J2"),
+                Vec::new(),
+            ),
+            ApiError::RoomInUse => (
+                StatusCode::CONFLICT,
+                ErrorCode::RoomInUse,
+                "강좌의 수업 시간이 쓰는 강의실은 지울 수 없습니다. 지난 학기 강좌도 이 강의실을 씁니다",
+                Some("BR-R2"),
+                Vec::new(),
+            ),
+            ApiError::DuplicateTermName => (
+                StatusCode::CONFLICT,
+                ErrorCode::DuplicateTermName,
+                "같은 이름의 학기가 있습니다",
+                Some("BR-T1"),
+                Vec::new(),
+            ),
+            ApiError::TermNotFound => (
+                StatusCode::NOT_FOUND,
+                ErrorCode::TermNotFound,
+                "학기를 찾지 못했습니다. 지워졌을 수 있습니다",
+                None,
+                Vec::new(),
+            ),
+            ApiError::TermInUse => (
+                StatusCode::CONFLICT,
+                ErrorCode::TermInUse,
+                "강좌가 있는 학기는 지울 수 없습니다. 강좌를 먼저 지워 주세요",
+                Some("BR-T5"),
+                Vec::new(),
+            ),
+            ApiError::DuplicateCourse => (
+                StatusCode::CONFLICT,
+                ErrorCode::DuplicateCourse,
+                "이 학기에 과목·수준·반이 모두 같은 강좌가 있습니다. 수준이나 반으로 나눠 주세요",
+                Some("BR-T3"),
+                Vec::new(),
+            ),
+            ApiError::CourseNotFound => (
+                StatusCode::NOT_FOUND,
+                ErrorCode::CourseNotFound,
+                "강좌를 찾지 못했습니다. 지워졌을 수 있습니다",
                 None,
                 Vec::new(),
             ),

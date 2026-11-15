@@ -162,7 +162,7 @@ mod tests {
     use serde_json::{Value, json};
 
     use super::*;
-    use crate::server::test_support::{app, delete, get, json_body, patch, post};
+    use crate::server::test_support::{app, create, delete, get, json_body, patch, post};
 
     fn valid(member_no: &str) -> String {
         json!({
@@ -359,8 +359,7 @@ mod tests {
     }
 
     async fn created_id(router: Router, member_no: &str) -> i64 {
-        let body = json_body(post(router, "/api/members", &valid(member_no)).await).await;
-        body["id"].as_i64().unwrap()
+        create(router, "/api/members", &valid(member_no)).await
     }
 
     #[tokio::test]

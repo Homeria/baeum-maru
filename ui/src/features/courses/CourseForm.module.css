@@ -1,0 +1,52 @@
+/* 수업 시간 줄. 칸이 많아 좁으면 강의실과 빼기는 다음 줄로 넘긴다. */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+}
+
+.rowNumber {
+  min-width: 1.5em;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.room {
+  flex: 1;
+  min-width: 8em;
+}
+
+.errors {
+  margin: 0;
+  padding-left: var(--space-4);
+  color: var(--color-bad);
+}
+
+/* 칸 아래 도움말 */
+.hint,
+.empty {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+/* 숫자 칸 뒤에 단위. 예: [ 20 ] 명 */
+.withUnit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.number {
+  width: 8em;
+}

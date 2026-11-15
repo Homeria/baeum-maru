@@ -73,13 +73,15 @@ pub async fn update_room(
     Ok(Json(RoomResponse::from(record)))
 }
 
-/// `id`인 강의실을 지운다. 성공하면 204(본문 없음).
+/// `id`인 강의실을 지운다. 성공하면 204(본문 없음). BR-R2: 수업 시간이 쓰면 409.
 pub async fn delete_room(
     State(db): State<SqlitePool>,
     id: Result<Path<i64>, PathRejection>,
 ) -> Result<StatusCode, ApiError> {
     let Path(id) = id?;
-    let deleted = rooms::delete(&db, id).await.map_err(ApiError::internal)?;
+    let deleted = rooms::delete(&db, id)
+        .await
+        .map_err(|error| ApiError::from_delete(error, ApiError::RoomInUse))?;
     if !deleted {
         return Err(ApiError::RoomNotFound);
     }
@@ -107,14 +109,16 @@ impl From<SaveRoomError> for ApiError {
 
 #[cfg(test)]
 mod tests {
-    use axum::Router;
     use axum::body::Body;
     use axum::http::Request;
     use serde_json::json;
     use tower::ServiceExt;
 
     use super::*;
-    use crate::server::test_support::{app, delete, get, json_body, patch, post};
+    use crate::server::test_support::{
+        app, create, create_course, create_room, create_subject, create_term, delete, get,
+        json_body, patch, post,
+    };
 
     fn room(building: &str, floor: Option<i32>, name: &str) -> String {
         json!({ "building": building, "floor": floor, "name": name }).to_string()
@@ -196,16 +200,15 @@ mod tests {
         assert_eq!(response.status(), StatusCode::CONFLICT);
     }
 
-    async fn created_id(router: Router, body: String) -> i64 {
-        json_body(post(router, "/api/rooms", &body).await).await["id"]
-            .as_i64()
-            .unwrap()
-    }
-
     #[tokio::test]
     async fn gets_one_room() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), room("본관", Some(3), "다목적실")).await;
+        let id = create(
+            router.clone(),
+            "/api/rooms",
+            &room("본관", Some(3), "다목적실"),
+        )
+        .await;
 
         let response = get(router, &format!("/api/rooms/{id}")).await;
 
@@ -239,7 +242,12 @@ mod tests {
     #[tokio::test]
     async fn updates_room() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), room("본관", Some(3), "다목적실")).await;
+        let id = create(
+            router.clone(),
+            "/api/rooms",
+            &room("본관", Some(3), "다목적실"),
+        )
+        .await;
 
         let uri = format!("/api/rooms/{id}");
         let response = patch(router, &uri, &room("별관", None, "요가실")).await;
@@ -254,7 +262,12 @@ mod tests {
     #[tokio::test]
     async fn update_checks_input_like_create() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), room("본관", Some(3), "다목적실")).await;
+        let id = create(
+            router.clone(),
+            "/api/rooms",
+            &room("본관", Some(3), "다목적실"),
+        )
+        .await;
 
         let uri = format!("/api/rooms/{id}");
         let response = patch(router, &uri, &room("본관", Some(6), "다목적실")).await;
@@ -266,8 +279,13 @@ mod tests {
     #[tokio::test]
     async fn br_r1_update_to_taken_name_is_conflict() {
         let (_dir, _db, router) = app().await;
-        created_id(router.clone(), room("본관", None, "다목적실")).await;
-        let id = created_id(router.clone(), room("본관", None, "요가실")).await;
+        create(
+            router.clone(),
+            "/api/rooms",
+            &room("본관", None, "다목적실"),
+        )
+        .await;
+        let id = create(router.clone(), "/api/rooms", &room("본관", None, "요가실")).await;
 
         let uri = format!("/api/rooms/{id}");
         let response = patch(router, &uri, &room("본관", None, "다목적실")).await;
@@ -279,7 +297,12 @@ mod tests {
     #[tokio::test]
     async fn deletes_room() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), room("본관", None, "다목적실")).await;
+        let id = create(
+            router.clone(),
+            "/api/rooms",
+            &room("본관", None, "다목적실"),
+        )
+        .await;
         let uri = format!("/api/rooms/{id}");
 
         let response = delete(router.clone(), &uri).await;
@@ -287,5 +310,21 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         let again = delete(router, &uri).await;
         assert_eq!(again.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn br_r2_room_used_by_schedule_is_conflict() {
+        let (_dir, _db, router) = app().await;
+        let room_id = create_room(router.clone()).await;
+        let term_id = create_term(router.clone()).await;
+        let subject_id = create_subject(router.clone(), "요가").await;
+        create_course(router.clone(), term_id, subject_id, Some(room_id)).await;
+
+        let response = delete(router, &format!("/api/rooms/{room_id}")).await;
+
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        let body = json_body(response).await;
+        assert_eq!(body["code"], "ROOM_IN_USE");
+        assert_eq!(body["rule"], "BR-R2");
     }
 }
