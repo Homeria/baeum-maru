@@ -12,8 +12,10 @@ mod member;
 mod personal;
 mod room;
 mod subject;
+mod term;
 
 pub use member::{Gender, MemberError, MemberInput, MemberName, MemberNo, NewMember, PhoneNumber};
 pub use personal::Personal;
 pub use room::{BuildingName, Floor, NewRoom, RoomError, RoomInput, RoomName};
 pub use subject::{CategoryName, NewSubject, SubjectError, SubjectInput, SubjectName};
+pub use term::{NewTerm, TermError, TermInput, TermName, TermPeriod};
