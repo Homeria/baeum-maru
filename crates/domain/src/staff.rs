@@ -294,6 +294,16 @@ pub const ACCOUNT_LOCK: TimeDelta = TimeDelta::minutes(5);
 /// BR-K8: 요청이 없으면 세션을 잠그는 시간.
 pub const SCREEN_LOCK: TimeDelta = TimeDelta::minutes(10);
 
+/// BR-K7: `locked_until`까지 잠긴 계정이 `now`에도 잠겨 있는지. 그 시각이 되면 풀린다.
+pub fn is_account_locked(locked_until: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
+    locked_until.is_some_and(|until| now < until)
+}
+
+/// BR-K8: 마지막 요청이 `last_seen_at`인 세션이 `now`에 잠겼는지. 10분이 되면 잠긴다.
+pub fn is_screen_locked(last_seen_at: DateTime<Utc>, now: DateTime<Utc>) -> bool {
+    now - last_seen_at >= SCREEN_LOCK
+}
+
 /// PIN을 틀린 뒤의 계정 상태.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FailedPin {
@@ -472,5 +482,27 @@ mod tests {
                 locked_until: Some(now + TimeDelta::minutes(5))
             }
         );
+    }
+
+    fn at(hour: u32, minute: u32, second: u32) -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(2026, 11, 15, hour, minute, second)
+            .unwrap()
+    }
+
+    #[test]
+    fn account_unlocks_at_locked_until() {
+        let until = Some(at(1, 5, 0));
+
+        assert!(is_account_locked(until, at(1, 4, 59)));
+        assert!(!is_account_locked(until, at(1, 5, 0)));
+        assert!(!is_account_locked(None, at(1, 0, 0)));
+    }
+
+    #[test]
+    fn screen_locks_ten_minutes_after_last_request() {
+        let last_seen = at(1, 0, 0);
+
+        assert!(!is_screen_locked(last_seen, at(1, 9, 59)));
+        assert!(is_screen_locked(last_seen, at(1, 10, 0)));
     }
 }

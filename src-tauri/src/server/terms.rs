@@ -7,10 +7,11 @@ use axum::extract::rejection::{JsonRejection, PathRejection};
 use axum::extract::{Path, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
-use baeum_domain::{NewTerm, TermError};
+use baeum_domain::{Action, NewTerm, TermError};
 use chrono::Utc;
 use sqlx::SqlitePool;
 
+use super::auth::CurrentStaff;
 use super::error::ApiError;
 use crate::db::terms::{self, SaveTermError};
 
@@ -40,13 +41,15 @@ pub async fn get_term(
 /// 새 학기를 저장한다. 성공하면 201과 새 id를 돌려준다.
 pub async fn create_term(
     State(db): State<SqlitePool>,
+    staff: CurrentStaff,
     body: Result<Json<TermRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, ApiError> {
+    staff.require(Action::EditCourses)?;
     let Json(request) = body?;
     let term = NewTerm::parse(request.as_input())
         .map_err(|errors| ApiError::invalid_input(errors, field_name))?;
     let id = terms::insert(&db, &term, Utc::now()).await?;
-    tracing::info!(term_id = id, "학기 저장");
+    tracing::info!(staff_id = staff.id, term_id = id, "학기 저장");
 
     let location = format!("/api/terms/{id}");
     Ok((
@@ -59,9 +62,11 @@ pub async fn create_term(
 /// `id`인 학기의 칸을 모두 본문 값으로 바꾼다. 확인 규칙은 등록과 같다.
 pub async fn update_term(
     State(db): State<SqlitePool>,
+    staff: CurrentStaff,
     id: Result<Path<i64>, PathRejection>,
     body: Result<Json<TermRequest>, JsonRejection>,
 ) -> Result<Json<TermResponse>, ApiError> {
+    staff.require(Action::EditCourses)?;
     let Path(id) = id?;
     let Json(request) = body?;
     let term = NewTerm::parse(request.as_input())
@@ -69,15 +74,17 @@ pub async fn update_term(
     let record = terms::update(&db, id, &term, Utc::now())
         .await?
         .ok_or(ApiError::TermNotFound)?;
-    tracing::info!(term_id = id, "학기 고침");
+    tracing::info!(staff_id = staff.id, term_id = id, "학기 고침");
     Ok(Json(TermResponse::from(record)))
 }
 
 /// `id`인 학기를 지운다. 성공하면 204(본문 없음). BR-T5: 강좌가 있으면 409.
 pub async fn delete_term(
     State(db): State<SqlitePool>,
+    staff: CurrentStaff,
     id: Result<Path<i64>, PathRejection>,
 ) -> Result<StatusCode, ApiError> {
+    staff.require(Action::EditCourses)?;
     let Path(id) = id?;
     let deleted = terms::delete(&db, id)
         .await
@@ -85,7 +92,7 @@ pub async fn delete_term(
     if !deleted {
         return Err(ApiError::TermNotFound);
     }
-    tracing::info!(term_id = id, "학기 지움");
+    tracing::info!(staff_id = staff.id, term_id = id, "학기 지움");
     Ok(StatusCode::NO_CONTENT)
 }
 

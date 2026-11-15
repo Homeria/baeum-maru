@@ -2,20 +2,54 @@
 //!
 //! 요청은 모두 맞는 버전 머리글을 붙여 보낸다. 버전 확인 자체를 시험할 때는
 //! `Request`를 직접 만든다.
+//!
+//! [`app`]과 [`app_as`]의 라우터는 로그인한 직원의 세션 증표를 요청마다 붙인다.
+//! 요청에 `Authorization` 머리글이 이미 있으면 그것을 쓴다.
 
 use axum::Router;
 use axum::body::Body;
 use axum::http::request::Builder;
-use axum::http::{Request, Response, StatusCode, header};
+use axum::http::{HeaderValue, Request, Response, StatusCode, header};
+use chrono::Utc;
 use serde_json::{Value, json};
 use sqlx::SqlitePool;
 use tower::ServiceExt;
+use tower_http::set_header::SetRequestHeaderLayer;
 
 use super::version::VERSION_HEADER;
 use super::{AppState, router};
+use crate::db::sessions;
+use crate::db::test_support::insert_staff;
+use crate::secret::SessionToken;
 
-/// 임시 DB로 라우터를 만든다. `TempDir`가 살아 있는 동안 DB가 남는다.
+/// 임시 DB로 라우터를 만들고 관리자로 로그인해 둔다. `TempDir`가 살아 있는 동안 DB가 남는다.
 pub async fn app() -> (tempfile::TempDir, SqlitePool, Router) {
+    app_as("admin").await
+}
+
+/// [`app`]과 같지만 `role`(DB의 역할 값) 직원으로 로그인해 둔다.
+///
+/// 직원과 세션을 DB에 바로 넣어서 PIN 해시를 만들지 않는다. 접속 기록에 로그인이 한 줄 남는다.
+pub async fn app_as(role: &str) -> (tempfile::TempDir, SqlitePool, Router) {
+    let (dir, db, router) = app_without_staff().await;
+    let valid_until = (role == "temp_staff").then_some("2999-12-31");
+    let staff_id = insert_staff(&db, "시험직원", role, valid_until)
+        .await
+        .unwrap();
+    let token = SessionToken::new().unwrap();
+    sessions::start(&db, staff_id, &token.hash(), Utc::now())
+        .await
+        .unwrap();
+    let bearer = HeaderValue::from_str(&format!("Bearer {}", token.to_hex())).unwrap();
+    let router = router.layer(SetRequestHeaderLayer::if_not_present(
+        header::AUTHORIZATION,
+        bearer,
+    ));
+    (dir, db, router)
+}
+
+/// 직원이 하나도 없는 새 DB로 라우터를 만든다. 로그인하지 않은 상태다.
+pub async fn app_without_staff() -> (tempfile::TempDir, SqlitePool, Router) {
     let (dir, db) = crate::db::open_temp().await;
     let router = router(AppState::new(
         crate::version::CURRENT.parse().unwrap(),

@@ -7,10 +7,11 @@ use axum::extract::rejection::{JsonRejection, PathRejection};
 use axum::extract::{Path, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
-use baeum_domain::{NewSubject, SubjectError};
+use baeum_domain::{Action, NewSubject, SubjectError};
 use chrono::Utc;
 use sqlx::SqlitePool;
 
+use super::auth::CurrentStaff;
 use super::error::ApiError;
 use crate::db::subjects::{self, SaveSubjectError};
 
@@ -42,13 +43,15 @@ pub async fn get_subject(
 /// 새 과목을 저장한다. 성공하면 201과 새 id를 돌려준다.
 pub async fn create_subject(
     State(db): State<SqlitePool>,
+    staff: CurrentStaff,
     body: Result<Json<SubjectRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, ApiError> {
+    staff.require(Action::EditReferenceData)?;
     let Json(request) = body?;
     let subject = NewSubject::parse(request.as_input())
         .map_err(|errors| ApiError::invalid_input(errors, field_name))?;
     let id = subjects::insert(&db, &subject, Utc::now()).await?;
-    tracing::info!(subject_id = id, "과목 저장");
+    tracing::info!(staff_id = staff.id, subject_id = id, "과목 저장");
 
     let location = format!("/api/subjects/{id}");
     Ok((
@@ -61,9 +64,11 @@ pub async fn create_subject(
 /// `id`인 과목의 칸을 모두 본문 값으로 바꾼다. 확인 규칙은 등록과 같다.
 pub async fn update_subject(
     State(db): State<SqlitePool>,
+    staff: CurrentStaff,
     id: Result<Path<i64>, PathRejection>,
     body: Result<Json<SubjectRequest>, JsonRejection>,
 ) -> Result<Json<SubjectResponse>, ApiError> {
+    staff.require(Action::EditReferenceData)?;
     let Path(id) = id?;
     let Json(request) = body?;
     let subject = NewSubject::parse(request.as_input())
@@ -71,15 +76,17 @@ pub async fn update_subject(
     let record = subjects::update(&db, id, &subject, Utc::now())
         .await?
         .ok_or(ApiError::SubjectNotFound)?;
-    tracing::info!(subject_id = id, "과목 고침");
+    tracing::info!(staff_id = staff.id, subject_id = id, "과목 고침");
     Ok(Json(SubjectResponse::from(record)))
 }
 
 /// `id`인 과목을 지운다. 성공하면 204(본문 없음). BR-J2: 강좌가 쓰면 409.
 pub async fn delete_subject(
     State(db): State<SqlitePool>,
+    staff: CurrentStaff,
     id: Result<Path<i64>, PathRejection>,
 ) -> Result<StatusCode, ApiError> {
+    staff.require(Action::EditReferenceData)?;
     let Path(id) = id?;
     let deleted = subjects::delete(&db, id)
         .await
@@ -87,7 +94,7 @@ pub async fn delete_subject(
     if !deleted {
         return Err(ApiError::SubjectNotFound);
     }
-    tracing::info!(subject_id = id, "과목 지움");
+    tracing::info!(staff_id = staff.id, subject_id = id, "과목 지움");
     Ok(StatusCode::NO_CONTENT)
 }
 

@@ -108,7 +108,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::server::test_support::{app, get, json_body, post};
+    use crate::server::test_support::{app_without_staff, get, json_body, post};
 
     fn admin(name: &str, pin: &str) -> String {
         json!({ "name": name, "pin": pin }).to_string()
@@ -122,14 +122,14 @@ mod tests {
 
     #[tokio::test]
     async fn new_db_needs_setup() {
-        let (_dir, _db, router) = app().await;
+        let (_dir, _db, router) = app_without_staff().await;
 
         assert!(setup_needed(router).await);
     }
 
     #[tokio::test]
     async fn creates_admin_and_shows_recovery_code_once() {
-        let (_dir, db, router) = app().await;
+        let (_dir, db, router) = app_without_staff().await;
 
         let response = post(router.clone(), "/api/setup", &admin("관리자", "123456")).await;
 
@@ -158,7 +158,7 @@ mod tests {
 
     #[tokio::test]
     async fn setup_runs_only_once() {
-        let (_dir, _db, router) = app().await;
+        let (_dir, _db, router) = app_without_staff().await;
         let first = post(router.clone(), "/api/setup", &admin("관리자", "123456")).await;
         assert_eq!(first.status(), StatusCode::CREATED);
 
@@ -172,7 +172,7 @@ mod tests {
 
     #[tokio::test]
     async fn rejects_empty_name_and_short_admin_pin() {
-        let (_dir, _db, router) = app().await;
+        let (_dir, _db, router) = app_without_staff().await;
 
         let response = post(router.clone(), "/api/setup", &admin(" ", "1234")).await;
 
@@ -191,7 +191,7 @@ mod tests {
 
     #[tokio::test]
     async fn rejects_malformed_body() {
-        let (_dir, _db, router) = app().await;
+        let (_dir, _db, router) = app_without_staff().await;
 
         let response = post(router, "/api/setup", r#"{"name":"관리자"}"#).await;
 

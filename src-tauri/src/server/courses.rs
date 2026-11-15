@@ -7,10 +7,11 @@ use axum::extract::rejection::{JsonRejection, PathRejection};
 use axum::extract::{Path, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
-use baeum_domain::{CourseError, NewCourse};
+use baeum_domain::{Action, CourseError, NewCourse};
 use chrono::Utc;
 use sqlx::SqlitePool;
 
+use super::auth::CurrentStaff;
 use super::error::ApiError;
 use crate::db::courses::{self, MissingReference, SaveCourseError};
 use crate::db::terms;
@@ -51,14 +52,16 @@ pub async fn get_course(
 /// 학기에 새 강좌를 저장한다. 성공하면 201과 새 id를 돌려준다.
 pub async fn create_course(
     State(db): State<SqlitePool>,
+    staff: CurrentStaff,
     term_id: Result<Path<i64>, PathRejection>,
     body: Result<Json<CourseRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, ApiError> {
+    staff.require(Action::EditCourses)?;
     let Path(term_id) = term_id?;
     let Json(request) = body?;
     let course = parse(&request)?;
     let id = courses::insert(&db, term_id, &course, Utc::now()).await?;
-    tracing::info!(term_id, course_id = id, "강좌 저장");
+    tracing::info!(staff_id = staff.id, term_id, course_id = id, "강좌 저장");
 
     let location = format!("/api/courses/{id}");
     Ok((
@@ -71,30 +74,34 @@ pub async fn create_course(
 /// `id`인 강좌의 칸과 수업 시간을 모두 본문 값으로 바꾼다. 확인 규칙은 등록과 같다.
 pub async fn update_course(
     State(db): State<SqlitePool>,
+    staff: CurrentStaff,
     id: Result<Path<i64>, PathRejection>,
     body: Result<Json<CourseRequest>, JsonRejection>,
 ) -> Result<Json<CourseResponse>, ApiError> {
+    staff.require(Action::EditCourses)?;
     let Path(id) = id?;
     let Json(request) = body?;
     let course = parse(&request)?;
     let record = courses::update(&db, id, &course, Utc::now())
         .await?
         .ok_or(ApiError::CourseNotFound)?;
-    tracing::info!(course_id = id, "강좌 고침");
+    tracing::info!(staff_id = staff.id, course_id = id, "강좌 고침");
     Ok(Json(CourseResponse::from(record)))
 }
 
 /// `id`인 강좌와 그 수업 시간을 지운다. 성공하면 204(본문 없음).
 pub async fn delete_course(
     State(db): State<SqlitePool>,
+    staff: CurrentStaff,
     id: Result<Path<i64>, PathRejection>,
 ) -> Result<StatusCode, ApiError> {
+    staff.require(Action::EditCourses)?;
     let Path(id) = id?;
     let deleted = courses::delete(&db, id).await.map_err(ApiError::internal)?;
     if !deleted {
         return Err(ApiError::CourseNotFound);
     }
-    tracing::info!(course_id = id, "강좌 지움");
+    tracing::info!(staff_id = staff.id, course_id = id, "강좌 지움");
     Ok(StatusCode::NO_CONTENT)
 }
 

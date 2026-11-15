@@ -14,6 +14,8 @@ pub enum AccessEvent {
     LoginFailed,
     /// 로그아웃.
     Logout,
+    /// BR-K8: 화면 잠금을 풀 때 PIN이 틀렸거나 계정이 잠겼거나 쓸 수 없다.
+    UnlockFailed,
 }
 
 impl AccessEvent {
@@ -23,6 +25,7 @@ impl AccessEvent {
             AccessEvent::Login => "login",
             AccessEvent::LoginFailed => "login_failed",
             AccessEvent::Logout => "logout",
+            AccessEvent::UnlockFailed => "unlock_failed",
         }
     }
 }

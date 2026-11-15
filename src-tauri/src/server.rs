@@ -2,6 +2,7 @@
 //!
 //! ADR 0008: 요청은 HTTP + JSON.
 
+mod auth;
 mod courses;
 mod error;
 mod login;
@@ -76,16 +77,8 @@ impl FromRef<AppState> for SqlitePool {
 
 /// 모든 요청 주소를 묶은 라우터.
 pub fn router(state: AppState) -> Router {
-    let checked = Router::new()
-        // 처음 설정은 직원이 없을 때 하므로 로그인 없이 받는다
-        .route(
-            "/api/setup",
-            get(setup::get_setup_status).post(setup::setup),
-        )
-        // 로그인 화면도 로그인 전이라 그대로 받는다
-        .route("/api/login/staff", get(login::list_login_staff))
-        .route("/api/login", post(login::login))
-        .route("/api/logout", post(login::logout))
+    // BR-K1: 로그인한 요청만 받는다
+    let signed_in = Router::new()
         .route(
             "/api/members",
             get(members::search_members).post(members::create_member),
@@ -136,6 +129,24 @@ pub fn router(state: AppState) -> Router {
                 .patch(courses::update_course)
                 .delete(courses::delete_course),
         )
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth::require_session,
+        ));
+
+    // 버전 확인은 로그인 확인보다 먼저 한다 (route_layer는 나중에 붙인 것이 바깥)
+    let checked = Router::new()
+        // 처음 설정은 직원이 없을 때 하므로 로그인 없이 받는다
+        .route(
+            "/api/setup",
+            get(setup::get_setup_status).post(setup::setup),
+        )
+        // 로그인 화면과 잠긴 화면은 로그인 확인을 거치지 않고 스스로 세션을 본다
+        .route("/api/login/staff", get(login::list_login_staff))
+        .route("/api/login", post(login::login))
+        .route("/api/unlock", post(login::unlock))
+        .route("/api/logout", post(login::logout))
+        .merge(signed_in)
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             version::require_compatible,
@@ -301,7 +312,13 @@ mod tests {
     async fn accepts_request_when_only_patch_differs() {
         let response = post_member(Some("0.1.9")).await;
 
-        assert_eq!(response.status(), StatusCode::CREATED);
+        // 버전 확인을 지나 로그인 확인에서 멈춘다 (로그인하지 않은 요청)
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(body["code"], "LOGIN_REQUIRED");
     }
 
     #[tokio::test]

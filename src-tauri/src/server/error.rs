@@ -50,12 +50,18 @@ pub enum ApiError {
     SetupAlreadyDone,
     /// 주소나 본문의 id인 직원이 없다.
     StaffNotFound,
-    /// 로그인할 때 PIN이 틀렸다.
-    LoginFailed,
+    /// 로그인하거나 화면 잠금을 풀 때 PIN이 틀렸다.
+    WrongPin,
     /// BR-K7: PIN을 5번 연속 틀려 계정이 잠겼다.
     AccountLocked,
     /// BR-K5, BR-K6: 사용 중지했거나 유효기간이 지난 계정이다.
     AccountUnavailable,
+    /// BR-K1: 로그인하지 않았거나 세션이 끝났다.
+    LoginRequired,
+    /// BR-K8: 10분 동안 요청이 없어 세션이 잠겼다.
+    SessionLocked,
+    /// BR-K3: 이 직원의 역할로는 할 수 없는 일이다.
+    NotAllowed,
     /// ADR 0012: 앱과 호스트의 버전 앞 두 자리가 다르다.
     VersionMismatch,
     /// DB 같은 내부 문제. 자세한 내용은 로그에만 있다.
@@ -116,9 +122,12 @@ pub enum ErrorCode {
     CourseNotFound,
     SetupAlreadyDone,
     StaffNotFound,
-    LoginFailed,
+    WrongPin,
     AccountLocked,
     AccountUnavailable,
+    LoginRequired,
+    SessionLocked,
+    NotAllowed,
     VersionMismatch,
     Internal,
 }
@@ -267,9 +276,9 @@ impl IntoResponse for ApiError {
                 None,
                 Vec::new(),
             ),
-            ApiError::LoginFailed => (
+            ApiError::WrongPin => (
                 StatusCode::UNAUTHORIZED,
-                ErrorCode::LoginFailed,
+                ErrorCode::WrongPin,
                 "PIN이 맞지 않습니다. 5번 연속 틀리면 5분 동안 잠깁니다",
                 None,
                 Vec::new(),
@@ -286,6 +295,27 @@ impl IntoResponse for ApiError {
                 ErrorCode::AccountUnavailable,
                 "사용 중지했거나 유효기간이 지난 계정입니다. 관리자에게 물어 주세요",
                 None,
+                Vec::new(),
+            ),
+            ApiError::LoginRequired => (
+                StatusCode::UNAUTHORIZED,
+                ErrorCode::LoginRequired,
+                "로그인해 주세요",
+                Some("BR-K1"),
+                Vec::new(),
+            ),
+            ApiError::SessionLocked => (
+                StatusCode::UNAUTHORIZED,
+                ErrorCode::SessionLocked,
+                "10분 동안 쓰지 않아 화면이 잠겼습니다. PIN을 넣어 다시 열어 주세요",
+                Some("BR-K8"),
+                Vec::new(),
+            ),
+            ApiError::NotAllowed => (
+                StatusCode::FORBIDDEN,
+                ErrorCode::NotAllowed,
+                "이 역할로는 할 수 없는 일입니다",
+                Some("BR-K3"),
                 Vec::new(),
             ),
             ApiError::VersionMismatch => (

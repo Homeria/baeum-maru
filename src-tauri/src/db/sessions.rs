@@ -5,7 +5,85 @@ use chrono::{DateTime, Utc};
 use sqlx::SqlitePool;
 
 use super::access_logs::{self, AccessEvent};
+use super::staff::{LoginAccount, LoginAccountRow};
 use super::timestamp_text;
+
+/// 요청에 실린 증표의 세션과 그 직원 계정. 요청마다 함께 읽는다 (ADR 0014).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionRecord {
+    pub id: i64,
+    pub last_seen_at: DateTime<Utc>,
+    pub account: LoginAccount,
+}
+
+#[derive(sqlx::FromRow)]
+struct SessionRow {
+    session_id: i64,
+    last_seen_at: DateTime<Utc>,
+    #[sqlx(flatten)]
+    account: LoginAccountRow,
+}
+
+/// 증표 해시가 `token_hash`인 세션을 직원 계정과 함께 읽는다. 없으면 `None`.
+///
+/// 잠겼는지, 계정을 쓸 수 있는지는 부르는 쪽이 판단한다.
+pub async fn find(
+    pool: &SqlitePool,
+    token_hash: &[u8; 32],
+) -> Result<Option<SessionRecord>, sqlx::Error> {
+    let row: Option<SessionRow> = sqlx::query_as(
+        "SELECT se.id AS session_id, se.last_seen_at,
+                s.id, s.name, s.role, s.pin_hash, s.valid_until, s.disabled, s.locked_until
+         FROM sessions se JOIN staff s ON s.id = se.staff_id
+         WHERE se.token_hash = ?",
+    )
+    .bind(token_hash.as_slice())
+    .fetch_optional(pool)
+    .await?;
+    row.map(|row| {
+        Ok(SessionRecord {
+            id: row.session_id,
+            last_seen_at: row.last_seen_at,
+            account: LoginAccount::try_from(row.account)?,
+        })
+    })
+    .transpose()
+}
+
+/// BR-K8: 세션의 마지막 요청 시각을 `now`로 바꾼다. 잠기지 않은 세션에만 부른다.
+pub async fn touch(
+    pool: &SqlitePool,
+    session_id: i64,
+    now: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE sessions SET last_seen_at = ? WHERE id = ?")
+        .bind(timestamp_text(now))
+        .bind(session_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+/// BR-K8: PIN을 맞게 넣어 잠긴 세션을 연다.
+/// BR-K7: 틀린 횟수도 0으로 돌린다 (로그인에서 맞게 넣은 것과 같다).
+pub async fn unlock(
+    pool: &SqlitePool,
+    session_id: i64,
+    staff_id: i64,
+    now: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    let mut tx = pool.begin().await?;
+    sqlx::query("UPDATE staff SET failed_pin_count = 0, locked_until = NULL WHERE id = ?")
+        .bind(staff_id)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("UPDATE sessions SET last_seen_at = ? WHERE id = ?")
+        .bind(timestamp_text(now))
+        .bind(session_id)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await
+}
 
 /// `staff_id`인 직원의 로그인을 기록한다.
 ///
@@ -159,6 +237,49 @@ mod tests {
                 (Some(staff_id), "logout".to_owned()),
             ]
         );
+    }
+
+    #[tokio::test]
+    async fn finds_session_with_account_and_touches_it() {
+        let (_dir, pool) = open_temp().await;
+        let staff_id = insert_staff(&pool, "임시1", "temp_staff", Some("2027-02-28"))
+            .await
+            .unwrap();
+        start(&pool, staff_id, &[1; 32], at(0)).await.unwrap();
+
+        let session = find(&pool, &[1; 32]).await.unwrap().unwrap();
+        assert_eq!(session.last_seen_at, at(0));
+        assert_eq!(session.account.id, staff_id);
+        assert_eq!(session.account.role, baeum_domain::Role::TempStaff);
+        assert_eq!(find(&pool, &[2; 32]).await.unwrap(), None);
+
+        touch(&pool, session.id, at(3)).await.unwrap();
+
+        let session = find(&pool, &[1; 32]).await.unwrap().unwrap();
+        assert_eq!(session.last_seen_at, at(3));
+    }
+
+    #[tokio::test]
+    async fn unlock_reopens_session_and_resets_failures() {
+        let (_dir, pool) = open_temp().await;
+        let staff_id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
+        start(&pool, staff_id, &[1; 32], at(0)).await.unwrap();
+        sqlx::query("UPDATE staff SET failed_pin_count = 2 WHERE id = ?")
+            .bind(staff_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let session = find(&pool, &[1; 32]).await.unwrap().unwrap();
+
+        unlock(&pool, session.id, staff_id, at(30)).await.unwrap();
+
+        let session = find(&pool, &[1; 32]).await.unwrap().unwrap();
+        assert_eq!(session.last_seen_at, at(30));
+        let count: i64 = sqlx::query_scalar("SELECT failed_pin_count FROM staff")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count, 0);
     }
 
     #[tokio::test]

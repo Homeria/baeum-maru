@@ -1,4 +1,4 @@
-//! `/api/login`, `/api/logout`의 요청·응답 JSON 모양.
+//! `/api/login`, `/api/unlock`, `/api/logout`의 요청·응답 JSON 모양.
 //!
 //! PIN과 세션 증표가 들어 있어 `Debug`를 직접 써서 글자를 가린다.
 
@@ -48,6 +48,21 @@ impl std::fmt::Debug for LoginRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LoginRequest")
             .field("staff_id", &self.staff_id)
+            .field("pin", &"***")
+            .finish()
+    }
+}
+
+/// `POST /api/unlock` 본문. 세션 증표는 머리글에 싣는다.
+#[derive(Deserialize, TS)]
+#[ts(export)]
+pub struct UnlockRequest {
+    pub pin: String,
+}
+
+impl std::fmt::Debug for UnlockRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UnlockRequest")
             .field("pin", &"***")
             .finish()
     }

@@ -7,10 +7,11 @@ use axum::extract::rejection::{JsonRejection, PathRejection};
 use axum::extract::{Path, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
-use baeum_domain::{NewRoom, RoomError};
+use baeum_domain::{Action, NewRoom, RoomError};
 use chrono::Utc;
 use sqlx::SqlitePool;
 
+use super::auth::CurrentStaff;
 use super::error::ApiError;
 use crate::db::rooms::{self, SaveRoomError};
 
@@ -40,13 +41,15 @@ pub async fn get_room(
 /// 새 강의실을 저장한다. 성공하면 201과 새 id를 돌려준다.
 pub async fn create_room(
     State(db): State<SqlitePool>,
+    staff: CurrentStaff,
     body: Result<Json<RoomRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, ApiError> {
+    staff.require(Action::EditReferenceData)?;
     let Json(request) = body?;
     let room = NewRoom::parse(request.as_input())
         .map_err(|errors| ApiError::invalid_input(errors, field_name))?;
     let id = rooms::insert(&db, &room, Utc::now()).await?;
-    tracing::info!(room_id = id, "강의실 저장");
+    tracing::info!(staff_id = staff.id, room_id = id, "강의실 저장");
 
     let location = format!("/api/rooms/{id}");
     Ok((
@@ -59,9 +62,11 @@ pub async fn create_room(
 /// `id`인 강의실의 칸을 모두 본문 값으로 바꾼다. 확인 규칙은 등록과 같다.
 pub async fn update_room(
     State(db): State<SqlitePool>,
+    staff: CurrentStaff,
     id: Result<Path<i64>, PathRejection>,
     body: Result<Json<RoomRequest>, JsonRejection>,
 ) -> Result<Json<RoomResponse>, ApiError> {
+    staff.require(Action::EditReferenceData)?;
     let Path(id) = id?;
     let Json(request) = body?;
     let room = NewRoom::parse(request.as_input())
@@ -69,15 +74,17 @@ pub async fn update_room(
     let record = rooms::update(&db, id, &room, Utc::now())
         .await?
         .ok_or(ApiError::RoomNotFound)?;
-    tracing::info!(room_id = id, "강의실 고침");
+    tracing::info!(staff_id = staff.id, room_id = id, "강의실 고침");
     Ok(Json(RoomResponse::from(record)))
 }
 
 /// `id`인 강의실을 지운다. 성공하면 204(본문 없음). BR-R2: 수업 시간이 쓰면 409.
 pub async fn delete_room(
     State(db): State<SqlitePool>,
+    staff: CurrentStaff,
     id: Result<Path<i64>, PathRejection>,
 ) -> Result<StatusCode, ApiError> {
+    staff.require(Action::EditReferenceData)?;
     let Path(id) = id?;
     let deleted = rooms::delete(&db, id)
         .await
@@ -85,7 +92,7 @@ pub async fn delete_room(
     if !deleted {
         return Err(ApiError::RoomNotFound);
     }
-    tracing::info!(room_id = id, "강의실 지움");
+    tracing::info!(staff_id = staff.id, room_id = id, "강의실 지움");
     Ok(StatusCode::NO_CONTENT)
 }
 

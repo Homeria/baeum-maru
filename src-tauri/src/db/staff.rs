@@ -111,7 +111,7 @@ pub struct LoginAccount {
 
 /// DB에서 읽은 그대로의 한 줄. 역할은 글자다.
 #[derive(sqlx::FromRow)]
-struct LoginAccountRow {
+pub(super) struct LoginAccountRow {
     id: i64,
     name: String,
     role: String,
@@ -155,12 +155,13 @@ pub async fn get_login_account(
 }
 
 /// BR-K7: `staff_id`인 직원이 PIN을 틀렸다. 틀린 횟수를 세고(5번째면 잠그고)
-/// 접속 기록에 로그인 실패를 남긴 뒤, 바뀐 상태를 돌려준다.
+/// 접속 기록에 `event`(로그인 실패나 잠금 풀기 실패)를 남긴 뒤, 바뀐 상태를 돌려준다.
 ///
 /// 동시에 틀려도 횟수를 빠뜨리지 않게 읽기와 쓰기를 `BEGIN IMMEDIATE` 하나에서 한다.
 pub async fn add_failed_pin(
     pool: &SqlitePool,
     staff_id: i64,
+    event: AccessEvent,
     now: DateTime<Utc>,
 ) -> Result<FailedPin, sqlx::Error> {
     let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
@@ -177,13 +178,7 @@ pub async fn add_failed_pin(
         .bind(staff_id)
         .execute(&mut *tx)
         .await?;
-    access_logs::insert(
-        &mut tx,
-        Some(staff_id),
-        AccessEvent::LoginFailed,
-        &timestamp_text(now),
-    )
-    .await?;
+    access_logs::insert(&mut tx, Some(staff_id), event, &timestamp_text(now)).await?;
 
     tx.commit().await?;
     Ok(failed)
@@ -330,21 +325,34 @@ mod tests {
         let id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
 
         for expected in 1..=4 {
-            let failed = add_failed_pin(&pool, id, now()).await.unwrap();
+            let failed = add_failed_pin(&pool, id, AccessEvent::LoginFailed, now())
+                .await
+                .unwrap();
             assert_eq!(failed.failed_count, expected);
             assert_eq!(failed.locked_until, None);
         }
-        let failed = add_failed_pin(&pool, id, now()).await.unwrap();
+        let failed = add_failed_pin(&pool, id, AccessEvent::UnlockFailed, now())
+            .await
+            .unwrap();
 
         let unlock_at = now() + baeum_domain::ACCOUNT_LOCK;
         assert_eq!(failed.locked_until, Some(unlock_at));
         let account = get_login_account(&pool, id).await.unwrap().unwrap();
         assert_eq!(account.locked_until, Some(unlock_at));
-        let logs = list_for_test(&pool).await;
-        assert_eq!(logs.len(), 5);
-        assert!(
-            logs.iter()
-                .all(|log| *log == (Some(id), "login_failed".to_owned()))
+        let events: Vec<String> = list_for_test(&pool)
+            .await
+            .into_iter()
+            .map(|(_, event)| event)
+            .collect();
+        assert_eq!(
+            events,
+            [
+                "login_failed",
+                "login_failed",
+                "login_failed",
+                "login_failed",
+                "unlock_failed"
+            ]
         );
     }
 }
