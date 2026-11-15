@@ -202,6 +202,54 @@ tracing::info!(application_id = %id, "신청 저장");
 - enum 값도 camelCase로 보낸다. `Waitlisted` → `"waitlisted"`
 - 오류 `code`만 영어 대문자로 쓴다.
 
+## 요청 주소
+
+자원 중심(REST)으로 쓴다.
+
+| 하는 일 | 모양 |
+|---|---|
+| 찾기·목록 | `GET /api/members?query=홍&page=2` |
+| 하나 보기 | `GET /api/members/12` |
+| 만들기 | `POST /api/members` |
+| 고치기 | `PATCH /api/members/12` |
+| 지우기 | `DELETE /api/members/12` |
+| 만들기·고치기로 나타내기 어려운 동작 | 대상 아래 동사: `POST /api/courses/7/lottery` |
+
+- 주소는 영어 복수 명사다. 여러 단어면 하이픈을 쓴다: `/api/priority-reasons`
+- 이름은 용어집의 영어 이름을 따른다.
+- `?` 뒤 검색 조건은 camelCase로 쓴다: `?pageSize=20`
+- 숫자는 DB 내부 ID다. 회원번호(`member_no`)를 주소에 쓰지 않는다.
+- 요청 로그에는 `?` 앞 경로만 남긴다(로그와 개인정보 참고).
+
+## DB
+
+| 대상 | 규칙 | 예 |
+|---|---|---|
+| 테이블 | 영어 복수, snake_case | `members`, `priority_reasons` |
+| 컬럼 | snake_case | `member_no`, `birth_date` |
+| 내부 ID | 모든 테이블에 `id INTEGER PRIMARY KEY` | |
+| 다른 테이블 가리키기 | `대상_id` | `member_id`, `course_id` |
+| 만든·고친 시각 | `created_at`, `updated_at` | |
+| 마이그레이션 파일 | `sqlx migrate add`가 붙이는 시각 번호 | `20261115093000_create_members.sql` |
+
+- 컬럼 이름과 Rust 필드 이름을 같게 둔다. JSON으로 나갈 때만 camelCase가 된다.
+- 회원번호처럼 기관이 붙이는 번호는 내부 ID와 따로 둔다.
+- ADR 0005: 한 번 배포한 마이그레이션 파일은 고치지 않는다. 바꿀 것이 있으면 새 마이그레이션을 더한다.
+
+## 날짜와 시간
+
+- 라이브러리는 `chrono`를 쓴다. sqlx, ts-rs, serde가 모두 지원한다.
+- DB에는 ISO 8601 글자로 저장한다. 글자 순서가 시간 순서와 같다.
+
+| 값 | Rust 타입 | 저장 예 |
+|---|---|---|
+| 날짜만 (생년월일) | `NaiveDate` | `1950-03-01` |
+| 시각 (접수 시각) | `DateTime<Utc>` | `2026-11-15T00:30:00.123Z` |
+
+- 시각은 UTC로 저장하고 화면에서 한국 시간으로 바꿔 보여 준다. 바꾸는 곳은 화면의 날짜 표시 함수 한 곳이다.
+- 시각은 밀리초까지 저장한다. 같은 밀리초면 내부 ID가 작은 쪽이 먼저다.
+- 날짜만 있는 값에는 시간대를 붙이지 않는다.
+
 ## 모듈 파일 배치
 
 - `server.rs` + `server/` 폴더 방식을 쓴다. `mod.rs`는 쓰지 않는다. clippy `mod_module_files`가 막는다.
@@ -238,11 +286,3 @@ export function Tabs() {
 ```
 
 `*.module.css`의 `import styles`는 default import지만 Vite가 만들어 주는 것이라 괜찮다. 막는 것은 우리 파일의 default export다.
-
-## 나중에 정할 것
-
-| 정할 것 | 언제 |
-|---|---|
-| 요청 주소 이름 규칙 | 6단계 첫 기능 |
-| DB 테이블·컬럼 이름, 마이그레이션 파일 이름 | 6단계 첫 DB 작업 |
-| 날짜와 시간 다루기 | 6단계 접수 시각이 처음 나올 때 |
