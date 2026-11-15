@@ -4,6 +4,7 @@ import { fetchSetupStatus } from "../api/setup";
 import { LockScreen } from "../features/auth/LockScreen";
 import { LoginPage } from "../features/auth/LoginPage";
 import { RecoveryCodeNotice } from "../features/auth/RecoveryCodeNotice";
+import { RecoveryPage } from "../features/auth/RecoveryPage";
 import { SetupPage } from "../features/auth/SetupPage";
 import { useIdleLock } from "../features/auth/useIdleLock";
 import { useSession } from "../features/auth/useSession";
@@ -13,15 +14,17 @@ import { MainScreen } from "./MainScreen";
 /**
  * 앱의 첫 갈림길: 처음 설정, 로그인, 메인 화면 중 하나를 띄운다.
  *
- * 처음 설정을 마치면 복구 코드 안내를 먼저 보여 준다.
+ * 처음 설정을 마치거나 복구 코드로 PIN을 다시 정하면 새 복구 코드 안내를 먼저 보여 준다.
  */
 export function App() {
   const status = useQuery({
     queryKey: ["setupStatus"],
     queryFn: fetchSetupStatus,
   });
-  // 처음 설정에서 받은 복구 코드. 안내를 닫을 때까지만 메모리에 둔다
+  // 처음 설정이나 복구에서 받은 복구 코드. 안내를 닫을 때까지만 메모리에 둔다
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  // 로그인 화면에서 "PIN을 잊었어요"를 눌렀다
+  const [recovering, setRecovering] = useState(false);
   const session = useSession();
   useIdleLock(session !== null && !session.locked);
 
@@ -56,7 +59,18 @@ export function App() {
     return <SetupPage onDone={setRecoveryCode} />;
   }
   if (session === null) {
-    return <LoginPage />;
+    if (recovering) {
+      return (
+        <RecoveryPage
+          onBack={() => setRecovering(false)}
+          onDone={(code) => {
+            setRecovering(false);
+            setRecoveryCode(code);
+          }}
+        />
+      );
+    }
+    return <LoginPage onForgotPin={() => setRecovering(true)} />;
   }
   return (
     <>

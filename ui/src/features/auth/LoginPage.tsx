@@ -11,12 +11,18 @@ import {
   type LoginFormErrors,
 } from "./loginFormData";
 
+/** {@link LoginPage}의 속성. */
+export interface LoginPageProps {
+  /** "PIN을 잊었어요"를 눌렀다. */
+  onForgotPin: () => void;
+}
+
 /**
  * 로그인: 이름을 고르고 PIN을 넣는다 (BR-K1, BR-K2).
  *
  * 성공하면 세션이 생겨 앱이 메인 화면으로 바뀐다.
  */
-export function LoginPage() {
+export function LoginPage({ onForgotPin }: LoginPageProps) {
   const queryClient = useQueryClient();
   const staffList = useQuery({
     queryKey: ["loginStaff"],
@@ -165,6 +171,14 @@ export function LoginPage() {
             disabled={submit.isPending || items.length === 0}
           >
             {submit.isPending ? "확인하는 중…" : "로그인"}
+          </button>
+          <button
+            type="button"
+            className={styles.secondary}
+            onClick={onForgotPin}
+            disabled={submit.isPending}
+          >
+            PIN을 잊었어요
           </button>
         </div>
       </form>

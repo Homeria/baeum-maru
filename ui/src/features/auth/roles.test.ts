@@ -28,7 +28,7 @@ const ALLOWED: Record<RoleCode, readonly Action[]> = {
 
 describe("can", () => {
   it.each(Object.entries(ALLOWED) as [RoleCode, readonly Action[]][])(
-    "%s follows the role table",
+    "%s 역할은 역할별 표대로 할 수 있다",
     (role, allowed) => {
       const actual = ACTIONS.filter((action) => can(role, action));
 
