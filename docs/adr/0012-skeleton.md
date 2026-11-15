@@ -28,6 +28,7 @@
 | 다시 그리기 최적화 | **React Compiler** | 손으로 `useMemo` 붙이기 |
 | 자료형 맞추기 | **ts-rs** (Rust 구조체 → TS 자료형) | 손으로, specta, OpenAPI |
 
+- 창의 화면(`http://tauri.localhost`)과 서버(`127.0.0.1:47800`)는 주소가 달라서, 서버가 CORS로 Tauri 창 주소만 허용한다. Tauri HTTP 플러그인은 SSE를 표준 방식으로 받을 수 없어 쓰지 않는다.
 - **화면을 앱 안에 넣는 이유**
   - 기기 증표(0007)를 앱 안의 믿을 수 있는 화면만 다룬다. TLS를 7단계로 미룬 지금, 네트워크 너머 페이지에 앱 권한을 주지 않는다.
   - 호스트에 화면 파일이 없으니 브라우저로는 볼 것이 없다. 0007의 "앱으로만 접속"이 자연스럽게 완성된다.
@@ -88,6 +89,7 @@ baeum-maru/
 
 **설치판 데이터 위치**
 - Windows 계정별 앱 데이터 폴더(`%APPDATA%`)를 쓴다(Tauri 관례).
+  - 폴더 이름은 앱 식별자 `io.github.homeria.baeummaru`다(안내 페이지 주소 `homeria.github.io`를 뒤집은 것). 바꾸면 데이터 폴더가 바뀌므로 바꾸지 않는다.
 - 첫 실행 화면과 관리 화면에서 데이터 위치를 보여 준다. 계정이 다르면 데이터도 다르기 때문이다.
 
 **버전 맞춰 보기**
@@ -136,7 +138,7 @@ baeum-maru/
 
 - 검사가 도는 경로는 이것만 적는다. 이 경로 안이라도 `*.md`는 뺀다.
   - `crates/**`, `src-tauri/**`, `ui/**`
-  - `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `justfile`, `deny.toml`
+  - `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `clippy.toml`, `.cargo/**`, `.node-version`, `justfile`, `deny.toml`
   - `.github/workflows/**`
 - 목록에 없는 `docs/`, `spikes/`, README, 템플릿을 고쳐도 아무것도 돌지 않는다.
 - 같은 브랜치에 새로 push하면 돌던 검사를 취소한다. 빌드 결과는 캐시한다.

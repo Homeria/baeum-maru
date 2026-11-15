@@ -1,0 +1,4 @@
+dist
+package-lock.json
+# ts-rs가 만든 파일
+src/api/generated

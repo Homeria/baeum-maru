@@ -1,0 +1,73 @@
+# [ADR 0012]: 적어 둔 경로가 바뀐 때만 just check를 돌린다. 문서만 고치면 돌지 않는다.
+name: 검사
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "crates/**"
+      - "src-tauri/**"
+      - "ui/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "clippy.toml"
+      - ".cargo/**"
+      - ".node-version"
+      - "justfile"
+      - "deny.toml"
+      - ".github/workflows/**"
+      - "!**/*.md"
+  push:
+    branches: [main]
+    paths:
+      - "crates/**"
+      - "src-tauri/**"
+      - "ui/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "clippy.toml"
+      - ".cargo/**"
+      - ".node-version"
+      - "justfile"
+      - "deny.toml"
+      - ".github/workflows/**"
+      - "!**/*.md"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tauri 시스템 패키지
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      # rust-toolchain.toml의 버전과 구성 요소를 명시적으로 설치
+      - name: Rust
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just,cargo-deny
+
+      - run: just setup
+      - run: just check

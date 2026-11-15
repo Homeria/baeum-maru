@@ -1,0 +1,41 @@
+/* [ADR 0012]: 색, 글꼴, 간격은 여기에만 정한다 */
+:root {
+  --color-bg: #ffffff;
+  --color-surface: #f5f6f8;
+  --color-border: #d4d8de;
+  --color-text: #1f2328;
+  --color-text-muted: #59636e;
+  --color-primary: #1f5fbf;
+  --color-ok: #1a7f37;
+  --color-bad: #c62828;
+
+  --font-family: "Malgun Gothic", "맑은 고딕", system-ui, sans-serif;
+  --font-size: 16px;
+  --font-size-lg: 18px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size);
+}

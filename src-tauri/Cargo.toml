@@ -1,0 +1,33 @@
+[package]
+name = "baeum-maru"
+description = "배움마루 앱 (서버, DB, 창)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+# Tauri 관례: 실행 파일과 이름이 겹치지 않게 _lib를 붙인다 (Windows 빌드 충돌)
+[lib]
+name = "baeum_maru_lib"
+
+[dependencies]
+axum = "0.8"
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2", features = [] }
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+tower-http = { version = "0.7", features = ["cors"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+ts-rs = "12"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+
+[lints]
+workspace = true
