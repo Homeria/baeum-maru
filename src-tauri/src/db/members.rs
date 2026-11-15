@@ -4,7 +4,7 @@ use baeum_domain::{Gender, NewMember, Personal};
 use chrono::{DateTime, NaiveDate, Utc};
 use sqlx::SqlitePool;
 
-use super::timestamp_text;
+use super::{is_unique_violation, timestamp_text};
 
 /// 회원을 저장하거나 고치지 못했다.
 #[derive(Debug, thiserror::Error)]
@@ -19,10 +19,7 @@ pub enum SaveMemberError {
 impl From<sqlx::Error> for SaveMemberError {
     fn from(error: sqlx::Error) -> Self {
         // members에서 UNIQUE는 member_no 하나뿐이다
-        let is_unique_violation = error
-            .as_database_error()
-            .is_some_and(|db_error| db_error.is_unique_violation());
-        if is_unique_violation {
+        if is_unique_violation(&error) {
             SaveMemberError::DuplicateMemberNo
         } else {
             SaveMemberError::Db(error)
@@ -250,6 +247,7 @@ mod tests {
     use chrono::{NaiveDate, TimeZone};
 
     use super::*;
+    use crate::db::open_temp;
 
     fn today() -> NaiveDate {
         NaiveDate::from_ymd_opt(2026, 11, 15).unwrap()
@@ -271,12 +269,6 @@ mod tests {
 
     fn new_member(input: MemberInput<'_>) -> NewMember {
         NewMember::parse(input, today()).unwrap()
-    }
-
-    async fn open() -> (tempfile::TempDir, SqlitePool) {
-        let dir = tempfile::tempdir().unwrap();
-        let pool = crate::db::open(dir.path()).await.unwrap();
-        (dir, pool)
     }
 
     type Row = (
@@ -302,7 +294,7 @@ mod tests {
 
     #[tokio::test]
     async fn saves_all_fields() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         let member = new_member(MemberInput {
             birth_date: NaiveDate::from_ymd_opt(1950, 3, 1),
             gender: Some(Gender::Female),
@@ -324,7 +316,7 @@ mod tests {
 
     #[tokio::test]
     async fn br_m4_saves_without_optional_fields() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
 
         let id = insert(&pool, &new_member(input("00001")), now())
             .await
@@ -337,7 +329,7 @@ mod tests {
 
     #[tokio::test]
     async fn saves_male_as_text() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         let member = new_member(MemberInput {
             gender: Some(Gender::Male),
             ..input("00001")
@@ -351,7 +343,7 @@ mod tests {
 
     #[tokio::test]
     async fn br_m2_duplicate_member_no_is_told_apart() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         insert(&pool, &new_member(input("00001")), now())
             .await
             .unwrap();
@@ -368,7 +360,7 @@ mod tests {
 
     #[tokio::test]
     async fn gives_new_id_each_time() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
 
         let first = insert(&pool, &new_member(input("00001")), now())
             .await
@@ -400,7 +392,7 @@ mod tests {
     }
 
     async fn sample() -> (tempfile::TempDir, SqlitePool) {
-        let (dir, pool) = open().await;
+        let (dir, pool) = open_temp().await;
         add(&pool, "00001", "나회원", "01011112222").await;
         add(&pool, "00002", "가회원", "01033334444").await;
         add(&pool, "A-100", "다손님", "0325556666").await;
@@ -461,7 +453,7 @@ mod tests {
 
     #[tokio::test]
     async fn search_returns_saved_fields() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         let member = new_member(MemberInput {
             birth_date: NaiveDate::from_ymd_opt(1950, 3, 1),
             gender: Some(Gender::Male),
@@ -494,7 +486,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_reads_member_with_times() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         let id = insert(&pool, &new_member(input("00001")), now())
             .await
             .unwrap();
@@ -508,14 +500,14 @@ mod tests {
 
     #[tokio::test]
     async fn get_unknown_id_is_none() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
 
         assert!(get(&pool, 999).await.unwrap().is_none());
     }
 
     #[tokio::test]
     async fn update_replaces_every_field() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         let original = new_member(MemberInput {
             birth_date: NaiveDate::from_ymd_opt(1950, 3, 1),
             gender: Some(Gender::Female),
@@ -544,7 +536,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_unknown_id_is_none() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
 
         let result = update(&pool, 999, &new_member(input("00001")), now())
             .await
@@ -555,7 +547,7 @@ mod tests {
 
     #[tokio::test]
     async fn br_m2_update_to_taken_member_no_is_told_apart() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         insert(&pool, &new_member(input("00001")), now())
             .await
             .unwrap();
@@ -575,7 +567,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_keeping_own_member_no_is_fine() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         let id = insert(&pool, &new_member(input("00001")), now())
             .await
             .unwrap();
@@ -589,7 +581,7 @@ mod tests {
 
     #[tokio::test]
     async fn br_m5_deletes_member_without_records() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         let id = insert(&pool, &new_member(input("00001")), now())
             .await
             .unwrap();
@@ -600,14 +592,14 @@ mod tests {
 
     #[tokio::test]
     async fn delete_unknown_id_is_false() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
 
         assert!(!delete(&pool, 999).await.unwrap());
     }
 
     #[tokio::test]
     async fn member_no_can_be_reused_after_delete() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         let id = insert(&pool, &new_member(input("00001")), now())
             .await
             .unwrap();

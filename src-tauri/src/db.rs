@@ -3,6 +3,7 @@
 //! ADR 0005: SQLite + sqlx. 구조 변경은 시작할 때 자동으로 적용한다.
 
 pub mod members;
+pub mod rooms;
 
 use std::path::Path;
 use std::time::Duration;
@@ -33,6 +34,21 @@ pub enum DbError {
 /// DB에 시각을 쓰는 모양. [docs/conventions.md]: UTC, 밀리초까지, 끝에 Z
 pub fn timestamp_text(time: DateTime<Utc>) -> String {
     time.to_rfc3339_opts(SecondsFormat::Millis, true)
+}
+
+/// UNIQUE 제약을 어겨서 난 오류인지. 테이블마다 어떤 UNIQUE인지는 부르는 쪽이 안다.
+fn is_unique_violation(error: &sqlx::Error) -> bool {
+    error
+        .as_database_error()
+        .is_some_and(|db_error| db_error.is_unique_violation())
+}
+
+/// 테스트용: 임시 폴더에 새 DB를 연다. 폴더는 돌려준 `TempDir`가 사라질 때 지워진다.
+#[cfg(test)]
+pub(crate) async fn open_temp() -> (tempfile::TempDir, SqlitePool) {
+    let dir = tempfile::tempdir().unwrap();
+    let pool = open(dir.path()).await.unwrap();
+    (dir, pool)
 }
 
 /// `dir` 안의 DB를 열고(없으면 만들고) 구조 변경을 적용한다.
@@ -78,8 +94,7 @@ mod tests {
 
     #[tokio::test]
     async fn applies_settings() {
-        let dir = tempfile::tempdir().unwrap();
-        let pool = open(dir.path()).await.unwrap();
+        let (_dir, pool) = open_temp().await;
 
         let journal_mode = "SELECT journal_mode FROM pragma_journal_mode";
         assert_eq!(text(&pool, journal_mode).await, "wal");
@@ -113,8 +128,7 @@ mod tests {
 
     #[tokio::test]
     async fn br_m2_rejects_duplicate_member_no() {
-        let dir = tempfile::tempdir().unwrap();
-        let pool = open(dir.path()).await.unwrap();
+        let (_dir, pool) = open_temp().await;
 
         insert_member(&pool, "00001").await.unwrap();
         let duplicate = insert_member(&pool, "00001").await.unwrap_err();
@@ -127,8 +141,7 @@ mod tests {
 
     #[tokio::test]
     async fn br_m2_allows_different_member_no() {
-        let dir = tempfile::tempdir().unwrap();
-        let pool = open(dir.path()).await.unwrap();
+        let (_dir, pool) = open_temp().await;
 
         insert_member(&pool, "00001").await.unwrap();
         insert_member(&pool, "00002").await.unwrap();
@@ -136,8 +149,7 @@ mod tests {
 
     #[tokio::test]
     async fn members_reject_unknown_gender() {
-        let dir = tempfile::tempdir().unwrap();
-        let pool = open(dir.path()).await.unwrap();
+        let (_dir, pool) = open_temp().await;
 
         let result = sqlx::query(
             "INSERT INTO members (member_no, name, phone_number, gender, created_at, updated_at)
@@ -147,5 +159,85 @@ mod tests {
         .await;
 
         assert!(result.is_err());
+    }
+
+    async fn insert_room(
+        pool: &SqlitePool,
+        building: Option<&str>,
+        floor: Option<i64>,
+        name: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "INSERT INTO rooms (building, floor, name, created_at, updated_at)
+             VALUES (?, ?, ?, '2026-11-15T00:00:00.000Z', '2026-11-15T00:00:00.000Z')",
+        )
+        .bind(building)
+        .bind(floor)
+        .bind(name)
+        .execute(pool)
+        .await
+        .map(|_| ())
+    }
+
+    #[tokio::test]
+    async fn br_r1_rejects_same_name_in_same_building() {
+        let (_dir, pool) = open_temp().await;
+
+        insert_room(&pool, Some("본관"), Some(3), "다목적실")
+            .await
+            .unwrap();
+        // 층이 달라도 겹친 것으로 봄
+        let duplicate = insert_room(&pool, Some("본관"), Some(2), "다목적실")
+            .await
+            .unwrap_err();
+
+        let is_unique_violation = duplicate
+            .as_database_error()
+            .is_some_and(|error| error.is_unique_violation());
+        assert!(is_unique_violation, "{duplicate}");
+    }
+
+    #[tokio::test]
+    async fn br_r1_allows_same_name_in_other_building() {
+        let (_dir, pool) = open_temp().await;
+
+        insert_room(&pool, Some("본관"), None, "다목적실")
+            .await
+            .unwrap();
+        insert_room(&pool, Some("별관"), None, "다목적실")
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn br_r1_rooms_require_building() {
+        let (_dir, pool) = open_temp().await;
+
+        assert!(insert_room(&pool, None, None, "다목적실").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn rooms_accept_floors_from_basement_2_to_5() {
+        let (_dir, pool) = open_temp().await;
+
+        for (i, floor) in [None, Some(-2), Some(-1), Some(1), Some(5)]
+            .into_iter()
+            .enumerate()
+        {
+            let name = format!("강의실{i}");
+            insert_room(&pool, Some("본관"), floor, &name)
+                .await
+                .unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn rooms_reject_floor_zero_and_out_of_range() {
+        let (_dir, pool) = open_temp().await;
+
+        for floor in [0, -3, 6] {
+            let result = insert_room(&pool, Some("본관"), Some(floor), "다목적실").await;
+            assert!(result.is_err(), "{floor}");
+        }
     }
 }

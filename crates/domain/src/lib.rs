@@ -10,6 +10,8 @@
 
 mod member;
 mod personal;
+mod room;
 
 pub use member::{Gender, MemberError, MemberInput, MemberName, MemberNo, NewMember, PhoneNumber};
 pub use personal::Personal;
+pub use room::{BuildingName, Floor, NewRoom, RoomError, RoomInput, RoomName};

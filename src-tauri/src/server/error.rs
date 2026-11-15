@@ -22,6 +22,10 @@ pub enum ApiError {
     DuplicateMemberNo,
     /// 주소의 id인 회원이 없다.
     MemberNotFound,
+    /// BR-R1: 같은 건물 안에서 강의실 이름은 겹치지 않는다.
+    DuplicateRoomName,
+    /// 주소의 id인 강의실이 없다.
+    RoomNotFound,
     /// ADR 0012: 앱과 호스트의 버전 앞 두 자리가 다르다.
     VersionMismatch,
     /// DB 같은 내부 문제. 자세한 내용은 로그에만 있다.
@@ -36,6 +40,20 @@ impl ApiError {
         tracing::error!(%error, "요청을 처리하지 못했습니다");
         ApiError::Internal
     }
+
+    /// 업무 규칙 확인에서 나온 오류를 칸마다 [`ApiError::InvalidInput`]으로 모은다.
+    ///
+    /// `field_name`은 오류가 어느 칸(요청 JSON 이름)의 것인지 알려 준다.
+    pub fn invalid_input<E: Display>(errors: Vec<E>, field_name: fn(&E) -> &'static str) -> Self {
+        let fields = errors
+            .iter()
+            .map(|error| FieldError {
+                field: field_name(error).to_owned(),
+                message: error.to_string(),
+            })
+            .collect();
+        ApiError::InvalidInput(fields)
+    }
 }
 
 /// 오류 종류. 한 번 정하면 바꾸지 않는다.
@@ -47,6 +65,8 @@ pub enum ErrorCode {
     InvalidInput,
     DuplicateMemberNo,
     MemberNotFound,
+    DuplicateRoomName,
+    RoomNotFound,
     VersionMismatch,
     Internal,
 }
@@ -101,6 +121,20 @@ impl IntoResponse for ApiError {
                 StatusCode::NOT_FOUND,
                 ErrorCode::MemberNotFound,
                 "회원을 찾지 못했습니다. 지워졌을 수 있습니다",
+                None,
+                Vec::new(),
+            ),
+            ApiError::DuplicateRoomName => (
+                StatusCode::CONFLICT,
+                ErrorCode::DuplicateRoomName,
+                "같은 건물에 같은 이름의 강의실이 있습니다",
+                Some("BR-R1"),
+                Vec::new(),
+            ),
+            ApiError::RoomNotFound => (
+                StatusCode::NOT_FOUND,
+                ErrorCode::RoomNotFound,
+                "강의실을 찾지 못했습니다. 지워졌을 수 있습니다",
                 None,
                 Vec::new(),
             ),

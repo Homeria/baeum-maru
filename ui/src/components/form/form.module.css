@@ -1,3 +1,5 @@
+/* 입력 칸 공통 스타일. 등록·고치기 칸과 그 버튼, 알림 문구. */
+
 .form {
   display: flex;
   flex-direction: column;
