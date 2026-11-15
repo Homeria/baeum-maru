@@ -14,7 +14,7 @@ import {
   type MemberFormErrors,
   type MemberFormValues,
 } from "./memberFormData";
-import styles from "./MemberForm.module.css";
+import styles from "../../components/form/form.module.css";
 
 const NO_ERRORS: MemberFormErrors = { fields: {}, form: null };
 

@@ -3,6 +3,7 @@ import type { Gender } from "../../api/generated/Gender";
 import { formatPhoneNumber } from "./formatPhoneNumber";
 import { useMemberSearch } from "./useMemberSearch";
 import { useSearchText } from "./useSearchText";
+import tableStyles from "../../components/table/table.module.css";
 import styles from "./MemberList.module.css";
 
 const PAGE_SIZE = 20;
@@ -44,15 +45,15 @@ export function MemberList({ selectedId, onSelect }: MemberListProps) {
       />
 
       {isPending ? (
-        <p className={styles.message}>찾는 중입니다…</p>
+        <p className={tableStyles.message}>찾는 중입니다…</p>
       ) : isError ? (
-        <p className={styles.error} role="alert">
+        <p className={tableStyles.error} role="alert">
           {error.message}
         </p>
       ) : (
         <>
-          <div className={styles.tableWrap} aria-busy={isPlaceholderData}>
-            <table className={styles.table} aria-label="회원 목록">
+          <div className={tableStyles.tableWrap} aria-busy={isPlaceholderData}>
+            <table className={tableStyles.table} aria-label="회원 목록">
               <thead>
                 <tr>
                   <th scope="col">회원번호</th>
@@ -66,7 +67,7 @@ export function MemberList({ selectedId, onSelect }: MemberListProps) {
                 {data.items.map((member) => (
                   <tr
                     key={member.id}
-                    className={styles.row}
+                    className={tableStyles.row}
                     tabIndex={0}
                     aria-current={member.id === selectedId ? "true" : undefined}
                     onClick={() => onSelect(member.id)}
@@ -87,7 +88,7 @@ export function MemberList({ selectedId, onSelect }: MemberListProps) {
               </tbody>
             </table>
             {data.items.length === 0 && (
-              <p className={styles.message}>
+              <p className={tableStyles.message}>
                 {query ? "찾는 회원이 없습니다" : "등록된 회원이 없습니다"}
               </p>
             )}

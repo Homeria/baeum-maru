@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getMember } from "../../api/members";
 import { MemberForm } from "./MemberForm";
-import styles from "./MemberForm.module.css";
+import styles from "../../components/form/form.module.css";
 
 /** {@link MemberEditor}의 속성. */
 export interface MemberEditorProps {
