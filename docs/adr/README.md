@@ -21,3 +21,4 @@
 | [0011](0011-backup.md) | 백업과 복원: 자동 백업(하루·종료·작업 직전), 두 번째 위치, 통째 복원 | 채택 |
 | [0012](0012-skeleton.md) | 뼈대: TypeScript·앱 내장 화면·TanStack Query·React Compiler·ts-rs, just check, GitHub Flow, CI 경로 제한, Dependabot·cargo-deny | 일부 대체됨 (0013) |
 | [0013](0013-defer-dependabot.md) | Dependabot 버전 업데이트는 출시 준비 때 붙인다 (0012의 일부 대체) | 채택 |
+| [0014](0014-staff-login.md) | 직원 확인 구현: argon2 PIN 해시, DB 세션, 잠금 값 | 채택 |
