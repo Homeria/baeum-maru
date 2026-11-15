@@ -28,7 +28,7 @@
 
 - AI는 조회(`git status`·`log`·`diff`, `gh`로 보기)와 스테이징(`git add`)만 한다. 커밋, push, 브랜치 조작, 이슈·PR 발행, 라벨과 저장소 설정은 유지보수자가 한다.
 - 커밋할 때가 되면 그 작업의 파일만 스테이징하고 커밋 메시지를 추천한다 (`type: 한국어 요약`, 예: `docs: 업무 규칙 작성`). 커밋되지 않은 변경이 있으면 머지 전에 알린다.
-- 브랜치는 GitHub Flow를 따른다 (ADR 0012). 이름은 `type/설명`(`feat/`, `fix/`, `refactor/`, `docs/`, `chore/`), PR은 Squash로 합친다.
+- 브랜치는 GitHub Flow를 따른다 (ADR 0012). 이름은 `종류/하는-일`이다. 종류는 `feature/`, `fix/`, `refactor/`, `docs/`, `chore/`이고, 하는 일은 영어로 쓴다(예: `feature/member-register-search`). PR은 Squash로 합친다.
 - PR 제목에만 `type: 한국어 요약`을 쓴다. 이슈 제목에는 쓰지 않는다 (라벨이 대신한다).
 - 이슈·PR 초안은 `.drafts/<브랜치 이름>/issue.md`, `pr.md`에 쓴다 (git에서 제외된 로컬 폴더). 짧고 담백하게 쓰고, 출처 표시 줄(Generated with, Co-Authored-By)은 넣지 않는다.
 

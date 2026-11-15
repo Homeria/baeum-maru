@@ -120,7 +120,8 @@ baeum-maru/
 
 **브랜치: GitHub Flow**
 - main은 늘 동작하는 상태로 둔다. main에 직접 커밋하지 않고 PR로만 합친다.
-- 작업 브랜치 이름은 커밋 종류와 맞춘다: `feat/…`, `fix/…`, `refactor/…`, `docs/…`, `chore/…`. 이슈 템플릿 종류도 같다.
+- 작업 브랜치 이름은 `종류/하는-일`이다: `feature/…`, `fix/…`, `refactor/…`, `docs/…`, `chore/…`. 하는 일은 영어로 쓴다(예: `feature/member-register-search`). 이슈 템플릿 종류도 같다.
+  - 2026-11-15 고침: 기능 브랜치를 `feat/`에서 `feature/`로 바꿨다. 커밋 종류는 Conventional Commits 표준인 `feat:` 그대로다.
 - PR은 Squash로 합친다. main 기록은 "PR 하나 = 커밋 한 줄"이 된다.
 - 출시는 main에 태그(`v0.1.0`)를 붙여서 한다. 급한 수정도 같은 길이다(`fix/…` → PR → 셋째 자리를 올린 태그).
 - release, develop 브랜치는 두지 않는다. 옛 버전은 지원하지 않는다(0010).
