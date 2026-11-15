@@ -215,11 +215,34 @@ src-tauri/src/
    └─ version.rs
 ```
 
+## 화면 파일
+
+| 대상 | 규칙 | 예 |
+|---|---|---|
+| 부품 파일 | `PascalCase`, 부품 이름과 같게 | `MemberTable.tsx`, `MemberTable.module.css` |
+| 훅, 그 밖의 파일 | `camelCase` | `useHostVersion.ts`, `client.ts` |
+| 폴더 | 소문자 | `components/`, `features/host/` |
+| CSS 클래스 | `camelCase` | `.rowSelected` → `styles.rowSelected` |
+
+- 이름 붙은 export만 쓴다. `export default`는 쓰지 않는다. ESLint가 막는다.
+  - 도구가 default를 요구하는 설정 파일(`vite.config.ts`, `eslint.config.js`)만 예외다.
+- import할 때 파일 이름의 대소문자가 틀리면 TypeScript가 오류를 낸다. Windows는 대소문자를 가리지 않아 놓치기 쉽다.
+- CSS Modules가 클래스 이름을 파일마다 바꿔 주므로 BEM처럼 긴 이름은 쓰지 않는다.
+
+```tsx
+import styles from "./Tabs.module.css";
+
+export function Tabs() {
+  return <div className={styles.tabList}>…</div>;
+}
+```
+
+`*.module.css`의 `import styles`는 default import지만 Vite가 만들어 주는 것이라 괜찮다. 막는 것은 우리 파일의 default export다.
+
 ## 나중에 정할 것
 
 | 정할 것 | 언제 |
 |---|---|
-| 화면 파일 이름, 내보내기 방식, CSS 클래스 이름 | 화면 뼈대(`ui/`) |
 | 요청 주소 이름 규칙 | 6단계 첫 기능 |
 | DB 테이블·컬럼 이름, 마이그레이션 파일 이름 | 6단계 첫 DB 작업 |
 | 날짜와 시간 다루기 | 6단계 접수 시각이 처음 나올 때 |
