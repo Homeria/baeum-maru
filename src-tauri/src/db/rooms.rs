@@ -115,6 +115,7 @@ mod tests {
 
     use super::*;
     use crate::db::open_temp;
+    use crate::db::test_support::{insert_course, insert_schedule, insert_subject, insert_term};
 
     fn now() -> DateTime<Utc> {
         Utc.with_ymd_and_hms(2026, 11, 15, 1, 2, 3).unwrap()
@@ -284,24 +285,16 @@ mod tests {
         let id = insert(&pool, &new_room("본관", Some(2), "201호"), now())
             .await
             .unwrap();
-        for sql in [
-            "INSERT INTO terms (name, starts_on, ends_on, created_at, updated_at)
-             VALUES ('2027년 1학기', '2027-03-02', '2027-06-30', '', '')",
-            "INSERT INTO subjects (name, name_key, created_at, updated_at)
-             VALUES ('요가', '요가', '', '')",
-            "INSERT INTO courses (term_id, subject_id, capacity, created_at, updated_at)
-             VALUES ((SELECT id FROM terms), (SELECT id FROM subjects), 20, '', '')",
-        ] {
-            sqlx::query(sql).execute(&pool).await.unwrap();
-        }
-        sqlx::query(
-            "INSERT INTO course_schedules (course_id, weekday, start_minute, end_minute, room_id)
-             VALUES ((SELECT id FROM courses), 1, 600, 660, ?)",
-        )
-        .bind(id)
-        .execute(&pool)
-        .await
-        .unwrap();
+        let term_id = insert_term(&pool, "2027년 1학기", "2027-03-02", "2027-06-30")
+            .await
+            .unwrap();
+        let subject_id = insert_subject(&pool, "요가", "요가", None).await.unwrap();
+        let course_id = insert_course(&pool, term_id, subject_id, None, None)
+            .await
+            .unwrap();
+        insert_schedule(&pool, course_id, 1, 600, 660, Some(id))
+            .await
+            .unwrap();
 
         let error = delete(&pool, id).await.unwrap_err();
 

@@ -381,6 +381,7 @@ mod tests {
 
     use super::*;
     use crate::db::open_temp;
+    use crate::db::test_support::{insert_room, insert_subject, insert_term};
 
     fn now() -> DateTime<Utc> {
         Utc.with_ymd_and_hms(2026, 11, 15, 1, 2, 3).unwrap()
@@ -403,30 +404,27 @@ mod tests {
 
     async fn fixture() -> Fixture {
         let (dir, pool) = open_temp().await;
-        let mut ids = Vec::new();
-        for sql in [
-            "INSERT INTO terms (name, starts_on, ends_on, created_at, updated_at)
-             VALUES ('2027년 1학기', '2027-03-02', '2027-06-30', '', '')",
-            "INSERT INTO terms (name, starts_on, ends_on, created_at, updated_at)
-             VALUES ('2027년 2학기', '2027-09-01', '2027-12-31', '', '')",
-            "INSERT INTO subjects (name, name_key, created_at, updated_at)
-             VALUES ('요가', '요가', '', '')",
-            "INSERT INTO subjects (name, name_key, created_at, updated_at)
-             VALUES ('국선도', '국선도', '', '')",
-            "INSERT INTO rooms (building, floor, name, created_at, updated_at)
-             VALUES ('본관', 2, '201호', '', '')",
-        ] {
-            let result = sqlx::query(sql).execute(&pool).await.unwrap();
-            ids.push(result.last_insert_rowid());
-        }
+        let term_id = insert_term(&pool, "2027년 1학기", "2027-03-02", "2027-06-30")
+            .await
+            .unwrap();
+        let other_term_id = insert_term(&pool, "2027년 2학기", "2027-09-01", "2027-12-31")
+            .await
+            .unwrap();
+        let yoga_id = insert_subject(&pool, "요가", "요가", None).await.unwrap();
+        let kuksundo_id = insert_subject(&pool, "국선도", "국선도", None)
+            .await
+            .unwrap();
+        let room_id = insert_room(&pool, Some("본관"), Some(2), "201호")
+            .await
+            .unwrap();
         Fixture {
             _dir: dir,
             pool,
-            term_id: ids[0],
-            other_term_id: ids[1],
-            yoga_id: ids[2],
-            kuksundo_id: ids[3],
-            room_id: ids[4],
+            term_id,
+            other_term_id,
+            yoga_id,
+            kuksundo_id,
+            room_id,
         }
     }
 

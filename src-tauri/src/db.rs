@@ -7,6 +7,8 @@ pub mod members;
 pub mod rooms;
 pub mod subjects;
 pub mod terms;
+#[cfg(test)]
+pub(crate) mod test_support;
 
 use std::path::Path;
 use std::time::Duration;
@@ -108,6 +110,9 @@ pub async fn open(dir: &Path) -> Result<SqlitePool, DbError> {
 
 #[cfg(test)]
 mod tests {
+    use super::test_support::{
+        NOW, insert_course, insert_room, insert_schedule, insert_subject, insert_term,
+    };
     use super::*;
 
     async fn text(pool: &SqlitePool, sql: &'static str) -> String {
@@ -193,24 +198,6 @@ mod tests {
         assert!(result.is_err());
     }
 
-    async fn insert_room(
-        pool: &SqlitePool,
-        building: Option<&str>,
-        floor: Option<i64>,
-        name: &str,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            "INSERT INTO rooms (building, floor, name, created_at, updated_at)
-             VALUES (?, ?, ?, '2026-11-15T00:00:00.000Z', '2026-11-15T00:00:00.000Z')",
-        )
-        .bind(building)
-        .bind(floor)
-        .bind(name)
-        .execute(pool)
-        .await
-        .map(|_| ())
-    }
-
     #[tokio::test]
     async fn br_r1_rejects_same_name_in_same_building() {
         let (_dir, pool) = open_temp().await;
@@ -273,24 +260,6 @@ mod tests {
         }
     }
 
-    async fn insert_subject(
-        pool: &SqlitePool,
-        name: &str,
-        name_key: &str,
-        category: Option<&str>,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            "INSERT INTO subjects (name, name_key, category, created_at, updated_at)
-             VALUES (?, ?, ?, '2026-11-15T00:00:00.000Z', '2026-11-15T00:00:00.000Z')",
-        )
-        .bind(name)
-        .bind(name_key)
-        .bind(category)
-        .execute(pool)
-        .await
-        .map(|_| ())
-    }
-
     #[tokio::test]
     async fn br_j1_rejects_same_name_key() {
         let (_dir, pool) = open_temp().await;
@@ -337,83 +306,13 @@ mod tests {
         assert!(insert_subject(&pool, " ", "", None).await.is_err());
     }
 
-    const NOW: &str = "2026-11-15T00:00:00.000Z";
-
-    async fn insert_term(
-        pool: &SqlitePool,
-        name: &str,
-        starts_on: &str,
-        ends_on: &str,
-    ) -> Result<i64, sqlx::Error> {
-        sqlx::query(
-            "INSERT INTO terms (name, starts_on, ends_on, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?)",
-        )
-        .bind(name)
-        .bind(starts_on)
-        .bind(ends_on)
-        .bind(NOW)
-        .bind(NOW)
-        .execute(pool)
-        .await
-        .map(|result| result.last_insert_rowid())
-    }
-
-    async fn insert_course(
-        pool: &SqlitePool,
-        term_id: i64,
-        subject_id: i64,
-        level: Option<&str>,
-        section: Option<&str>,
-    ) -> Result<i64, sqlx::Error> {
-        sqlx::query(
-            "INSERT INTO courses (term_id, subject_id, level, section, capacity, created_at, updated_at)
-             VALUES (?, ?, ?, ?, 20, ?, ?)",
-        )
-        .bind(term_id)
-        .bind(subject_id)
-        .bind(level)
-        .bind(section)
-        .bind(NOW)
-        .bind(NOW)
-        .execute(pool)
-        .await
-        .map(|result| result.last_insert_rowid())
-    }
-
-    async fn insert_schedule(
-        pool: &SqlitePool,
-        course_id: i64,
-        weekday: i64,
-        start_minute: i64,
-        end_minute: i64,
-        room_id: Option<i64>,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            "INSERT INTO course_schedules (course_id, weekday, start_minute, end_minute, room_id)
-             VALUES (?, ?, ?, ?, ?)",
-        )
-        .bind(course_id)
-        .bind(weekday)
-        .bind(start_minute)
-        .bind(end_minute)
-        .bind(room_id)
-        .execute(pool)
-        .await
-        .map(|_| ())
-    }
-
     /// 학기 하나, 과목 하나를 넣어 둔 DB. (폴더, DB, 학기 id, 과목 id)
     async fn with_term_and_subject() -> (tempfile::TempDir, SqlitePool, i64, i64) {
         let (dir, pool) = open_temp().await;
         let term_id = insert_term(&pool, "2027년 1학기", "2027-03-02", "2027-06-30")
             .await
             .unwrap();
-        insert_subject(&pool, "요가", "요가", None).await.unwrap();
-        let subject_id: i64 = sqlx::query_scalar("SELECT id FROM subjects")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let subject_id = insert_subject(&pool, "요가", "요가", None).await.unwrap();
         (dir, pool, term_id, subject_id)
     }
 
@@ -588,11 +487,7 @@ mod tests {
     #[tokio::test]
     async fn br_r2_rejects_deleting_room_used_by_schedule() {
         let (_dir, pool, term_id, subject_id) = with_term_and_subject().await;
-        insert_room(&pool, Some("본관"), None, "다목적실")
-            .await
-            .unwrap();
-        let room_id: i64 = sqlx::query_scalar("SELECT id FROM rooms")
-            .fetch_one(&pool)
+        let room_id = insert_room(&pool, Some("본관"), None, "다목적실")
             .await
             .unwrap();
         let course_id = insert_course(&pool, term_id, subject_id, None, None)

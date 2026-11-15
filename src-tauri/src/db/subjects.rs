@@ -114,6 +114,7 @@ mod tests {
 
     use super::*;
     use crate::db::open_temp;
+    use crate::db::test_support::{insert_course, insert_term};
 
     fn now() -> DateTime<Utc> {
         Utc.with_ymd_and_hms(2026, 11, 15, 1, 2, 3).unwrap()
@@ -286,21 +287,10 @@ mod tests {
         let id = insert(&pool, &new_subject("요가", None), now())
             .await
             .unwrap();
-        sqlx::query(
-            "INSERT INTO terms (name, starts_on, ends_on, created_at, updated_at)
-             VALUES ('2027년 1학기', '2027-03-02', '2027-06-30', '', '')",
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
-        sqlx::query(
-            "INSERT INTO courses (term_id, subject_id, capacity, created_at, updated_at)
-             VALUES ((SELECT id FROM terms), ?, 20, '', '')",
-        )
-        .bind(id)
-        .execute(&pool)
-        .await
-        .unwrap();
+        let term_id = insert_term(&pool, "2027년 1학기", "2027-03-02", "2027-06-30")
+            .await
+            .unwrap();
+        insert_course(&pool, term_id, id, None, None).await.unwrap();
 
         let error = delete(&pool, id).await.unwrap_err();
 
