@@ -5,6 +5,7 @@
 pub mod courses;
 pub mod members;
 pub mod rooms;
+pub mod staff;
 pub mod subjects;
 pub mod terms;
 #[cfg(test)]

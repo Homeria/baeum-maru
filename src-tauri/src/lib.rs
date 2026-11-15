@@ -4,6 +4,7 @@
 
 mod data_dir;
 mod db;
+mod secret;
 mod server;
 mod version;
 

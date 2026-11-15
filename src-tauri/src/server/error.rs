@@ -46,6 +46,8 @@ pub enum ApiError {
     DuplicateCourse,
     /// 주소의 id인 강좌가 없다.
     CourseNotFound,
+    /// BR-K11: 처음 설정은 직원이 하나도 없을 때 한 번만 한다.
+    SetupAlreadyDone,
     /// ADR 0012: 앱과 호스트의 버전 앞 두 자리가 다르다.
     VersionMismatch,
     /// DB 같은 내부 문제. 자세한 내용은 로그에만 있다.
@@ -104,6 +106,7 @@ pub enum ErrorCode {
     TermInUse,
     DuplicateCourse,
     CourseNotFound,
+    SetupAlreadyDone,
     VersionMismatch,
     Internal,
 }
@@ -236,6 +239,13 @@ impl IntoResponse for ApiError {
                 ErrorCode::CourseNotFound,
                 "강좌를 찾지 못했습니다. 지워졌을 수 있습니다",
                 None,
+                Vec::new(),
+            ),
+            ApiError::SetupAlreadyDone => (
+                StatusCode::CONFLICT,
+                ErrorCode::SetupAlreadyDone,
+                "이미 처음 설정을 마쳤습니다. 관리자 계정으로 로그인해 주세요",
+                Some("BR-K11"),
                 Vec::new(),
             ),
             ApiError::VersionMismatch => (

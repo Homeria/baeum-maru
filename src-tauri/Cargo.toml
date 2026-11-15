@@ -13,9 +13,11 @@ publish = false
 name = "baeum_maru_lib"
 
 [dependencies]
+argon2 = "0.6.0"
 axum = "0.8"
 baeum-domain = { version = "0.1.0", path = "../crates/domain" }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde"] }
+getrandom = "0.4.3"
 serde = { version = "1", features = ["derive"] }
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "macros", "migrate", "chrono"] }
 tauri = { version = "2", features = [] }

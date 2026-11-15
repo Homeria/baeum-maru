@@ -6,6 +6,7 @@ mod courses;
 mod error;
 mod members;
 mod rooms;
+mod setup;
 mod subjects;
 mod terms;
 #[cfg(test)]
@@ -75,6 +76,11 @@ impl FromRef<AppState> for SqlitePool {
 /// 모든 요청 주소를 묶은 라우터.
 pub fn router(state: AppState) -> Router {
     let checked = Router::new()
+        // 처음 설정은 직원이 없을 때 하므로 로그인 없이 받는다
+        .route(
+            "/api/setup",
+            get(setup::get_setup_status).post(setup::setup),
+        )
         .route(
             "/api/members",
             get(members::search_members).post(members::create_member),
