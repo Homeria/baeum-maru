@@ -1,6 +1,6 @@
 # 0012. 뼈대: 화면 구성, 검사 도구, 브랜치와 CI, 의존성 관리
 
-- 상태: 채택 (2026-11-14)
+- 상태: 일부 대체됨 ([0013](0013-defer-dependabot.md): Dependabot 버전 업데이트는 출시 준비 때)
 - 근거: [0006](0006-crate-layout.md), [0007](0007-app-only-access.md), [0008](0008-http-json-sse.md), [0009](0009-frontend.md), [0010](0010-distribution.md), [실험 06](../../spikes/06-frontend-react-svelte/)
 
 ## 상황
@@ -146,7 +146,7 @@ baeum-maru/
 
 ### 의존성 관리
 
-- **Dependabot**: 한 달에 한 번, Rust·npm·GitHub Actions를 종류별로 한 PR에 묶는다. 보안 알림은 켜고, 보안 업데이트는 기다리지 않고 바로 받는다.
+- **Dependabot** (0013에서 바뀜: 버전 업데이트는 출시 준비 때 붙인다): 한 달에 한 번, Rust·npm·GitHub Actions를 종류별로 한 PR에 묶는다. 보안 알림은 켜고, 보안 업데이트는 기다리지 않고 바로 받는다.
 - **cargo-deny**: `just check`에 넣는다. 라이선스 허용 목록 밖의 라이브러리가 들어오면 실패한다. 허용 목록은 MIT, Apache-2.0, BSD 등이다.
 - **화면 라이브러리**: 넣을 때 사람이 라이선스를 확인한다. PR 템플릿에 "새 의존성: 이름과 이유" 칸이 있다.
 - **`npm audit`**: 쓰지 않는다. 개발용 도구의 경고까지 쏟아져서 경고에 무뎌진다.
