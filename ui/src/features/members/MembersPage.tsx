@@ -1,3 +1,4 @@
+import { MemberForm } from "./MemberForm";
 import { MemberList } from "./MemberList";
 import styles from "./MembersPage.module.css";
 
@@ -6,7 +7,9 @@ export function MembersPage() {
   return (
     <div className={styles.page}>
       <MemberList />
-      <aside className={styles.side} />
+      <aside className={styles.side}>
+        <MemberForm />
+      </aside>
     </div>
   );
 }
