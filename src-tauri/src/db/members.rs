@@ -1,4 +1,4 @@
-//! 회원 저장, 찾기, 고치기.
+//! 회원 저장, 찾기, 고치기, 지우기.
 
 use baeum_domain::{Gender, NewMember, Personal};
 use chrono::{DateTime, NaiveDate, Utc};
@@ -210,6 +210,17 @@ pub async fn update(
     .fetch_optional(pool)
     .await?;
     Ok(row.map(MemberRecord::try_from).transpose()?)
+}
+
+/// `id`인 회원을 지운다. 지웠으면 `true`, 없으면 `false`.
+///
+/// BR-M5: 신청 기록이 있는 회원은 지우지 않는다. 신청 테이블의 외래 키가 막는다(신청 기능에서 추가).
+pub async fn delete(pool: &SqlitePool, id: i64) -> Result<bool, sqlx::Error> {
+    let result = sqlx::query("DELETE FROM members WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(result.rows_affected() > 0)
 }
 
 /// LIKE에서 특별한 뜻이 있는 `%`, `_`와 이스케이프 글자 `\`를 글자 그대로 찾게 한다.
@@ -574,5 +585,36 @@ mod tests {
             .unwrap();
 
         assert!(record.is_some());
+    }
+
+    #[tokio::test]
+    async fn br_m5_deletes_member_without_records() {
+        let (_dir, pool) = open().await;
+        let id = insert(&pool, &new_member(input("00001")), now())
+            .await
+            .unwrap();
+
+        assert!(delete(&pool, id).await.unwrap());
+        assert!(get(&pool, id).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn delete_unknown_id_is_false() {
+        let (_dir, pool) = open().await;
+
+        assert!(!delete(&pool, 999).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn member_no_can_be_reused_after_delete() {
+        let (_dir, pool) = open().await;
+        let id = insert(&pool, &new_member(input("00001")), now())
+            .await
+            .unwrap();
+        delete(&pool, id).await.unwrap();
+
+        insert(&pool, &new_member(input("00001")), now())
+            .await
+            .unwrap();
     }
 }

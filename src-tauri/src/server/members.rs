@@ -174,6 +174,22 @@ pub async fn update_member(
     Ok(Json(MemberResponse::from(record)))
 }
 
+/// `id`인 회원을 지운다. 성공하면 204(본문 없음).
+///
+/// BR-M5: 신청 기록이 있는 회원은 신청 기능에서 409로 막는다.
+pub async fn delete_member(
+    State(db): State<SqlitePool>,
+    id: Result<Path<i64>, PathRejection>,
+) -> Result<StatusCode, ApiError> {
+    let Path(id) = id?;
+    let deleted = members::delete(&db, id).await.map_err(ApiError::internal)?;
+    if !deleted {
+        return Err(ApiError::MemberNotFound);
+    }
+    tracing::info!(member_id = id, "회원 지움");
+    Ok(StatusCode::NO_CONTENT)
+}
+
 /// 한 쪽에 보여 주는 기본 인원.
 const DEFAULT_PAGE_SIZE: u32 = 20;
 /// 한 쪽에 보여 주는 최대 인원.
@@ -655,6 +671,36 @@ mod tests {
         let (_dir, _db, router) = app().await;
 
         let response = patch(router, "/api/members/999", &valid("00001")).await;
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    async fn delete(router: Router, uri: &str) -> Response<Body> {
+        let request = Request::delete(uri)
+            .header(VERSION_HEADER, crate::version::CURRENT)
+            .body(Body::empty())
+            .unwrap();
+        router.oneshot(request).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn br_m5_deletes_member() {
+        let (_dir, db, router) = app().await;
+        let id = created_id(router.clone(), "00001").await;
+
+        let response = delete(router.clone(), &format!("/api/members/{id}")).await;
+
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(count(&db).await, 0);
+        let again = get(router, &format!("/api/members/{id}")).await;
+        assert_eq!(again.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn delete_unknown_member_is_not_found() {
+        let (_dir, _db, router) = app().await;
+
+        let response = delete(router, "/api/members/999").await;
 
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }

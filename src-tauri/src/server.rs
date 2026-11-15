@@ -68,7 +68,9 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/api/members/{id}",
-            get(members::get_member).patch(members::update_member),
+            get(members::get_member)
+                .patch(members::update_member)
+                .delete(members::delete_member),
         )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
@@ -92,7 +94,7 @@ fn no_store() -> SetResponseHeaderLayer<HeaderValue> {
 fn cors() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(APP_ORIGINS.map(HeaderValue::from_static))
-        .allow_methods([Method::GET, Method::POST, Method::PATCH])
+        .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
         .allow_headers([
             header::CONTENT_TYPE,
             HeaderName::from_static(version::VERSION_HEADER),
@@ -170,7 +172,7 @@ mod tests {
 
     #[tokio::test]
     async fn cors_allows_json_writes_from_app_window() {
-        for method in ["POST", "PATCH"] {
+        for method in ["POST", "PATCH", "DELETE"] {
             let request = Request::options("/api/members/1")
                 .header(header::ORIGIN, APP_ORIGINS[0])
                 .header(header::ACCESS_CONTROL_REQUEST_METHOD, method)
