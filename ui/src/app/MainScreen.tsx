@@ -6,10 +6,16 @@ import { SignedInStaff } from "../features/auth/SignedInStaff";
 import { HostStatus } from "../features/host/HostStatus";
 import { MembersPage } from "../features/members/MembersPage";
 import { ReferenceDataPage } from "../features/reference-data/ReferenceDataPage";
+import { StaffAdminPage } from "../features/staff/StaffAdminPage";
 import styles from "./App.module.css";
 
 type MenuKey =
-  "members" | "courses" | "applications" | "selection" | "referenceData";
+  | "members"
+  | "courses"
+  | "applications"
+  | "selection"
+  | "referenceData"
+  | "staff";
 
 const MENU: readonly TabItem<MenuKey>[] = [
   { key: "members", label: "회원" },
@@ -17,6 +23,12 @@ const MENU: readonly TabItem<MenuKey>[] = [
   { key: "applications", label: "신청" },
   { key: "selection", label: "선발" },
   { key: "referenceData", label: "기초 정보" },
+];
+
+/** 관리자에게만 더 보이는 메뉴 (BR-K3). */
+const ADMIN_MENU: readonly TabItem<MenuKey>[] = [
+  ...MENU,
+  { key: "staff", label: "직원 관리" },
 ];
 
 /** {@link MainScreen}의 속성. */
@@ -39,7 +51,11 @@ export function MainScreen({ session }: MainScreenProps) {
         </div>
       </header>
       <nav className={styles.nav}>
-        <Tabs items={MENU} selected={menu} onSelect={setMenu} />
+        <Tabs
+          items={session.staff.role === "admin" ? ADMIN_MENU : MENU}
+          selected={menu}
+          onSelect={setMenu}
+        />
       </nav>
       <main role="tabpanel" className={styles.main}>
         {menu === "members" ? (
@@ -48,6 +64,8 @@ export function MainScreen({ session }: MainScreenProps) {
           <CoursesPage />
         ) : menu === "referenceData" ? (
           <ReferenceDataPage />
+        ) : menu === "staff" && session.staff.role === "admin" ? (
+          <StaffAdminPage />
         ) : (
           "준비 중입니다."
         )}

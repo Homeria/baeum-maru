@@ -4,6 +4,7 @@ import {
   formErrorsFrom,
   type FormErrors,
 } from "../../components/form/formErrors";
+import { pinConfirmError } from "./pinConfirm";
 
 /** 입력 칸 이름. `pinConfirm`은 화면에만 있다. */
 export type SetupField = keyof SetupRequest | "pinConfirm";
@@ -43,13 +44,8 @@ export type SetupFormErrors = FormErrors<SetupField>;
 export function checkPinConfirm(
   values: SetupFormValues,
 ): SetupFormErrors | null {
-  if (values.pinConfirm === values.pin) {
-    return null;
-  }
-  return {
-    fields: { pinConfirm: "위에 넣은 PIN과 다릅니다" },
-    form: null,
-  };
+  const error = pinConfirmError(values.pin, values.pinConfirm);
+  return error === null ? null : { fields: { pinConfirm: error }, form: null };
 }
 
 /** 저장 실패를 칸에 나눠 붙인다. */
