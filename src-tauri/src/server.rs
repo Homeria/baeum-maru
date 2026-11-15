@@ -66,6 +66,10 @@ pub fn router(state: AppState) -> Router {
             "/api/members",
             get(members::search_members).post(members::create_member),
         )
+        .route(
+            "/api/members/{id}",
+            get(members::get_member).patch(members::update_member),
+        )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             version::require_compatible,
@@ -88,7 +92,7 @@ fn no_store() -> SetResponseHeaderLayer<HeaderValue> {
 fn cors() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(APP_ORIGINS.map(HeaderValue::from_static))
-        .allow_methods([Method::GET, Method::POST])
+        .allow_methods([Method::GET, Method::POST, Method::PATCH])
         .allow_headers([
             header::CONTENT_TYPE,
             HeaderName::from_static(version::VERSION_HEADER),
@@ -165,25 +169,27 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn cors_allows_json_post_from_app_window() {
-        let request = Request::options("/api/members")
-            .header(header::ORIGIN, APP_ORIGINS[0])
-            .header(header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
-            .header(header::ACCESS_CONTROL_REQUEST_HEADERS, "content-type")
-            .body(Body::empty())
-            .unwrap();
+    async fn cors_allows_json_writes_from_app_window() {
+        for method in ["POST", "PATCH"] {
+            let request = Request::options("/api/members/1")
+                .header(header::ORIGIN, APP_ORIGINS[0])
+                .header(header::ACCESS_CONTROL_REQUEST_METHOD, method)
+                .header(header::ACCESS_CONTROL_REQUEST_HEADERS, "content-type")
+                .body(Body::empty())
+                .unwrap();
 
-        let response = send(request).await;
+            let response = send(request).await;
 
-        let headers = response.headers();
-        let methods = headers[header::ACCESS_CONTROL_ALLOW_METHODS]
-            .to_str()
-            .unwrap();
-        assert!(methods.contains("POST"), "{methods}");
-        let allowed = headers[header::ACCESS_CONTROL_ALLOW_HEADERS]
-            .to_str()
-            .unwrap();
-        assert!(allowed.contains("content-type"), "{allowed}");
+            let headers = response.headers();
+            let methods = headers[header::ACCESS_CONTROL_ALLOW_METHODS]
+                .to_str()
+                .unwrap();
+            assert!(methods.contains(method), "{methods}");
+            let allowed = headers[header::ACCESS_CONTROL_ALLOW_HEADERS]
+                .to_str()
+                .unwrap();
+            assert!(allowed.contains("content-type"), "{allowed}");
+        }
     }
 
     async fn post_member(version: Option<&str>) -> Response<Body> {

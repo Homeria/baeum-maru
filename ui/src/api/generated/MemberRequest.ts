@@ -2,11 +2,13 @@
 import type { Gender } from "./Gender";
 
 /**
- * `POST /api/members` 본문. 확인 전이라 글자 그대로다.
+ * `POST /api/members`, `PATCH /api/members/{id}` 본문. 확인 전이라 글자 그대로다.
+ *
+ * 고칠 때도 다섯 칸을 모두 보낸다. 비운 선택 칸은 `null`이다.
  *
  * 회원 정보가 그대로 들어 있어 `Debug`를 붙이지 않는다 (로그에 찍히지 않게).
  */
-export type CreateMemberRequest = { memberNo: string, name: string, phoneNumber: string, 
+export type MemberRequest = { memberNo: string, name: string, phoneNumber: string, 
 /**
  * `YYYY-MM-DD`. 선택.
  */

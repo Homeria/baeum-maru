@@ -1,12 +1,14 @@
-//! 회원 저장과 찾기.
+//! 회원 저장, 찾기, 고치기.
 
 use baeum_domain::{Gender, NewMember, Personal};
-use chrono::{DateTime, NaiveDate, SecondsFormat, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use sqlx::SqlitePool;
 
-/// 회원을 저장하지 못했다.
+use super::timestamp_text;
+
+/// 회원을 저장하거나 고치지 못했다.
 #[derive(Debug, thiserror::Error)]
-pub enum InsertMemberError {
+pub enum SaveMemberError {
     /// BR-M2: 회원번호는 겹치지 않는다.
     #[error("이미 있는 회원번호입니다")]
     DuplicateMemberNo,
@@ -14,16 +16,16 @@ pub enum InsertMemberError {
     Db(sqlx::Error),
 }
 
-impl From<sqlx::Error> for InsertMemberError {
+impl From<sqlx::Error> for SaveMemberError {
     fn from(error: sqlx::Error) -> Self {
         // members에서 UNIQUE는 member_no 하나뿐이다
         let is_unique_violation = error
             .as_database_error()
             .is_some_and(|db_error| db_error.is_unique_violation());
         if is_unique_violation {
-            InsertMemberError::DuplicateMemberNo
+            SaveMemberError::DuplicateMemberNo
         } else {
-            InsertMemberError::Db(error)
+            SaveMemberError::Db(error)
         }
     }
 }
@@ -35,9 +37,8 @@ pub async fn insert(
     pool: &SqlitePool,
     member: &NewMember,
     now: DateTime<Utc>,
-) -> Result<i64, InsertMemberError> {
-    // [docs/conventions.md]: 밀리초까지, 끝에 Z
-    let now = now.to_rfc3339_opts(SecondsFormat::Millis, true);
+) -> Result<i64, SaveMemberError> {
+    let now = timestamp_text(now);
     let result = sqlx::query(
         "INSERT INTO members
              (member_no, name, phone_number, birth_date, gender, created_at, updated_at)
@@ -81,8 +82,11 @@ pub struct MemberRecord {
     pub phone_number: Personal<String>,
     pub birth_date: Option<Personal<NaiveDate>>,
     pub gender: Option<Personal<Gender>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
+/// SELECT·RETURNING에서 이 순서로 칸을 읽는다.
 type MemberRow = (
     i64,
     String,
@@ -90,13 +94,15 @@ type MemberRow = (
     String,
     Option<NaiveDate>,
     Option<String>,
+    DateTime<Utc>,
+    DateTime<Utc>,
 );
 
 impl TryFrom<MemberRow> for MemberRecord {
     type Error = sqlx::Error;
 
     fn try_from(row: MemberRow) -> Result<Self, Self::Error> {
-        let (id, member_no, name, phone_number, birth_date, gender) = row;
+        let (id, member_no, name, phone_number, birth_date, gender, created_at, updated_at) = row;
         let gender = gender.as_deref().map(gender_from_text).transpose()?;
         Ok(MemberRecord {
             id,
@@ -105,6 +111,8 @@ impl TryFrom<MemberRow> for MemberRecord {
             phone_number: Personal::new(phone_number),
             birth_date: birth_date.map(Personal::new),
             gender: gender.map(Personal::new),
+            created_at,
+            updated_at,
         })
     }
 }
@@ -133,7 +141,7 @@ pub async fn search(
     // ?1 이름·회원번호 패턴, ?2 연락처 패턴(숫자 검색어가 아니면 NULL)
     // sqlx는 고정 글자 SQL만 받으므로 아래 COUNT와 WHERE를 똑같이 두 번 씀
     let rows: Vec<MemberRow> = sqlx::query_as(
-        r"SELECT id, member_no, name, phone_number, birth_date, gender
+        r"SELECT id, member_no, name, phone_number, birth_date, gender, created_at, updated_at
           FROM members
           WHERE name LIKE ?1 ESCAPE '\' OR member_no LIKE ?1 ESCAPE '\'
              OR (?2 IS NOT NULL AND phone_number LIKE ?2)
@@ -163,6 +171,45 @@ pub async fn search(
         .map(MemberRecord::try_from)
         .collect::<Result<_, _>>()?;
     Ok(MemberPage { items, total })
+}
+
+/// `id`인 회원을 읽는다. 없으면 `None`.
+pub async fn get(pool: &SqlitePool, id: i64) -> Result<Option<MemberRecord>, sqlx::Error> {
+    let row: Option<MemberRow> = sqlx::query_as(
+        "SELECT id, member_no, name, phone_number, birth_date, gender, created_at, updated_at
+         FROM members WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+    row.map(MemberRecord::try_from).transpose()
+}
+
+/// `id`인 회원의 칸을 모두 `member`로 바꾸고 고친 뒤 모습을 돌려준다. 없으면 `None`.
+///
+/// `created_at`은 그대로, `updated_at`은 `now`가 된다.
+pub async fn update(
+    pool: &SqlitePool,
+    id: i64,
+    member: &NewMember,
+    now: DateTime<Utc>,
+) -> Result<Option<MemberRecord>, SaveMemberError> {
+    let row: Option<MemberRow> = sqlx::query_as(
+        "UPDATE members
+         SET member_no = ?, name = ?, phone_number = ?, birth_date = ?, gender = ?, updated_at = ?
+         WHERE id = ?
+         RETURNING id, member_no, name, phone_number, birth_date, gender, created_at, updated_at",
+    )
+    .bind(member.member_no().expose().as_str())
+    .bind(member.name().expose().as_str())
+    .bind(member.phone_number().expose().as_str())
+    .bind(member.birth_date().map(|date| *date.expose()))
+    .bind(member.gender().map(|gender| gender_text(*gender.expose())))
+    .bind(timestamp_text(now))
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(MemberRecord::try_from).transpose()?)
 }
 
 /// LIKE에서 특별한 뜻이 있는 `%`, `_`와 이스케이프 글자 `\`를 글자 그대로 찾게 한다.
@@ -303,7 +350,7 @@ mod tests {
             .unwrap_err();
 
         assert!(
-            matches!(error, InsertMemberError::DuplicateMemberNo),
+            matches!(error, SaveMemberError::DuplicateMemberNo),
             "{error}"
         );
     }
@@ -428,5 +475,104 @@ mod tests {
         assert_eq!(phone_digits("010-1234").as_deref(), Some("0101234"));
         assert_eq!(phone_digits("회원1"), None);
         assert_eq!(phone_digits(" - "), None);
+    }
+
+    fn later() -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(2026, 11, 16, 9, 0, 0).unwrap()
+    }
+
+    #[tokio::test]
+    async fn get_reads_member_with_times() {
+        let (_dir, pool) = open().await;
+        let id = insert(&pool, &new_member(input("00001")), now())
+            .await
+            .unwrap();
+
+        let record = get(&pool, id).await.unwrap().unwrap();
+
+        assert_eq!(record.member_no.expose(), "00001");
+        assert_eq!(record.created_at, now());
+        assert_eq!(record.updated_at, now());
+    }
+
+    #[tokio::test]
+    async fn get_unknown_id_is_none() {
+        let (_dir, pool) = open().await;
+
+        assert!(get(&pool, 999).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn update_replaces_every_field() {
+        let (_dir, pool) = open().await;
+        let original = new_member(MemberInput {
+            birth_date: NaiveDate::from_ymd_opt(1950, 3, 1),
+            gender: Some(Gender::Female),
+            ..input("00001")
+        });
+        let id = insert(&pool, &original, now()).await.unwrap();
+        let changed = new_member(MemberInput {
+            member_no: "00009",
+            name: "회원2",
+            phone_number: "0320000000",
+            birth_date: None,
+            gender: None,
+        });
+
+        let record = update(&pool, id, &changed, later()).await.unwrap().unwrap();
+
+        assert_eq!(record.id, id);
+        assert_eq!(record.member_no.expose(), "00009");
+        assert_eq!(record.name.expose(), "회원2");
+        assert_eq!(record.phone_number.expose(), "0320000000");
+        assert!(record.birth_date.is_none());
+        assert!(record.gender.is_none());
+        assert_eq!(record.created_at, now());
+        assert_eq!(record.updated_at, later());
+    }
+
+    #[tokio::test]
+    async fn update_unknown_id_is_none() {
+        let (_dir, pool) = open().await;
+
+        let result = update(&pool, 999, &new_member(input("00001")), now())
+            .await
+            .unwrap();
+
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn br_m2_update_to_taken_member_no_is_told_apart() {
+        let (_dir, pool) = open().await;
+        insert(&pool, &new_member(input("00001")), now())
+            .await
+            .unwrap();
+        let id = insert(&pool, &new_member(input("00002")), now())
+            .await
+            .unwrap();
+
+        let error = update(&pool, id, &new_member(input("00001")), later())
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(error, SaveMemberError::DuplicateMemberNo),
+            "{error}"
+        );
+    }
+
+    #[tokio::test]
+    async fn update_keeping_own_member_no_is_fine() {
+        let (_dir, pool) = open().await;
+        let id = insert(&pool, &new_member(input("00001")), now())
+            .await
+            .unwrap();
+
+        let record = update(&pool, id, &new_member(input("00001")), later())
+            .await
+            .unwrap();
+
+        assert!(record.is_some());
     }
 }

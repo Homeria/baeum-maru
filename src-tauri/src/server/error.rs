@@ -5,7 +5,7 @@
 use std::fmt::Display;
 
 use axum::Json;
-use axum::extract::rejection::{JsonRejection, QueryRejection};
+use axum::extract::rejection::{JsonRejection, PathRejection, QueryRejection};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
@@ -20,6 +20,8 @@ pub enum ApiError {
     InvalidInput(Vec<FieldError>),
     /// BR-M2: 회원번호는 겹치지 않는다.
     DuplicateMemberNo,
+    /// 주소의 id인 회원이 없다.
+    MemberNotFound,
     /// ADR 0012: 앱과 호스트의 버전 앞 두 자리가 다르다.
     VersionMismatch,
     /// DB 같은 내부 문제. 자세한 내용은 로그에만 있다.
@@ -44,6 +46,7 @@ pub enum ErrorCode {
     MalformedRequest,
     InvalidInput,
     DuplicateMemberNo,
+    MemberNotFound,
     VersionMismatch,
     Internal,
 }
@@ -94,6 +97,13 @@ impl IntoResponse for ApiError {
                 Some("BR-M2"),
                 Vec::new(),
             ),
+            ApiError::MemberNotFound => (
+                StatusCode::NOT_FOUND,
+                ErrorCode::MemberNotFound,
+                "회원을 찾지 못했습니다. 지워졌을 수 있습니다",
+                None,
+                Vec::new(),
+            ),
             ApiError::VersionMismatch => (
                 StatusCode::CONFLICT,
                 ErrorCode::VersionMismatch,
@@ -129,6 +139,13 @@ impl From<JsonRejection> for ApiError {
 /// `?` 뒤 값을 읽지 못했을 때. 검색어가 섞일 수 있어 응답과 로그에 싣지 않는다.
 impl From<QueryRejection> for ApiError {
     fn from(_: QueryRejection) -> Self {
+        ApiError::MalformedRequest
+    }
+}
+
+/// 주소의 id가 숫자가 아닐 때.
+impl From<PathRejection> for ApiError {
+    fn from(_: PathRejection) -> Self {
         ApiError::MalformedRequest
     }
 }

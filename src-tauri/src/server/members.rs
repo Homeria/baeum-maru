@@ -1,8 +1,8 @@
 //! `/api/members`: 회원.
 
 use axum::Json;
-use axum::extract::rejection::{JsonRejection, QueryRejection};
-use axum::extract::{Query, State};
+use axum::extract::rejection::{JsonRejection, PathRejection, QueryRejection};
+use axum::extract::{Path, Query, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use baeum_domain::{Gender, MemberError, MemberInput, NewMember, Personal};
@@ -12,7 +12,8 @@ use sqlx::SqlitePool;
 use ts_rs::TS;
 
 use super::error::{ApiError, FieldError};
-use crate::db::members::{self, InsertMemberError, MemberRecord};
+use crate::db::members::{self, MemberRecord, SaveMemberError};
+use crate::db::timestamp_text;
 
 /// 성별. JSON으로는 `"male"`, `"female"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -41,13 +42,15 @@ impl From<Gender> for GenderJson {
     }
 }
 
-/// `POST /api/members` 본문. 확인 전이라 글자 그대로다.
+/// `POST /api/members`, `PATCH /api/members/{id}` 본문. 확인 전이라 글자 그대로다.
+///
+/// 고칠 때도 다섯 칸을 모두 보낸다. 비운 선택 칸은 `null`이다.
 ///
 /// 회원 정보가 그대로 들어 있어 `Debug`를 붙이지 않는다 (로그에 찍히지 않게).
 #[derive(Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct CreateMemberRequest {
+pub struct MemberRequest {
     pub member_no: String,
     pub name: String,
     pub phone_number: String,
@@ -57,7 +60,7 @@ pub struct CreateMemberRequest {
     pub gender: Option<GenderJson>,
 }
 
-impl CreateMemberRequest {
+impl MemberRequest {
     fn as_input(&self) -> MemberInput<'_> {
         MemberInput {
             member_no: &self.member_no,
@@ -82,7 +85,7 @@ pub struct CreateMemberResponse {
 /// 새 회원을 저장한다. 성공하면 201과 새 id를 돌려준다.
 pub async fn create_member(
     State(db): State<SqlitePool>,
-    body: Result<Json<CreateMemberRequest>, JsonRejection>,
+    body: Result<Json<MemberRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, ApiError> {
     let Json(request) = body?;
     let now = Utc::now();
@@ -99,6 +102,76 @@ pub async fn create_member(
         [(header::LOCATION, location)],
         Json(CreateMemberResponse { id }),
     ))
+}
+
+/// 회원 한 명. `GET`·`PATCH /api/members/{id}` 응답.
+///
+/// 회원 정보가 그대로 들어 있어 `Debug`를 붙이지 않는다.
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct MemberResponse {
+    #[ts(type = "number")]
+    pub id: i64,
+    pub member_no: String,
+    pub name: String,
+    /// 숫자만.
+    pub phone_number: String,
+    pub birth_date: Option<NaiveDate>,
+    pub gender: Option<GenderJson>,
+    /// UTC, 밀리초까지, 끝에 Z. 화면에서 한국 시각으로 바꾼다.
+    pub created_at: String,
+    /// `created_at`과 같은 모양.
+    pub updated_at: String,
+}
+
+impl From<MemberRecord> for MemberResponse {
+    fn from(record: MemberRecord) -> Self {
+        MemberResponse {
+            id: record.id,
+            member_no: record.member_no.into_inner(),
+            name: record.name.into_inner(),
+            phone_number: record.phone_number.into_inner(),
+            birth_date: record.birth_date.map(Personal::into_inner),
+            gender: record
+                .gender
+                .map(|gender| GenderJson::from(gender.into_inner())),
+            created_at: timestamp_text(record.created_at),
+            updated_at: timestamp_text(record.updated_at),
+        }
+    }
+}
+
+/// `id`인 회원 한 명을 보여 준다.
+pub async fn get_member(
+    State(db): State<SqlitePool>,
+    id: Result<Path<i64>, PathRejection>,
+) -> Result<Json<MemberResponse>, ApiError> {
+    let Path(id) = id?;
+    let record = members::get(&db, id)
+        .await
+        .map_err(ApiError::internal)?
+        .ok_or(ApiError::MemberNotFound)?;
+    Ok(Json(MemberResponse::from(record)))
+}
+
+/// `id`인 회원의 칸을 모두 본문 값으로 바꾼다. 확인 규칙은 등록과 같다.
+pub async fn update_member(
+    State(db): State<SqlitePool>,
+    id: Result<Path<i64>, PathRejection>,
+    body: Result<Json<MemberRequest>, JsonRejection>,
+) -> Result<Json<MemberResponse>, ApiError> {
+    let Path(id) = id?;
+    let Json(request) = body?;
+    let now = Utc::now();
+    let today = now.with_timezone(&Local).date_naive();
+
+    let member = NewMember::parse(request.as_input(), today).map_err(invalid_input)?;
+    let record = members::update(&db, id, &member, now)
+        .await?
+        .ok_or(ApiError::MemberNotFound)?;
+    tracing::info!(member_id = id, "회원 고침");
+    Ok(Json(MemberResponse::from(record)))
 }
 
 /// 한 쪽에 보여 주는 기본 인원.
@@ -224,11 +297,11 @@ fn field_name(error: MemberError) -> &'static str {
     }
 }
 
-impl From<InsertMemberError> for ApiError {
-    fn from(error: InsertMemberError) -> Self {
+impl From<SaveMemberError> for ApiError {
+    fn from(error: SaveMemberError) -> Self {
         match error {
-            InsertMemberError::DuplicateMemberNo => ApiError::DuplicateMemberNo,
-            InsertMemberError::Db(error) => ApiError::internal(error),
+            SaveMemberError::DuplicateMemberNo => ApiError::DuplicateMemberNo,
+            SaveMemberError::Db(error) => ApiError::internal(error),
         }
     }
 }
@@ -471,5 +544,118 @@ mod tests {
 
         let body = json_body(response).await;
         assert_eq!(body["total"], 1);
+    }
+
+    async fn patch(router: Router, uri: &str, body: &str) -> Response<Body> {
+        let request = Request::patch(uri)
+            .header(header::CONTENT_TYPE, "application/json")
+            .header(VERSION_HEADER, crate::version::CURRENT)
+            .body(Body::from(body.to_owned()))
+            .unwrap();
+        router.oneshot(request).await.unwrap()
+    }
+
+    async fn created_id(router: Router, member_no: &str) -> i64 {
+        let body = json_body(post(router, &valid(member_no)).await).await;
+        body["id"].as_i64().unwrap()
+    }
+
+    #[tokio::test]
+    async fn gets_one_member() {
+        let (_dir, _db, router) = app().await;
+        let id = created_id(router.clone(), "00001").await;
+
+        let response = get(router, &format!("/api/members/{id}")).await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = json_body(response).await;
+        assert_eq!(body["id"], id);
+        assert_eq!(body["memberNo"], "00001");
+        assert_eq!(body["gender"], "female");
+        let created_at = body["createdAt"].as_str().unwrap();
+        assert!(created_at.ends_with('Z'), "{created_at}");
+        assert_eq!(created_at.len(), "2026-11-15T01:02:03.000Z".len());
+        assert_eq!(body["updatedAt"], body["createdAt"]);
+    }
+
+    #[tokio::test]
+    async fn unknown_member_is_not_found() {
+        let (_dir, _db, router) = app().await;
+
+        let response = get(router, "/api/members/999").await;
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert_eq!(json_body(response).await["code"], "MEMBER_NOT_FOUND");
+    }
+
+    #[tokio::test]
+    async fn non_number_id_is_malformed() {
+        let (_dir, _db, router) = app().await;
+
+        let response = get(router, "/api/members/abc").await;
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn updates_member() {
+        let (_dir, _db, router) = app().await;
+        let id = created_id(router.clone(), "00001").await;
+        let changed = json!({
+            "memberNo": "00009",
+            "name": "회원2",
+            "phoneNumber": "032-000-0000",
+            "birthDate": null,
+            "gender": "male",
+        });
+
+        let response = patch(router, &format!("/api/members/{id}"), &changed.to_string()).await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = json_body(response).await;
+        assert_eq!(body["memberNo"], "00009");
+        assert_eq!(body["name"], "회원2");
+        assert_eq!(body["phoneNumber"], "0320000000");
+        assert_eq!(body["birthDate"], Value::Null);
+        assert_eq!(body["gender"], "male");
+    }
+
+    #[tokio::test]
+    async fn update_checks_input_like_create() {
+        let (_dir, _db, router) = app().await;
+        let id = created_id(router.clone(), "00001").await;
+        let changed = json!({
+            "memberNo": "00001",
+            "name": "",
+            "phoneNumber": "01000000001",
+            "birthDate": null,
+            "gender": null,
+        });
+
+        let response = patch(router, &format!("/api/members/{id}"), &changed.to_string()).await;
+
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(json_body(response).await["fields"][0]["field"], "name");
+    }
+
+    #[tokio::test]
+    async fn br_m2_update_to_taken_member_no_is_conflict() {
+        let (_dir, _db, router) = app().await;
+        created_id(router.clone(), "00001").await;
+        let id = created_id(router.clone(), "00002").await;
+
+        let response = patch(router, &format!("/api/members/{id}"), &valid("00001")).await;
+
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        assert_eq!(json_body(response).await["rule"], "BR-M2");
+    }
+
+    #[tokio::test]
+    async fn update_unknown_member_is_not_found() {
+        let (_dir, _db, router) = app().await;
+
+        let response = patch(router, "/api/members/999", &valid("00001")).await;
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 }

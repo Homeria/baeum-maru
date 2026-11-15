@@ -7,6 +7,8 @@ pub mod members;
 use std::path::Path;
 use std::time::Duration;
 
+use chrono::{DateTime, SecondsFormat, Utc};
+
 use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
@@ -26,6 +28,11 @@ pub enum DbError {
     Open(#[from] sqlx::Error),
     #[error("DB 구조 변경을 적용하지 못했습니다: {0}")]
     Migrate(#[from] sqlx::migrate::MigrateError),
+}
+
+/// DB에 시각을 쓰는 모양. [docs/conventions.md]: UTC, 밀리초까지, 끝에 Z
+pub fn timestamp_text(time: DateTime<Utc>) -> String {
+    time.to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
 /// `dir` 안의 DB를 열고(없으면 만들고) 구조 변경을 적용한다.
