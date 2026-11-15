@@ -3,8 +3,8 @@
 mod json;
 
 use axum::Json;
-use axum::extract::State;
-use axum::extract::rejection::JsonRejection;
+use axum::extract::rejection::{JsonRejection, PathRejection};
+use axum::extract::{Path, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use baeum_domain::{NewRoom, RoomError};
@@ -14,14 +14,27 @@ use sqlx::SqlitePool;
 use super::error::{ApiError, FieldError};
 use crate::db::rooms::{self, SaveRoomError};
 
-use json::{CreateRoomResponse, RoomListItem, RoomListResponse, RoomRequest};
+use json::{CreateRoomResponse, RoomListResponse, RoomRequest, RoomResponse};
 
 /// 강의실을 모두 보여 준다. 건물, 층, 이름 순서.
 pub async fn list_rooms(State(db): State<SqlitePool>) -> Result<Json<RoomListResponse>, ApiError> {
     let records = rooms::list(&db).await.map_err(ApiError::internal)?;
     Ok(Json(RoomListResponse {
-        items: records.into_iter().map(RoomListItem::from).collect(),
+        items: records.into_iter().map(RoomResponse::from).collect(),
     }))
+}
+
+/// `id`인 강의실 하나를 보여 준다.
+pub async fn get_room(
+    State(db): State<SqlitePool>,
+    id: Result<Path<i64>, PathRejection>,
+) -> Result<Json<RoomResponse>, ApiError> {
+    let Path(id) = id?;
+    let record = rooms::get(&db, id)
+        .await
+        .map_err(ApiError::internal)?
+        .ok_or(ApiError::RoomNotFound)?;
+    Ok(Json(RoomResponse::from(record)))
 }
 
 /// 새 강의실을 저장한다. 성공하면 201과 새 id를 돌려준다.
@@ -40,6 +53,36 @@ pub async fn create_room(
         [(header::LOCATION, location)],
         Json(CreateRoomResponse { id }),
     ))
+}
+
+/// `id`인 강의실의 칸을 모두 본문 값으로 바꾼다. 확인 규칙은 등록과 같다.
+pub async fn update_room(
+    State(db): State<SqlitePool>,
+    id: Result<Path<i64>, PathRejection>,
+    body: Result<Json<RoomRequest>, JsonRejection>,
+) -> Result<Json<RoomResponse>, ApiError> {
+    let Path(id) = id?;
+    let Json(request) = body?;
+    let room = NewRoom::parse(request.as_input()).map_err(invalid_input)?;
+    let record = rooms::update(&db, id, &room, Utc::now())
+        .await?
+        .ok_or(ApiError::RoomNotFound)?;
+    tracing::info!(room_id = id, "강의실 고침");
+    Ok(Json(RoomResponse::from(record)))
+}
+
+/// `id`인 강의실을 지운다. 성공하면 204(본문 없음).
+pub async fn delete_room(
+    State(db): State<SqlitePool>,
+    id: Result<Path<i64>, PathRejection>,
+) -> Result<StatusCode, ApiError> {
+    let Path(id) = id?;
+    let deleted = rooms::delete(&db, id).await.map_err(ApiError::internal)?;
+    if !deleted {
+        return Err(ApiError::RoomNotFound);
+    }
+    tracing::info!(room_id = id, "강의실 지움");
+    Ok(StatusCode::NO_CONTENT)
 }
 
 fn invalid_input(errors: Vec<RoomError>) -> ApiError {
@@ -182,5 +225,119 @@ mod tests {
         let response = router.oneshot(request).await.unwrap();
 
         assert_eq!(response.status(), StatusCode::CONFLICT);
+    }
+
+    async fn send(router: Router, method: &str, uri: &str, body: Option<Value>) -> Response<Body> {
+        let mut request = Request::builder()
+            .method(method)
+            .uri(uri)
+            .header(VERSION_HEADER, crate::version::CURRENT);
+        let body = match body {
+            Some(body) => {
+                request = request.header(header::CONTENT_TYPE, "application/json");
+                Body::from(body.to_string())
+            }
+            None => Body::empty(),
+        };
+        router.oneshot(request.body(body).unwrap()).await.unwrap()
+    }
+
+    async fn created_id(router: Router, body: Value) -> i64 {
+        json_body(post(router, body).await).await["id"]
+            .as_i64()
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn gets_one_room() {
+        let (_dir, router) = app().await;
+        let id = created_id(router.clone(), room("본관", Some(3), "다목적실")).await;
+
+        let response = get(router, &format!("/api/rooms/{id}")).await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            json_body(response).await,
+            json!({ "id": id, "building": "본관", "floor": 3, "name": "다목적실" })
+        );
+    }
+
+    #[tokio::test]
+    async fn unknown_room_is_not_found() {
+        let (_dir, router) = app().await;
+
+        let response = get(router, "/api/rooms/999").await;
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert_eq!(json_body(response).await["code"], "ROOM_NOT_FOUND");
+    }
+
+    #[tokio::test]
+    async fn non_number_id_is_malformed() {
+        let (_dir, router) = app().await;
+
+        let response = get(router, "/api/rooms/abc").await;
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(json_body(response).await["code"], "MALFORMED_REQUEST");
+    }
+
+    #[tokio::test]
+    async fn updates_room() {
+        let (_dir, router) = app().await;
+        let id = created_id(router.clone(), room("본관", Some(3), "다목적실")).await;
+
+        let uri = format!("/api/rooms/{id}");
+        let response = send(router, "PATCH", &uri, Some(room("별관", None, "요가실"))).await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            json_body(response).await,
+            json!({ "id": id, "building": "별관", "floor": null, "name": "요가실" })
+        );
+    }
+
+    #[tokio::test]
+    async fn update_checks_input_like_create() {
+        let (_dir, router) = app().await;
+        let id = created_id(router.clone(), room("본관", Some(3), "다목적실")).await;
+
+        let uri = format!("/api/rooms/{id}");
+        let response = send(
+            router,
+            "PATCH",
+            &uri,
+            Some(room("본관", Some(6), "다목적실")),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(json_body(response).await["fields"][0]["field"], "floor");
+    }
+
+    #[tokio::test]
+    async fn br_r1_update_to_taken_name_is_conflict() {
+        let (_dir, router) = app().await;
+        created_id(router.clone(), room("본관", None, "다목적실")).await;
+        let id = created_id(router.clone(), room("본관", None, "요가실")).await;
+
+        let uri = format!("/api/rooms/{id}");
+        let response = send(router, "PATCH", &uri, Some(room("본관", None, "다목적실"))).await;
+
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        assert_eq!(json_body(response).await["rule"], "BR-R1");
+    }
+
+    #[tokio::test]
+    async fn deletes_room() {
+        let (_dir, router) = app().await;
+        let id = created_id(router.clone(), room("본관", None, "다목적실")).await;
+        let uri = format!("/api/rooms/{id}");
+
+        let response = send(router.clone(), "DELETE", &uri, None).await;
+
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        let again = send(router, "DELETE", &uri, None).await;
+        assert_eq!(again.status(), StatusCode::NOT_FOUND);
     }
 }

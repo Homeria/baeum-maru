@@ -77,6 +77,12 @@ pub fn router(state: AppState) -> Router {
             "/api/rooms",
             get(rooms::list_rooms).post(rooms::create_room),
         )
+        .route(
+            "/api/rooms/{id}",
+            get(rooms::get_room)
+                .patch(rooms::update_room)
+                .delete(rooms::delete_room),
+        )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             version::require_compatible,

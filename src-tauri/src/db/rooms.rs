@@ -1,4 +1,4 @@
-//! 강의실 저장과 목록.
+//! 강의실 저장, 목록, 고치기, 지우기.
 
 use baeum_domain::{Floor, NewRoom};
 use chrono::{DateTime, Utc};
@@ -68,6 +68,47 @@ pub async fn list(pool: &SqlitePool) -> Result<Vec<RoomRecord>, sqlx::Error> {
     )
     .fetch_all(pool)
     .await
+}
+
+/// `id`인 강의실을 읽는다. 없으면 `None`.
+pub async fn get(pool: &SqlitePool, id: i64) -> Result<Option<RoomRecord>, sqlx::Error> {
+    sqlx::query_as("SELECT id, building, floor, name FROM rooms WHERE id = ?")
+        .bind(id)
+        .fetch_optional(pool)
+        .await
+}
+
+/// `id`인 강의실의 칸을 모두 `room`으로 바꾸고 고친 뒤 모습을 돌려준다. 없으면 `None`.
+pub async fn update(
+    pool: &SqlitePool,
+    id: i64,
+    room: &NewRoom,
+    now: DateTime<Utc>,
+) -> Result<Option<RoomRecord>, SaveRoomError> {
+    let record = sqlx::query_as(
+        "UPDATE rooms SET building = ?, floor = ?, name = ?, updated_at = ?
+         WHERE id = ?
+         RETURNING id, building, floor, name",
+    )
+    .bind(room.building().as_str())
+    .bind(room.floor().map(Floor::value))
+    .bind(room.name().as_str())
+    .bind(timestamp_text(now))
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(record)
+}
+
+/// `id`인 강의실을 지운다. 지웠으면 `true`, 없으면 `false`.
+///
+/// 강좌가 쓰는 강의실은 강좌 테이블의 외래 키가 막는다(강좌 기능에서 추가).
+pub async fn delete(pool: &SqlitePool, id: i64) -> Result<bool, sqlx::Error> {
+    let result = sqlx::query("DELETE FROM rooms WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(result.rows_affected() > 0)
 }
 
 #[cfg(test)]
@@ -167,5 +208,81 @@ mod tests {
             names,
             ["요가실", "체력단련실", "다목적실", "컴퓨터실", "창고"]
         );
+    }
+
+    #[tokio::test]
+    async fn get_reads_room_or_none() {
+        let (_dir, pool) = open().await;
+        let id = insert(&pool, &new_room("본관", Some(3), "다목적실"), now())
+            .await
+            .unwrap();
+
+        let room = get(&pool, id).await.unwrap().unwrap();
+
+        assert_eq!(room.name, "다목적실");
+        assert!(get(&pool, 999).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn update_replaces_every_field() {
+        let (_dir, pool) = open().await;
+        let id = insert(&pool, &new_room("본관", Some(3), "다목적실"), now())
+            .await
+            .unwrap();
+
+        let room = update(&pool, id, &new_room("별관", None, "요가실"), now())
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            room,
+            RoomRecord {
+                id,
+                building: "별관".to_owned(),
+                floor: None,
+                name: "요가실".to_owned(),
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn update_unknown_id_is_none() {
+        let (_dir, pool) = open().await;
+
+        let room = update(&pool, 999, &new_room("본관", None, "요가실"), now())
+            .await
+            .unwrap();
+
+        assert!(room.is_none());
+    }
+
+    #[tokio::test]
+    async fn br_r1_update_to_taken_name_is_told_apart() {
+        let (_dir, pool) = open().await;
+        insert(&pool, &new_room("본관", None, "다목적실"), now())
+            .await
+            .unwrap();
+        let id = insert(&pool, &new_room("본관", None, "요가실"), now())
+            .await
+            .unwrap();
+
+        let error = update(&pool, id, &new_room("본관", Some(1), "다목적실"), now())
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, SaveRoomError::DuplicateName), "{error}");
+    }
+
+    #[tokio::test]
+    async fn delete_removes_room() {
+        let (_dir, pool) = open().await;
+        let id = insert(&pool, &new_room("본관", None, "다목적실"), now())
+            .await
+            .unwrap();
+
+        assert!(delete(&pool, id).await.unwrap());
+        assert!(!delete(&pool, id).await.unwrap());
+        assert!(list(&pool).await.unwrap().is_empty());
     }
 }

@@ -6,7 +6,7 @@ use ts_rs::TS;
 
 use crate::db::rooms::RoomRecord;
 
-/// `POST /api/rooms` 본문. 확인 전이라 글자 그대로다.
+/// `POST /api/rooms`, `PATCH /api/rooms/{id}` 본문. 확인 전이라 글자 그대로다.
 #[derive(Debug, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -36,11 +36,11 @@ pub struct CreateRoomResponse {
     pub id: i64,
 }
 
-/// 목록의 강의실 하나.
+/// 강의실 하나. 목록의 한 줄이자 `GET`·`PATCH /api/rooms/{id}` 응답.
 #[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct RoomListItem {
+pub struct RoomResponse {
     #[ts(type = "number")]
     pub id: i64,
     pub building: String,
@@ -49,9 +49,9 @@ pub struct RoomListItem {
     pub name: String,
 }
 
-impl From<RoomRecord> for RoomListItem {
+impl From<RoomRecord> for RoomResponse {
     fn from(record: RoomRecord) -> Self {
-        RoomListItem {
+        RoomResponse {
             id: record.id,
             building: record.building,
             floor: record.floor,
@@ -64,5 +64,5 @@ impl From<RoomRecord> for RoomListItem {
 #[derive(Debug, Serialize, TS)]
 #[ts(export)]
 pub struct RoomListResponse {
-    pub items: Vec<RoomListItem>,
+    pub items: Vec<RoomResponse>,
 }
