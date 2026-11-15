@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Tabs, type TabItem } from "../components/Tabs/Tabs";
 import { HostStatus } from "../features/host/HostStatus";
+import { MembersPage } from "../features/members/MembersPage";
 import styles from "./App.module.css";
 
 type MenuKey = "members" | "courses" | "applications" | "selection";
@@ -25,7 +26,7 @@ export function App() {
         <Tabs items={MENU} selected={menu} onSelect={setMenu} />
       </nav>
       <main role="tabpanel" className={styles.main}>
-        준비 중입니다.
+        {menu === "members" ? <MembersPage /> : "준비 중입니다."}
       </main>
     </div>
   );

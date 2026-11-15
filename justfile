@@ -36,6 +36,7 @@ check-ui:
     npm --prefix ui run --silent format:check
     npm --prefix ui run --silent lint
     npm --prefix ui run --silent typecheck
+    npm --prefix ui run --silent test
 
 check-deps:
     cargo deny check

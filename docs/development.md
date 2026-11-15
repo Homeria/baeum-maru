@@ -34,7 +34,7 @@ just build    # 실제 앱 빌드 (설치 파일 없이)
 
 1. Rust: 형식(rustfmt), clippy(경고도 실패), 테스트
 2. ts-rs 생성 파일(`ui/src/api/generated/`)을 지우고 다시 만들어 레포에 올린 것과 비교
-3. 화면: 형식(Prettier), ESLint, 타입 검사
+3. 화면: 형식(Prettier), ESLint, 타입 검사, 테스트(Vitest)
 4. 의존성: cargo-deny (보안 취약점, 라이선스, 출처)
 
 ## 자주 걸리는 것
