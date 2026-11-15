@@ -8,6 +8,7 @@ import {
   hasSeveralBuildings,
   lastUsedBuilding,
   roomFormErrorsFrom,
+  roomFormValuesFrom,
   toRoomRequest,
 } from "./roomFormData";
 
@@ -29,6 +30,19 @@ describe("lastUsedBuilding", () => {
     const rooms = [room(3, "별관"), room(1, "본관"), room(2, "본관")];
 
     expect(lastUsedBuilding(rooms)).toBe("별관");
+  });
+});
+
+describe("roomFormValuesFrom", () => {
+  test("층이 없으면 빈 글자, 있으면 숫자 글자", () => {
+    expect(roomFormValuesFrom(room(1, "본관", "다목적실"))).toEqual({
+      name: "다목적실",
+      building: "본관",
+      floor: "",
+    });
+    expect(roomFormValuesFrom({ ...room(2, "본관"), floor: -1 }).floor).toBe(
+      "-1",
+    );
   });
 });
 

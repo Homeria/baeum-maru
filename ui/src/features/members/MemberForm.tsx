@@ -1,9 +1,9 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createMember, deleteMember, updateMember } from "../../api/members";
+import { DeleteDialog } from "../../components/dialog/DeleteDialog";
 import type { Gender } from "../../api/generated/Gender";
 import type { MemberResponse } from "../../api/generated/MemberResponse";
-import { DeleteMemberDialog } from "./DeleteMemberDialog";
 import {
   EMPTY_MEMBER_FORM,
   firstErrorField,
@@ -239,8 +239,8 @@ export function MemberForm({
       </div>
 
       {editing && confirmingDelete && (
-        <DeleteMemberDialog
-          name={editing.name}
+        <DeleteDialog
+          title={`${editing.name}님을 지울까요?`}
           deleting={remove.isPending}
           onConfirm={() => remove.mutate(editing.id)}
           onCancel={() => setConfirmingDelete(false)}

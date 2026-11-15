@@ -1,26 +1,28 @@
-import { useEffect, useRef } from "react";
-import styles from "./DeleteMemberDialog.module.css";
+import { useEffect, useId, useRef } from "react";
+import styles from "./DeleteDialog.module.css";
 
-/** {@link DeleteMemberDialog}의 속성. */
-export interface DeleteMemberDialogProps {
-  name: string;
+/** {@link DeleteDialog}의 속성. */
+export interface DeleteDialogProps {
+  /** 묻는 말. 예: "회원1님을 지울까요?" */
+  title: string;
   deleting: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
 /**
- * 회원을 지우기 전에 한 번 묻는다. 화면에 뜨는 동안 뒤의 칸은 누를 수 없다.
+ * 지우기 전에 한 번 묻는다. 화면에 뜨는 동안 뒤의 칸은 누를 수 없다.
  *
  * Esc를 누르면 그만둔다. 실수로 지우지 않도록 처음 커서는 "그만두기"에 둔다.
  */
-export function DeleteMemberDialog({
-  name,
+export function DeleteDialog({
+  title,
   deleting,
   onConfirm,
   onCancel,
-}: DeleteMemberDialogProps) {
+}: DeleteDialogProps) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     dialog.current?.showModal();
@@ -30,7 +32,7 @@ export function DeleteMemberDialog({
     <dialog
       ref={dialog}
       className={styles.dialog}
-      aria-labelledby="delete-member-title"
+      aria-labelledby={titleId}
       onCancel={(event) => {
         // Esc: 브라우저가 닫기 전에 상태로 닫음
         event.preventDefault();
@@ -39,8 +41,8 @@ export function DeleteMemberDialog({
         }
       }}
     >
-      <h2 id="delete-member-title" className={styles.title}>
-        {name}님을 지울까요?
+      <h2 id={titleId} className={styles.title}>
+        {title}
       </h2>
       <p className={styles.body}>지우면 되돌릴 수 없습니다.</p>
       <div className={styles.actions}>

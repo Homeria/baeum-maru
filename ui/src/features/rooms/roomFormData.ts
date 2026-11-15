@@ -31,6 +31,15 @@ export function lastUsedBuilding(rooms: readonly RoomResponse[]): string {
   return latest?.building ?? DEFAULT_BUILDING;
 }
 
+/** 고칠 강의실로 입력 칸을 채운다. 층이 없으면 `""`. */
+export function roomFormValuesFrom(room: RoomResponse): RoomFormValues {
+  return {
+    name: room.name,
+    building: room.building,
+    floor: room.floor === null ? "" : String(room.floor),
+  };
+}
+
 /** 건물 칸 자동완성에 보여 줄 이름. 겹치지 않게 가나다순. */
 export function buildingNames(rooms: readonly RoomResponse[]): string[] {
   return [...new Set(rooms.map((room) => room.building))].sort((a, b) =>

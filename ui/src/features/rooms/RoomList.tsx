@@ -8,10 +8,13 @@ import styles from "./RoomsPage.module.css";
 /** {@link RoomList}의 속성. */
 export interface RoomListProps {
   rooms: UseQueryResult<RoomListResponse>;
+  /** 고치는 중인 강의실. 그 줄을 강조한다. */
+  selectedId: number | null;
+  onSelect: (id: number) => void;
 }
 
-/** 강의실 목록. 건물이 하나뿐이면 건물 열을 숨긴다. */
-export function RoomList({ rooms }: RoomListProps) {
+/** 강의실 목록. 건물이 하나뿐이면 건물 열을 숨긴다. 줄을 누르면 그 강의실을 고른다. */
+export function RoomList({ rooms, selectedId, onSelect }: RoomListProps) {
   const { data, isPending, isError, error } = rooms;
 
   if (isPending) {
@@ -40,7 +43,19 @@ export function RoomList({ rooms }: RoomListProps) {
           </thead>
           <tbody>
             {data.items.map((room) => (
-              <tr key={room.id}>
+              <tr
+                key={room.id}
+                className={tableStyles.row}
+                tabIndex={0}
+                aria-current={room.id === selectedId ? "true" : undefined}
+                onClick={() => onSelect(room.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelect(room.id);
+                  }
+                }}
+              >
                 {showBuilding && <td>{room.building}</td>}
                 <td>{floorLabel(room.floor)}</td>
                 <td>{room.name}</td>

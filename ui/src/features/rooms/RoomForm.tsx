@@ -1,7 +1,8 @@
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { RoomResponse } from "../../api/generated/RoomResponse";
-import { createRoom } from "../../api/rooms";
+import { createRoom, deleteRoom, updateRoom } from "../../api/rooms";
+import { DeleteDialog } from "../../components/dialog/DeleteDialog";
 import styles from "../../components/form/form.module.css";
 import { FLOORS, floorLabel } from "./floor";
 import {
@@ -9,6 +10,7 @@ import {
   firstErrorField,
   lastUsedBuilding,
   roomFormErrorsFrom,
+  roomFormValuesFrom,
   toRoomRequest,
   type RoomField,
   type RoomFormErrors,
@@ -23,47 +25,82 @@ const BUILDING_LIST_ID = "room-building-names";
 export interface RoomFormProps {
   /** 지금 있는 강의실. 건물 칸의 처음 값과 자동완성에 쓴다. */
   rooms: readonly RoomResponse[];
+  /** 고칠 강의실. 없으면 새 강의실 등록. */
+  editing?: RoomResponse;
+  /** 처음에 보여 줄 알림. 예: 강의실을 지운 뒤 등록 칸으로 돌아왔을 때 */
+  initialNotice?: string | null;
+  /** 고치기를 끝내고 등록 칸으로 돌아간다. `notice`는 돌아간 칸에 보여 줄 알림. */
+  onClose: (notice?: string) => void;
 }
 
 /**
- * 새 강의실 등록 칸.
+ * 강의실 입력 칸. 새 강의실 등록과 강의실 고치기를 함께 맡는다.
  *
  * 등록하면 이름만 비운다. 같은 건물, 같은 층의 강의실을 이어서 넣기 쉽게 건물과 층은 남긴다.
  */
-export function RoomForm({ rooms }: RoomFormProps) {
+export function RoomForm({
+  rooms,
+  editing,
+  initialNotice,
+  onClose,
+}: RoomFormProps) {
   const queryClient = useQueryClient();
-  const [values, setValues] = useState<RoomFormValues>(() => ({
-    name: "",
-    building: lastUsedBuilding(rooms),
-    floor: "",
-  }));
+  const [values, setValues] = useState<RoomFormValues>(() =>
+    editing
+      ? roomFormValuesFrom(editing)
+      : { name: "", building: lastUsedBuilding(rooms), floor: "" },
+  );
   const [errors, setErrors] = useState<RoomFormErrors>(NO_ERRORS);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(initialNotice ?? null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const inputs = useRef<
     Partial<Record<RoomField, HTMLInputElement | HTMLSelectElement | null>>
   >({});
 
+  const showErrors = (error: unknown) => {
+    const next = roomFormErrorsFrom(error);
+    setErrors(next);
+    const field = firstErrorField(next.fields);
+    if (field) {
+      inputs.current[field]?.focus();
+    }
+  };
+
   const save = useMutation({
     mutationFn: (values: RoomFormValues) => {
       const request = toRoomRequest(values);
-      return createRoom(request).then(() => request.name.trim());
+      return editing
+        ? updateRoom(editing.id, request).then((room) => room.name)
+        : createRoom(request).then(() => request.name.trim());
     },
     onSuccess: (name) => {
       void queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setErrors(NO_ERRORS);
-      setValues((current) => ({ ...current, name: "" }));
-      setNotice(`등록했습니다: ${name}`);
-      inputs.current.name?.focus();
-    },
-    onError: (error) => {
-      const next = roomFormErrorsFrom(error);
-      setErrors(next);
-      const field = firstErrorField(next.fields);
-      if (field) {
-        inputs.current[field]?.focus();
+      if (editing) {
+        setNotice(`저장했습니다: ${name}`);
+      } else {
+        setValues((current) => ({ ...current, name: "" }));
+        setNotice(`등록했습니다: ${name}`);
+        inputs.current.name?.focus();
       }
     },
+    onError: showErrors,
   });
+
+  const remove = useMutation({
+    mutationFn: deleteRoom,
+    onSuccess: () => {
+      setConfirmingDelete(false);
+      onClose(`지웠습니다: ${editing?.name ?? ""}`);
+      void queryClient.invalidateQueries({ queryKey: ["rooms"] });
+    },
+    onError: (error) => {
+      setConfirmingDelete(false);
+      showErrors(error);
+    },
+  });
+
+  const busy = save.isPending || remove.isPending;
 
   const change = (field: RoomField, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -77,7 +114,7 @@ export function RoomForm({ rooms }: RoomFormProps) {
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (save.isPending) {
+    if (busy) {
       return;
     }
     setNotice(null);
@@ -120,7 +157,9 @@ export function RoomForm({ rooms }: RoomFormProps) {
 
   return (
     <form className={styles.form} onSubmit={submit} noValidate>
-      <h2 className={styles.title}>새 강의실 등록</h2>
+      <h2 className={styles.title}>
+        {editing ? "강의실 고치기" : "새 강의실 등록"}
+      </h2>
 
       {field("name", "이름", true, (props) => (
         <input
@@ -189,14 +228,45 @@ export function RoomForm({ rooms }: RoomFormProps) {
       )}
 
       <div className={styles.actions}>
-        <button
-          type="submit"
-          className={styles.submit}
-          disabled={save.isPending}
-        >
-          {save.isPending ? "등록하는 중…" : "등록"}
+        <button type="submit" className={styles.submit} disabled={busy}>
+          {editing
+            ? save.isPending
+              ? "저장하는 중…"
+              : "저장"
+            : save.isPending
+              ? "등록하는 중…"
+              : "등록"}
         </button>
+        {editing && (
+          <>
+            <button
+              type="button"
+              className={styles.secondary}
+              onClick={() => onClose()}
+              disabled={busy}
+            >
+              새 강의실 등록으로
+            </button>
+            <button
+              type="button"
+              className={styles.danger}
+              onClick={() => setConfirmingDelete(true)}
+              disabled={busy}
+            >
+              지우기
+            </button>
+          </>
+        )}
       </div>
+
+      {editing && confirmingDelete && (
+        <DeleteDialog
+          title={`${editing.name} 강의실을 지울까요?`}
+          deleting={remove.isPending}
+          onConfirm={() => remove.mutate(editing.id)}
+          onCancel={() => setConfirmingDelete(false)}
+        />
+      )}
     </form>
   );
 }
