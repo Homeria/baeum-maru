@@ -109,11 +109,12 @@ impl From<SaveTermError> for ApiError {
 
 #[cfg(test)]
 mod tests {
-    use axum::Router;
     use serde_json::json;
 
     use super::*;
-    use crate::server::test_support::{app, delete, get, json_body, patch, post};
+    use crate::server::test_support::{
+        app, create, create_course, create_subject, delete, get, json_body, patch, post,
+    };
 
     fn term(name: &str, starts_on: Option<&str>, ends_on: Option<&str>) -> String {
         json!({ "name": name, "startsOn": starts_on, "endsOn": ends_on }).to_string()
@@ -121,12 +122,6 @@ mod tests {
 
     fn spring() -> String {
         term("2027년 1학기", Some("2027-03-02"), Some("2027-06-30"))
-    }
-
-    async fn created_id(router: Router, body: String) -> i64 {
-        json_body(post(router, "/api/terms", &body).await).await["id"]
-            .as_i64()
-            .unwrap()
     }
 
     #[tokio::test]
@@ -203,7 +198,7 @@ mod tests {
     #[tokio::test]
     async fn gets_and_updates_term() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), spring()).await;
+        let id = create(router.clone(), "/api/terms", &spring()).await;
         let uri = format!("/api/terms/{id}");
 
         let changed = term("2027년 봄학기", Some("2027-03-04"), Some("2027-06-27"));
@@ -229,7 +224,7 @@ mod tests {
     #[tokio::test]
     async fn deletes_term_without_course() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), spring()).await;
+        let id = create(router.clone(), "/api/terms", &spring()).await;
         let uri = format!("/api/terms/{id}");
 
         assert_eq!(
@@ -241,23 +236,10 @@ mod tests {
 
     #[tokio::test]
     async fn br_t5_term_with_course_is_conflict() {
-        let (_dir, db, router) = app().await;
-        let id = created_id(router.clone(), spring()).await;
-        sqlx::query(
-            "INSERT INTO subjects (name, name_key, created_at, updated_at)
-             VALUES ('요가', '요가', '', '')",
-        )
-        .execute(&db)
-        .await
-        .unwrap();
-        sqlx::query(
-            "INSERT INTO courses (term_id, subject_id, capacity, created_at, updated_at)
-             VALUES (?, (SELECT id FROM subjects), 20, '', '')",
-        )
-        .bind(id)
-        .execute(&db)
-        .await
-        .unwrap();
+        let (_dir, _db, router) = app().await;
+        let id = create(router.clone(), "/api/terms", &spring()).await;
+        let subject_id = create_subject(router.clone(), "요가").await;
+        create_course(router.clone(), id, subject_id, None).await;
 
         let response = delete(router, &format!("/api/terms/{id}")).await;
 

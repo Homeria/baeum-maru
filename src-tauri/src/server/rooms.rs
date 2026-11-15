@@ -109,14 +109,16 @@ impl From<SaveRoomError> for ApiError {
 
 #[cfg(test)]
 mod tests {
-    use axum::Router;
     use axum::body::Body;
     use axum::http::Request;
     use serde_json::json;
     use tower::ServiceExt;
 
     use super::*;
-    use crate::server::test_support::{app, delete, get, json_body, patch, post};
+    use crate::server::test_support::{
+        app, create, create_course, create_room, create_subject, create_term, delete, get,
+        json_body, patch, post,
+    };
 
     fn room(building: &str, floor: Option<i32>, name: &str) -> String {
         json!({ "building": building, "floor": floor, "name": name }).to_string()
@@ -198,16 +200,15 @@ mod tests {
         assert_eq!(response.status(), StatusCode::CONFLICT);
     }
 
-    async fn created_id(router: Router, body: String) -> i64 {
-        json_body(post(router, "/api/rooms", &body).await).await["id"]
-            .as_i64()
-            .unwrap()
-    }
-
     #[tokio::test]
     async fn gets_one_room() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), room("본관", Some(3), "다목적실")).await;
+        let id = create(
+            router.clone(),
+            "/api/rooms",
+            &room("본관", Some(3), "다목적실"),
+        )
+        .await;
 
         let response = get(router, &format!("/api/rooms/{id}")).await;
 
@@ -241,7 +242,12 @@ mod tests {
     #[tokio::test]
     async fn updates_room() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), room("본관", Some(3), "다목적실")).await;
+        let id = create(
+            router.clone(),
+            "/api/rooms",
+            &room("본관", Some(3), "다목적실"),
+        )
+        .await;
 
         let uri = format!("/api/rooms/{id}");
         let response = patch(router, &uri, &room("별관", None, "요가실")).await;
@@ -256,7 +262,12 @@ mod tests {
     #[tokio::test]
     async fn update_checks_input_like_create() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), room("본관", Some(3), "다목적실")).await;
+        let id = create(
+            router.clone(),
+            "/api/rooms",
+            &room("본관", Some(3), "다목적실"),
+        )
+        .await;
 
         let uri = format!("/api/rooms/{id}");
         let response = patch(router, &uri, &room("본관", Some(6), "다목적실")).await;
@@ -268,8 +279,13 @@ mod tests {
     #[tokio::test]
     async fn br_r1_update_to_taken_name_is_conflict() {
         let (_dir, _db, router) = app().await;
-        created_id(router.clone(), room("본관", None, "다목적실")).await;
-        let id = created_id(router.clone(), room("본관", None, "요가실")).await;
+        create(
+            router.clone(),
+            "/api/rooms",
+            &room("본관", None, "다목적실"),
+        )
+        .await;
+        let id = create(router.clone(), "/api/rooms", &room("본관", None, "요가실")).await;
 
         let uri = format!("/api/rooms/{id}");
         let response = patch(router, &uri, &room("본관", None, "다목적실")).await;
@@ -281,7 +297,12 @@ mod tests {
     #[tokio::test]
     async fn deletes_room() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), room("본관", None, "다목적실")).await;
+        let id = create(
+            router.clone(),
+            "/api/rooms",
+            &room("본관", None, "다목적실"),
+        )
+        .await;
         let uri = format!("/api/rooms/{id}");
 
         let response = delete(router.clone(), &uri).await;
@@ -294,38 +315,10 @@ mod tests {
     #[tokio::test]
     async fn br_r2_room_used_by_schedule_is_conflict() {
         let (_dir, _db, router) = app().await;
-        let room = json!({ "name": "201호", "building": "본관", "floor": 2 });
-        let room_id = json_body(post(router.clone(), "/api/rooms", &room.to_string()).await).await
-            ["id"]
-            .as_i64()
-            .unwrap();
-        let term =
-            json!({ "name": "2027년 1학기", "startsOn": "2027-03-02", "endsOn": "2027-06-30" });
-        let term_id = json_body(post(router.clone(), "/api/terms", &term.to_string()).await).await
-            ["id"]
-            .as_i64()
-            .unwrap();
-        let subject = json!({ "name": "요가", "category": null });
-        let subject_id = json_body(
-            post(router.clone(), "/api/subjects", &subject.to_string()).await,
-        )
-        .await["id"]
-            .as_i64()
-            .unwrap();
-        let course = json!({
-            "subjectId": subject_id,
-            "level": null,
-            "section": null,
-            "capacity": 20,
-            "schedules": [{ "weekday": 1, "start": "10:00", "end": "11:00", "roomId": room_id }],
-        });
-        let response = post(
-            router.clone(),
-            &format!("/api/terms/{term_id}/courses"),
-            &course.to_string(),
-        )
-        .await;
-        assert_eq!(response.status(), StatusCode::CREATED);
+        let room_id = create_room(router.clone()).await;
+        let term_id = create_term(router.clone()).await;
+        let subject_id = create_subject(router.clone(), "요가").await;
+        create_course(router.clone(), term_id, subject_id, Some(room_id)).await;
 
         let response = delete(router, &format!("/api/rooms/{room_id}")).await;
 

@@ -6,8 +6,8 @@
 use axum::Router;
 use axum::body::Body;
 use axum::http::request::Builder;
-use axum::http::{Request, Response, header};
-use serde_json::Value;
+use axum::http::{Request, Response, StatusCode, header};
+use serde_json::{Value, json};
 use sqlx::SqlitePool;
 use tower::ServiceExt;
 
@@ -48,6 +48,53 @@ pub async fn patch(router: Router, uri: &str, body: &str) -> Response<Body> {
 
 pub async fn delete(router: Router, uri: &str) -> Response<Body> {
     send(router, Request::delete(uri), Body::empty()).await
+}
+
+/// `uri`에 `body`를 보내 새로 만들고 새 id를 돌려준다. 201이 아니면 테스트가 실패한다.
+pub async fn create(router: Router, uri: &str, body: &str) -> i64 {
+    let response = post(router, uri, body).await;
+    assert_eq!(response.status(), StatusCode::CREATED, "{uri}");
+    json_body(response).await["id"].as_i64().unwrap()
+}
+
+/// 예시 학기: 2027년 1학기, 2027-03-02 ~ 2027-06-30.
+pub async fn create_term(router: Router) -> i64 {
+    let body = json!({ "name": "2027년 1학기", "startsOn": "2027-03-02", "endsOn": "2027-06-30" });
+    create(router, "/api/terms", &body.to_string()).await
+}
+
+/// 예시 과목. 분류는 없다.
+pub async fn create_subject(router: Router, name: &str) -> i64 {
+    let body = json!({ "name": name, "category": null });
+    create(router, "/api/subjects", &body.to_string()).await
+}
+
+/// 예시 강의실: 본관 2층 201호.
+pub async fn create_room(router: Router) -> i64 {
+    let body = json!({ "name": "201호", "building": "본관", "floor": 2 });
+    create(router, "/api/rooms", &body.to_string()).await
+}
+
+/// 예시 강좌: 수준·반 없음, 정원 20명, 월요일 10:00~11:00 한 줄.
+pub async fn create_course(
+    router: Router,
+    term_id: i64,
+    subject_id: i64,
+    room_id: Option<i64>,
+) -> i64 {
+    let body = json!({
+        "subjectId": subject_id,
+        "level": null,
+        "section": null,
+        "capacity": 20,
+        "schedules": [{ "weekday": 1, "start": "10:00", "end": "11:00", "roomId": room_id }],
+    });
+    create(
+        router,
+        &format!("/api/terms/{term_id}/courses"),
+        &body.to_string(),
+    )
+    .await
 }
 
 /// 응답 본문을 JSON으로 읽는다.

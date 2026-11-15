@@ -110,23 +110,19 @@ impl From<SaveSubjectError> for ApiError {
 
 #[cfg(test)]
 mod tests {
-    use axum::Router;
     use axum::body::Body;
     use axum::http::Request;
     use serde_json::json;
     use tower::ServiceExt;
 
     use super::*;
-    use crate::server::test_support::{app, delete, get, json_body, patch, post};
+    use crate::server::test_support::{
+        app, create, create_course, create_subject, create_term, delete, get, json_body, patch,
+        post,
+    };
 
     fn subject(name: &str, category: Option<&str>) -> String {
         json!({ "name": name, "category": category }).to_string()
-    }
-
-    async fn created_id(router: Router, body: String) -> i64 {
-        json_body(post(router, "/api/subjects", &body).await).await["id"]
-            .as_i64()
-            .unwrap()
     }
 
     #[tokio::test]
@@ -201,7 +197,12 @@ mod tests {
     #[tokio::test]
     async fn gets_one_subject() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), subject("요가", Some("취미여가"))).await;
+        let id = create(
+            router.clone(),
+            "/api/subjects",
+            &subject("요가", Some("취미여가")),
+        )
+        .await;
 
         let response = get(router, &format!("/api/subjects/{id}")).await;
 
@@ -234,7 +235,12 @@ mod tests {
     #[tokio::test]
     async fn updates_subject() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), subject("요가", Some("취미여가"))).await;
+        let id = create(
+            router.clone(),
+            "/api/subjects",
+            &subject("요가", Some("취미여가")),
+        )
+        .await;
 
         let uri = format!("/api/subjects/{id}");
         let response = patch(router, &uri, &subject("필라테스", None)).await;
@@ -249,8 +255,8 @@ mod tests {
     #[tokio::test]
     async fn br_j1_update_to_taken_name_is_conflict() {
         let (_dir, _db, router) = app().await;
-        created_id(router.clone(), subject("한글교실", None)).await;
-        let id = created_id(router.clone(), subject("요가", None)).await;
+        create(router.clone(), "/api/subjects", &subject("한글교실", None)).await;
+        let id = create(router.clone(), "/api/subjects", &subject("요가", None)).await;
 
         let uri = format!("/api/subjects/{id}");
         let response = patch(router, &uri, &subject("한글 교실", None)).await;
@@ -262,7 +268,7 @@ mod tests {
     #[tokio::test]
     async fn deletes_subject() {
         let (_dir, _db, router) = app().await;
-        let id = created_id(router.clone(), subject("요가", None)).await;
+        let id = create(router.clone(), "/api/subjects", &subject("요가", None)).await;
         let uri = format!("/api/subjects/{id}");
 
         let response = delete(router.clone(), &uri).await;
@@ -284,33 +290,9 @@ mod tests {
     #[tokio::test]
     async fn br_j2_subject_used_by_course_is_conflict() {
         let (_dir, _db, router) = app().await;
-        let subject_id = json_body(
-            post(router.clone(), "/api/subjects", &subject("요가", None)).await,
-        )
-        .await["id"]
-            .as_i64()
-            .unwrap();
-        let room_id: Option<i64> = None;
-        let term =
-            json!({ "name": "2027년 1학기", "startsOn": "2027-03-02", "endsOn": "2027-06-30" });
-        let term_id = json_body(post(router.clone(), "/api/terms", &term.to_string()).await).await
-            ["id"]
-            .as_i64()
-            .unwrap();
-        let course = json!({
-            "subjectId": subject_id,
-            "level": null,
-            "section": null,
-            "capacity": 20,
-            "schedules": [{ "weekday": 1, "start": "10:00", "end": "11:00", "roomId": room_id }],
-        });
-        let response = post(
-            router.clone(),
-            &format!("/api/terms/{term_id}/courses"),
-            &course.to_string(),
-        )
-        .await;
-        assert_eq!(response.status(), StatusCode::CREATED);
+        let subject_id = create_subject(router.clone(), "요가").await;
+        let term_id = create_term(router.clone()).await;
+        create_course(router.clone(), term_id, subject_id, None).await;
 
         let response = delete(router, &format!("/api/subjects/{subject_id}")).await;
 

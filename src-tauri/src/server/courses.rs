@@ -145,27 +145,16 @@ mod tests {
     use serde_json::{Value, json};
 
     use super::*;
-    use crate::server::test_support::{app, delete, get, json_body, patch, post};
+    use crate::server::test_support::{
+        app, create, create_room, create_subject, create_term, delete, get, json_body, patch, post,
+    };
 
     /// 학기 하나, 과목 하나(요가), 강의실 하나를 API로 넣어 둔다. (학기 id, 과목 id, 강의실 id)
     async fn setup(router: &Router) -> (i64, i64, i64) {
-        let mut ids = Vec::new();
-        for (uri, body) in [
-            (
-                "/api/terms",
-                json!({ "name": "2027년 1학기", "startsOn": "2027-03-02", "endsOn": "2027-06-30" }),
-            ),
-            ("/api/subjects", json!({ "name": "요가", "category": null })),
-            (
-                "/api/rooms",
-                json!({ "name": "201호", "building": "본관", "floor": 2 }),
-            ),
-        ] {
-            let response = post(router.clone(), uri, &body.to_string()).await;
-            assert_eq!(response.status(), StatusCode::CREATED, "{uri}");
-            ids.push(json_body(response).await["id"].as_i64().unwrap());
-        }
-        (ids[0], ids[1], ids[2])
+        let term_id = create_term(router.clone()).await;
+        let subject_id = create_subject(router.clone(), "요가").await;
+        let room_id = create_room(router.clone()).await;
+        (term_id, subject_id, room_id)
     }
 
     fn course(subject_id: Value, schedules: Value) -> String {
@@ -331,8 +320,7 @@ mod tests {
             json!(subject_id),
             json!([{ "weekday": 1, "start": "10:00", "end": "11:00", "roomId": null }]),
         );
-        let response = post(router.clone(), &courses_uri(term_id), &body).await;
-        let id = json_body(response).await["id"].as_i64().unwrap();
+        let id = create(router.clone(), &courses_uri(term_id), &body).await;
         let uri = format!("/api/courses/{id}");
 
         let changed = course(
