@@ -40,6 +40,20 @@ impl ApiError {
         tracing::error!(%error, "요청을 처리하지 못했습니다");
         ApiError::Internal
     }
+
+    /// 업무 규칙 확인에서 나온 오류를 칸마다 [`ApiError::InvalidInput`]으로 모은다.
+    ///
+    /// `field_name`은 오류가 어느 칸(요청 JSON 이름)의 것인지 알려 준다.
+    pub fn invalid_input<E: Display>(errors: Vec<E>, field_name: fn(&E) -> &'static str) -> Self {
+        let fields = errors
+            .iter()
+            .map(|error| FieldError {
+                field: field_name(error).to_owned(),
+                message: error.to_string(),
+            })
+            .collect();
+        ApiError::InvalidInput(fields)
+    }
 }
 
 /// 오류 종류. 한 번 정하면 바꾸지 않는다.

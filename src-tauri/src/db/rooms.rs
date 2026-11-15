@@ -4,7 +4,7 @@ use baeum_domain::{Floor, NewRoom};
 use chrono::{DateTime, Utc};
 use sqlx::SqlitePool;
 
-use super::timestamp_text;
+use super::{is_unique_violation, timestamp_text};
 
 /// 강의실을 저장하지 못했다.
 #[derive(Debug, thiserror::Error)]
@@ -19,10 +19,7 @@ pub enum SaveRoomError {
 impl From<sqlx::Error> for SaveRoomError {
     fn from(error: sqlx::Error) -> Self {
         // rooms에서 UNIQUE는 (building, name) 하나뿐이다
-        let is_unique_violation = error
-            .as_database_error()
-            .is_some_and(|db_error| db_error.is_unique_violation());
-        if is_unique_violation {
+        if is_unique_violation(&error) {
             SaveRoomError::DuplicateName
         } else {
             SaveRoomError::Db(error)
@@ -117,6 +114,7 @@ mod tests {
     use chrono::TimeZone;
 
     use super::*;
+    use crate::db::open_temp;
 
     fn now() -> DateTime<Utc> {
         Utc.with_ymd_and_hms(2026, 11, 15, 1, 2, 3).unwrap()
@@ -131,15 +129,9 @@ mod tests {
         .unwrap()
     }
 
-    async fn open() -> (tempfile::TempDir, SqlitePool) {
-        let dir = tempfile::tempdir().unwrap();
-        let pool = crate::db::open(dir.path()).await.unwrap();
-        (dir, pool)
-    }
-
     #[tokio::test]
     async fn saves_and_lists_room() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
 
         let id = insert(&pool, &new_room("본관", Some(-1), "다목적실"), now())
             .await
@@ -159,7 +151,7 @@ mod tests {
 
     #[tokio::test]
     async fn saves_room_without_floor() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
 
         insert(&pool, &new_room("본관", None, "상담실"), now())
             .await
@@ -170,7 +162,7 @@ mod tests {
 
     #[tokio::test]
     async fn br_r1_duplicate_name_is_told_apart() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         insert(&pool, &new_room("본관", Some(3), "다목적실"), now())
             .await
             .unwrap();
@@ -184,7 +176,7 @@ mod tests {
 
     #[tokio::test]
     async fn lists_by_building_floor_then_name() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         for (building, floor, name) in [
             ("본관", Some(3), "컴퓨터실"),
             ("본관", None, "창고"),
@@ -212,7 +204,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_reads_room_or_none() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         let id = insert(&pool, &new_room("본관", Some(3), "다목적실"), now())
             .await
             .unwrap();
@@ -225,7 +217,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_replaces_every_field() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         let id = insert(&pool, &new_room("본관", Some(3), "다목적실"), now())
             .await
             .unwrap();
@@ -248,7 +240,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_unknown_id_is_none() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
 
         let room = update(&pool, 999, &new_room("본관", None, "요가실"), now())
             .await
@@ -259,7 +251,7 @@ mod tests {
 
     #[tokio::test]
     async fn br_r1_update_to_taken_name_is_told_apart() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         insert(&pool, &new_room("본관", None, "다목적실"), now())
             .await
             .unwrap();
@@ -276,7 +268,7 @@ mod tests {
 
     #[tokio::test]
     async fn delete_removes_room() {
-        let (_dir, pool) = open().await;
+        let (_dir, pool) = open_temp().await;
         let id = insert(&pool, &new_room("본관", None, "다목적실"), now())
             .await
             .unwrap();

@@ -5,6 +5,8 @@
 mod error;
 mod members;
 mod rooms;
+#[cfg(test)]
+mod test_support;
 mod version;
 
 use std::net::{Ipv4Addr, SocketAddr};
