@@ -3,7 +3,7 @@ import type { RoomListResponse } from "../../api/generated/RoomListResponse";
 import tableStyles from "../../components/table/table.module.css";
 import { floorLabel } from "./floor";
 import { hasSeveralBuildings } from "./roomFormData";
-import styles from "./RoomsPage.module.css";
+import styles from "../../components/layout/listPage.module.css";
 
 /** {@link RoomList}의 속성. */
 export interface RoomListProps {
