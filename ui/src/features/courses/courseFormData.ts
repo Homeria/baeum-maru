@@ -175,6 +175,37 @@ export function scheduleSummary(
   return { times, room };
 }
 
+/** 수업 시간대. 예: `{ start: "10:00", end: "11:00" }` */
+export interface TimeRange {
+  start: string;
+  end: string;
+}
+
+/** 시간대를 고르는 칸의 값. 예: `10:00~11:00` */
+export function timeRangeLabel(range: TimeRange): string {
+  return `${range.start}~${range.end}`;
+}
+
+/**
+ * 학기 강좌들이 이미 쓰는 시간대. 겹치지 않게, 시작 시각 순서(같으면 종료 시각 순서).
+ *
+ * 기관마다 수업 시각이 대개 정해져 있어 새 강좌도 그중에서 고르는 일이 많다.
+ */
+export function usedTimeRanges(
+  courses: readonly Pick<CourseResponse, "schedules">[],
+): TimeRange[] {
+  const ranges = new Map<string, TimeRange>();
+  for (const course of courses) {
+    for (const { start, end } of course.schedules) {
+      ranges.set(timeRangeLabel({ start, end }), { start, end });
+    }
+  }
+  // HH:MM은 글자 순서가 시각 순서와 같음
+  return [...ranges.values()].sort(
+    (a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end),
+  );
+}
+
 export type CourseFormErrors = FormErrors<CourseField>;
 
 /**

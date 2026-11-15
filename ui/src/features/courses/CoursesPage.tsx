@@ -11,6 +11,7 @@ import { TermBar } from "../terms/TermBar";
 import { TermForm } from "../terms/TermForm";
 import { currentTerm } from "../terms/termFormData";
 import { CourseForm } from "./CourseForm";
+import { usedTimeRanges } from "./courseFormData";
 import { CourseList } from "./CourseList";
 import styles from "./CoursesPage.module.css";
 
@@ -104,6 +105,7 @@ export function CoursesPage() {
               subjects={subjects.data.items}
               rooms={rooms.data.items}
               showBuilding={showBuilding}
+              usedTimes={usedTimeRanges(courses.data.items)}
               editing={selectedCourse ?? undefined}
               initialNotice={courseNotice}
               onClose={(next) => {

@@ -9,6 +9,7 @@ import {
   courseName,
   scheduleSummary,
   toCourseRequest,
+  usedTimeRanges,
 } from "./courseFormData";
 
 const ROOM_201 = { id: 3, building: "본관", name: "201호" };
@@ -152,5 +153,30 @@ describe("courseFormErrorsFrom", () => {
     const error = new HostError(409, message, "DUPLICATE_COURSE", "BR-T3");
 
     expect(courseFormErrorsFrom(error)).toEqual({ fields: {}, form: message });
+  });
+});
+
+describe("usedTimeRanges", () => {
+  test("겹치지 않게, 시작 시각 순서로", () => {
+    const courses = [
+      {
+        schedules: [
+          schedule(1, "14:00", "15:00"),
+          schedule(3, "10:00", "11:00"),
+        ],
+      },
+      {
+        schedules: [
+          schedule(2, "10:00", "11:00"),
+          schedule(4, "10:00", "10:50"),
+        ],
+      },
+    ];
+
+    expect(usedTimeRanges(courses)).toEqual([
+      { start: "10:00", end: "10:50" },
+      { start: "10:00", end: "11:00" },
+      { start: "14:00", end: "15:00" },
+    ]);
   });
 });

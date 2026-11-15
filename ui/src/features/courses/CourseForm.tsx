@@ -16,11 +16,13 @@ import {
   courseName,
   firstErrorField,
   roomLabel,
+  timeRangeLabel,
   toCourseRequest,
   type CourseField,
   type CourseFormErrors,
   type CourseFormValues,
   type ScheduleRowValues,
+  type TimeRange,
 } from "./courseFormData";
 import rowStyles from "./CourseForm.module.css";
 
@@ -34,6 +36,8 @@ export interface CourseFormProps {
   rooms: readonly RoomResponse[];
   /** 강의실 이름에 건물을 붙일지. */
   showBuilding: boolean;
+  /** 이 학기 강좌들이 이미 쓰는 시간대. 줄마다 골라 시각을 채운다. 비었으면 고르는 칸을 숨긴다. */
+  usedTimes: readonly TimeRange[];
   /** 고칠 강좌. 없으면 새 강좌 등록. */
   editing?: CourseResponse;
   /** 처음에 보여 줄 알림. 예: 강좌를 지운 뒤 등록 칸으로 돌아왔을 때 */
@@ -53,6 +57,7 @@ export function CourseForm({
   subjects,
   rooms,
   showBuilding,
+  usedTimes,
   editing,
   initialNotice,
   onClose,
@@ -301,6 +306,43 @@ export function CourseForm({
                     </option>
                   ))}
                 </select>
+                {usedTimes.length > 0 && (
+                  <select
+                    className={styles.input}
+                    aria-label={`${number}번째 시간대 고르기`}
+                    // 지금 시각이 목록의 시간대와 같으면 그것을, 아니면 안내 문구를 보여 줌
+                    value={
+                      usedTimes.some(
+                        (time) => timeRangeLabel(time) === timeRangeLabel(row),
+                      )
+                        ? timeRangeLabel(row)
+                        : ""
+                    }
+                    onChange={(event) => {
+                      const range = usedTimes.find(
+                        (time) => timeRangeLabel(time) === event.target.value,
+                      );
+                      if (range) {
+                        changeRow(row.key, {
+                          start: range.start,
+                          end: range.end,
+                        });
+                      }
+                    }}
+                  >
+                    <option value="" hidden>
+                      쓴 시간대
+                    </option>
+                    {usedTimes.map((time) => (
+                      <option
+                        key={timeRangeLabel(time)}
+                        value={timeRangeLabel(time)}
+                      >
+                        {timeRangeLabel(time)}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <input
                   className={styles.input}
                   type="time"
