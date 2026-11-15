@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchSetupStatus } from "../api/setup";
+import { LockScreen } from "../features/auth/LockScreen";
 import { LoginPage } from "../features/auth/LoginPage";
 import { RecoveryCodeNotice } from "../features/auth/RecoveryCodeNotice";
 import { SetupPage } from "../features/auth/SetupPage";
+import { useIdleLock } from "../features/auth/useIdleLock";
 import { useSession } from "../features/auth/useSession";
 import formStyles from "../components/form/form.module.css";
 import { MainScreen } from "./MainScreen";
@@ -21,6 +23,7 @@ export function App() {
   // 처음 설정에서 받은 복구 코드. 안내를 닫을 때까지만 메모리에 둔다
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
   const session = useSession();
+  useIdleLock(session !== null && !session.locked);
 
   if (recoveryCode !== null) {
     return (
@@ -55,5 +58,10 @@ export function App() {
   if (session === null) {
     return <LoginPage />;
   }
-  return <MainScreen session={session} />;
+  return (
+    <>
+      <MainScreen session={session} />
+      {session.locked && <LockScreen session={session} />}
+    </>
+  );
 }

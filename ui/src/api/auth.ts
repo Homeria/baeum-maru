@@ -2,7 +2,7 @@ import { getJson, postJson, postNoContent } from "./client";
 import type { LoginRequest } from "./generated/LoginRequest";
 import type { LoginResponse } from "./generated/LoginResponse";
 import type { LoginStaffListResponse } from "./generated/LoginStaffListResponse";
-import { clearSession, getSession, setSession } from "./session";
+import { clearSession, getSession, setSession, unlockSession } from "./session";
 
 /** 로그인 화면에서 고를 직원. 사용 중지했거나 유효기간이 지난 계정은 빠져 있다. */
 export function listLoginStaff(): Promise<LoginStaffListResponse> {
@@ -14,6 +14,12 @@ export async function login(request: LoginRequest): Promise<LoginResponse> {
   const response = await postJson<LoginResponse>("/api/login", request);
   setSession({ token: response.token, staff: response.staff });
   return response;
+}
+
+/** BR-K8: 같은 직원의 PIN으로 잠긴 화면을 연다. */
+export async function unlock(pin: string): Promise<void> {
+  await postNoContent("/api/unlock", { pin });
+  unlockSession();
 }
 
 /**

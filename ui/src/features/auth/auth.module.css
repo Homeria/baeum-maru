@@ -123,3 +123,17 @@
   height: 18px;
   margin: 0;
 }
+
+/* 화면 잠금: 뒤의 화면을 완전히 가린다 (회원 정보가 보이지 않게) */
+.lockOverlay {
+  width: min(440px, calc(100vw - 32px));
+  max-width: none;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+}
+
+.lockOverlay::backdrop {
+  background: var(--color-surface);
+}

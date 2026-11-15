@@ -29,7 +29,8 @@ export function MainScreen({ session }: MainScreenProps) {
   const [menu, setMenu] = useState<MenuKey>("members");
 
   return (
-    <div className={styles.app}>
+    // 잠긴 동안에는 눌리거나 읽히지 않게 (잠금 화면이 위를 덮는다)
+    <div className={styles.app} inert={session.locked}>
       <header className={styles.header}>
         <h1 className={styles.title}>배움마루</h1>
         <div className={styles.headerRight}>

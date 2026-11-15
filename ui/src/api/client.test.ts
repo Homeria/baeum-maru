@@ -117,6 +117,19 @@ describe("세션 증표", () => {
     });
 
     await expect(getJson("/api/rooms")).rejects.toThrow();
-    expect(getSession()).toEqual(SESSION);
+    expect(getSession()).toEqual({ ...SESSION, locked: false });
+  });
+
+  test("호스트가 잠겼다고 하면 화면을 잠근다", async () => {
+    setSession(SESSION);
+    stubFetch(401, {
+      code: "SESSION_LOCKED",
+      message: "화면이 잠겼습니다",
+      rule: "BR-K8",
+      fields: [],
+    });
+
+    await expect(getJson("/api/rooms")).rejects.toThrow();
+    expect(getSession()?.locked).toBe(true);
   });
 });

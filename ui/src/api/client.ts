@@ -1,6 +1,6 @@
 import type { ErrorCode } from "./generated/ErrorCode";
 import type { FieldError } from "./generated/FieldError";
-import { clearSession, getSession } from "./session";
+import { clearSession, getSession, lockSession, noteRequest } from "./session";
 
 /** 이 앱의 버전. 요청마다 호스트에 알린다. */
 export const APP_VERSION = __APP_VERSION__;
@@ -95,7 +95,8 @@ const SESSION_ENDED: readonly ErrorCode[] = [
  * 호스트에 요청을 보낸다. 실패하면 {@link HostError}를 던진다.
  *
  * ADR 0012: 모든 요청에 앱 버전을 싣는다.
- * ADR 0014: 로그인했으면 세션 증표를 싣는다. 호스트가 세션을 끝냈다고 답하면 세션을 비운다.
+ * ADR 0014: 로그인했으면 세션 증표를 싣는다. 호스트가 세션을 끝냈다고 답하면 세션을 비우고,
+ * 잠겼다고 답하면 화면을 잠근다.
  */
 async function send(
   method: Method,
@@ -126,16 +127,21 @@ async function send(
     );
   }
 
+  // 401(로그인 필요, 화면 잠김, PIN 틀림)이 아니면 호스트가 세션을 받아 준 것
+  if (session !== null && response.status !== 401) {
+    noteRequest();
+  }
+
   if (!response.ok) {
     const errorBody: unknown = await response.json().catch(() => null);
     const error = hostErrorFrom(response.status, errorBody);
     // 증표를 실은 요청만. 로그인 요청의 ACCOUNT_UNAVAILABLE은 세션과 상관없다
-    if (
-      session !== null &&
-      error.code !== null &&
-      SESSION_ENDED.includes(error.code)
-    ) {
-      clearSession();
+    if (session !== null && error.code !== null) {
+      if (SESSION_ENDED.includes(error.code)) {
+        clearSession();
+      } else if (error.code === "SESSION_LOCKED") {
+        lockSession();
+      }
     }
     throw error;
   }
