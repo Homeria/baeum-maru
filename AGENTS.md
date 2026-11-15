@@ -10,6 +10,7 @@
 - 개념 ERD: `docs/domain/ERD.md`
 - 아키텍처 결정: `docs/adr/`. 채택한 결정을 따르고, 바꿔야 하면 새 ADR을 제안한다.
 - 코드 규칙: `docs/conventions.md` (주석, 문서 주석, TODO, 테스트 이름)
+- 개발 환경과 명령: `docs/development.md`. 작업을 마치면 `just check`로 전부 검사한다.
 
 ## 언어
 
