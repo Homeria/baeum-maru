@@ -111,7 +111,7 @@ pub async fn open(dir: &Path) -> Result<SqlitePool, DbError> {
 #[cfg(test)]
 mod tests {
     use super::test_support::{
-        NOW, insert_course, insert_room, insert_schedule, insert_subject, insert_term,
+        NOW, insert_course, insert_room, insert_schedule, insert_staff, insert_subject, insert_term,
     };
     use super::*;
 
@@ -527,5 +527,117 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(left, 0);
+    }
+
+    #[tokio::test]
+    async fn br_k2_rejects_same_staff_name_key() {
+        let (_dir, pool) = open_temp().await;
+        insert_staff(&pool, "직원1", "staff", None).await.unwrap();
+
+        let result = insert_staff(&pool, "직원1", "admin", None).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn rejects_unknown_role() {
+        let (_dir, pool) = open_temp().await;
+
+        let result = insert_staff(&pool, "직원1", "boss", None).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn br_k5_temp_staff_needs_valid_until() {
+        let (_dir, pool) = open_temp().await;
+
+        assert!(
+            insert_staff(&pool, "직원1", "temp_staff", None)
+                .await
+                .is_err()
+        );
+        insert_staff(&pool, "직원1", "temp_staff", Some("2027-03-31"))
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn br_k13_access_logs_cannot_be_changed_or_deleted() {
+        let (_dir, pool) = open_temp().await;
+        let staff_id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
+        sqlx::query(
+            "INSERT INTO access_logs (occurred_at, staff_id, event) VALUES (?, ?, 'login')",
+        )
+        .bind(NOW)
+        .bind(staff_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let update = sqlx::query("UPDATE access_logs SET event = 'logout'")
+            .execute(&pool)
+            .await;
+        let delete = sqlx::query("DELETE FROM access_logs").execute(&pool).await;
+
+        assert!(update.is_err());
+        assert!(delete.is_err());
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM access_logs")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[tokio::test]
+    async fn rejects_unknown_access_event() {
+        let (_dir, pool) = open_temp().await;
+
+        let result = sqlx::query("INSERT INTO access_logs (occurred_at, event) VALUES (?, 'hack')")
+            .bind(NOW)
+            .execute(&pool)
+            .await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn keeps_only_one_recovery_code() {
+        let (_dir, pool) = open_temp().await;
+        let insert = |id: i64| {
+            sqlx::query(
+                "INSERT INTO recovery_code (id, code_hash, created_at) VALUES (?, 'hash', ?)",
+            )
+            .bind(id)
+            .bind(NOW)
+            .execute(&pool)
+        };
+
+        insert(1).await.unwrap();
+
+        assert!(insert(1).await.is_err());
+        assert!(insert(2).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn session_token_hash_is_32_unique_bytes() {
+        let (_dir, pool) = open_temp().await;
+        let staff_id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
+        let insert = |hash: Vec<u8>| {
+            sqlx::query(
+                "INSERT INTO sessions (staff_id, token_hash, started_at, last_seen_at)
+                 VALUES (?, ?, ?, ?)",
+            )
+            .bind(staff_id)
+            .bind(hash)
+            .bind(NOW)
+            .bind(NOW)
+            .execute(&pool)
+        };
+
+        insert(vec![7; 32]).await.unwrap();
+
+        assert!(insert(vec![7; 32]).await.is_err());
+        assert!(insert(vec![8; 16]).await.is_err());
     }
 }
