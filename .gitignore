@@ -1,6 +1,9 @@
 # Rust 빌드 결과물
 target/
 
+# Tauri가 빌드할 때 만드는 파일
+/src-tauri/gen/schemas/
+
 # 화면 의존성과 빌드 결과물
 node_modules/
 /ui/dist/
