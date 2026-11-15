@@ -90,4 +90,53 @@ mod tests {
 
         open(dir.path()).await.unwrap();
     }
+
+    async fn insert_member(pool: &SqlitePool, member_no: &str) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "INSERT INTO members (member_no, name, phone_number, created_at, updated_at)
+             VALUES (?, '회원1', '01000000001', '2026-11-15T00:00:00.000Z', '2026-11-15T00:00:00.000Z')",
+        )
+        .bind(member_no)
+        .execute(pool)
+        .await
+        .map(|_| ())
+    }
+
+    #[tokio::test]
+    async fn br_m2_rejects_duplicate_member_no() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = open(dir.path()).await.unwrap();
+
+        insert_member(&pool, "00001").await.unwrap();
+        let duplicate = insert_member(&pool, "00001").await.unwrap_err();
+
+        let is_unique_violation = duplicate
+            .as_database_error()
+            .is_some_and(|error| error.is_unique_violation());
+        assert!(is_unique_violation, "{duplicate}");
+    }
+
+    #[tokio::test]
+    async fn br_m2_allows_different_member_no() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = open(dir.path()).await.unwrap();
+
+        insert_member(&pool, "00001").await.unwrap();
+        insert_member(&pool, "00002").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn members_reject_unknown_gender() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = open(dir.path()).await.unwrap();
+
+        let result = sqlx::query(
+            "INSERT INTO members (member_no, name, phone_number, gender, created_at, updated_at)
+             VALUES ('00001', '회원1', '01000000001', 'other', '2026-11-15T00:00:00.000Z', '2026-11-15T00:00:00.000Z')",
+        )
+        .execute(&pool)
+        .await;
+
+        assert!(result.is_err());
+    }
 }
