@@ -10,6 +10,7 @@ publish = false
 
 # sqlx, axum, tauri에 의존하지 않는다 (ADR 0006).
 [dependencies]
+thiserror = "2"
 
 [lints]
 workspace = true
