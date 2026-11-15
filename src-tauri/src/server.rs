@@ -4,6 +4,7 @@
 
 mod error;
 mod members;
+mod rooms;
 mod version;
 
 use std::net::{Ipv4Addr, SocketAddr};
@@ -71,6 +72,10 @@ pub fn router(state: AppState) -> Router {
             get(members::get_member)
                 .patch(members::update_member)
                 .delete(members::delete_member),
+        )
+        .route(
+            "/api/rooms",
+            get(rooms::list_rooms).post(rooms::create_room),
         )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

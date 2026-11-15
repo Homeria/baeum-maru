@@ -22,6 +22,8 @@ pub enum ApiError {
     DuplicateMemberNo,
     /// 주소의 id인 회원이 없다.
     MemberNotFound,
+    /// BR-R1: 같은 건물 안에서 강의실 이름은 겹치지 않는다.
+    DuplicateRoomName,
     /// ADR 0012: 앱과 호스트의 버전 앞 두 자리가 다르다.
     VersionMismatch,
     /// DB 같은 내부 문제. 자세한 내용은 로그에만 있다.
@@ -47,6 +49,7 @@ pub enum ErrorCode {
     InvalidInput,
     DuplicateMemberNo,
     MemberNotFound,
+    DuplicateRoomName,
     VersionMismatch,
     Internal,
 }
@@ -102,6 +105,13 @@ impl IntoResponse for ApiError {
                 ErrorCode::MemberNotFound,
                 "회원을 찾지 못했습니다. 지워졌을 수 있습니다",
                 None,
+                Vec::new(),
+            ),
+            ApiError::DuplicateRoomName => (
+                StatusCode::CONFLICT,
+                ErrorCode::DuplicateRoomName,
+                "같은 건물에 같은 이름의 강의실이 있습니다",
+                Some("BR-R1"),
                 Vec::new(),
             ),
             ApiError::VersionMismatch => (
