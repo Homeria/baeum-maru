@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Tabs, type TabItem } from "../components/Tabs/Tabs";
+import { CoursesPage } from "../features/courses/CoursesPage";
 import { HostStatus } from "../features/host/HostStatus";
 import { MembersPage } from "../features/members/MembersPage";
 import { ReferenceDataPage } from "../features/reference-data/ReferenceDataPage";
@@ -31,6 +32,8 @@ export function App() {
       <main role="tabpanel" className={styles.main}>
         {menu === "members" ? (
           <MembersPage />
+        ) : menu === "courses" ? (
+          <CoursesPage />
         ) : menu === "referenceData" ? (
           <ReferenceDataPage />
         ) : (
