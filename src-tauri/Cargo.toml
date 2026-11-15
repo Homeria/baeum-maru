@@ -21,6 +21,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
 tower-http = { version = "0.7", features = ["cors"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+ts-rs = "12"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

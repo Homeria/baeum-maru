@@ -6,6 +6,7 @@ use axum::Json;
 use axum::extract::State;
 use axum::http::HeaderMap;
 use serde::Serialize;
+use ts_rs::TS;
 
 use crate::version::{self, Version};
 
@@ -13,8 +14,9 @@ use crate::version::{self, Version};
 pub const VERSION_HEADER: &str = "x-baeum-version";
 
 /// `/api/version` 응답.
-#[derive(Debug, Serialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct VersionResponse {
     /// 호스트 버전.
     pub host_version: String,
