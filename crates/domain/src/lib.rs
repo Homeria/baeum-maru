@@ -17,7 +17,7 @@ mod term;
 
 pub use course::{
     Capacity, ClassTime, CourseError, CourseInput, LevelName, NewCourse, Schedule, ScheduleInput,
-    SectionName,
+    SectionName, weekday_from_number,
 };
 pub use member::{Gender, MemberError, MemberInput, MemberName, MemberNo, NewMember, PhoneNumber};
 pub use personal::Personal;

@@ -2,6 +2,7 @@
 //!
 //! ADR 0008: 요청은 HTTP + JSON.
 
+mod courses;
 mod error;
 mod members;
 mod rooms;
@@ -106,6 +107,16 @@ pub fn router(state: AppState) -> Router {
             get(terms::get_term)
                 .patch(terms::update_term)
                 .delete(terms::delete_term),
+        )
+        .route(
+            "/api/terms/{term_id}/courses",
+            get(courses::list_courses).post(courses::create_course),
+        )
+        .route(
+            "/api/courses/{id}",
+            get(courses::get_course)
+                .patch(courses::update_course)
+                .delete(courses::delete_course),
         )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

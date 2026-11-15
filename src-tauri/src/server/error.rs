@@ -36,6 +36,10 @@ pub enum ApiError {
     TermNotFound,
     /// BR-T5: 강좌가 있는 학기는 지울 수 없다.
     TermInUse,
+    /// BR-T3: 같은 학기 안에서 과목·수준·반이 모두 같은 강좌는 하나뿐이다.
+    DuplicateCourse,
+    /// 주소의 id인 강좌가 없다.
+    CourseNotFound,
     /// ADR 0012: 앱과 호스트의 버전 앞 두 자리가 다르다.
     VersionMismatch,
     /// DB 같은 내부 문제. 자세한 내용은 로그에만 있다.
@@ -82,6 +86,8 @@ pub enum ErrorCode {
     DuplicateTermName,
     TermNotFound,
     TermInUse,
+    DuplicateCourse,
+    CourseNotFound,
     VersionMismatch,
     Internal,
 }
@@ -186,6 +192,20 @@ impl IntoResponse for ApiError {
                 ErrorCode::TermInUse,
                 "강좌가 있는 학기는 지울 수 없습니다. 강좌를 먼저 지워 주세요",
                 Some("BR-T5"),
+                Vec::new(),
+            ),
+            ApiError::DuplicateCourse => (
+                StatusCode::CONFLICT,
+                ErrorCode::DuplicateCourse,
+                "이 학기에 과목·수준·반이 모두 같은 강좌가 있습니다. 수준이나 반으로 나눠 주세요",
+                Some("BR-T3"),
+                Vec::new(),
+            ),
+            ApiError::CourseNotFound => (
+                StatusCode::NOT_FOUND,
+                ErrorCode::CourseNotFound,
+                "강좌를 찾지 못했습니다. 지워졌을 수 있습니다",
+                None,
                 Vec::new(),
             ),
             ApiError::VersionMismatch => (

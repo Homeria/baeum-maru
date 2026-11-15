@@ -239,6 +239,25 @@ impl Schedule {
     }
 }
 
+/// 요일 번호(1=월 … 7=일, ISO 8601)에서 요일을 만든다. 범위 밖이면 `None`.
+///
+/// DB와 JSON이 이 번호를 쓴다. 거꾸로는 [`Weekday::number_from_monday`].
+///
+/// # Examples
+///
+/// ```
+/// use baeum_domain::weekday_from_number;
+/// use chrono::Weekday;
+///
+/// assert_eq!(weekday_from_number(1), Some(Weekday::Mon));
+/// assert_eq!(weekday_from_number(7), Some(Weekday::Sun));
+/// assert_eq!(weekday_from_number(0), None);
+/// ```
+pub fn weekday_from_number(number: u8) -> Option<Weekday> {
+    // chrono의 TryFrom<u8>은 0=월이라 하나 뺀다
+    Weekday::try_from(number.checked_sub(1)?).ok()
+}
+
 /// 화면에서 받은 수업 시간 한 줄. 시각은 확인 전 글자 그대로다.
 #[derive(Debug, Clone, Copy)]
 pub struct ScheduleInput<'a> {
