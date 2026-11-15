@@ -4,6 +4,7 @@
 
 mod courses;
 mod error;
+mod login;
 mod members;
 mod rooms;
 mod setup;
@@ -17,7 +18,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use axum::extract::FromRef;
 use axum::http::{HeaderName, HeaderValue, Method, header};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Router, middleware};
 use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
@@ -81,6 +82,10 @@ pub fn router(state: AppState) -> Router {
             "/api/setup",
             get(setup::get_setup_status).post(setup::setup),
         )
+        // 로그인 화면도 로그인 전이라 그대로 받는다
+        .route("/api/login/staff", get(login::list_login_staff))
+        .route("/api/login", post(login::login))
+        .route("/api/logout", post(login::logout))
         .route(
             "/api/members",
             get(members::search_members).post(members::create_member),
@@ -156,6 +161,8 @@ fn cors() -> CorsLayer {
         .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
         .allow_headers([
             header::CONTENT_TYPE,
+            // 세션 증표 (ADR 0014)
+            header::AUTHORIZATION,
             HeaderName::from_static(version::VERSION_HEADER),
         ])
 }
@@ -239,7 +246,10 @@ mod tests {
             let request = Request::options("/api/members/1")
                 .header(header::ORIGIN, APP_ORIGINS[0])
                 .header(header::ACCESS_CONTROL_REQUEST_METHOD, method)
-                .header(header::ACCESS_CONTROL_REQUEST_HEADERS, "content-type")
+                .header(
+                    header::ACCESS_CONTROL_REQUEST_HEADERS,
+                    "content-type, authorization",
+                )
                 .body(Body::empty())
                 .unwrap();
 
@@ -254,6 +264,7 @@ mod tests {
                 .to_str()
                 .unwrap();
             assert!(allowed.contains("content-type"), "{allowed}");
+            assert!(allowed.contains("authorization"), "{allowed}");
         }
     }
 

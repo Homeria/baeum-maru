@@ -1,0 +1,104 @@
+//! `/api/login`, `/api/logout`의 요청·응답 JSON 모양.
+//!
+//! PIN과 세션 증표가 들어 있어 `Debug`를 직접 써서 글자를 가린다.
+
+use baeum_domain::Role;
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
+use crate::db::staff::LoginChoice;
+
+/// 로그인 화면에서 고를 직원 하나.
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
+pub struct LoginStaffResponse {
+    #[ts(type = "number")]
+    pub id: i64,
+    pub name: String,
+}
+
+impl From<LoginChoice> for LoginStaffResponse {
+    fn from(choice: LoginChoice) -> Self {
+        LoginStaffResponse {
+            id: choice.id,
+            name: choice.name,
+        }
+    }
+}
+
+/// `GET /api/login/staff` 응답. 이름 순서.
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
+pub struct LoginStaffListResponse {
+    pub items: Vec<LoginStaffResponse>,
+}
+
+/// `POST /api/login` 본문.
+#[derive(Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct LoginRequest {
+    /// 고른 직원의 id.
+    #[ts(type = "number")]
+    pub staff_id: i64,
+    pub pin: String,
+}
+
+impl std::fmt::Debug for LoginRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LoginRequest")
+            .field("staff_id", &self.staff_id)
+            .field("pin", &"***")
+            .finish()
+    }
+}
+
+/// 역할. BR-K3
+#[derive(Debug, Clone, Copy, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum RoleCode {
+    Admin,
+    Staff,
+    TempStaff,
+    ReadOnly,
+}
+
+impl From<Role> for RoleCode {
+    fn from(role: Role) -> Self {
+        match role {
+            Role::Admin => RoleCode::Admin,
+            Role::Staff => RoleCode::Staff,
+            Role::TempStaff => RoleCode::TempStaff,
+            Role::ReadOnly => RoleCode::ReadOnly,
+        }
+    }
+}
+
+/// 로그인한 직원.
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
+pub struct SignedInStaffResponse {
+    #[ts(type = "number")]
+    pub id: i64,
+    pub name: String,
+    pub role: RoleCode,
+}
+
+/// `POST /api/login` 응답.
+#[derive(Serialize, TS)]
+#[ts(export)]
+pub struct LoginResponse {
+    /// 세션 증표. 메모리에만 두고 요청마다 `Authorization: Bearer <증표>`로 싣는다.
+    pub token: String,
+    pub staff: SignedInStaffResponse,
+}
+
+impl std::fmt::Debug for LoginResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LoginResponse")
+            .field("token", &"***")
+            .field("staff", &self.staff)
+            .finish()
+    }
+}

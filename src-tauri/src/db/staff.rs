@@ -1,9 +1,10 @@
 //! 직원 계정과 복구 코드 저장.
 
-use baeum_domain::{Role, StaffName};
-use chrono::{DateTime, Utc};
+use baeum_domain::{FailedPin, Role, StaffName, record_failed_pin};
+use chrono::{DateTime, NaiveDate, Utc};
 use sqlx::SqlitePool;
 
+use super::access_logs::{self, AccessEvent};
 use super::timestamp_text;
 
 /// 처음 설정을 하지 못했다.
@@ -69,11 +70,131 @@ pub async fn setup(
     Ok(admin_id)
 }
 
+/// 로그인 화면에서 고를 수 있는 직원 하나.
+#[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
+pub struct LoginChoice {
+    pub id: i64,
+    pub name: String,
+}
+
+/// 로그인 화면에 보여 줄 직원을 이름 순서로 읽는다.
+///
+/// 사용 중지(BR-K6)했거나 `today`에 유효기간이 지난(BR-K5) 계정은 뺀다.
+/// 잠긴 계정(BR-K7)은 넣는다. 고르면 잠겼다고 알려 준다.
+pub async fn list_for_login(
+    pool: &SqlitePool,
+    today: NaiveDate,
+) -> Result<Vec<LoginChoice>, sqlx::Error> {
+    sqlx::query_as(
+        "SELECT id, name FROM staff
+         WHERE disabled = 0 AND (valid_until IS NULL OR valid_until >= ?)
+         ORDER BY name, id",
+    )
+    .bind(today)
+    .fetch_all(pool)
+    .await
+}
+
+/// 로그인할 때 확인하는 직원 계정.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoginAccount {
+    pub id: i64,
+    pub name: String,
+    pub role: Role,
+    /// argon2id 해시. PIN 자체가 아니다.
+    pub pin_hash: String,
+    pub valid_until: Option<NaiveDate>,
+    pub disabled: bool,
+    /// 잠갔으면 풀리는 시각. 지난 시각이면 이미 풀렸다.
+    pub locked_until: Option<DateTime<Utc>>,
+}
+
+/// DB에서 읽은 그대로의 한 줄. 역할은 글자다.
+#[derive(sqlx::FromRow)]
+struct LoginAccountRow {
+    id: i64,
+    name: String,
+    role: String,
+    pin_hash: String,
+    valid_until: Option<NaiveDate>,
+    disabled: bool,
+    locked_until: Option<DateTime<Utc>>,
+}
+
+impl TryFrom<LoginAccountRow> for LoginAccount {
+    type Error = sqlx::Error;
+
+    fn try_from(row: LoginAccountRow) -> Result<Self, Self::Error> {
+        let role = Role::from_code(&row.role)
+            .ok_or_else(|| sqlx::Error::Decode(format!("모르는 역할: {}", row.role).into()))?;
+        Ok(LoginAccount {
+            id: row.id,
+            name: row.name,
+            role,
+            pin_hash: row.pin_hash,
+            valid_until: row.valid_until,
+            disabled: row.disabled,
+            locked_until: row.locked_until,
+        })
+    }
+}
+
+/// `id`인 직원 계정을 읽는다. 없으면 `None`.
+pub async fn get_login_account(
+    pool: &SqlitePool,
+    id: i64,
+) -> Result<Option<LoginAccount>, sqlx::Error> {
+    let row: Option<LoginAccountRow> = sqlx::query_as(
+        "SELECT id, name, role, pin_hash, valid_until, disabled, locked_until
+         FROM staff WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+    row.map(LoginAccount::try_from).transpose()
+}
+
+/// BR-K7: `staff_id`인 직원이 PIN을 틀렸다. 틀린 횟수를 세고(5번째면 잠그고)
+/// 접속 기록에 로그인 실패를 남긴 뒤, 바뀐 상태를 돌려준다.
+///
+/// 동시에 틀려도 횟수를 빠뜨리지 않게 읽기와 쓰기를 `BEGIN IMMEDIATE` 하나에서 한다.
+pub async fn add_failed_pin(
+    pool: &SqlitePool,
+    staff_id: i64,
+    now: DateTime<Utc>,
+) -> Result<FailedPin, sqlx::Error> {
+    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
+
+    let failed_count: u32 = sqlx::query_scalar("SELECT failed_pin_count FROM staff WHERE id = ?")
+        .bind(staff_id)
+        .fetch_one(&mut *tx)
+        .await?;
+    let failed = record_failed_pin(failed_count, now);
+
+    sqlx::query("UPDATE staff SET failed_pin_count = ?, locked_until = ? WHERE id = ?")
+        .bind(failed.failed_count)
+        .bind(failed.locked_until.map(timestamp_text))
+        .bind(staff_id)
+        .execute(&mut *tx)
+        .await?;
+    access_logs::insert(
+        &mut tx,
+        Some(staff_id),
+        AccessEvent::LoginFailed,
+        &timestamp_text(now),
+    )
+    .await?;
+
+    tx.commit().await?;
+    Ok(failed)
+}
+
 #[cfg(test)]
 mod tests {
     use chrono::TimeZone;
 
     use super::*;
+    use crate::db::access_logs::list_for_test;
     use crate::db::open_temp;
     use crate::db::test_support::insert_staff;
 
@@ -150,5 +271,80 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(code_hash, "code-hash");
+    }
+
+    fn date(text: &str) -> NaiveDate {
+        text.parse().unwrap()
+    }
+
+    #[tokio::test]
+    async fn login_list_hides_disabled_and_expired_staff() {
+        let (_dir, pool) = open_temp().await;
+        let kept = insert_staff(&pool, "나직원", "staff", None).await.unwrap();
+        let last_day = insert_staff(&pool, "가임시", "temp_staff", Some("2026-11-15"))
+            .await
+            .unwrap();
+        insert_staff(&pool, "다임시", "temp_staff", Some("2026-11-14"))
+            .await
+            .unwrap();
+        let disabled = insert_staff(&pool, "라직원", "staff", None).await.unwrap();
+        sqlx::query("UPDATE staff SET disabled = 1 WHERE id = ?")
+            .bind(disabled)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let choices = list_for_login(&pool, date("2026-11-15")).await.unwrap();
+
+        let ids: Vec<i64> = choices.iter().map(|choice| choice.id).collect();
+        assert_eq!(ids, [last_day, kept]);
+    }
+
+    #[tokio::test]
+    async fn reads_login_account() {
+        let (_dir, pool) = open_temp().await;
+        let id = insert_staff(&pool, "임시1", "temp_staff", Some("2027-02-28"))
+            .await
+            .unwrap();
+
+        let account = get_login_account(&pool, id).await.unwrap().unwrap();
+
+        assert_eq!(
+            account,
+            LoginAccount {
+                id,
+                name: "임시1".to_owned(),
+                role: Role::TempStaff,
+                pin_hash: "hash".to_owned(),
+                valid_until: Some(date("2027-02-28")),
+                disabled: false,
+                locked_until: None,
+            }
+        );
+        assert_eq!(get_login_account(&pool, id + 1).await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn fifth_failed_pin_locks_account_and_every_failure_is_logged() {
+        let (_dir, pool) = open_temp().await;
+        let id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
+
+        for expected in 1..=4 {
+            let failed = add_failed_pin(&pool, id, now()).await.unwrap();
+            assert_eq!(failed.failed_count, expected);
+            assert_eq!(failed.locked_until, None);
+        }
+        let failed = add_failed_pin(&pool, id, now()).await.unwrap();
+
+        let unlock_at = now() + baeum_domain::ACCOUNT_LOCK;
+        assert_eq!(failed.locked_until, Some(unlock_at));
+        let account = get_login_account(&pool, id).await.unwrap().unwrap();
+        assert_eq!(account.locked_until, Some(unlock_at));
+        let logs = list_for_test(&pool).await;
+        assert_eq!(logs.len(), 5);
+        assert!(
+            logs.iter()
+                .all(|log| *log == (Some(id), "login_failed".to_owned()))
+        );
     }
 }

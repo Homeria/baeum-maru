@@ -48,6 +48,14 @@ pub enum ApiError {
     CourseNotFound,
     /// BR-K11: 처음 설정은 직원이 하나도 없을 때 한 번만 한다.
     SetupAlreadyDone,
+    /// 주소나 본문의 id인 직원이 없다.
+    StaffNotFound,
+    /// 로그인할 때 PIN이 틀렸다.
+    LoginFailed,
+    /// BR-K7: PIN을 5번 연속 틀려 계정이 잠겼다.
+    AccountLocked,
+    /// BR-K5, BR-K6: 사용 중지했거나 유효기간이 지난 계정이다.
+    AccountUnavailable,
     /// ADR 0012: 앱과 호스트의 버전 앞 두 자리가 다르다.
     VersionMismatch,
     /// DB 같은 내부 문제. 자세한 내용은 로그에만 있다.
@@ -107,6 +115,10 @@ pub enum ErrorCode {
     DuplicateCourse,
     CourseNotFound,
     SetupAlreadyDone,
+    StaffNotFound,
+    LoginFailed,
+    AccountLocked,
+    AccountUnavailable,
     VersionMismatch,
     Internal,
 }
@@ -246,6 +258,34 @@ impl IntoResponse for ApiError {
                 ErrorCode::SetupAlreadyDone,
                 "이미 처음 설정을 마쳤습니다. 관리자 계정으로 로그인해 주세요",
                 Some("BR-K11"),
+                Vec::new(),
+            ),
+            ApiError::StaffNotFound => (
+                StatusCode::NOT_FOUND,
+                ErrorCode::StaffNotFound,
+                "직원을 찾지 못했습니다",
+                None,
+                Vec::new(),
+            ),
+            ApiError::LoginFailed => (
+                StatusCode::UNAUTHORIZED,
+                ErrorCode::LoginFailed,
+                "PIN이 맞지 않습니다. 5번 연속 틀리면 5분 동안 잠깁니다",
+                None,
+                Vec::new(),
+            ),
+            ApiError::AccountLocked => (
+                StatusCode::FORBIDDEN,
+                ErrorCode::AccountLocked,
+                "PIN을 5번 연속 틀려 잠겼습니다. 5분이 지나면 다시 할 수 있습니다",
+                Some("BR-K7"),
+                Vec::new(),
+            ),
+            ApiError::AccountUnavailable => (
+                StatusCode::FORBIDDEN,
+                ErrorCode::AccountUnavailable,
+                "사용 중지했거나 유효기간이 지난 계정입니다. 관리자에게 물어 주세요",
+                None,
                 Vec::new(),
             ),
             ApiError::VersionMismatch => (

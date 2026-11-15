@@ -2,9 +2,11 @@
 //!
 //! ADR 0005: SQLite + sqlx. 구조 변경은 시작할 때 자동으로 적용한다.
 
+pub mod access_logs;
 pub mod courses;
 pub mod members;
 pub mod rooms;
+pub mod sessions;
 pub mod staff;
 pub mod subjects;
 pub mod terms;
