@@ -148,4 +148,89 @@ mod tests {
 
         assert!(result.is_err());
     }
+
+    async fn insert_room(
+        pool: &SqlitePool,
+        building: Option<&str>,
+        floor: Option<i64>,
+        name: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "INSERT INTO rooms (building, floor, name, created_at, updated_at)
+             VALUES (?, ?, ?, '2026-11-15T00:00:00.000Z', '2026-11-15T00:00:00.000Z')",
+        )
+        .bind(building)
+        .bind(floor)
+        .bind(name)
+        .execute(pool)
+        .await
+        .map(|_| ())
+    }
+
+    #[tokio::test]
+    async fn br_r1_rejects_same_name_in_same_building() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = open(dir.path()).await.unwrap();
+
+        insert_room(&pool, Some("본관"), Some(3), "다목적실")
+            .await
+            .unwrap();
+        // 층이 달라도 겹친 것으로 봄
+        let duplicate = insert_room(&pool, Some("본관"), Some(2), "다목적실")
+            .await
+            .unwrap_err();
+
+        let is_unique_violation = duplicate
+            .as_database_error()
+            .is_some_and(|error| error.is_unique_violation());
+        assert!(is_unique_violation, "{duplicate}");
+    }
+
+    #[tokio::test]
+    async fn br_r1_allows_same_name_in_other_building() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = open(dir.path()).await.unwrap();
+
+        insert_room(&pool, Some("본관"), None, "다목적실")
+            .await
+            .unwrap();
+        insert_room(&pool, Some("별관"), None, "다목적실")
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn br_r1_rooms_require_building() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = open(dir.path()).await.unwrap();
+
+        assert!(insert_room(&pool, None, None, "다목적실").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn rooms_accept_floors_from_basement_2_to_5() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = open(dir.path()).await.unwrap();
+
+        for (i, floor) in [None, Some(-2), Some(-1), Some(1), Some(5)]
+            .into_iter()
+            .enumerate()
+        {
+            let name = format!("강의실{i}");
+            insert_room(&pool, Some("본관"), floor, &name)
+                .await
+                .unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn rooms_reject_floor_zero_and_out_of_range() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = open(dir.path()).await.unwrap();
+
+        for floor in [0, -3, 6] {
+            let result = insert_room(&pool, Some("본관"), Some(floor), "다목적실").await;
+            assert!(result.is_err(), "{floor}");
+        }
+    }
 }
