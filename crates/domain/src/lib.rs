@@ -7,3 +7,7 @@
 
 // [docs/conventions.md]: 공개 항목은 문서 주석 필수
 #![warn(missing_docs, clippy::missing_errors_doc, clippy::missing_panics_doc)]
+
+mod personal;
+
+pub use personal::Personal;
