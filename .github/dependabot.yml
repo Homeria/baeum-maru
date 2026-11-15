@@ -1,0 +1,36 @@
+# [ADR 0012]: 한 달에 한 번, 종류별로 한 PR에 묶는다.
+# 보안 업데이트는 저장소 설정의 Dependabot security updates로 바로 받는다.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      cargo:
+        patterns: ["*"]
+    labels: [chore]
+    commit-message:
+      prefix: chore
+
+  - package-ecosystem: npm
+    directory: /ui
+    schedule:
+      interval: monthly
+    groups:
+      npm:
+        patterns: ["*"]
+    labels: [chore]
+    commit-message:
+      prefix: chore
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      github-actions:
+        patterns: ["*"]
+    labels: [chore]
+    commit-message:
+      prefix: chore

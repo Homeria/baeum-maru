@@ -138,7 +138,7 @@ baeum-maru/
 
 - 검사가 도는 경로는 이것만 적는다. 이 경로 안이라도 `*.md`는 뺀다.
   - `crates/**`, `src-tauri/**`, `ui/**`
-  - `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `justfile`, `deny.toml`
+  - `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `clippy.toml`, `.cargo/**`, `.node-version`, `justfile`, `deny.toml`
   - `.github/workflows/**`
 - 목록에 없는 `docs/`, `spikes/`, README, 템플릿을 고쳐도 아무것도 돌지 않는다.
 - 같은 브랜치에 새로 push하면 돌던 검사를 취소한다. 빌드 결과는 캐시한다.
