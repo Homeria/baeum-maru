@@ -10,7 +10,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use axum::extract::FromRef;
 use axum::http::{HeaderName, HeaderValue, Method, header};
-use axum::routing::{get, post};
+use axum::routing::get;
 use axum::{Router, middleware};
 use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
@@ -62,7 +62,10 @@ impl FromRef<AppState> for SqlitePool {
 /// 모든 요청 주소를 묶은 라우터.
 pub fn router(state: AppState) -> Router {
     let checked = Router::new()
-        .route("/api/members", post(members::create_member))
+        .route(
+            "/api/members",
+            get(members::search_members).post(members::create_member),
+        )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             version::require_compatible,

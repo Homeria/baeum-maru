@@ -5,7 +5,7 @@
 use std::fmt::Display;
 
 use axum::Json;
-use axum::extract::rejection::JsonRejection;
+use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
@@ -122,6 +122,13 @@ impl IntoResponse for ApiError {
 /// axum이 본문을 읽지 못했을 때. 거절 사유에는 보낸 값이 섞일 수 있어 응답과 로그에 싣지 않는다.
 impl From<JsonRejection> for ApiError {
     fn from(_: JsonRejection) -> Self {
+        ApiError::MalformedRequest
+    }
+}
+
+/// `?` 뒤 값을 읽지 못했을 때. 검색어가 섞일 수 있어 응답과 로그에 싣지 않는다.
+impl From<QueryRejection> for ApiError {
+    fn from(_: QueryRejection) -> Self {
         ApiError::MalformedRequest
     }
 }

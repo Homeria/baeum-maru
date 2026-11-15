@@ -3,6 +3,8 @@ import type { Gender } from "./Gender";
 
 /**
  * `POST /api/members` 본문. 확인 전이라 글자 그대로다.
+ *
+ * 회원 정보가 그대로 들어 있어 `Debug`를 붙이지 않는다 (로그에 찍히지 않게).
  */
 export type CreateMemberRequest = { memberNo: string, name: string, phoneNumber: string, 
 /**

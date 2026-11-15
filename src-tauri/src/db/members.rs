@@ -1,7 +1,7 @@
-//! 회원 저장.
+//! 회원 저장과 찾기.
 
-use baeum_domain::{Gender, NewMember};
-use chrono::{DateTime, SecondsFormat, Utc};
+use baeum_domain::{Gender, NewMember, Personal};
+use chrono::{DateTime, NaiveDate, SecondsFormat, Utc};
 use sqlx::SqlitePool;
 
 /// 회원을 저장하지 못했다.
@@ -61,6 +61,129 @@ fn gender_text(gender: Gender) -> &'static str {
         Gender::Male => "male",
         Gender::Female => "female",
     }
+}
+
+/// [`gender_text`]의 반대. CHECK 제약이 있어 다른 글자는 나오지 않는다.
+fn gender_from_text(text: &str) -> Result<Gender, sqlx::Error> {
+    match text {
+        "male" => Ok(Gender::Male),
+        "female" => Ok(Gender::Female),
+        _ => Err(sqlx::Error::Decode("알 수 없는 성별".into())),
+    }
+}
+
+/// DB에 저장된 회원 한 명.
+#[derive(Debug)]
+pub struct MemberRecord {
+    pub id: i64,
+    pub member_no: Personal<String>,
+    pub name: Personal<String>,
+    pub phone_number: Personal<String>,
+    pub birth_date: Option<Personal<NaiveDate>>,
+    pub gender: Option<Personal<Gender>>,
+}
+
+type MemberRow = (
+    i64,
+    String,
+    String,
+    String,
+    Option<NaiveDate>,
+    Option<String>,
+);
+
+impl TryFrom<MemberRow> for MemberRecord {
+    type Error = sqlx::Error;
+
+    fn try_from(row: MemberRow) -> Result<Self, Self::Error> {
+        let (id, member_no, name, phone_number, birth_date, gender) = row;
+        let gender = gender.as_deref().map(gender_from_text).transpose()?;
+        Ok(MemberRecord {
+            id,
+            member_no: Personal::new(member_no),
+            name: Personal::new(name),
+            phone_number: Personal::new(phone_number),
+            birth_date: birth_date.map(Personal::new),
+            gender: gender.map(Personal::new),
+        })
+    }
+}
+
+/// 찾은 회원 한 쪽과 조건에 맞는 전체 수.
+#[derive(Debug)]
+pub struct MemberPage {
+    pub items: Vec<MemberRecord>,
+    pub total: i64,
+}
+
+/// 검색어로 회원을 찾는다. 이름순, 같으면 회원번호순.
+///
+/// 검색어는 이름과 회원번호의 일부, 연락처 숫자의 일부와 맞춰 본다.
+/// 빈 검색어는 모두 찾는다. `page`는 1부터 센다.
+pub async fn search(
+    pool: &SqlitePool,
+    query: &str,
+    page: u32,
+    page_size: u32,
+) -> Result<MemberPage, sqlx::Error> {
+    let text_pattern = format!("%{}%", escape_like(query.trim()));
+    let phone_pattern = phone_digits(query).map(|digits| format!("%{digits}%"));
+    let offset = i64::from(page.saturating_sub(1)) * i64::from(page_size);
+
+    // ?1 이름·회원번호 패턴, ?2 연락처 패턴(숫자 검색어가 아니면 NULL)
+    // sqlx는 고정 글자 SQL만 받으므로 아래 COUNT와 WHERE를 똑같이 두 번 씀
+    let rows: Vec<MemberRow> = sqlx::query_as(
+        r"SELECT id, member_no, name, phone_number, birth_date, gender
+          FROM members
+          WHERE name LIKE ?1 ESCAPE '\' OR member_no LIKE ?1 ESCAPE '\'
+             OR (?2 IS NOT NULL AND phone_number LIKE ?2)
+          ORDER BY name, member_no
+          LIMIT ?3 OFFSET ?4",
+    )
+    .bind(&text_pattern)
+    .bind(&phone_pattern)
+    .bind(i64::from(page_size))
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+
+    let total: i64 = sqlx::query_scalar(
+        r"SELECT COUNT(*)
+          FROM members
+          WHERE name LIKE ?1 ESCAPE '\' OR member_no LIKE ?1 ESCAPE '\'
+             OR (?2 IS NOT NULL AND phone_number LIKE ?2)",
+    )
+    .bind(&text_pattern)
+    .bind(&phone_pattern)
+    .fetch_one(pool)
+    .await?;
+
+    let items = rows
+        .into_iter()
+        .map(MemberRecord::try_from)
+        .collect::<Result<_, _>>()?;
+    Ok(MemberPage { items, total })
+}
+
+/// LIKE에서 특별한 뜻이 있는 `%`, `_`와 이스케이프 글자 `\`를 글자 그대로 찾게 한다.
+fn escape_like(text: &str) -> String {
+    let mut escaped = String::with_capacity(text.len());
+    for c in text.chars() {
+        if matches!(c, '%' | '_' | '\\') {
+            escaped.push('\\');
+        }
+        escaped.push(c);
+    }
+    escaped
+}
+
+/// 검색어가 숫자, 하이픈, 공백으로만 되어 있으면 숫자만 남긴다. 연락처는 숫자만 저장되어 있다.
+fn phone_digits(query: &str) -> Option<String> {
+    let only_phone_chars = query
+        .chars()
+        .all(|c| c.is_ascii_digit() || c == '-' || c == ' ');
+    let digits: String = query.chars().filter(char::is_ascii_digit).collect();
+    (only_phone_chars && !digits.is_empty()).then_some(digits)
 }
 
 #[cfg(test)]
@@ -197,5 +320,113 @@ mod tests {
             .unwrap();
 
         assert_ne!(first, second);
+    }
+
+    async fn add(pool: &SqlitePool, member_no: &str, name: &str, phone_number: &str) {
+        let member = new_member(MemberInput {
+            name,
+            phone_number,
+            ..input(member_no)
+        });
+        insert(pool, &member, now()).await.unwrap();
+    }
+
+    async fn found(pool: &SqlitePool, query: &str) -> Vec<String> {
+        search(pool, query, 1, 20)
+            .await
+            .unwrap()
+            .items
+            .into_iter()
+            .map(|member| member.member_no.into_inner())
+            .collect()
+    }
+
+    async fn sample() -> (tempfile::TempDir, SqlitePool) {
+        let (dir, pool) = open().await;
+        add(&pool, "00001", "나회원", "01011112222").await;
+        add(&pool, "00002", "가회원", "01033334444").await;
+        add(&pool, "A-100", "다손님", "0325556666").await;
+        (dir, pool)
+    }
+
+    #[tokio::test]
+    async fn empty_query_finds_everyone_by_name() {
+        let (_dir, pool) = sample().await;
+
+        assert_eq!(found(&pool, "").await, ["00002", "00001", "A-100"]);
+    }
+
+    #[tokio::test]
+    async fn finds_by_part_of_name() {
+        let (_dir, pool) = sample().await;
+
+        assert_eq!(found(&pool, "회원").await, ["00002", "00001"]);
+        assert_eq!(found(&pool, " 손님 ").await, ["A-100"]);
+    }
+
+    #[tokio::test]
+    async fn finds_by_part_of_member_no() {
+        let (_dir, pool) = sample().await;
+
+        assert_eq!(found(&pool, "A-1").await, ["A-100"]);
+    }
+
+    #[tokio::test]
+    async fn finds_by_phone_digits_with_hyphens() {
+        let (_dir, pool) = sample().await;
+
+        assert_eq!(found(&pool, "3333-4444").await, ["00002"]);
+        assert_eq!(found(&pool, "032 555").await, ["A-100"]);
+    }
+
+    #[tokio::test]
+    async fn like_symbols_are_plain_text() {
+        let (_dir, pool) = sample().await;
+
+        assert!(found(&pool, "%").await.is_empty());
+        assert!(found(&pool, "_").await.is_empty());
+        assert!(found(&pool, "\\").await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn pages_and_total() {
+        let (_dir, pool) = sample().await;
+
+        let first = search(&pool, "", 1, 2).await.unwrap();
+        let second = search(&pool, "", 2, 2).await.unwrap();
+
+        assert_eq!(first.total, 3);
+        assert_eq!(first.items.len(), 2);
+        assert_eq!(second.total, 3);
+        assert_eq!(second.items[0].member_no.expose(), "A-100");
+    }
+
+    #[tokio::test]
+    async fn search_returns_saved_fields() {
+        let (_dir, pool) = open().await;
+        let member = new_member(MemberInput {
+            birth_date: NaiveDate::from_ymd_opt(1950, 3, 1),
+            gender: Some(Gender::Male),
+            ..input("00001")
+        });
+        let id = insert(&pool, &member, now()).await.unwrap();
+
+        let page = search(&pool, "", 1, 20).await.unwrap();
+
+        let record = &page.items[0];
+        assert_eq!(record.id, id);
+        assert_eq!(record.name.expose(), "회원1");
+        assert_eq!(record.phone_number.expose(), "01000000001");
+        let birth_date = record.birth_date.as_ref().map(|date| *date.expose());
+        assert_eq!(birth_date, NaiveDate::from_ymd_opt(1950, 3, 1));
+        let gender = record.gender.as_ref().map(|gender| *gender.expose());
+        assert_eq!(gender, Some(Gender::Male));
+    }
+
+    #[test]
+    fn phone_digits_only_for_phone_like_query() {
+        assert_eq!(phone_digits("010-1234").as_deref(), Some("0101234"));
+        assert_eq!(phone_digits("회원1"), None);
+        assert_eq!(phone_digits(" - "), None);
     }
 }

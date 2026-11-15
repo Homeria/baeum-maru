@@ -1,21 +1,21 @@
 //! `/api/members`: 회원.
 
 use axum::Json;
-use axum::extract::State;
-use axum::extract::rejection::JsonRejection;
+use axum::extract::rejection::{JsonRejection, QueryRejection};
+use axum::extract::{Query, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
-use baeum_domain::{Gender, MemberError, MemberInput, NewMember};
+use baeum_domain::{Gender, MemberError, MemberInput, NewMember, Personal};
 use chrono::{Local, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use ts_rs::TS;
 
 use super::error::{ApiError, FieldError};
-use crate::db::members::{self, InsertMemberError};
+use crate::db::members::{self, InsertMemberError, MemberRecord};
 
 /// 성별. JSON으로는 `"male"`, `"female"`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, rename = "Gender")]
 pub enum GenderJson {
@@ -32,8 +32,19 @@ impl From<GenderJson> for Gender {
     }
 }
 
+impl From<Gender> for GenderJson {
+    fn from(gender: Gender) -> Self {
+        match gender {
+            Gender::Male => GenderJson::Male,
+            Gender::Female => GenderJson::Female,
+        }
+    }
+}
+
 /// `POST /api/members` 본문. 확인 전이라 글자 그대로다.
-#[derive(Debug, Deserialize, TS)]
+///
+/// 회원 정보가 그대로 들어 있어 `Debug`를 붙이지 않는다 (로그에 찍히지 않게).
+#[derive(Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CreateMemberRequest {
@@ -88,6 +99,108 @@ pub async fn create_member(
         [(header::LOCATION, location)],
         Json(CreateMemberResponse { id }),
     ))
+}
+
+/// 한 쪽에 보여 주는 기본 인원.
+const DEFAULT_PAGE_SIZE: u32 = 20;
+/// 한 쪽에 보여 주는 최대 인원.
+const MAX_PAGE_SIZE: u32 = 100;
+
+/// `GET /api/members`의 `?` 뒤 값.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchMembersParams {
+    /// 이름, 회원번호, 연락처의 일부. 없으면 모두.
+    query: Option<String>,
+    /// 1부터. 없으면 1.
+    page: Option<u32>,
+    /// 1~100. 없으면 20.
+    page_size: Option<u32>,
+}
+
+/// 목록의 회원 한 명.
+///
+/// 회원 정보가 그대로 들어 있어 `Debug`를 붙이지 않는다.
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct MemberListItem {
+    #[ts(type = "number")]
+    pub id: i64,
+    pub member_no: String,
+    pub name: String,
+    /// 숫자만. 하이픈은 화면에서 넣는다.
+    pub phone_number: String,
+    pub birth_date: Option<NaiveDate>,
+    pub gender: Option<GenderJson>,
+}
+
+impl From<MemberRecord> for MemberListItem {
+    fn from(record: MemberRecord) -> Self {
+        MemberListItem {
+            id: record.id,
+            member_no: record.member_no.into_inner(),
+            name: record.name.into_inner(),
+            phone_number: record.phone_number.into_inner(),
+            birth_date: record.birth_date.map(Personal::into_inner),
+            gender: record
+                .gender
+                .map(|gender| GenderJson::from(gender.into_inner())),
+        }
+    }
+}
+
+/// `GET /api/members` 응답.
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct MemberListResponse {
+    pub items: Vec<MemberListItem>,
+    /// 조건에 맞는 전체 인원.
+    #[ts(type = "number")]
+    pub total: i64,
+    pub page: u32,
+    pub page_size: u32,
+}
+
+/// 검색어로 회원을 찾는다. 이름순, 같으면 회원번호순.
+// [docs/conventions.md]: 검색어는 로그에 남기지 않음
+pub async fn search_members(
+    State(db): State<SqlitePool>,
+    params: Result<Query<SearchMembersParams>, QueryRejection>,
+) -> Result<Json<MemberListResponse>, ApiError> {
+    let Query(params) = params?;
+    let page = params.page.unwrap_or(1);
+    let page_size = params.page_size.unwrap_or(DEFAULT_PAGE_SIZE);
+
+    let mut fields = Vec::new();
+    if page < 1 {
+        fields.push(FieldError {
+            field: "page".to_owned(),
+            message: "쪽 번호는 1부터입니다".to_owned(),
+        });
+    }
+    if !(1..=MAX_PAGE_SIZE).contains(&page_size) {
+        fields.push(FieldError {
+            field: "pageSize".to_owned(),
+            message: format!("한 쪽 인원은 1~{MAX_PAGE_SIZE}명입니다"),
+        });
+    }
+    if !fields.is_empty() {
+        return Err(ApiError::InvalidInput(fields));
+    }
+
+    let query = params.query.as_deref().unwrap_or("");
+    let found = members::search(&db, query, page, page_size)
+        .await
+        .map_err(ApiError::internal)?;
+
+    Ok(Json(MemberListResponse {
+        items: found.items.into_iter().map(MemberListItem::from).collect(),
+        total: found.total,
+        page,
+        page_size,
+    }))
 }
 
 fn invalid_input(errors: Vec<MemberError>) -> ApiError {
@@ -282,5 +395,81 @@ mod tests {
         let response = post(router, &body.to_string()).await;
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    async fn get(router: Router, uri: &str) -> Response<Body> {
+        let request = Request::get(uri)
+            .header(VERSION_HEADER, crate::version::CURRENT)
+            .body(Body::empty())
+            .unwrap();
+        router.oneshot(request).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn searches_members() {
+        let (_dir, _db, router) = app().await;
+        post(router.clone(), &valid("00001")).await;
+        post(router.clone(), &valid("00002")).await;
+
+        let response = get(router, "/api/members?query=0000-0001&pageSize=10").await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+        let body = json_body(response).await;
+        assert_eq!(body["total"], 2);
+        assert_eq!(body["page"], 1);
+        assert_eq!(body["pageSize"], 10);
+        let first = &body["items"][0];
+        assert_eq!(first["memberNo"], "00001");
+        assert_eq!(first["name"], "회원1");
+        assert_eq!(first["phoneNumber"], "01000000001");
+        assert_eq!(first["birthDate"], "1950-03-01");
+        assert_eq!(first["gender"], "female");
+    }
+
+    #[tokio::test]
+    async fn search_without_params_uses_defaults() {
+        let (_dir, _db, router) = app().await;
+
+        let response = get(router, "/api/members").await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = json_body(response).await;
+        assert_eq!(body["items"], json!([]));
+        assert_eq!(body["page"], 1);
+        assert_eq!(body["pageSize"], 20);
+    }
+
+    #[tokio::test]
+    async fn search_rejects_page_out_of_range() {
+        let (_dir, _db, router) = app().await;
+
+        let response = get(router, "/api/members?page=0&pageSize=101").await;
+
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        let body = json_body(response).await;
+        assert_eq!(body["fields"][0]["field"], "page");
+        assert_eq!(body["fields"][1]["field"], "pageSize");
+    }
+
+    #[tokio::test]
+    async fn search_with_broken_page_is_malformed() {
+        let (_dir, _db, router) = app().await;
+
+        let response = get(router, "/api/members?page=abc").await;
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn korean_query_in_url() {
+        let (_dir, _db, router) = app().await;
+        post(router.clone(), &valid("00001")).await;
+
+        // "회원"을 URL 인코딩
+        let response = get(router, "/api/members?query=%ED%9A%8C%EC%9B%90").await;
+
+        let body = json_body(response).await;
+        assert_eq!(body["total"], 1);
     }
 }
