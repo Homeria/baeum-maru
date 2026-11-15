@@ -77,7 +77,7 @@ fn fake_courses() -> Vec<Course> {
     courses
 }
 
-/// BR-R1: 이름 가운데 글자를 가린다. 홍길동 → 홍○동, 윤솔 → 윤○, 남궁하늘 → 남○○늘
+/// BR-P1: 이름 가운데 글자를 가린다. 홍길동 → 홍○동, 윤솔 → 윤○, 남궁하늘 → 남○○늘
 fn mask_name(name: &str) -> String {
     // 한글은 한 글자가 3바이트라 name.len()은 글자 수가 아니다. 글자 단위로 나눈다.
     let chars: Vec<char> = name.trim().chars().collect();
