@@ -114,15 +114,6 @@ describe("roomFormErrorsFrom", () => {
       name: "같은 건물에 같은 이름의 강의실이 있습니다",
     });
   });
-
-  test("칸에 붙일 수 없는 오류는 폼 전체 문구로", () => {
-    const error = new HostError(0, "호스트에 연결하지 못했습니다");
-
-    expect(roomFormErrorsFrom(error)).toEqual({
-      fields: {},
-      form: "호스트에 연결하지 못했습니다",
-    });
-  });
 });
 
 describe("firstErrorField", () => {

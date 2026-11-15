@@ -75,41 +75,11 @@ describe("memberFormErrorsFrom", () => {
       memberNo: "이미 있는 회원번호입니다",
     });
   });
-
-  test("칸에 붙일 수 없는 오류는 폼 전체 문구로", () => {
-    const error = new HostError(
-      0,
-      "호스트에 연결하지 못했습니다. 연결을 확인해 주세요",
-    );
-
-    const errors = memberFormErrorsFrom(error);
-
-    expect(errors.fields).toEqual({});
-    expect(errors.form).toBe(
-      "호스트에 연결하지 못했습니다. 연결을 확인해 주세요",
-    );
-  });
-
-  test("모르는 칸 이름은 버린다", () => {
-    const error = new HostError(
-      422,
-      "입력을 확인해 주세요",
-      "INVALID_INPUT",
-      null,
-      [{ field: "unknown", message: "?" }],
-    );
-
-    expect(memberFormErrorsFrom(error).fields).toEqual({});
-  });
 });
 
 describe("firstErrorField", () => {
   test("화면에서 가장 위 칸을 고른다", () => {
     expect(firstErrorField({ phoneNumber: "a", name: "b" })).toBe("name");
-  });
-
-  test("오류가 없으면 null", () => {
-    expect(firstErrorField({})).toBeNull();
   });
 });
 

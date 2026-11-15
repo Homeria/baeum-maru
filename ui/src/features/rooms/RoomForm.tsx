@@ -4,6 +4,7 @@ import type { RoomResponse } from "../../api/generated/RoomResponse";
 import { createRoom, deleteRoom, updateRoom } from "../../api/rooms";
 import { DeleteDialog } from "../../components/dialog/DeleteDialog";
 import styles from "../../components/form/form.module.css";
+import { NO_FORM_ERRORS } from "../../components/form/formErrors";
 import { FLOORS, floorLabel } from "./floor";
 import {
   buildingNames,
@@ -16,8 +17,6 @@ import {
   type RoomFormErrors,
   type RoomFormValues,
 } from "./roomFormData";
-
-const NO_ERRORS: RoomFormErrors = { fields: {}, form: null };
 
 const BUILDING_LIST_ID = "room-building-names";
 
@@ -50,7 +49,7 @@ export function RoomForm({
       ? roomFormValuesFrom(editing)
       : { name: "", building: lastUsedBuilding(rooms), floor: "" },
   );
-  const [errors, setErrors] = useState<RoomFormErrors>(NO_ERRORS);
+  const [errors, setErrors] = useState<RoomFormErrors>(NO_FORM_ERRORS);
   const [notice, setNotice] = useState<string | null>(initialNotice ?? null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const inputs = useRef<
@@ -75,7 +74,7 @@ export function RoomForm({
     },
     onSuccess: (name) => {
       void queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      setErrors(NO_ERRORS);
+      setErrors(NO_FORM_ERRORS);
       if (editing) {
         setNotice(`저장했습니다: ${name}`);
       } else {

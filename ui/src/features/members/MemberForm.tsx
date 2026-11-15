@@ -15,8 +15,7 @@ import {
   type MemberFormValues,
 } from "./memberFormData";
 import styles from "../../components/form/form.module.css";
-
-const NO_ERRORS: MemberFormErrors = { fields: {}, form: null };
+import { NO_FORM_ERRORS } from "../../components/form/formErrors";
 
 const GENDER_OPTIONS: readonly { value: Gender | ""; label: string }[] = [
   { value: "", label: "선택 안 함" },
@@ -48,7 +47,7 @@ export function MemberForm({
   const [values, setValues] = useState<MemberFormValues>(() =>
     editing ? memberFormValuesFrom(editing) : EMPTY_MEMBER_FORM,
   );
-  const [errors, setErrors] = useState<MemberFormErrors>(NO_ERRORS);
+  const [errors, setErrors] = useState<MemberFormErrors>(NO_FORM_ERRORS);
   const [notice, setNotice] = useState<string | null>(initialNotice ?? null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const inputs = useRef<Partial<Record<MemberField, HTMLInputElement | null>>>(
@@ -73,7 +72,7 @@ export function MemberForm({
     },
     onSuccess: (name) => {
       void queryClient.invalidateQueries({ queryKey: ["members"] });
-      setErrors(NO_ERRORS);
+      setErrors(NO_FORM_ERRORS);
       if (editing) {
         setNotice(`${name}님 정보를 저장했습니다`);
       } else {

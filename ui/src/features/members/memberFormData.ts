@@ -1,7 +1,11 @@
-import { HostError } from "../../api/client";
 import type { Gender } from "../../api/generated/Gender";
 import type { MemberRequest } from "../../api/generated/MemberRequest";
 import type { MemberResponse } from "../../api/generated/MemberResponse";
+import {
+  firstErrorField as firstOf,
+  formErrorsFrom,
+  type FormErrors,
+} from "../../components/form/formErrors";
 import { formatPhoneNumber } from "./formatPhoneNumber";
 
 /** 입력 칸 이름. 호스트 오류의 `field`와 같다. */
@@ -56,38 +60,18 @@ export function toMemberRequest(values: MemberFormValues): MemberRequest {
 }
 
 /** 저장 실패를 칸별 문구와 칸에 붙일 수 없는 문구로 나눈다. */
-export interface MemberFormErrors {
-  fields: Partial<Record<MemberField, string>>;
-  form: string | null;
-}
+export type MemberFormErrors = FormErrors<MemberField>;
 
+/** 회원번호가 겹치면(BR-M2) 회원번호 칸에 붙인다. */
 export function memberFormErrorsFrom(error: unknown): MemberFormErrors {
-  if (!(error instanceof HostError)) {
-    return { fields: {}, form: "저장하지 못했습니다. 다시 해 주세요" };
-  }
-  if (error.code === "DUPLICATE_MEMBER_NO") {
-    return { fields: { memberNo: error.message }, form: null };
-  }
-  if (error.code === "INVALID_INPUT") {
-    const fields: Partial<Record<MemberField, string>> = {};
-    for (const { field, message } of error.fields) {
-      // 한 칸에 오류가 둘이면 첫 번째만
-      if (isMemberField(field) && fields[field] === undefined) {
-        fields[field] = message;
-      }
-    }
-    return { fields, form: null };
-  }
-  return { fields: {}, form: error.message };
+  return formErrorsFrom(error, MEMBER_FIELDS, {
+    DUPLICATE_MEMBER_NO: "memberNo",
+  });
 }
 
 /** 오류가 난 칸 중 화면에서 가장 위에 있는 칸. */
 export function firstErrorField(
   fields: Partial<Record<MemberField, string>>,
 ): MemberField | null {
-  return MEMBER_FIELDS.find((field) => fields[field] !== undefined) ?? null;
-}
-
-function isMemberField(field: string): field is MemberField {
-  return (MEMBER_FIELDS as readonly string[]).includes(field);
+  return firstOf(fields, MEMBER_FIELDS);
 }
