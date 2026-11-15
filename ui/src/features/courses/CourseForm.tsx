@@ -247,21 +247,26 @@ export function CourseForm({
         두세요.
       </p>
       {field("capacity", "정원", true, (props) => (
-        <input
-          {...props}
-          ref={(element) => {
-            inputs.current.capacity = element;
-          }}
-          className={styles.input}
-          type="number"
-          inputMode="numeric"
-          min={1}
-          max={200}
-          value={values.capacity}
-          onChange={(event) =>
-            change({ capacity: event.target.value }, "capacity")
-          }
-        />
+        // 숫자 칸이라 글자는 들어가지 않음. 단위는 칸 밖에 붙여 "명"을 쓰지 않아도 되게
+        <div className={rowStyles.withUnit}>
+          <input
+            {...props}
+            ref={(element) => {
+              inputs.current.capacity = element;
+            }}
+            className={`${styles.input} ${rowStyles.number}`}
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={200}
+            placeholder="예: 20"
+            value={values.capacity}
+            onChange={(event) =>
+              change({ capacity: event.target.value }, "capacity")
+            }
+          />
+          명
+        </div>
       ))}
 
       <fieldset
