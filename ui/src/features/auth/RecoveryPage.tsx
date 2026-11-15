@@ -163,11 +163,13 @@ export function RecoveryPage({ onBack, onDone }: RecoveryPageProps) {
               <option value="">
                 {staffList.isPending ? "불러오는 중…" : "골라 주세요"}
               </option>
-              {staffList.data?.items.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
+              {staffList.data?.items
+                .filter((item) => item.role === "admin")
+                .map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
             </select>
             {staffError && (
               <p id="recovery-staffId-error" className={styles.fieldError}>

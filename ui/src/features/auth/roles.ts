@@ -8,6 +8,14 @@ export const ROLE_LABELS: Record<RoleCode, string> = {
   read_only: "조회 전용",
 };
 
+/** 화면에서 역할을 늘어놓는 순서. 호스트의 `Role::ALL`과 같다. */
+export const ROLE_ORDER: readonly RoleCode[] = [
+  "admin",
+  "staff",
+  "temp_staff",
+  "read_only",
+];
+
 /** 역할에 따라 할 수 있는 일. 호스트의 `Action`과 같다. */
 export type Action =
   | "view"

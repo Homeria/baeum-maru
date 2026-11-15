@@ -266,7 +266,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(
             json_body(response).await,
-            json!({ "items": [{ "id": admin_id, "name": "관리자" }] })
+            json!({ "items": [{ "id": admin_id, "name": "관리자", "role": "admin" }] })
         );
     }
 

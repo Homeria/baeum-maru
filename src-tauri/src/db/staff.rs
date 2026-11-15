@@ -70,11 +70,31 @@ pub async fn setup(
     Ok(admin_id)
 }
 
-/// 로그인 화면에서 고를 수 있는 직원 하나.
-#[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
+/// 로그인 화면에서 고를 수 있는 직원 하나. 화면은 역할별로 묶어 보여 준다.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoginChoice {
     pub id: i64,
     pub name: String,
+    pub role: Role,
+}
+
+#[derive(sqlx::FromRow)]
+struct LoginChoiceRow {
+    id: i64,
+    name: String,
+    role: String,
+}
+
+impl TryFrom<LoginChoiceRow> for LoginChoice {
+    type Error = sqlx::Error;
+
+    fn try_from(row: LoginChoiceRow) -> Result<Self, Self::Error> {
+        Ok(LoginChoice {
+            id: row.id,
+            name: row.name,
+            role: decode_role(&row.role)?,
+        })
+    }
 }
 
 /// 로그인 화면에 보여 줄 직원을 이름 순서로 읽는다.
@@ -85,14 +105,15 @@ pub async fn list_for_login(
     pool: &SqlitePool,
     today: NaiveDate,
 ) -> Result<Vec<LoginChoice>, sqlx::Error> {
-    sqlx::query_as(
-        "SELECT id, name FROM staff
+    let rows: Vec<LoginChoiceRow> = sqlx::query_as(
+        "SELECT id, name, role FROM staff
          WHERE disabled = 0 AND (valid_until IS NULL OR valid_until >= ?)
          ORDER BY name, id",
     )
     .bind(today)
     .fetch_all(pool)
-    .await
+    .await?;
+    rows.into_iter().map(LoginChoice::try_from).collect()
 }
 
 /// 로그인할 때 확인하는 직원 계정.
@@ -474,8 +495,21 @@ mod tests {
 
         let choices = list_for_login(&pool, date("2026-11-15")).await.unwrap();
 
-        let ids: Vec<i64> = choices.iter().map(|choice| choice.id).collect();
-        assert_eq!(ids, [last_day, kept]);
+        assert_eq!(
+            choices,
+            [
+                LoginChoice {
+                    id: last_day,
+                    name: "가임시".to_owned(),
+                    role: Role::TempStaff,
+                },
+                LoginChoice {
+                    id: kept,
+                    name: "나직원".to_owned(),
+                    role: Role::Staff,
+                },
+            ]
+        );
     }
 
     #[tokio::test]

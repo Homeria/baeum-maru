@@ -8,13 +8,14 @@ use ts_rs::TS;
 use crate::db::staff::LoginChoice;
 use crate::server::staff::RoleCode;
 
-/// 로그인 화면에서 고를 직원 하나.
+/// 로그인 화면에서 고를 직원 하나. 화면은 역할별로 묶어 보여 준다.
 #[derive(Debug, Serialize, TS)]
 #[ts(export)]
 pub struct LoginStaffResponse {
     #[ts(type = "number")]
     pub id: i64,
     pub name: String,
+    pub role: RoleCode,
 }
 
 impl From<LoginChoice> for LoginStaffResponse {
@@ -22,6 +23,7 @@ impl From<LoginChoice> for LoginStaffResponse {
         LoginStaffResponse {
             id: choice.id,
             name: choice.name,
+            role: choice.role.into(),
         }
     }
 }

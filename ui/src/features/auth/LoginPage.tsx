@@ -5,7 +5,9 @@ import { listLoginStaff, login } from "../../api/auth";
 import styles from "../../components/form/form.module.css";
 import { NO_FORM_ERRORS } from "../../components/form/formErrors";
 import authStyles from "./auth.module.css";
+import { ROLE_LABELS } from "./roles";
 import {
+  groupByRole,
   loginFormErrorsFrom,
   toLoginRequest,
   type LoginFormErrors,
@@ -19,6 +21,8 @@ export interface LoginPageProps {
 
 /**
  * 로그인: 이름을 고르고 PIN을 넣는다 (BR-K1, BR-K2).
+ *
+ * 이름은 역할별로 묶어 보여 준다. 임시 직원이 많아도 찾기 쉽게.
  *
  * 성공하면 세션이 생겨 앱이 메인 화면으로 바뀐다.
  */
@@ -106,20 +110,35 @@ export function LoginPage({ onForgotPin }: LoginPageProps) {
             aria-describedby={staffError ? "login-staff-error" : undefined}
           >
             <legend className={styles.label}>이름</legend>
-            <div className={authStyles.names}>
-              {items.map((item) => (
-                <label key={item.id} className={authStyles.name}>
-                  <input
-                    type="radio"
-                    name="staff"
-                    value={item.id}
-                    checked={staffId === item.id}
-                    onChange={() => choose(item.id)}
-                  />
-                  {item.name}
-                </label>
-              ))}
-            </div>
+            {groupByRole(items).map((group) => (
+              <div
+                key={group.role}
+                role="group"
+                aria-labelledby={`login-role-${group.role}`}
+                className={authStyles.roleGroup}
+              >
+                <p
+                  id={`login-role-${group.role}`}
+                  className={authStyles.roleTitle}
+                >
+                  {ROLE_LABELS[group.role]}
+                </p>
+                <div className={authStyles.names}>
+                  {group.items.map((item) => (
+                    <label key={item.id} className={authStyles.name}>
+                      <input
+                        type="radio"
+                        name="staff"
+                        value={item.id}
+                        checked={staffId === item.id}
+                        onChange={() => choose(item.id)}
+                      />
+                      {item.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
             {staffError && (
               <p id="login-staff-error" className={styles.fieldError}>
                 {staffError}

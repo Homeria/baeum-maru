@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { HostError } from "../../api/client";
-import { loginFormErrorsFrom, toLoginRequest } from "./loginFormData";
+import {
+  groupByRole,
+  loginFormErrorsFrom,
+  toLoginRequest,
+} from "./loginFormData";
 
 describe("toLoginRequest", () => {
   test("직원을 고르지 않았으면 이름 칸 오류", () => {
@@ -36,5 +40,30 @@ describe("loginFormErrorsFrom", () => {
       fields: {},
       form: "PIN을 5번 연속 틀려 잠겼습니다",
     });
+  });
+});
+
+describe("groupByRole", () => {
+  test("관리자부터 역할별로 묶고 묶음 안은 받은 순서를 지킨다", () => {
+    const groups = groupByRole([
+      { id: 1, name: "가임시", role: "temp_staff" },
+      { id: 2, name: "나관리", role: "admin" },
+      { id: 3, name: "다임시", role: "temp_staff" },
+    ]);
+
+    expect(groups).toEqual([
+      { role: "admin", items: [{ id: 2, name: "나관리", role: "admin" }] },
+      {
+        role: "temp_staff",
+        items: [
+          { id: 1, name: "가임시", role: "temp_staff" },
+          { id: 3, name: "다임시", role: "temp_staff" },
+        ],
+      },
+    ]);
+  });
+
+  test("직원이 없으면 묶음도 없다", () => {
+    expect(groupByRole([])).toEqual([]);
   });
 });
