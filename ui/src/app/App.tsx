@@ -2,17 +2,18 @@ import { useState } from "react";
 import { Tabs, type TabItem } from "../components/Tabs/Tabs";
 import { HostStatus } from "../features/host/HostStatus";
 import { MembersPage } from "../features/members/MembersPage";
-import { RoomsPage } from "../features/rooms/RoomsPage";
+import { ReferenceDataPage } from "../features/reference-data/ReferenceDataPage";
 import styles from "./App.module.css";
 
-type MenuKey = "members" | "courses" | "applications" | "selection" | "rooms";
+type MenuKey =
+  "members" | "courses" | "applications" | "selection" | "referenceData";
 
 const MENU: readonly TabItem<MenuKey>[] = [
   { key: "members", label: "회원" },
   { key: "courses", label: "강좌" },
   { key: "applications", label: "신청" },
   { key: "selection", label: "선발" },
-  { key: "rooms", label: "강의실" },
+  { key: "referenceData", label: "기초 정보" },
 ];
 
 export function App() {
@@ -30,8 +31,8 @@ export function App() {
       <main role="tabpanel" className={styles.main}>
         {menu === "members" ? (
           <MembersPage />
-        ) : menu === "rooms" ? (
-          <RoomsPage />
+        ) : menu === "referenceData" ? (
+          <ReferenceDataPage />
         ) : (
           "준비 중입니다."
         )}
