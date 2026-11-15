@@ -8,10 +8,10 @@ mod version;
 
 use std::net::{Ipv4Addr, SocketAddr};
 
-use axum::Router;
 use axum::extract::FromRef;
 use axum::http::{HeaderName, HeaderValue, Method, header};
 use axum::routing::{get, post};
+use axum::{Router, middleware};
 use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
@@ -61,9 +61,16 @@ impl FromRef<AppState> for SqlitePool {
 
 /// 모든 요청 주소를 묶은 라우터.
 pub fn router(state: AppState) -> Router {
+    let checked = Router::new()
+        .route("/api/members", post(members::create_member))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            version::require_compatible,
+        ));
+
     Router::new()
         .route("/api/version", get(version::get_version))
-        .route("/api/members", post(members::create_member))
+        .merge(checked)
         .with_state(state)
         .layer(no_store())
         .layer(cors())
@@ -116,7 +123,7 @@ async fn listen(host: Version, data_dir: &DataDir) -> Result<(), ServeError> {
 #[cfg(test)]
 mod tests {
     use axum::body::Body;
-    use axum::http::{Request, Response};
+    use axum::http::{Request, Response, StatusCode};
     use tower::ServiceExt;
 
     use super::*;
@@ -174,6 +181,42 @@ mod tests {
             .to_str()
             .unwrap();
         assert!(allowed.contains("content-type"), "{allowed}");
+    }
+
+    async fn post_member(version: Option<&str>) -> Response<Body> {
+        let mut request =
+            Request::post("/api/members").header(header::CONTENT_TYPE, "application/json");
+        if let Some(version) = version {
+            request = request.header(version::VERSION_HEADER, version);
+        }
+        let body = r#"{"memberNo":"00001","name":"회원1","phoneNumber":"01000000001"}"#;
+        send(request.body(Body::from(body)).unwrap()).await
+    }
+
+    #[tokio::test]
+    async fn rejects_request_without_version() {
+        let response = post_member(None).await;
+
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+    }
+
+    #[tokio::test]
+    async fn rejects_request_from_other_minor_version() {
+        let response = post_member(Some("0.2.0")).await;
+
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(body["code"], "VERSION_MISMATCH");
+    }
+
+    #[tokio::test]
+    async fn accepts_request_when_only_patch_differs() {
+        let response = post_member(Some("0.1.9")).await;
+
+        assert_eq!(response.status(), StatusCode::CREATED);
     }
 
     #[tokio::test]

@@ -129,18 +129,23 @@ mod tests {
     use tower::ServiceExt;
 
     use super::*;
+    use crate::server::version::VERSION_HEADER;
     use crate::server::{AppState, router};
 
     async fn app() -> (tempfile::TempDir, SqlitePool, Router) {
         let dir = tempfile::tempdir().unwrap();
         let db = crate::db::open(dir.path()).await.unwrap();
-        let router = router(AppState::new("0.1.0".parse().unwrap(), db.clone()));
+        let router = router(AppState::new(
+            crate::version::CURRENT.parse().unwrap(),
+            db.clone(),
+        ));
         (dir, db, router)
     }
 
     async fn post(router: Router, body: &str) -> Response<Body> {
         let request = Request::post("/api/members")
             .header(header::CONTENT_TYPE, "application/json")
+            .header(VERSION_HEADER, crate::version::CURRENT)
             .body(Body::from(body.to_owned()))
             .unwrap();
         router.oneshot(request).await.unwrap()

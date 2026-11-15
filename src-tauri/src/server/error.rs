@@ -20,6 +20,8 @@ pub enum ApiError {
     InvalidInput(Vec<FieldError>),
     /// BR-M2: 회원번호는 겹치지 않는다.
     DuplicateMemberNo,
+    /// ADR 0012: 앱과 호스트의 버전 앞 두 자리가 다르다.
+    VersionMismatch,
     /// DB 같은 내부 문제. 자세한 내용은 로그에만 있다.
     Internal,
 }
@@ -42,6 +44,7 @@ pub enum ErrorCode {
     MalformedRequest,
     InvalidInput,
     DuplicateMemberNo,
+    VersionMismatch,
     Internal,
 }
 
@@ -89,6 +92,13 @@ impl IntoResponse for ApiError {
                 ErrorCode::DuplicateMemberNo,
                 "이미 있는 회원번호입니다",
                 Some("BR-M2"),
+                Vec::new(),
+            ),
+            ApiError::VersionMismatch => (
+                StatusCode::CONFLICT,
+                ErrorCode::VersionMismatch,
+                "이 PC의 배움마루 버전이 호스트와 다릅니다. 같은 버전으로 맞춰 주세요",
+                None,
                 Vec::new(),
             ),
             ApiError::Internal => (
