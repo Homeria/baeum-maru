@@ -1,5 +1,6 @@
 import type { ContactResultCode } from "../../api/generated/ContactResultCode";
 import type { ResultMemberResponse } from "../../api/generated/ResultMemberResponse";
+import type { WithdrawnResponse } from "../../api/generated/WithdrawnResponse";
 import type { WithdrawnFromCode } from "../../api/generated/WithdrawnFromCode";
 
 /** 연락 결과의 화면 이름. 용어집의 이름과 같다(BR-W2). */
@@ -46,4 +47,16 @@ function withoutSpaces(text: string): string {
 /** 왼쪽 강좌 목록의 빈자리 글자. 예: `빈자리 2` */
 export function openSeatsLabel(openSeats: number): string {
   return openSeats === 0 ? "빈자리 없음" : `빈자리 ${openSeats}`;
+}
+
+/**
+ * 잘못 처리 바로잡기로 되돌아갈 곳(BR-W8). 예: `당첨`, `대기 2번`
+ *
+ * 당첨에서 포기했으면 당첨으로, 대기에서 포기했으면 추첨 때 받은 순번으로 간다.
+ */
+export function restoreLabel(entry: WithdrawnResponse): string {
+  if (entry.withdrawnFrom === "selected" || entry.waitlistNumber === null) {
+    return "당첨";
+  }
+  return `대기 ${entry.waitlistNumber}번`;
 }

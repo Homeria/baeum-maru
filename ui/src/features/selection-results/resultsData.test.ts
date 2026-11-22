@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { matchesQuery, memberLabel, openSeatsLabel } from "./resultsData";
+import {
+  matchesQuery,
+  memberLabel,
+  openSeatsLabel,
+  restoreLabel,
+} from "./resultsData";
 
 const member = {
   applicationId: 1,
@@ -31,5 +36,19 @@ describe("글자", () => {
   test("빈자리가 없으면 없다고 쓴다", () => {
     expect(openSeatsLabel(0)).toBe("빈자리 없음");
     expect(openSeatsLabel(2)).toBe("빈자리 2");
+  });
+});
+
+describe("restoreLabel", () => {
+  test("당첨에서 포기했으면 당첨으로", () => {
+    expect(
+      restoreLabel({ member, withdrawnFrom: "selected", waitlistNumber: null }),
+    ).toBe("당첨");
+  });
+
+  test("대기에서 포기했으면 원래 순번으로", () => {
+    expect(
+      restoreLabel({ member, withdrawnFrom: "waitlisted", waitlistNumber: 2 }),
+    ).toBe("대기 2번");
   });
 });

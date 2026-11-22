@@ -124,3 +124,53 @@
   color: var(--color-primary);
   font-size: 0.85em;
 }
+
+/* 줄 끝의 처리 버튼 */
+.entryActions {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.entryButton {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.9em;
+  cursor: pointer;
+}
+
+.entryButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.notice {
+  margin: 0;
+}
+
+/* 창 위쪽의 회원. 전화 받으며 보는 곳이라 크게 */
+.dialogMember {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.dialogMemberNo {
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+
+.dialogField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
