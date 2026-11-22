@@ -14,7 +14,7 @@ import { STAGE_LABELS, stagesByCourse } from "./selectionData";
 import styles from "./SelectionPage.module.css";
 
 /**
- * 선발 탭. 학기와 강좌를 고르면 그 강좌의 추첨 화면이 나온다.
+ * 추첨 탭. 학기와 강좌를 고르면 그 강좌의 추첨 화면이 나온다.
  *
  * 강좌 목록에는 신청 인원/정원과 선발 단계를 붙여 어느 강좌가 남았는지 보이게 한다.
  * 학기를 바꾸면 고른 강좌를 비운다.

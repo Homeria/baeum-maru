@@ -24,7 +24,7 @@ const MENU: readonly TabItem<MenuKey>[] = [
   { key: "members", label: "회원" },
   { key: "courses", label: "강좌" },
   { key: "applications", label: "신청" },
-  { key: "selection", label: "선발" },
+  { key: "selection", label: "추첨" },
   { key: "referenceData", label: "기초 정보" },
 ];
 
