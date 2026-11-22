@@ -5,6 +5,7 @@
 pub mod access_logs;
 pub mod applications;
 pub mod courses;
+pub mod lotteries;
 pub mod members;
 pub mod recovery;
 pub mod rooms;
