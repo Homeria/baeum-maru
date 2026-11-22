@@ -10,7 +10,6 @@ use time::OffsetDateTime;
 use super::lotteries::cancel_active_run;
 use super::timestamp_text;
 
-#[cfg_attr(not(test), expect(dead_code, reason = "신청 API에서 처음 쓴다"))]
 /// 사유를 바꾸지 못했다.
 #[derive(Debug, thiserror::Error)]
 pub enum SetPrioritiesError {
@@ -29,7 +28,6 @@ pub enum SetPrioritiesError {
     Db(#[from] sqlx::Error),
 }
 
-#[cfg_attr(not(test), expect(dead_code, reason = "신청 API에서 처음 쓴다"))]
 /// 사유를 바꾼 결과.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PrioritiesChanged {
@@ -39,7 +37,6 @@ pub struct PrioritiesChanged {
     pub lottery_cancelled: bool,
 }
 
-#[cfg_attr(not(test), expect(dead_code, reason = "신청 API에서 처음 쓴다"))]
 /// 신청의 사유를 `reason_ids`로 바꾼다. 빈 목록이면 모두 뗀다.
 ///
 /// 추첨한 강좌면 그 추첨을 취소한다. 읽고 확인한 뒤 쓰므로 `BEGIN IMMEDIATE`로 한다.

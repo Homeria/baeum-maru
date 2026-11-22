@@ -26,7 +26,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use axum::extract::FromRef;
 use axum::http::{HeaderName, HeaderValue, Method, header};
-use axum::routing::{delete, get, patch, post};
+use axum::routing::{delete, get, patch, post, put};
 use axum::{Router, middleware};
 use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
@@ -163,6 +163,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/applications/{id}",
             delete(applications::delete_application),
+        )
+        .route(
+            "/api/applications/{id}/priority-reasons",
+            put(applications::set_priority_reasons),
         )
         .route(
             "/api/courses/{id}",

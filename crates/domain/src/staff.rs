@@ -85,6 +85,8 @@ pub enum Action {
     TakeApplications,
     /// 신청 규칙을 어긴 신청을 사유를 적고 받기(BR-A6).
     OverrideRules,
+    /// 신청에 우선 배정 사유 붙이기·떼기(BR-S12).
+    AssignPriority,
     /// 추첨·재추첨·선발 마감(BR-L4, BR-L5). 호스트 PC에서만 한다(BR-L6)는 앱이 따로 확인한다.
     RunLottery,
     /// 우선 배정 사유 목록 바꾸기(BR-S10).
@@ -372,6 +374,7 @@ mod tests {
             EditReferenceData,
             TakeApplications,
             OverrideRules,
+            AssignPriority,
             RunLottery,
             ManagePriorityReasons,
             ManageStaff,
@@ -392,6 +395,7 @@ mod tests {
                 EditReferenceData,
                 TakeApplications,
                 OverrideRules,
+                AssignPriority,
                 RunLottery
             ]
         );

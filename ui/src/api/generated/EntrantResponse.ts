@@ -3,4 +3,8 @@
 /**
  * 추첨 화면의 신청자 한 명. 화면은 `이름(회원번호)`로 보여 준다.
  */
-export type EntrantResponse = { applicationId: number, memberName: string, memberNo: string, };
+export type EntrantResponse = { applicationId: number, memberName: string, memberNo: string, 
+/**
+ * 자리 보장으로 당첨되는 신청(BR-S4). 사유 이름은 싣지 않는다(BR-S15).
+ */
+guaranteed: boolean, };

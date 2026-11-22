@@ -49,6 +49,8 @@ export function ApplyBar({
         memberId: memberId ?? 0,
         courseIds: [...chosen],
         overrideReason,
+        // 우선 배정 체크박스는 다음 커밋에서 붙인다
+        priorities: [],
       }),
     onSuccess: (response) => {
       setViolations(null);

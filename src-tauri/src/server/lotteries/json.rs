@@ -63,9 +63,9 @@ pub struct CourseLotteryResponse {
     /// 추첨 뒤면 추첨한 때의 정원, 추첨 전이면 지금 정원.
     pub capacity: u16,
     pub stage: SelectionStageCode,
-    /// 추첨 전이면 접수한 순서, 추첨 뒤면 뽑힌 순서.
+    /// 자리 보장 신청이 늘 맨 앞. 그 뒤는 추첨 전이면 접수한 순서, 추첨 뒤면 뽑힌 순서.
     pub entrants: Vec<EntrantResponse>,
-    /// 추첨 뒤 `entrants`의 앞에서 몇 명이 당첨인지. 나머지는 차례로 대기 순번 1, 2, … 추첨 전이면 0.
+    /// 추첨 뒤 `entrants`의 앞에서 몇 명이 당첨인지(자리 보장 포함). 나머지는 차례로 대기 순번 1, 2, … 추첨 전이면 0.
     #[ts(type = "number")]
     pub selected_count: usize,
     /// 이 직원이 이 PC에서 추첨·재추첨·마감을 할 수 있는지(역할과 BR-L6).
@@ -82,6 +82,8 @@ pub struct EntrantResponse {
     pub application_id: i64,
     pub member_name: String,
     pub member_no: String,
+    /// 자리 보장으로 당첨되는 신청(BR-S4). 사유 이름은 싣지 않는다(BR-S15).
+    pub guaranteed: bool,
 }
 
 impl From<Entrant> for EntrantResponse {
@@ -90,6 +92,7 @@ impl From<Entrant> for EntrantResponse {
             application_id: entrant.application_id,
             member_name: entrant.member_name.into_inner(),
             member_no: entrant.member_no.into_inner(),
+            guaranteed: entrant.guaranteed,
         }
     }
 }

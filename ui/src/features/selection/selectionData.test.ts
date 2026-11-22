@@ -17,6 +17,7 @@ function entrants(count: number): EntrantResponse[] {
     applicationId: index + 1,
     memberName: `회원${index + 1}`,
     memberNo: `12-${String(index + 1).padStart(5, "0")}`,
+    guaranteed: false,
   }));
 }
 
