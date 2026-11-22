@@ -1,5 +1,6 @@
 import type { ErrorCode } from "./generated/ErrorCode";
 import type { FieldError } from "./generated/FieldError";
+import type { RuleViolationResponse } from "./generated/RuleViolationResponse";
 import { clearSession, getSession, lockSession, noteRequest } from "./session";
 
 /** 이 앱의 버전. 요청마다 호스트에 알린다. */
@@ -25,6 +26,8 @@ export class HostError extends Error {
   readonly rule: string | null;
   /** 형식에 맞지 않는 칸들. */
   readonly fields: readonly FieldError[];
+  /** 어긴 신청 규칙들(`RULES_BROKEN`). */
+  readonly violations: readonly RuleViolationResponse[];
 
   constructor(
     status: number,
@@ -32,6 +35,7 @@ export class HostError extends Error {
     code: ErrorCode | null = null,
     rule: string | null = null,
     fields: readonly FieldError[] = [],
+    violations: readonly RuleViolationResponse[] = [],
   ) {
     super(message);
     this.name = "HostError";
@@ -39,6 +43,7 @@ export class HostError extends Error {
     this.code = code;
     this.rule = rule;
     this.fields = fields;
+    this.violations = violations;
   }
 }
 
@@ -55,6 +60,7 @@ export function hostErrorFrom(status: number, body: unknown): HostError {
       body.code,
       body.rule,
       body.fields,
+      body.violations ?? [],
     );
   }
   return new HostError(
@@ -68,6 +74,8 @@ interface ErrorBody {
   message: string;
   rule: string | null;
   fields: FieldError[];
+  /** 옛 호스트는 보내지 않는다. */
+  violations?: RuleViolationResponse[];
 }
 
 function isErrorBody(body: unknown): body is ErrorBody {
@@ -174,7 +182,7 @@ export async function postNoContent(
   await send("POST", path, body);
 }
 
-/** DELETE 요청을 보낸다. 성공하면 본문이 없다(204). */
-export async function sendDelete(path: string): Promise<void> {
-  await send("DELETE", path);
+/** DELETE 요청을 보낸다. 본문(예: 지우는 사유)은 선택. 성공하면 본문이 없다(204). */
+export async function sendDelete(path: string, body?: unknown): Promise<void> {
+  await send("DELETE", path, body);
 }
