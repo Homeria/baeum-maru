@@ -1,5 +1,5 @@
 //! 신청: 회원별 목록·신청은 `/api/terms/{termId}/applications`,
-//! 강좌별 인원은 `/api/terms/{termId}/application-counts`.
+//! 강좌별 인원은 `/api/terms/{termId}/application-counts`, 지우기는 `/api/applications/{id}`.
 
 mod json;
 
@@ -14,14 +14,14 @@ use time::OffsetDateTime;
 
 use super::auth::CurrentStaff;
 use super::error::{ApiError, FieldError};
-use crate::db::applications::{self, NewApplications, SubmitError};
+use crate::db::applications::{self, DeleteApplicationError, NewApplications, SubmitError};
 use crate::db::terms;
 
 pub use json::RuleViolationResponse;
 use json::{
     ApplicationCountListResponse, ApplicationCountResponse, ApplicationListResponse,
-    ApplicationResponse, ListApplicationsParams, SubmitApplicationsRequest,
-    SubmitApplicationsResponse,
+    ApplicationResponse, DeleteApplicationRequest, ListApplicationsParams,
+    SubmitApplicationsRequest, SubmitApplicationsResponse,
 };
 
 /// 회원이 이 학기에 낸 유효한 신청. 학기가 없으면 404.
@@ -105,6 +105,36 @@ pub async fn submit_applications(
     ))
 }
 
+/// 접수됨 신청을 지우고 삭제 기록을 남긴다(BR-D1~D3). 성공하면 204(본문 없음).
+///
+/// 본문의 사유는 선택이다. 선발 뒤의 신청이면 409.
+pub async fn delete_application(
+    State(db): State<SqlitePool>,
+    staff: CurrentStaff,
+    id: Result<Path<i64>, PathRejection>,
+    body: Result<Json<DeleteApplicationRequest>, JsonRejection>,
+) -> Result<StatusCode, ApiError> {
+    staff.require(Action::TakeApplications)?;
+    let Path(id) = id?;
+    let Json(request) = body?;
+    let reason = parse_reason(request.reason.as_deref(), "reason")?;
+    applications::delete(
+        &db,
+        id,
+        staff.id,
+        reason.as_ref().map(Reason::as_str),
+        OffsetDateTime::now_utc(),
+    )
+    .await
+    .map_err(|error| match error {
+        DeleteApplicationError::NotFound => ApiError::ApplicationNotFound,
+        DeleteApplicationError::NotSubmitted => ApiError::ApplicationNotDeletable,
+        DeleteApplicationError::Db(error) => ApiError::internal(error),
+    })?;
+    tracing::info!(staff_id = staff.id, application_id = id, "신청 지움");
+    Ok(StatusCode::NO_CONTENT)
+}
+
 /// 학기가 있어야 한다.
 async fn require_term(db: &SqlitePool, term_id: i64) -> Result<(), ApiError> {
     terms::get(db, term_id)
@@ -150,9 +180,10 @@ mod tests {
 
     use super::*;
     use crate::db::test_support::{
-        insert_course, insert_member, insert_schedule, insert_subject, insert_term,
+        insert_application, insert_course, insert_member, insert_schedule, insert_subject,
+        insert_term,
     };
-    use crate::server::test_support::{app, app_as, get, json_body, post};
+    use crate::server::test_support::{app, app_as, delete_with_body, get, json_body, post};
 
     /// 학기, 회원과 강좌 셋. 요가 초급(월 10시), 요가 중급(화 10시), 한글교실(월 10시).
     ///
@@ -344,5 +375,64 @@ mod tests {
         assert_eq!(json_body(term).await["code"], "TERM_NOT_FOUND");
         assert_eq!(json_body(member).await["code"], "MEMBER_NOT_FOUND");
         assert_eq!(json_body(course).await["code"], "COURSE_NOT_FOUND");
+    }
+
+    async fn delete_with(router: Router, uri: &str, reason: Option<&str>) -> StatusCode {
+        let body = json!({ "reason": reason }).to_string();
+        delete_with_body(router, uri, &body).await.status()
+    }
+
+    #[tokio::test]
+    async fn br_d1_d3_deletes_submitted_application_with_record() {
+        let (_dir, db, router) = app_as("temp_staff").await;
+        let s = setup(&db).await;
+        let response = post(router.clone(), &s.uri(), &s.body(&[s.yoga_basic], None)).await;
+        let id = json_body(response).await["ids"][0].as_i64().unwrap();
+        let uri = format!("/api/applications/{id}");
+
+        let status = delete_with(router.clone(), &uri, Some(" 잘못 고름 ")).await;
+
+        assert_eq!(status, StatusCode::NO_CONTENT);
+        assert_eq!(s.list(router.clone()).await["items"], json!([]));
+        let reason: Option<String> = sqlx::query_scalar("SELECT reason FROM application_deletions")
+            .fetch_one(&db)
+            .await
+            .unwrap();
+        assert_eq!(reason.as_deref(), Some("잘못 고름"));
+        assert_eq!(delete_with(router, &uri, None).await, StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn br_d1_selected_application_is_not_deletable() {
+        let (_dir, db, router) = app().await;
+        let s = setup(&db).await;
+        let staff_id: i64 = sqlx::query_scalar("SELECT id FROM staff")
+            .fetch_one(&db)
+            .await
+            .unwrap();
+        let id = insert_application(&db, s.member_id, s.yoga_basic, "selected", staff_id)
+            .await
+            .unwrap();
+
+        let status = delete_with(router, &format!("/api/applications/{id}"), None).await;
+
+        assert_eq!(status, StatusCode::CONFLICT);
+    }
+
+    #[tokio::test]
+    async fn read_only_cannot_delete() {
+        let (_dir, db, router) = app_as("read_only").await;
+        let s = setup(&db).await;
+        let staff_id: i64 = sqlx::query_scalar("SELECT id FROM staff")
+            .fetch_one(&db)
+            .await
+            .unwrap();
+        let id = insert_application(&db, s.member_id, s.yoga_basic, "submitted", staff_id)
+            .await
+            .unwrap();
+
+        let status = delete_with(router, &format!("/api/applications/{id}"), None).await;
+
+        assert_eq!(status, StatusCode::FORBIDDEN);
     }
 }

@@ -24,7 +24,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use axum::extract::FromRef;
 use axum::http::{HeaderName, HeaderValue, Method, header};
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post};
 use axum::{Router, middleware};
 use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
@@ -135,6 +135,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/terms/{term_id}/application-counts",
             get(applications::list_application_counts),
+        )
+        .route(
+            "/api/applications/{id}",
+            delete(applications::delete_application),
         )
         .route(
             "/api/courses/{id}",

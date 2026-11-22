@@ -28,6 +28,14 @@ pub struct SubmitApplicationsRequest {
     pub override_reason: Option<String>,
 }
 
+/// `DELETE /api/applications/{id}` 본문.
+#[derive(Debug, Deserialize, TS)]
+#[ts(export)]
+pub struct DeleteApplicationRequest {
+    /// 지우는 사유(BR-D3). 선택.
+    pub reason: Option<String>,
+}
+
 /// `POST /api/terms/{termId}/applications` 응답. 새 신청 id, 고른 순서.
 #[derive(Debug, Serialize, TS)]
 #[ts(export)]

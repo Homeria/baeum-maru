@@ -49,6 +49,10 @@ pub enum ApiError {
     CourseNotFound,
     /// BR-A5: 신청 규칙을 어겼다. 어긴 규칙을 모두 담는다.
     RulesBroken(Vec<RuleViolationResponse>),
+    /// 주소의 id인 신청이 없다.
+    ApplicationNotFound,
+    /// BR-D1: 접수됨(선발 전) 신청만 지울 수 있다.
+    ApplicationNotDeletable,
     /// BR-K11: 처음 설정은 직원이 하나도 없을 때 한 번만 한다.
     SetupAlreadyDone,
     /// 주소나 본문의 id인 직원이 없다.
@@ -132,6 +136,8 @@ pub enum ErrorCode {
     DuplicateCourse,
     CourseNotFound,
     RulesBroken,
+    ApplicationNotFound,
+    ApplicationNotDeletable,
     SetupAlreadyDone,
     StaffNotFound,
     DuplicateStaffName,
@@ -289,6 +295,20 @@ impl IntoResponse for ApiError {
                 ErrorCode::RulesBroken,
                 "신청 규칙을 어긴 강좌가 있습니다",
                 Some("BR-A5"),
+                Vec::new(),
+            ),
+            ApiError::ApplicationNotFound => (
+                StatusCode::NOT_FOUND,
+                ErrorCode::ApplicationNotFound,
+                "신청을 찾지 못했습니다. 지워졌을 수 있습니다",
+                None,
+                Vec::new(),
+            ),
+            ApiError::ApplicationNotDeletable => (
+                StatusCode::CONFLICT,
+                ErrorCode::ApplicationNotDeletable,
+                "선발 뒤의 신청은 지울 수 없습니다. 포기로 처리해 주세요",
+                Some("BR-D1"),
                 Vec::new(),
             ),
             ApiError::SetupAlreadyDone => (

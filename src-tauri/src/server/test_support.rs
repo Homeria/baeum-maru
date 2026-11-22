@@ -85,6 +85,16 @@ pub async fn delete(router: Router, uri: &str) -> Response<Body> {
     send(router, Request::delete(uri), Body::empty()).await
 }
 
+/// 본문을 붙인 DELETE. 예: 지우는 사유
+pub async fn delete_with_body(router: Router, uri: &str, body: &str) -> Response<Body> {
+    send(
+        router,
+        json(Request::delete(uri)),
+        Body::from(body.to_owned()),
+    )
+    .await
+}
+
 /// `uri`에 `body`를 보내 새로 만들고 새 id를 돌려준다. 201이 아니면 테스트가 실패한다.
 pub async fn create(router: Router, uri: &str, body: &str) -> i64 {
     let response = post(router, uri, body).await;
