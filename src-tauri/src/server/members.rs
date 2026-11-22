@@ -119,7 +119,9 @@ pub async fn delete_member(
 ) -> Result<StatusCode, ApiError> {
     staff.require(Action::DeleteMembers)?;
     let Path(id) = id?;
-    let deleted = members::delete(&db, id).await.map_err(ApiError::internal)?;
+    let deleted = members::delete(&db, id)
+        .await
+        .map_err(|error| ApiError::from_delete(error, ApiError::MemberInUse))?;
     if !deleted {
         return Err(ApiError::MemberNotFound);
     }
@@ -152,6 +154,7 @@ mod tests {
     use serde_json::{Value, json};
 
     use super::*;
+    use crate::db::test_support::{insert_course, insert_deletion, insert_subject, insert_term};
     use crate::server::test_support::{app, create, delete, get, json_body, patch, post};
 
     fn valid(member_no: &str) -> String {
@@ -471,5 +474,31 @@ mod tests {
         let response = delete(router, "/api/members/999").await;
 
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn br_m5_member_with_application_record_is_conflict() {
+        let (_dir, db, router) = app().await;
+        let id = created_id(router.clone(), "00001").await;
+        let term_id = insert_term(&db, "2027년 1학기", "2027-03-02", "2027-06-30")
+            .await
+            .unwrap();
+        let subject_id = insert_subject(&db, "요가", "요가", None).await.unwrap();
+        let course_id = insert_course(&db, term_id, subject_id, None, None)
+            .await
+            .unwrap();
+        let staff_id: i64 = sqlx::query_scalar("SELECT id FROM staff")
+            .fetch_one(&db)
+            .await
+            .unwrap();
+        insert_deletion(&db, id, course_id, staff_id).await.unwrap();
+
+        let response = delete(router, &format!("/api/members/{id}")).await;
+
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        let body = json_body(response).await;
+        assert_eq!(body["code"], "MEMBER_IN_USE");
+        assert_eq!(body["rule"], "BR-M5");
+        assert_eq!(count(&db).await, 1);
     }
 }

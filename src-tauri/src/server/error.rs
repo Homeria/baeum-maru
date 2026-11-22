@@ -25,6 +25,8 @@ pub enum ApiError {
     DuplicateMemberNo,
     /// 주소의 id인 회원이 없다.
     MemberNotFound,
+    /// BR-M5: 신청이나 삭제 기록이 있는 회원은 지울 수 없다.
+    MemberInUse,
     /// BR-R1: 같은 건물 안에서 강의실 이름은 겹치지 않는다.
     DuplicateRoomName,
     /// 주소의 id인 강의실이 없다.
@@ -47,6 +49,8 @@ pub enum ApiError {
     DuplicateCourse,
     /// 주소의 id인 강좌가 없다.
     CourseNotFound,
+    /// BR-T6: 신청이나 삭제 기록이 있는 강좌는 지울 수 없다.
+    CourseInUse,
     /// BR-A5: 신청 규칙을 어겼다. 어긴 규칙을 모두 담는다.
     RulesBroken(Vec<RuleViolationResponse>),
     /// 주소의 id인 신청이 없다.
@@ -124,6 +128,7 @@ pub enum ErrorCode {
     InvalidInput,
     DuplicateMemberNo,
     MemberNotFound,
+    MemberInUse,
     DuplicateRoomName,
     RoomNotFound,
     DuplicateSubjectName,
@@ -135,6 +140,7 @@ pub enum ErrorCode {
     TermInUse,
     DuplicateCourse,
     CourseNotFound,
+    CourseInUse,
     RulesBroken,
     ApplicationNotFound,
     ApplicationNotDeletable,
@@ -213,6 +219,13 @@ impl IntoResponse for ApiError {
                 None,
                 Vec::new(),
             ),
+            ApiError::MemberInUse => (
+                StatusCode::CONFLICT,
+                ErrorCode::MemberInUse,
+                "신청 기록이 있는 회원은 지울 수 없습니다. 지운 신청의 기록도 포함합니다",
+                Some("BR-M5"),
+                Vec::new(),
+            ),
             ApiError::DuplicateRoomName => (
                 StatusCode::CONFLICT,
                 ErrorCode::DuplicateRoomName,
@@ -288,6 +301,13 @@ impl IntoResponse for ApiError {
                 ErrorCode::CourseNotFound,
                 "강좌를 찾지 못했습니다. 지워졌을 수 있습니다",
                 None,
+                Vec::new(),
+            ),
+            ApiError::CourseInUse => (
+                StatusCode::CONFLICT,
+                ErrorCode::CourseInUse,
+                "신청 기록이 있는 강좌는 지울 수 없습니다. 지운 신청의 기록도 포함합니다",
+                Some("BR-T6"),
                 Vec::new(),
             ),
             ApiError::RulesBroken(_) => (

@@ -8,7 +8,7 @@ use baeum_domain::{ClassTime, LevelName, NewCourse, Schedule, SectionName, weekd
 use sqlx::{SqliteConnection, SqlitePool};
 use time::{OffsetDateTime, Weekday};
 
-use super::{is_unique_violation, timestamp_text};
+use super::{DeleteError, is_unique_violation, timestamp_text};
 
 /// 강좌가 가리키는 것 중 DB에 없는 것. 그 사이 다른 직원이 지웠을 수 있다.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -179,7 +179,9 @@ pub async fn get(pool: &SqlitePool, id: i64) -> Result<Option<CourseRecord>, sql
 }
 
 /// `id`인 강좌와 그 수업 시간을 지운다. 지웠으면 `true`, 없으면 `false`.
-pub async fn delete(pool: &SqlitePool, id: i64) -> Result<bool, sqlx::Error> {
+///
+/// BR-T6: 신청이나 삭제 기록이 있는 강좌는 [`DeleteError::InUse`]. 두 테이블의 외래 키가 막는다.
+pub async fn delete(pool: &SqlitePool, id: i64) -> Result<bool, DeleteError> {
     // 수업 시간은 외래 키의 ON DELETE CASCADE가 함께 지운다
     let result = sqlx::query("DELETE FROM courses WHERE id = ?")
         .bind(id)
