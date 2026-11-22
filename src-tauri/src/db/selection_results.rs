@@ -298,18 +298,13 @@ fn count(value: i64) -> Result<usize, sqlx::Error> {
 
 #[cfg(test)]
 mod tests {
-    use time::macros::datetime;
-
     use super::*;
-    use crate::db::lotteries;
     use crate::db::open_temp;
     use crate::db::test_support::{
-        insert_application, insert_course, insert_member, insert_selection_change, insert_staff,
-        insert_subject, insert_term,
+        insert_course, insert_drawn_course, insert_selection_change, insert_subject,
     };
-    use baeum_domain::LotterySeed;
 
-    /// 정원 2명 강좌에 신청 5건을 추첨하고 마감했다. 당첨 2명, 대기 3명.
+    /// 정원 2명 강좌에 신청 5건을 추첨했다. 마감하면 당첨 2명, 대기 3명.
     struct Fixture {
         _dir: tempfile::TempDir,
         pool: SqlitePool,
@@ -320,40 +315,13 @@ mod tests {
 
     async fn fixture(close: bool) -> Fixture {
         let (dir, pool) = open_temp().await;
-        let term_id = insert_term(&pool, "2027년 1학기", "2027-03-02", "2027-06-30")
-            .await
-            .unwrap();
-        let subject_id = insert_subject(&pool, "요가", "요가", None).await.unwrap();
-        let course_id = insert_course(&pool, term_id, subject_id, None, None)
-            .await
-            .unwrap();
-        sqlx::query("UPDATE courses SET capacity = 2 WHERE id = ?")
-            .bind(course_id)
-            .execute(&pool)
-            .await
-            .unwrap();
-        let staff_id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
-        for number in 1..=5 {
-            let member_id = insert_member(&pool, &format!("{number:05}")).await.unwrap();
-            insert_application(&pool, member_id, course_id, "submitted", staff_id)
-                .await
-                .unwrap();
-        }
-        let now = datetime!(2026-11-22 01:02:03 UTC);
-        lotteries::run(&pool, course_id, staff_id, LotterySeed::new(7), now)
-            .await
-            .unwrap();
-        if close {
-            lotteries::close(&pool, course_id, staff_id, now)
-                .await
-                .unwrap();
-        }
+        let drawn = insert_drawn_course(&pool, 2, 5, close).await;
         Fixture {
             _dir: dir,
             pool,
-            term_id,
-            course_id,
-            staff_id,
+            term_id: drawn.term_id,
+            course_id: drawn.course_id,
+            staff_id: drawn.staff_id,
         }
     }
 

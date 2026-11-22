@@ -11,6 +11,7 @@ pub mod members;
 pub mod priority_reasons;
 pub mod recovery;
 pub mod rooms;
+pub mod selection_changes;
 pub mod selection_results;
 pub mod sessions;
 pub mod staff;
