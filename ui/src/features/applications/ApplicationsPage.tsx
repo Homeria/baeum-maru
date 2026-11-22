@@ -5,6 +5,7 @@ import {
   listApplications,
 } from "../../api/applications";
 import { listCourses } from "../../api/courses";
+import { listSelections } from "../../api/lotteries";
 import { listRooms } from "../../api/rooms";
 import { listTerms } from "../../api/terms";
 import formStyles from "../../components/form/form.module.css";
@@ -14,6 +15,7 @@ import { hasSeveralBuildings } from "../rooms/roomFormData";
 import { TermBar } from "../terms/TermBar";
 import { currentTerm } from "../terms/termFormData";
 import { useCan } from "../auth/useCan";
+import { stagesByCourse } from "../selection/selectionData";
 import { countsByCourse, toggleChoice } from "./applicationsData";
 import { ApplyBar } from "./ApplyBar";
 import { CourseChoiceList } from "./CourseChoiceList";
@@ -47,6 +49,12 @@ export function ApplicationsPage() {
   const counts = useQuery({
     queryKey: ["applicationCounts", termId],
     queryFn: () => listApplicationCounts(termId ?? 0),
+    enabled: termId !== null,
+  });
+  // 추첨한 강좌는 고르지 못하게 (BR-L3)
+  const selections = useQuery({
+    queryKey: ["selections", termId],
+    queryFn: () => listSelections(termId ?? 0),
     enabled: termId !== null,
   });
   const rooms = useQuery({ queryKey: ["rooms"], queryFn: listRooms });
@@ -130,6 +138,7 @@ export function ApplicationsPage() {
               selectable={canTake && memberId !== null}
               chosen={chosen}
               appliedIds={appliedIds}
+              stages={stagesByCourse(selections.data?.items ?? [])}
               onToggle={(id) => setChosen((prev) => toggleChoice(prev, id))}
             />
             {canTake ? (

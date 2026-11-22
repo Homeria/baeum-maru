@@ -7,6 +7,7 @@ import { SignedInStaff } from "../features/auth/SignedInStaff";
 import { HostStatus } from "../features/host/HostStatus";
 import { MembersPage } from "../features/members/MembersPage";
 import { ReferenceDataPage } from "../features/reference-data/ReferenceDataPage";
+import { SelectionPage } from "../features/selection/SelectionPage";
 import { can } from "../features/auth/roles";
 import { StaffAdminPage } from "../features/staff/StaffAdminPage";
 import styles from "./App.module.css";
@@ -67,6 +68,8 @@ export function MainScreen({ session }: MainScreenProps) {
           <CoursesPage />
         ) : menu === "applications" ? (
           <ApplicationsPage />
+        ) : menu === "selection" ? (
+          <SelectionPage />
         ) : menu === "referenceData" ? (
           <ReferenceDataPage />
         ) : menu === "staff" && manageStaff ? (
