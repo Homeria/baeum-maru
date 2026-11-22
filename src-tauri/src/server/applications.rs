@@ -162,6 +162,7 @@ impl From<SubmitError> for ApiError {
         match error {
             SubmitError::MemberNotFound => ApiError::MemberNotFound,
             SubmitError::CourseNotFound(_) => ApiError::CourseNotFound,
+            SubmitError::CourseDrawn(_) => ApiError::CourseDrawn,
             SubmitError::RulesBroken(violations) => ApiError::RulesBroken(
                 violations
                     .into_iter()
@@ -180,8 +181,8 @@ mod tests {
 
     use super::*;
     use crate::db::test_support::{
-        insert_application, insert_course, insert_member, insert_schedule, insert_subject,
-        insert_term,
+        insert_application, insert_course, insert_lottery_run, insert_member, insert_schedule,
+        insert_staff, insert_subject, insert_term,
     };
     use crate::server::test_support::{app, app_as, delete_with_body, get, json_body, post};
 
@@ -304,6 +305,23 @@ mod tests {
             ])
         );
         assert_eq!(s.list(router).await["items"].as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn br_l3_drawn_course_is_conflict() {
+        let (_dir, db, router) = app().await;
+        let s = setup(&db).await;
+        let staff_id = insert_staff(&db, "직원2", "staff", None).await.unwrap();
+        insert_lottery_run(&db, s.yoga_basic, staff_id)
+            .await
+            .unwrap();
+
+        let response = post(router, &s.uri(), &s.body(&[s.yoga_basic], None)).await;
+
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        let body = json_body(response).await;
+        assert_eq!(body["code"], "COURSE_DRAWN");
+        assert_eq!(body["rule"], "BR-L3");
     }
 
     #[tokio::test]

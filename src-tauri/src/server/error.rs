@@ -51,6 +51,8 @@ pub enum ApiError {
     CourseNotFound,
     /// BR-T6: 신청이나 삭제 기록이 있는 강좌는 지울 수 없다.
     CourseInUse,
+    /// BR-L3: 추첨한 강좌는 새 신청을 받지 않는다.
+    CourseDrawn,
     /// BR-A5: 신청 규칙을 어겼다. 어긴 규칙을 모두 담는다.
     RulesBroken(Vec<RuleViolationResponse>),
     /// 주소의 id인 신청이 없다.
@@ -141,6 +143,7 @@ pub enum ErrorCode {
     DuplicateCourse,
     CourseNotFound,
     CourseInUse,
+    CourseDrawn,
     RulesBroken,
     ApplicationNotFound,
     ApplicationNotDeletable,
@@ -308,6 +311,13 @@ impl IntoResponse for ApiError {
                 ErrorCode::CourseInUse,
                 "신청 기록이 있는 강좌는 지울 수 없습니다. 지운 신청의 기록도 포함합니다",
                 Some("BR-T6"),
+                Vec::new(),
+            ),
+            ApiError::CourseDrawn => (
+                StatusCode::CONFLICT,
+                ErrorCode::CourseDrawn,
+                "추첨한 강좌는 새 신청을 받지 않습니다. 고른 강좌에서 빼 주세요",
+                Some("BR-L3"),
                 Vec::new(),
             ),
             ApiError::RulesBroken(_) => (
