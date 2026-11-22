@@ -3,10 +3,12 @@
 //! ADR 0005: SQLite + sqlx. 구조 변경은 시작할 때 자동으로 적용한다.
 
 pub mod access_logs;
+pub mod application_priorities;
 pub mod applications;
 pub mod courses;
 pub mod lotteries;
 pub mod members;
+pub mod priority_reasons;
 pub mod recovery;
 pub mod rooms;
 pub mod sessions;
@@ -130,7 +132,8 @@ pub async fn open(dir: &Path) -> Result<SqlitePool, DbError> {
 mod tests {
     use super::test_support::{
         NOW, insert_application, insert_course, insert_deletion, insert_lottery_run, insert_member,
-        insert_room, insert_schedule, insert_staff, insert_subject, insert_term,
+        insert_priority_reason, insert_room, insert_schedule, insert_staff, insert_subject,
+        insert_term,
     };
     use time::macros::datetime;
 
@@ -989,5 +992,135 @@ mod tests {
             .await;
         assert!(update.is_err());
         assert!(delete.is_err());
+    }
+
+    #[tokio::test]
+    async fn br_s10_priority_reason_names_and_methods() {
+        let (_dir, pool) = open_temp().await;
+        insert_priority_reason(&pool, "지난 학기 반장")
+            .await
+            .unwrap();
+
+        let same_key = insert_priority_reason(&pool, "지난학기 반장")
+            .await
+            .unwrap_err();
+        let unknown_method = sqlx::query(
+            "INSERT INTO priority_reasons (name, name_key, method, created_at, updated_at)
+             VALUES ('장애인', '장애인', 'quota', ?, ?)",
+        )
+        .bind(NOW)
+        .bind(NOW)
+        .execute(&pool)
+        .await;
+
+        assert!(is_unique_violation(&same_key), "{same_key}");
+        assert!(unknown_method.is_err());
+    }
+
+    #[tokio::test]
+    async fn br_s12_application_takes_several_reasons_and_drops_them_when_deleted() {
+        let (_dir, pool, member_id, course_id, staff_id) = with_member_course_staff().await;
+        let application_id = insert_application(&pool, member_id, course_id, "submitted", staff_id)
+            .await
+            .unwrap();
+        let leader = insert_priority_reason(&pool, "반장").await.unwrap();
+        let disability = insert_priority_reason(&pool, "장애인 우대").await.unwrap();
+        let attach = |reason_id: i64| {
+            sqlx::query(
+                "INSERT INTO application_priorities (application_id, reason_id) VALUES (?, ?)",
+            )
+            .bind(application_id)
+            .bind(reason_id)
+            .execute(&pool)
+        };
+
+        attach(leader).await.unwrap();
+        attach(disability).await.unwrap();
+        assert!(attach(leader).await.is_err());
+
+        sqlx::query("DELETE FROM applications WHERE id = ?")
+            .bind(application_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let left: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM application_priorities")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(left, 0);
+    }
+
+    #[tokio::test]
+    async fn br_s10_and_br_s14_reason_with_change_record_cannot_be_deleted() {
+        let (_dir, pool, member_id, course_id, staff_id) = with_member_course_staff().await;
+        let reason_id = insert_priority_reason(&pool, "반장").await.unwrap();
+        let unused_id = insert_priority_reason(&pool, "국가유공자").await.unwrap();
+        // 지워진 신청을 가리켜도 된다 (외래 키 없음)
+        sqlx::query(
+            "INSERT INTO priority_changes
+                 (application_id, member_id, course_id, reason_id, change, changed_by, changed_at)
+             VALUES (999, ?, ?, ?, 'added', ?, ?)",
+        )
+        .bind(member_id)
+        .bind(course_id)
+        .bind(reason_id)
+        .bind(staff_id)
+        .bind(NOW)
+        .execute(&pool)
+        .await
+        .unwrap();
+        let delete_reason = |id: i64| {
+            sqlx::query("DELETE FROM priority_reasons WHERE id = ?")
+                .bind(id)
+                .execute(&pool)
+        };
+
+        let used = delete_reason(reason_id).await.unwrap_err();
+        let update = sqlx::query("UPDATE priority_changes SET change = 'removed'")
+            .execute(&pool)
+            .await;
+        let delete = sqlx::query("DELETE FROM priority_changes")
+            .execute(&pool)
+            .await;
+
+        assert!(is_foreign_key_violation(&used), "{used}");
+        assert!(update.is_err());
+        assert!(delete.is_err());
+        delete_reason(unused_id).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn br_s4_guaranteed_entries_cannot_change() {
+        let (_dir, pool, member_id, course_id, staff_id) = with_member_course_staff().await;
+        let application_id = insert_application(&pool, member_id, course_id, "selected", staff_id)
+            .await
+            .unwrap();
+        let run_id = insert_lottery_run(&pool, course_id, staff_id)
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO lottery_guaranteed_entries (lottery_run_id, application_id) VALUES (?, ?)",
+        )
+        .bind(run_id)
+        .bind(application_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let update = sqlx::query("UPDATE lottery_guaranteed_entries SET application_id = 0")
+            .execute(&pool)
+            .await;
+        let delete = sqlx::query("DELETE FROM lottery_guaranteed_entries")
+            .execute(&pool)
+            .await;
+        let application = sqlx::query("DELETE FROM applications WHERE id = ?")
+            .bind(application_id)
+            .execute(&pool)
+            .await
+            .unwrap_err();
+
+        assert!(update.is_err());
+        assert!(delete.is_err());
+        assert!(is_foreign_key_violation(&application), "{application}");
     }
 }

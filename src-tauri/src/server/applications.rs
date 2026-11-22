@@ -1,5 +1,6 @@
 //! 신청: 회원별 목록·신청은 `/api/terms/{termId}/applications`,
-//! 강좌별 인원은 `/api/terms/{termId}/application-counts`, 지우기는 `/api/applications/{id}`.
+//! 강좌별 인원은 `/api/terms/{termId}/application-counts`, 지우기는 `/api/applications/{id}`,
+//! 우선 배정 사유 바꾸기는 `/api/applications/{id}/priority-reasons`.
 
 mod json;
 
@@ -14,14 +15,18 @@ use time::OffsetDateTime;
 
 use super::auth::CurrentStaff;
 use super::error::{ApiError, FieldError};
-use crate::db::applications::{self, DeleteApplicationError, NewApplications, SubmitError};
+use crate::db::application_priorities::{self, SetPrioritiesError};
+use crate::db::applications::{
+    self, CoursePriorities, DeleteApplicationError, NewApplications, SubmitError,
+};
 use crate::db::terms;
 
 pub use json::RuleViolationResponse;
 use json::{
     ApplicationCountListResponse, ApplicationCountResponse, ApplicationListResponse,
     ApplicationResponse, DeleteApplicationRequest, ListApplicationsParams,
-    SubmitApplicationsRequest, SubmitApplicationsResponse,
+    SetPriorityReasonsRequest, SetPriorityReasonsResponse, SubmitApplicationsRequest,
+    SubmitApplicationsResponse,
 };
 
 /// 회원이 이 학기에 낸 유효한 신청. 학기가 없으면 404.
@@ -81,7 +86,19 @@ pub async fn submit_applications(
     if reason.is_some() {
         staff.require(Action::OverrideRules)?;
     }
+    if request.priorities.iter().any(|p| !p.reason_ids.is_empty()) {
+        staff.require(Action::AssignPriority)?;
+    }
     require_term(&db, term_id).await?;
+
+    let priorities: Vec<CoursePriorities<'_>> = request
+        .priorities
+        .iter()
+        .map(|p| CoursePriorities {
+            course_id: p.course_id,
+            reason_ids: &p.reason_ids,
+        })
+        .collect();
 
     let new = NewApplications {
         term_id,
@@ -89,6 +106,7 @@ pub async fn submit_applications(
         course_ids: &request.course_ids,
         override_reason: reason.as_ref().map(Reason::as_str),
         staff_id: staff.id,
+        priorities: &priorities,
     };
     let ids = applications::submit(&db, new, OffsetDateTime::now_utc()).await?;
     tracing::info!(
@@ -135,6 +153,48 @@ pub async fn delete_application(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// 신청의 우선 배정 사유를 본문 목록으로 바꾼다(BR-S12, BR-S13). 바뀐 것은 기록한다(BR-S14).
+///
+/// 추첨한 강좌면 그 추첨이 취소되고 응답의 `lotteryCancelled`가 `true`다. 마감한 강좌면 409.
+pub async fn set_priority_reasons(
+    State(db): State<SqlitePool>,
+    staff: CurrentStaff,
+    id: Result<Path<i64>, PathRejection>,
+    body: Result<Json<SetPriorityReasonsRequest>, JsonRejection>,
+) -> Result<Json<SetPriorityReasonsResponse>, ApiError> {
+    staff.require(Action::AssignPriority)?;
+    let Path(id) = id?;
+    let Json(request) = body?;
+    let result = application_priorities::set(
+        &db,
+        id,
+        &request.reason_ids,
+        staff.id,
+        OffsetDateTime::now_utc(),
+    )
+    .await
+    .map_err(|error| match error {
+        SetPrioritiesError::NotFound => ApiError::ApplicationNotFound,
+        SetPrioritiesError::NotChangeable => ApiError::ApplicationNotChangeable,
+        SetPrioritiesError::Closed => ApiError::SelectionClosed,
+        error @ SetPrioritiesError::ReasonNotFound(_) => {
+            field_error("reasonIds", error.to_string())
+        }
+        SetPrioritiesError::Db(error) => ApiError::internal(error),
+    })?;
+    // BR-S15: 사유는 민감할 수 있어 로그에 남기지 않는다. 기록은 DB에 있다
+    tracing::info!(
+        staff_id = staff.id,
+        application_id = id,
+        changed = result.changed,
+        lottery_cancelled = result.lottery_cancelled,
+        "우선 배정 바꿈"
+    );
+    Ok(Json(SetPriorityReasonsResponse {
+        lottery_cancelled: result.lottery_cancelled,
+    }))
+}
+
 /// 학기가 있어야 한다.
 pub(super) async fn require_term(db: &SqlitePool, term_id: i64) -> Result<(), ApiError> {
     terms::get(db, term_id)
@@ -163,6 +223,11 @@ impl From<SubmitError> for ApiError {
             SubmitError::MemberNotFound => ApiError::MemberNotFound,
             SubmitError::CourseNotFound(_) => ApiError::CourseNotFound,
             SubmitError::CourseDrawn(_) => ApiError::CourseDrawn,
+            // 화면은 목록에서 고른 사유만 보낸다. 그 사이 지워졌을 때만 온다
+            error @ (SubmitError::PriorityForUnchosenCourse(_)
+            | SubmitError::PriorityReasonNotFound(_)) => {
+                field_error("priorities", error.to_string())
+            }
             SubmitError::RulesBroken(violations) => ApiError::RulesBroken(
                 violations
                     .into_iter()
@@ -181,10 +246,10 @@ mod tests {
 
     use super::*;
     use crate::db::test_support::{
-        insert_application, insert_course, insert_lottery_run, insert_member, insert_schedule,
-        insert_staff, insert_subject, insert_term,
+        insert_application, insert_course, insert_lottery_run, insert_member,
+        insert_priority_reason, insert_schedule, insert_staff, insert_subject, insert_term,
     };
-    use crate::server::test_support::{app, app_as, delete_with_body, get, json_body, post};
+    use crate::server::test_support::{app, app_as, delete_with_body, get, json_body, post, put};
 
     /// 학기, 회원과 강좌 셋. 요가 초급(월 10시), 요가 중급(화 10시), 한글교실(월 10시).
     ///
@@ -233,6 +298,18 @@ mod tests {
                 "memberId": self.member_id,
                 "courseIds": course_ids,
                 "overrideReason": reason,
+                "priorities": [],
+            })
+            .to_string()
+        }
+
+        /// `course_id` 하나를 고르고 우선 배정 사유 `reason_ids`를 붙인 본문.
+        fn body_with_priorities(&self, course_id: i64, reason_ids: &[i64]) -> String {
+            json!({
+                "memberId": self.member_id,
+                "courseIds": [course_id],
+                "overrideReason": null,
+                "priorities": [{ "courseId": course_id, "reasonIds": reason_ids }],
             })
             .to_string()
         }
@@ -378,8 +455,7 @@ mod tests {
     async fn unknown_term_member_and_course_are_not_found() {
         let (_dir, db, router) = app().await;
         let s = setup(&db).await;
-        let unknown_member =
-            json!({ "memberId": 999, "courseIds": [s.yoga_basic], "overrideReason": null });
+        let unknown_member = json!({ "memberId": 999, "courseIds": [s.yoga_basic], "overrideReason": null, "priorities": [] });
 
         let term = post(
             router.clone(),
@@ -452,5 +528,109 @@ mod tests {
         let status = delete_with(router, &format!("/api/applications/{id}"), None).await;
 
         assert_eq!(status, StatusCode::FORBIDDEN);
+    }
+
+    fn priority_uri(application_id: i64) -> String {
+        format!("/api/applications/{application_id}/priority-reasons")
+    }
+
+    fn reason_ids(ids: &[i64]) -> String {
+        json!({ "reasonIds": ids }).to_string()
+    }
+
+    #[tokio::test]
+    async fn br_s12_submits_with_priorities_and_lists_them() {
+        let (_dir, db, router) = app().await;
+        let s = setup(&db).await;
+        let leader = insert_priority_reason(&db, "반장").await.unwrap();
+        let veteran = insert_priority_reason(&db, "국가유공자").await.unwrap();
+
+        let response = post(
+            router.clone(),
+            &s.uri(),
+            &s.body_with_priorities(s.yoga_basic, &[veteran, leader]),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let list = s.list(router).await;
+        let mut want = [leader, veteran];
+        want.sort_unstable();
+        assert_eq!(list["items"][0]["priorityReasonIds"], json!(want));
+    }
+
+    #[tokio::test]
+    async fn br_s12_temp_staff_cannot_attach_priority() {
+        let (_dir, db, router) = app_as("temp_staff").await;
+        let s = setup(&db).await;
+        let leader = insert_priority_reason(&db, "반장").await.unwrap();
+
+        let with_reason = post(
+            router.clone(),
+            &s.uri(),
+            &s.body_with_priorities(s.yoga_basic, &[leader]),
+        )
+        .await;
+        let without = post(
+            router.clone(),
+            &s.uri(),
+            &s.body_with_priorities(s.yoga_basic, &[]),
+        )
+        .await;
+        let id = json_body(without).await["ids"][0].as_i64().unwrap();
+        let changed = put(router, &priority_uri(id), &reason_ids(&[leader])).await;
+
+        assert_eq!(with_reason.status(), StatusCode::FORBIDDEN);
+        assert_eq!(changed.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn br_s13_changes_priorities_of_existing_application() {
+        let (_dir, db, router) = app().await;
+        let s = setup(&db).await;
+        let leader = insert_priority_reason(&db, "반장").await.unwrap();
+        let response = post(router.clone(), &s.uri(), &s.body(&[s.yoga_basic], None)).await;
+        let id = json_body(response).await["ids"][0].as_i64().unwrap();
+
+        let attached = put(router.clone(), &priority_uri(id), &reason_ids(&[leader])).await;
+
+        assert_eq!(attached.status(), StatusCode::OK);
+        assert_eq!(
+            json_body(attached).await,
+            json!({ "lotteryCancelled": false })
+        );
+        assert_eq!(
+            s.list(router.clone()).await["items"][0]["priorityReasonIds"],
+            json!([leader])
+        );
+
+        let removed = put(router.clone(), &priority_uri(id), &reason_ids(&[])).await;
+
+        assert_eq!(removed.status(), StatusCode::OK);
+        assert_eq!(
+            s.list(router).await["items"][0]["priorityReasonIds"],
+            json!([])
+        );
+    }
+
+    #[tokio::test]
+    async fn br_s13_unknown_reason_and_application_are_refused() {
+        let (_dir, db, router) = app().await;
+        let s = setup(&db).await;
+        let response = post(router.clone(), &s.uri(), &s.body(&[s.yoga_basic], None)).await;
+        let id = json_body(response).await["ids"][0].as_i64().unwrap();
+
+        let unknown_reason = put(router.clone(), &priority_uri(id), &reason_ids(&[999])).await;
+        let unknown_application = put(router, &priority_uri(999), &reason_ids(&[])).await;
+
+        assert_eq!(unknown_reason.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(
+            json_body(unknown_reason).await["fields"][0]["field"],
+            "reasonIds"
+        );
+        assert_eq!(
+            json_body(unknown_application).await["code"],
+            "APPLICATION_NOT_FOUND"
+        );
     }
 }

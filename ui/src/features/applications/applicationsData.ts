@@ -1,5 +1,6 @@
 import type { ApplicationCountResponse } from "../../api/generated/ApplicationCountResponse";
 import type { ApplicationRuleCode } from "../../api/generated/ApplicationRuleCode";
+import type { CoursePrioritiesRequest } from "../../api/generated/CoursePrioritiesRequest";
 import type { CourseResponse } from "../../api/generated/CourseResponse";
 import type { RuleViolationResponse } from "../../api/generated/RuleViolationResponse";
 import { courseName } from "../courses/courseFormData";
@@ -51,4 +52,46 @@ export function violationMessage(
     return `${name}: 이미 신청한 강좌`;
   }
   return `${name}: ${RULE_LABELS[violation.rule]} (${nameOf(violation.otherCourseId)})`;
+}
+
+/** 강좌 id로 찾는, 고른 강좌에 붙일 우선 배정 사유 id들. */
+export type ChosenPriorities = ReadonlyMap<number, readonly number[]>;
+
+/** id 목록에서 `id`를 넣거나 뺀다. 늘 작은 id부터. */
+export function toggleId(
+  ids: readonly number[],
+  id: number,
+): readonly number[] {
+  return ids.includes(id)
+    ? ids.filter((other) => other !== id)
+    : [...ids, id].sort((a, b) => a - b);
+}
+
+/** 고른 강좌 `courseId`의 사유 `reasonId`를 넣거나 뺀다. 사유가 다 빠진 강좌는 지운다. */
+export function togglePriority(
+  priorities: ChosenPriorities,
+  courseId: number,
+  reasonId: number,
+): ChosenPriorities {
+  const next = new Map(priorities);
+  const ids = toggleId(priorities.get(courseId) ?? [], reasonId);
+  if (ids.length === 0) {
+    next.delete(courseId);
+  } else {
+    next.set(courseId, ids);
+  }
+  return next;
+}
+
+/** 신청 요청의 `priorities`. 고른 강좌의 것만, 고른 순서로 싣는다(BR-S12). */
+export function priorityRequests(
+  chosen: readonly number[],
+  priorities: ChosenPriorities,
+): CoursePrioritiesRequest[] {
+  return chosen.flatMap((courseId) => {
+    const reasonIds = priorities.get(courseId) ?? [];
+    return reasonIds.length === 0
+      ? []
+      : [{ courseId, reasonIds: [...reasonIds] }];
+  });
 }

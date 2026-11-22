@@ -99,6 +99,10 @@ pub async fn patch(router: Router, uri: &str, body: &str) -> Response<Body> {
     .await
 }
 
+pub async fn put(router: Router, uri: &str, body: &str) -> Response<Body> {
+    send(router, json(Request::put(uri)), Body::from(body.to_owned())).await
+}
+
 pub async fn delete(router: Router, uri: &str) -> Response<Body> {
     send(router, Request::delete(uri), Body::empty()).await
 }

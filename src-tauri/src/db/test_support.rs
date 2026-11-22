@@ -211,3 +211,19 @@ pub async fn insert_lottery_run(
     .await
     .map(|result| result.last_insert_rowid())
 }
+
+/// 자리 보장 방식의 사유. 띄어쓰기를 뺀 글자를 `name_key`로 쓴다.
+pub async fn insert_priority_reason(pool: &SqlitePool, name: &str) -> Result<i64, sqlx::Error> {
+    let key: String = name.chars().filter(|c| !c.is_whitespace()).collect();
+    sqlx::query(
+        "INSERT INTO priority_reasons (name, name_key, method, created_at, updated_at)
+         VALUES (?, ?, 'guaranteed', ?, ?)",
+    )
+    .bind(name)
+    .bind(key)
+    .bind(NOW)
+    .bind(NOW)
+    .execute(pool)
+    .await
+    .map(|result| result.last_insert_rowid())
+}

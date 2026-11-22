@@ -67,6 +67,7 @@ pub async fn run_lottery(
             RunLotteryError::CourseNotFound => ApiError::CourseNotFound,
             RunLotteryError::Closed => ApiError::SelectionClosed,
             RunLotteryError::NoApplicants => ApiError::NoApplicants,
+            RunLotteryError::OverCapacity { .. } => ApiError::PriorityOverCapacity,
             RunLotteryError::Db(error) => ApiError::internal(error),
         })?;
     tracing::info!(staff_id = staff.id, course_id = id, run_id, "추첨");
@@ -121,9 +122,10 @@ mod tests {
 
     use super::*;
     use crate::db::test_support::{
-        insert_application, insert_course, insert_member, insert_staff, insert_subject, insert_term,
+        insert_application, insert_course, insert_member, insert_priority_reason, insert_staff,
+        insert_subject, insert_term,
     };
-    use crate::server::test_support::{app, app_as, from_other_pc, get, json_body, post};
+    use crate::server::test_support::{app, app_as, from_other_pc, get, json_body, post, put};
 
     /// 정원 2명인 강좌에 접수됨 신청 셋. 강좌를 만들 수 없는 역할도 시험하려고 DB에 바로 넣는다.
     struct Setup {
@@ -296,5 +298,76 @@ mod tests {
             get(router, &selections_uri).await.status(),
             StatusCode::NOT_FOUND
         );
+    }
+
+    /// 접수한 순서로 `count`건의 신청에 자리 보장 사유를 붙인다. 붙인 신청 id를 돌려준다.
+    async fn guarantee(db: &SqlitePool, router: Router, course_id: i64, count: i64) -> Vec<i64> {
+        let reason_id = insert_priority_reason(db, "반장").await.unwrap();
+        let ids: Vec<i64> = sqlx::query_scalar(
+            "SELECT id FROM applications WHERE course_id = ? ORDER BY id LIMIT ?",
+        )
+        .bind(course_id)
+        .bind(count)
+        .fetch_all(db)
+        .await
+        .unwrap();
+        for &id in &ids {
+            let uri = format!("/api/applications/{id}/priority-reasons");
+            let body = json!({ "reasonIds": [reason_id] }).to_string();
+            assert_eq!(
+                put(router.clone(), &uri, &body).await.status(),
+                StatusCode::OK
+            );
+        }
+        ids
+    }
+
+    #[tokio::test]
+    async fn br_s4_guaranteed_entrant_is_first_and_marked() {
+        let (_dir, db, router) = app().await;
+        let s = setup(&db, 3).await;
+        let ids = guarantee(&db, router.clone(), s.course_id, 1).await;
+
+        let (status, drawn) = s.draw(router).await;
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(drawn["entrants"][0]["applicationId"], ids[0]);
+        assert_eq!(drawn["entrants"][0]["guaranteed"], true);
+        assert_eq!(drawn["entrants"][1]["guaranteed"], false);
+        assert_eq!(drawn["selectedCount"], 2);
+    }
+
+    #[tokio::test]
+    async fn br_s5_more_guaranteed_than_capacity_is_conflict() {
+        let (_dir, db, router) = app().await;
+        let s = setup(&db, 3).await;
+        guarantee(&db, router.clone(), s.course_id, 3).await;
+
+        let (status, body) = s.draw(router).await;
+
+        assert_eq!(status, StatusCode::CONFLICT);
+        assert_eq!(body["code"], "PRIORITY_OVER_CAPACITY");
+    }
+
+    #[tokio::test]
+    async fn br_s13_changing_priority_after_draw_cancels_lottery() {
+        let (_dir, db, router) = app().await;
+        let s = setup(&db, 3).await;
+        s.draw(router.clone()).await;
+
+        let reason_id = insert_priority_reason(&db, "반장").await.unwrap();
+        let id: i64 = sqlx::query_scalar("SELECT MIN(id) FROM applications")
+            .fetch_one(&db)
+            .await
+            .unwrap();
+        let response = put(
+            router.clone(),
+            &format!("/api/applications/{id}/priority-reasons"),
+            &json!({ "reasonIds": [reason_id] }).to_string(),
+        )
+        .await;
+
+        assert_eq!(json_body(response).await["lotteryCancelled"], true);
+        assert_eq!(s.lottery(router).await["stage"], "not_drawn");
     }
 }

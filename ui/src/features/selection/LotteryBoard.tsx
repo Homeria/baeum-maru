@@ -8,7 +8,9 @@ import formStyles from "../../components/form/form.module.css";
 import {
   SHUFFLE_INTERVAL_MS,
   STAGE_LABELS,
+  drawPool,
   entrantLabel,
+  guaranteedOf,
   lotteryButtons,
   needsShuffle,
   shuffled,
@@ -30,6 +32,9 @@ export interface LotteryBoardProps {
  * 시작을 누르면 신청자 목록을 0.25초마다 섞어 보여 준다. 멈춤을 누르면 호스트가 그 순간
  * 순서를 정하고(ADR 0016), 신청자 목록이 그 순서로 멈춘 뒤 앞에서 정원만큼 당첨, 나머지는
  * 그 순서대로 대기가 된다(BR-S7). 화면은 결과를 계산하지 않는다.
+ *
+ * 자리 보장 신청(BR-S4)은 추첨하지 않아 신청자 목록에서 빠지고, 당첨자 목록 맨 위에 늘
+ * 고정된다. 옅은 배경과 "우선" 글자로 표시하고 사유 이름은 보이지 않는다(BR-S15).
  *
  * 추첨·재추첨·마감은 호스트 PC에서 관리자·직원만 한다(BR-L6). 다른 PC와 역할은 결과만 본다.
  */
@@ -110,12 +115,13 @@ export function LotteryBoard({
   const start = (current: CourseLotteryResponse) => {
     setError(null);
     if (needsShuffle(current)) {
-      setShown(current.entrants);
+      setShown(drawPool(current.entrants));
     } else {
       draw.mutate();
     }
   };
-  const applicants = shown ?? data.entrants;
+  const applicants = shown ?? drawPool(data.entrants);
+  const guaranteedCount = guaranteedOf(data.entrants).length;
   // 섞는 동안에는 결과를 비운다 (재추첨 포함)
   const result = resultColumns(data, shuffling);
   const buttons = lotteryButtons(data);
@@ -134,6 +140,11 @@ export function LotteryBoard({
           title="신청자"
           entrants={applicants}
           shuffling={shuffling}
+          note={
+            guaranteedCount > 0
+              ? `우선 배정 ${guaranteedCount}명은 추첨 없이 당첨자에 있습니다`
+              : undefined
+          }
         />
         <EntrantColumn title="당첨자" entrants={result.selected} />
         <EntrantColumn title="대기자" entrants={result.waitlisted} numbered />
@@ -159,7 +170,9 @@ export function LotteryBoard({
         {buttons === "selectAll" && (
           <>
             <p className={styles.hint}>
-              신청자가 정원 이하라 추첨 없이 모두 당첨입니다.
+              {guaranteedCount > 0
+                ? "추첨할 신청자가 남은 자리 이하라 추첨 없이 모두 당첨입니다."
+                : "신청자가 정원 이하라 추첨 없이 모두 당첨입니다."}
             </p>
             <button
               type="button"
@@ -199,6 +212,13 @@ export function LotteryBoard({
               </button>
             </>
           ))}
+        {buttons === "overCapacity" && (
+          <p className={formStyles.formError} role="alert">
+            우선 배정 신청 {guaranteedCount}명이 정원 {data.capacity}명보다 많아
+            추첨할 수 없습니다. 신청 탭에서 우선 배정을 줄이거나 강좌 탭에서
+            정원을 늘려 주세요.
+          </p>
+        )}
         {buttons === "none" && <p className={styles.hint}>{noneHint(data)}</p>}
       </div>
 
@@ -250,6 +270,8 @@ interface EntrantColumnProps {
   shuffling?: boolean;
   /** 대기자처럼 순번을 붙일지. */
   numbered?: boolean;
+  /** 제목 아래 붙일 짧은 안내. */
+  note?: string;
 }
 
 /** 세 목록 가운데 하나. 제목에 인원을 붙인다. */
@@ -258,6 +280,7 @@ function EntrantColumn({
   entrants,
   shuffling = false,
   numbered = false,
+  note,
 }: EntrantColumnProps) {
   const List = numbered ? "ol" : "ul";
   return (
@@ -271,9 +294,18 @@ function EntrantColumn({
         {title} ({entrants.length}명)
         {shuffling && <span className={styles.shuffling}> 섞는 중</span>}
       </h3>
+      {note && <p className={styles.columnNote}>{note}</p>}
       <List className={numbered ? styles.numberedList : styles.entrantList}>
         {entrants.map((entrant) => (
-          <li key={entrant.applicationId}>{entrantLabel(entrant)}</li>
+          <li
+            key={entrant.applicationId}
+            className={entrant.guaranteed ? styles.guaranteed : undefined}
+          >
+            {entrantLabel(entrant)}
+            {entrant.guaranteed && (
+              <span className={styles.guaranteedTag}>우선</span>
+            )}
+          </li>
         ))}
       </List>
     </section>

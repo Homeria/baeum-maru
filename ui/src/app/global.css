@@ -6,6 +6,8 @@
   --color-text: #1f2328;
   --color-text-muted: #59636e;
   --color-primary: #1f5fbf;
+  /* 추첨 화면에서 우선 배정 신청을 표시하는 옅은 바탕 */
+  --color-priority-bg: #eaf1fb;
   --color-ok: #1a7f37;
   --color-bad: #c62828;
 

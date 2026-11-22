@@ -11,11 +11,11 @@ export type CourseLotteryResponse = {
  */
 capacity: number, stage: SelectionStageCode, 
 /**
- * 추첨 전이면 접수한 순서, 추첨 뒤면 뽑힌 순서.
+ * 자리 보장 신청이 늘 맨 앞. 그 뒤는 추첨 전이면 접수한 순서, 추첨 뒤면 뽑힌 순서.
  */
 entrants: Array<EntrantResponse>, 
 /**
- * 추첨 뒤 `entrants`의 앞에서 몇 명이 당첨인지. 나머지는 차례로 대기 순번 1, 2, … 추첨 전이면 0.
+ * 추첨 뒤 `entrants`의 앞에서 몇 명이 당첨인지(자리 보장 포함). 나머지는 차례로 대기 순번 1, 2, … 추첨 전이면 0.
  */
 selectedCount: number, 
 /**

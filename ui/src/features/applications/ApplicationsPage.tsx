@@ -6,6 +6,7 @@ import {
 } from "../../api/applications";
 import { listCourses } from "../../api/courses";
 import { listSelections } from "../../api/lotteries";
+import { listPriorityReasons } from "../../api/priorityReasons";
 import { listRooms } from "../../api/rooms";
 import { listTerms } from "../../api/terms";
 import formStyles from "../../components/form/form.module.css";
@@ -16,7 +17,12 @@ import { TermBar } from "../terms/TermBar";
 import { currentTerm } from "../terms/termFormData";
 import { useCan } from "../auth/useCan";
 import { stagesByCourse } from "../selection/selectionData";
-import { countsByCourse, toggleChoice } from "./applicationsData";
+import {
+  countsByCourse,
+  toggleChoice,
+  togglePriority,
+  type ChosenPriorities,
+} from "./applicationsData";
 import { ApplyBar } from "./ApplyBar";
 import { CourseChoiceList } from "./CourseChoiceList";
 import { MemberApplications } from "./MemberApplications";
@@ -34,6 +40,7 @@ export function ApplicationsPage() {
   const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
   const [memberId, setMemberId] = useState<number | null>(null);
   const [chosen, setChosen] = useState<readonly number[]>([]);
+  const [priorities, setPriorities] = useState<ChosenPriorities>(new Map());
   const canTake = useCan("takeApplications");
   const current = terms.data
     ? currentTerm(terms.data.items, selectedTermId)
@@ -58,6 +65,10 @@ export function ApplicationsPage() {
     enabled: termId !== null,
   });
   const rooms = useQuery({ queryKey: ["rooms"], queryFn: listRooms });
+  const reasons = useQuery({
+    queryKey: ["priority-reasons"],
+    queryFn: listPriorityReasons,
+  });
   // MemberApplications와 같은 키라 한 번만 받음
   const applications = useQuery({
     queryKey: ["applications", termId, memberId],
@@ -87,6 +98,12 @@ export function ApplicationsPage() {
   const showBuilding = rooms.data
     ? hasSeveralBuildings(rooms.data.items)
     : false;
+  const reasonItems = reasons.data?.items ?? [];
+  const stages = stagesByCourse(selections.data?.items ?? []);
+  const clearChoices = () => {
+    setChosen([]);
+    setPriorities(new Map());
+  };
   const appliedIds = new Set(
     applications.data?.items.map((application) => application.courseId) ?? [],
   );
@@ -98,7 +115,7 @@ export function ApplicationsPage() {
         current={current}
         onSelect={(id) => {
           setSelectedTermId(id);
-          setChosen([]);
+          clearChoices();
         }}
         notice={null}
         onNotice={() => undefined}
@@ -110,7 +127,7 @@ export function ApplicationsPage() {
             selectedId={memberId}
             onSelect={(id) => {
               setMemberId(id);
-              setChosen([]);
+              clearChoices();
             }}
           />
           {memberId === null ? (
@@ -122,6 +139,8 @@ export function ApplicationsPage() {
               termId={current.id}
               memberId={memberId}
               courses={courses.data.items}
+              reasons={reasonItems}
+              stages={stages}
             />
           ) : null}
         </div>
@@ -138,8 +157,16 @@ export function ApplicationsPage() {
               selectable={canTake && memberId !== null}
               chosen={chosen}
               appliedIds={appliedIds}
-              stages={stagesByCourse(selections.data?.items ?? [])}
-              onToggle={(id) => setChosen((prev) => toggleChoice(prev, id))}
+              stages={stages}
+              onToggle={(id) => {
+                setChosen((prev) => toggleChoice(prev, id));
+                // 빼는 강좌의 사유도 지운다. 다시 고르면 처음부터
+                setPriorities((prev) => {
+                  const next = new Map(prev);
+                  next.delete(id);
+                  return next;
+                });
+              }}
             />
             {canTake ? (
               <ApplyBar
@@ -149,7 +176,14 @@ export function ApplicationsPage() {
                 memberId={memberId}
                 chosen={chosen}
                 courses={courses.data.items}
-                onSubmitted={() => setChosen([])}
+                reasons={reasonItems}
+                priorities={priorities}
+                onTogglePriority={(courseId, reasonId) =>
+                  setPriorities((prev) =>
+                    togglePriority(prev, courseId, reasonId),
+                  )
+                }
+                onSubmitted={clearChoices}
               />
             ) : (
               <ViewOnlyNotice />

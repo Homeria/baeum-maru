@@ -2,7 +2,10 @@ import { describe, expect, test } from "vitest";
 import type { CourseLotteryResponse } from "../../api/generated/CourseLotteryResponse";
 import type { EntrantResponse } from "../../api/generated/EntrantResponse";
 import {
+  drawPool,
   entrantLabel,
+  guaranteedOf,
+  remainingSeats,
   lotteryButtons,
   needsShuffle,
   resultColumns,
@@ -17,6 +20,15 @@ function entrants(count: number): EntrantResponse[] {
     applicationId: index + 1,
     memberName: `회원${index + 1}`,
     memberNo: `12-${String(index + 1).padStart(5, "0")}`,
+    guaranteed: false,
+  }));
+}
+
+/** 앞에서 `guaranteed`명이 자리 보장인 신청자 `count`명. */
+function withGuaranteed(count: number, guaranteed: number): EntrantResponse[] {
+  return entrants(count).map((entrant, index) => ({
+    ...entrant,
+    guaranteed: index < guaranteed,
   }));
 }
 
@@ -144,5 +156,50 @@ describe("needsShuffle", () => {
   test("정원보다 많을 때만 섞는다", () => {
     expect(needsShuffle(lottery({}))).toBe(true);
     expect(needsShuffle(lottery({ entrants: entrants(2) }))).toBe(false);
+  });
+});
+
+describe("자리 보장(BR-S4, BR-S5)", () => {
+  test("자리 보장과 추첨할 신청을 나누고 남은 자리를 센다", () => {
+    const current = lottery({ capacity: 3, entrants: withGuaranteed(5, 1) });
+
+    expect(guaranteedOf(current.entrants).map((e) => e.applicationId)).toEqual([
+      1,
+    ]);
+    expect(drawPool(current.entrants)).toHaveLength(4);
+    expect(remainingSeats(current)).toBe(2);
+  });
+
+  test("추첨 전과 섞는 중에도 자리 보장은 당첨자 칸 맨 위에 있다", () => {
+    const current = lottery({ capacity: 3, entrants: withGuaranteed(5, 1) });
+
+    for (const shuffling of [false, true]) {
+      const { selected, waitlisted } = resultColumns(current, shuffling);
+      expect(selected.map((e) => e.applicationId)).toEqual([1]);
+      expect(waitlisted).toEqual([]);
+    }
+  });
+
+  test("추첨할 신청이 남은 자리 이하이면 섞지 않고 전원 당첨", () => {
+    const current = lottery({ capacity: 3, entrants: withGuaranteed(3, 1) });
+
+    expect(needsShuffle(current)).toBe(false);
+    expect(lotteryButtons(current)).toBe("selectAll");
+    expect(resultColumns(current, false).selected).toHaveLength(3);
+  });
+
+  test("남은 자리보다 많으면 섞는다", () => {
+    const current = lottery({ capacity: 3, entrants: withGuaranteed(5, 2) });
+
+    expect(needsShuffle(current)).toBe(true);
+    expect(lotteryButtons(current)).toBe("start");
+  });
+
+  test("자리 보장이 정원보다 많으면 추첨할 수 없고 모두에게 알린다", () => {
+    const current = lottery({ capacity: 2, entrants: withGuaranteed(4, 3) });
+
+    expect(remainingSeats(current)).toBe(0);
+    expect(lotteryButtons(current)).toBe("overCapacity");
+    expect(lotteryButtons({ ...current, canDraw: false })).toBe("overCapacity");
   });
 });

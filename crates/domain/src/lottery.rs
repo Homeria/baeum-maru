@@ -3,7 +3,7 @@
 //! 시드를 받아 신청의 순서를 정하는 순수한 계산만 둔다. 시드를 만드는 일(OS 난수)과
 //! 기록은 앱 쪽이 한다. 같은 대상, 시드, 버전이면 언제나 같은 결과다(BR-L2).
 //!
-//! 우선 배정(BR-S3~S5)과 대기 인원 상한(BR-S9)은 아직 없다.
+//! 우선 배정은 자리 보장(BR-S3~S5)만 있다. 대기 인원 상한(BR-S9)은 아직 없다.
 
 use crate::course::Capacity;
 
@@ -92,16 +92,90 @@ pub fn draw_lottery(
     seed: LotterySeed,
     version: LotteryVersion,
 ) -> LotteryDraw {
+    draw_seats(
+        application_ids,
+        usize::from(capacity.value()),
+        seed,
+        version,
+    )
+}
+
+/// `seats`자리를 추첨한다. 자리 보장을 빼고 남은 자리는 0일 수 있어 [`Capacity`]가 아닌 수를 받는다.
+fn draw_seats(
+    application_ids: &[i64],
+    seats: usize,
+    seed: LotterySeed,
+    version: LotteryVersion,
+) -> LotteryDraw {
     let mut order = application_ids.to_vec();
     order.sort_unstable();
     match version {
         LotteryVersion::V1 => shuffle_v1(&mut order, seed),
     }
-    let selected_count = order.len().min(usize::from(capacity.value()));
+    let selected_count = order.len().min(seats);
     LotteryDraw {
         order,
         selected_count,
     }
+}
+
+/// 자리 보장 신청이 정원보다 많아 추첨할 수 없다(BR-S5).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("자리 보장 신청 {guaranteed}건이 정원 {capacity}명보다 많습니다")]
+pub struct OverCapacity {
+    /// 자리 보장 신청 수.
+    pub guaranteed: usize,
+    /// 강좌 정원.
+    pub capacity: u16,
+}
+
+/// 자리 보장과 추첨을 합친 선발 결과.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Allocation {
+    guaranteed: Vec<i64>,
+    draw: LotteryDraw,
+}
+
+impl Allocation {
+    /// 자리 보장으로 당첨된 신청. id 순서다.
+    pub fn guaranteed(&self) -> &[i64] {
+        &self.guaranteed
+    }
+
+    /// 나머지 신청의 추첨 결과. 남은 자리만큼 당첨이다.
+    pub fn draw(&self) -> &LotteryDraw {
+        &self.draw
+    }
+}
+
+/// 자리 보장 신청을 먼저 당첨시키고, 나머지 신청으로 남은 자리를 추첨한다.
+///
+/// BR-S4: 남은 자리 = 정원 - 자리 보장 신청 수. 남은 자리가 0이면 나머지는 모두 대기다.
+/// 추첨은 [`draw_lottery`]와 같은 방식이다(ADR 0017). 두 목록에 같은 신청이 있으면 안 된다.
+///
+/// # Errors
+///
+/// BR-S5: 자리 보장 신청이 정원보다 많으면 [`OverCapacity`].
+pub fn allocate(
+    guaranteed_ids: &[i64],
+    other_ids: &[i64],
+    capacity: Capacity,
+    seed: LotterySeed,
+    version: LotteryVersion,
+) -> Result<Allocation, OverCapacity> {
+    let seats = usize::from(capacity.value());
+    let remaining = seats
+        .checked_sub(guaranteed_ids.len())
+        .ok_or(OverCapacity {
+            guaranteed: guaranteed_ids.len(),
+            capacity: capacity.value(),
+        })?;
+    let mut guaranteed = guaranteed_ids.to_vec();
+    guaranteed.sort_unstable();
+    Ok(Allocation {
+        guaranteed,
+        draw: draw_seats(other_ids, remaining, seed, version),
+    })
 }
 
 /// 버전 1의 섞기: 맨 끝 자리부터 앞쪽의 아무 자리와 바꾼다(피셔-예이츠).
@@ -154,6 +228,68 @@ mod tests {
 
     fn capacity(value: i64) -> Capacity {
         Capacity::new(value).expect("1~200")
+    }
+
+    #[test]
+    fn br_s4_guaranteed_take_seats_and_rest_are_drawn_for_remaining() {
+        let seed = LotterySeed::new(0x0123_4567_89AB_CDEF);
+        let others: Vec<i64> = (1..=10).collect();
+
+        let allocation =
+            allocate(&[30, 20], &others, capacity(6), seed, LotteryVersion::V1).unwrap();
+
+        assert_eq!(allocation.guaranteed(), [20, 30]);
+        // 나머지는 정원 4명짜리 추첨과 같다 (ADR 0017: 섞는 방법은 버전 1 그대로)
+        let plain = draw_lottery(&others, capacity(4), seed, LotteryVersion::V1);
+        assert_eq!(allocation.draw(), &plain);
+        assert_eq!(allocation.draw().selected(), [10, 4, 1, 8]);
+    }
+
+    #[test]
+    fn br_s4_without_guaranteed_is_same_as_plain_draw() {
+        let seed = LotterySeed::new(7);
+        let others: Vec<i64> = (1..=8).collect();
+
+        let allocation = allocate(&[], &others, capacity(5), seed, LotteryVersion::V1).unwrap();
+
+        assert_eq!(
+            allocation.draw(),
+            &draw_lottery(&others, capacity(5), seed, LotteryVersion::V1)
+        );
+    }
+
+    #[test]
+    fn br_s4_guaranteed_filling_capacity_leaves_others_waitlisted() {
+        let allocation = allocate(
+            &[1, 2],
+            &[3, 4, 5],
+            capacity(2),
+            LotterySeed::new(1),
+            LotteryVersion::V1,
+        )
+        .unwrap();
+
+        assert!(allocation.draw().selected().is_empty());
+        assert_eq!(allocation.draw().waitlisted().len(), 3);
+    }
+
+    #[test]
+    fn br_s5_more_guaranteed_than_capacity_is_refused() {
+        let result = allocate(
+            &[1, 2, 3],
+            &[4],
+            capacity(2),
+            LotterySeed::new(1),
+            LotteryVersion::V1,
+        );
+
+        assert_eq!(
+            result,
+            Err(OverCapacity {
+                guaranteed: 3,
+                capacity: 2
+            })
+        );
     }
 
     #[test]

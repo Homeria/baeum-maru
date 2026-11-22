@@ -35,6 +35,30 @@ export function stagesByCourse(
   return new Map(stages.map((stage) => [stage.courseId, stage.stage]));
 }
 
+/** 자리 보장 신청(BR-S4). 호스트가 늘 맨 앞에 둔다. */
+export function guaranteedOf(
+  entrants: readonly EntrantResponse[],
+): readonly EntrantResponse[] {
+  return entrants.filter((entrant) => entrant.guaranteed);
+}
+
+/** 추첨할 신청. 자리 보장이 아닌 신청이다. */
+export function drawPool(
+  entrants: readonly EntrantResponse[],
+): readonly EntrantResponse[] {
+  return entrants.filter((entrant) => !entrant.guaranteed);
+}
+
+/** 자리 보장 신청이 정원보다 많아 추첨할 수 없는지(BR-S5). */
+export function overCapacity(lottery: CourseLotteryResponse): boolean {
+  return guaranteedOf(lottery.entrants).length > lottery.capacity;
+}
+
+/** 추첨으로 채울 자리. 정원에서 자리 보장 인원을 뺀다. 모자라면 0. */
+export function remainingSeats(lottery: CourseLotteryResponse): number {
+  return Math.max(0, lottery.capacity - guaranteedOf(lottery.entrants).length);
+}
+
 /** 뽑힌 순서를 당첨과 대기로 나눈다. 대기는 앞에서부터 대기 순번 1, 2, … */
 export function splitResult(
   entrants: readonly EntrantResponse[],
@@ -52,10 +76,12 @@ export function splitResult(
 /**
  * 당첨자·대기자 칸에 보여 줄 것.
  *
- * - 섞는 중: 둘 다 비운다 (재추첨 포함).
- * - 추첨 전: 신청자가 정원 이하이면 모두 당첨될 사람이라 당첨자 칸에 미리 보여 준다(BR-S6).
- *   기록은 "전원 당첨"을 눌러야 남는다. 정원보다 많으면 둘 다 비운다.
- * - 추첨 뒤: 뽑힌 순서를 당첨과 대기로 나눈다.
+ * 자리 보장 신청(BR-S4)은 추첨과 상관없이 당첨이라, 추첨 전과 섞는 중에도 당첨자 칸 맨 위에 둔다.
+ *
+ * - 섞는 중: 자리 보장만 보이고 대기자는 비운다 (재추첨 포함).
+ * - 추첨 전: 추첨할 신청이 남은 자리 이하이면 모두 당첨될 사람이라 당첨자 칸에 미리 보여
+ *   준다(BR-S6). 기록은 "전원 당첨"을 눌러야 남는다. 남은 자리보다 많으면 자리 보장만 보인다.
+ * - 추첨 뒤: 뽑힌 순서를 당첨과 대기로 나눈다. 호스트가 자리 보장을 맨 앞에 둔다.
  */
 export function resultColumns(
   lottery: CourseLotteryResponse,
@@ -65,11 +91,11 @@ export function resultColumns(
   waitlisted: readonly EntrantResponse[];
 } {
   if (shuffling) {
-    return { selected: [], waitlisted: [] };
+    return { selected: guaranteedOf(lottery.entrants), waitlisted: [] };
   }
   if (lottery.stage === "not_drawn") {
-    return needsShuffle(lottery)
-      ? { selected: [], waitlisted: [] }
+    return needsShuffle(lottery) || overCapacity(lottery)
+      ? { selected: guaranteedOf(lottery.entrants), waitlisted: [] }
       : { selected: lottery.entrants, waitlisted: [] };
   }
   return splitResult(lottery.entrants, lottery.selectedCount);
@@ -96,28 +122,35 @@ export function shuffled<T>(
  * 추첨 화면 아래에 둘 버튼.
  *
  * - `start`: 시작 → 섞기 → 멈춤
- * - `selectAll`: 신청자가 정원 이하라 섞지 않고 모두 당첨(BR-S6)
+ * - `selectAll`: 추첨할 신청이 남은 자리 이하라 섞지 않고 모두 당첨(BR-S6)
  * - `redraw`: 추첨한 뒤. 다시 추첨(BR-L4)과 선발 마감(BR-L5)
+ * - `overCapacity`: 추첨 전인데 자리 보장 신청이 정원보다 많아 추첨할 수 없음(BR-S5).
+ *   이 PC·역할과 상관없이 모두에게 까닭을 보여 준다
  * - `none`: 마감했거나, 신청이 없거나, 이 PC·역할로는 할 수 없음(BR-L6)
  */
-export type LotteryButtons = "start" | "selectAll" | "redraw" | "none";
+export type LotteryButtons =
+  "start" | "selectAll" | "redraw" | "overCapacity" | "none";
 
 /** 추첨 화면의 상태에 맞는 버튼. */
 export function lotteryButtons(lottery: CourseLotteryResponse): LotteryButtons {
-  if (
-    !lottery.canDraw ||
-    lottery.stage === "closed" ||
-    lottery.entrants.length === 0
-  ) {
+  if (lottery.stage === "closed" || lottery.entrants.length === 0) {
+    return "none";
+  }
+  if (lottery.stage === "not_drawn" && overCapacity(lottery)) {
+    return "overCapacity";
+  }
+  if (!lottery.canDraw) {
     return "none";
   }
   if (lottery.stage === "drawn") {
     return "redraw";
   }
-  return lottery.entrants.length <= lottery.capacity ? "selectAll" : "start";
+  return needsShuffle(lottery) ? "start" : "selectAll";
 }
 
-/** 섞는 모습 없이 바로 뽑아도 되는지. 신청자가 정원 이하이면 모두 당첨이라 섞을 까닭이 없다. */
+/**
+ * 섞는 모습을 보여 줄지. 추첨할 신청이 남은 자리 이하이면 모두 당첨이라 섞을 까닭이 없다.
+ */
 export function needsShuffle(lottery: CourseLotteryResponse): boolean {
-  return lottery.entrants.length > lottery.capacity;
+  return drawPool(lottery.entrants).length > remainingSeats(lottery);
 }

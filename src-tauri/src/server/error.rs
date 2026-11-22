@@ -37,6 +37,12 @@ pub enum ApiError {
     SubjectNotFound,
     /// BR-J2: 강좌가 쓰는 과목은 지울 수 없다.
     SubjectInUse,
+    /// BR-S10: 우선 배정 사유 이름은 겹치지 않는다.
+    DuplicatePriorityReasonName,
+    /// 주소의 id인 우선 배정 사유가 없다.
+    PriorityReasonNotFound,
+    /// BR-S10: 신청에 붙었던 사유는 지울 수 없다.
+    PriorityReasonInUse,
     /// BR-R2: 수업 시간이 쓰는 강의실은 지울 수 없다.
     RoomInUse,
     /// BR-T1: 학기 이름은 겹치지 않는다.
@@ -59,6 +65,8 @@ pub enum ApiError {
     NotDrawn,
     /// 접수됨 신청이 없어 추첨할 수 없다.
     NoApplicants,
+    /// BR-S5: 자리 보장 신청이 정원보다 많아 추첨할 수 없다.
+    PriorityOverCapacity,
     /// BR-L6: 호스트 PC에서만 하는 일이다.
     HostOnly,
     /// BR-A5: 신청 규칙을 어겼다. 어긴 규칙을 모두 담는다.
@@ -67,6 +75,8 @@ pub enum ApiError {
     ApplicationNotFound,
     /// BR-D1: 접수됨(선발 전) 신청만 지울 수 있다.
     ApplicationNotDeletable,
+    /// 유효한 신청(접수됨, 당첨, 대기)이 아니라 우선 배정을 바꿀 수 없다.
+    ApplicationNotChangeable,
     /// BR-K11: 처음 설정은 직원이 하나도 없을 때 한 번만 한다.
     SetupAlreadyDone,
     /// 주소나 본문의 id인 직원이 없다.
@@ -144,6 +154,9 @@ pub enum ErrorCode {
     DuplicateSubjectName,
     SubjectNotFound,
     SubjectInUse,
+    DuplicatePriorityReasonName,
+    PriorityReasonNotFound,
+    PriorityReasonInUse,
     RoomInUse,
     DuplicateTermName,
     TermNotFound,
@@ -155,10 +168,12 @@ pub enum ErrorCode {
     SelectionClosed,
     NotDrawn,
     NoApplicants,
+    PriorityOverCapacity,
     HostOnly,
     RulesBroken,
     ApplicationNotFound,
     ApplicationNotDeletable,
+    ApplicationNotChangeable,
     SetupAlreadyDone,
     StaffNotFound,
     DuplicateStaffName,
@@ -276,6 +291,27 @@ impl IntoResponse for ApiError {
                 Some("BR-J2"),
                 Vec::new(),
             ),
+            ApiError::DuplicatePriorityReasonName => (
+                StatusCode::CONFLICT,
+                ErrorCode::DuplicatePriorityReasonName,
+                "이미 있는 사유입니다. 띄어쓰기만 달라도 같은 사유로 봅니다",
+                Some("BR-S10"),
+                Vec::new(),
+            ),
+            ApiError::PriorityReasonNotFound => (
+                StatusCode::NOT_FOUND,
+                ErrorCode::PriorityReasonNotFound,
+                "우선 배정 사유를 찾지 못했습니다. 지워졌을 수 있습니다",
+                None,
+                Vec::new(),
+            ),
+            ApiError::PriorityReasonInUse => (
+                StatusCode::CONFLICT,
+                ErrorCode::PriorityReasonInUse,
+                "신청에 붙인 적이 있는 사유는 지울 수 없습니다. 이름은 고칠 수 있습니다",
+                Some("BR-S10"),
+                Vec::new(),
+            ),
             ApiError::RoomInUse => (
                 StatusCode::CONFLICT,
                 ErrorCode::RoomInUse,
@@ -353,6 +389,13 @@ impl IntoResponse for ApiError {
                 None,
                 Vec::new(),
             ),
+            ApiError::PriorityOverCapacity => (
+                StatusCode::CONFLICT,
+                ErrorCode::PriorityOverCapacity,
+                "우선 배정 신청이 정원보다 많아 추첨할 수 없습니다. 우선 배정을 줄이거나 정원을 늘려 주세요",
+                Some("BR-S5"),
+                Vec::new(),
+            ),
             ApiError::HostOnly => (
                 StatusCode::FORBIDDEN,
                 ErrorCode::HostOnly,
@@ -379,6 +422,13 @@ impl IntoResponse for ApiError {
                 ErrorCode::ApplicationNotDeletable,
                 "선발 뒤의 신청은 지울 수 없습니다. 포기로 처리해 주세요",
                 Some("BR-D1"),
+                Vec::new(),
+            ),
+            ApiError::ApplicationNotChangeable => (
+                StatusCode::CONFLICT,
+                ErrorCode::ApplicationNotChangeable,
+                "유효한 신청이 아니라 우선 배정을 바꿀 수 없습니다",
+                Some("BR-S13"),
                 Vec::new(),
             ),
             ApiError::SetupAlreadyDone => (

@@ -1,7 +1,8 @@
-import { getJson, postJson, sendDelete } from "./client";
+import { getJson, postJson, putJson, sendDelete } from "./client";
 import type { ApplicationCountListResponse } from "./generated/ApplicationCountListResponse";
 import type { ApplicationListResponse } from "./generated/ApplicationListResponse";
 import type { DeleteApplicationRequest } from "./generated/DeleteApplicationRequest";
+import type { SetPriorityReasonsResponse } from "./generated/SetPriorityReasonsResponse";
 import type { SubmitApplicationsRequest } from "./generated/SubmitApplicationsRequest";
 import type { SubmitApplicationsResponse } from "./generated/SubmitApplicationsResponse";
 
@@ -45,4 +46,19 @@ export function deleteApplication(
   request: DeleteApplicationRequest,
 ): Promise<void> {
   return sendDelete(`/api/applications/${id}`, request);
+}
+
+/**
+ * 신청의 우선 배정 사유를 `reasonIds`로 바꾼다. 빈 목록이면 모두 뗀다(BR-S12).
+ *
+ * 추첨한 강좌면 그 추첨이 취소되고 `lotteryCancelled`가 `true`다(BR-S13).
+ */
+export function setPriorityReasons(
+  id: number,
+  reasonIds: number[],
+): Promise<SetPriorityReasonsResponse> {
+  return putJson<SetPriorityReasonsResponse>(
+    `/api/applications/${id}/priority-reasons`,
+    { reasonIds },
+  );
 }

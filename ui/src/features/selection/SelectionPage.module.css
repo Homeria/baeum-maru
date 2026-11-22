@@ -96,6 +96,31 @@
   padding: var(--space-1) 0;
 }
 
+/* 자리 보장 신청(BR-S4). 눈에 거슬리지 않게 옅은 배경과 작은 글자만 */
+.entrantList li.guaranteed,
+.numberedList li.guaranteed {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0 calc(-1 * var(--space-2));
+  padding: var(--space-1) var(--space-2);
+  border-radius: 4px;
+  background: var(--color-priority-bg);
+}
+
+.guaranteedTag {
+  color: var(--color-primary);
+  font-size: 0.8em;
+}
+
+.columnNote {
+  margin: 0;
+  padding: var(--space-2) var(--space-3) 0;
+  color: var(--color-text-muted);
+  font-size: 0.9em;
+}
+
 .controls {
   display: flex;
   flex-wrap: wrap;

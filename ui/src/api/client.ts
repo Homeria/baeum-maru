@@ -91,7 +91,7 @@ function isErrorBody(body: unknown): body is ErrorBody {
   );
 }
 
-type Method = "GET" | "POST" | "PATCH" | "DELETE";
+type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 /** 이 오류를 받으면 세션이 더는 쓸 수 없다. 로그인 화면으로 돌아간다. */
 const SESSION_ENDED: readonly ErrorCode[] = [
@@ -171,6 +171,12 @@ export async function postJson<T>(path: string, body: unknown): Promise<T> {
 /** PATCH 요청으로 JSON을 보내고 JSON을 받는다. */
 export async function patchJson<T>(path: string, body: unknown): Promise<T> {
   const response = await send("PATCH", path, body);
+  return (await response.json()) as T;
+}
+
+/** PUT 요청으로 JSON을 보내고 JSON을 받는다. */
+export async function putJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await send("PUT", path, body);
   return (await response.json()) as T;
 }
 

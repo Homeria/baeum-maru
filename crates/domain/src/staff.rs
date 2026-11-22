@@ -85,8 +85,12 @@ pub enum Action {
     TakeApplications,
     /// 신청 규칙을 어긴 신청을 사유를 적고 받기(BR-A6).
     OverrideRules,
+    /// 신청에 우선 배정 사유 붙이기·떼기(BR-S12).
+    AssignPriority,
     /// 추첨·재추첨·선발 마감(BR-L4, BR-L5). 호스트 PC에서만 한다(BR-L6)는 앱이 따로 확인한다.
     RunLottery,
+    /// 우선 배정 사유 목록 바꾸기(BR-S10).
+    ManagePriorityReasons,
     /// 직원 계정 관리.
     ManageStaff,
     /// 접속 기록 보기.
@@ -116,7 +120,10 @@ impl Role {
     pub fn can(self, action: Action) -> bool {
         match (self, action) {
             (_, Action::View) | (Role::Admin, _) => true,
-            (Role::Staff, Action::ManageStaff | Action::ViewAccessLog) => false,
+            (
+                Role::Staff,
+                Action::ManagePriorityReasons | Action::ManageStaff | Action::ViewAccessLog,
+            ) => false,
             (Role::Staff, _) => true,
             (Role::TempStaff, Action::EditMembers | Action::TakeApplications) => true,
             (Role::TempStaff | Role::ReadOnly, _) => false,
@@ -367,7 +374,9 @@ mod tests {
             EditReferenceData,
             TakeApplications,
             OverrideRules,
+            AssignPriority,
             RunLottery,
+            ManagePriorityReasons,
             ManageStaff,
             ViewAccessLog,
         ];
@@ -386,6 +395,7 @@ mod tests {
                 EditReferenceData,
                 TakeApplications,
                 OverrideRules,
+                AssignPriority,
                 RunLottery
             ]
         );

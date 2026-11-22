@@ -12,4 +12,8 @@ submittedAt: string,
 /**
  * 예외를 받은 규칙.
  */
-overriddenRules: Array<ApplicationRuleCode>, };
+overriddenRules: Array<ApplicationRuleCode>, 
+/**
+ * 붙은 우선 배정 사유 id. id 순서.
+ */
+priorityReasonIds: number[], };

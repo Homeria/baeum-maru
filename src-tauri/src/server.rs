@@ -11,6 +11,7 @@ mod login;
 mod lotteries;
 mod members;
 mod paging;
+mod priority_reasons;
 mod recovery;
 mod rooms;
 mod setup;
@@ -25,7 +26,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use axum::extract::FromRef;
 use axum::http::{HeaderName, HeaderValue, Method, header};
-use axum::routing::{delete, get, post};
+use axum::routing::{delete, get, patch, post, put};
 use axum::{Router, middleware};
 use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
@@ -106,6 +107,16 @@ pub fn router(state: AppState) -> Router {
                 .delete(rooms::delete_room),
         )
         .route(
+            "/api/priority-reasons",
+            get(priority_reasons::list_priority_reasons)
+                .post(priority_reasons::create_priority_reason),
+        )
+        .route(
+            "/api/priority-reasons/{id}",
+            patch(priority_reasons::update_priority_reason)
+                .delete(priority_reasons::delete_priority_reason),
+        )
+        .route(
             "/api/subjects",
             get(subjects::list_subjects).post(subjects::create_subject),
         )
@@ -152,6 +163,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/applications/{id}",
             delete(applications::delete_application),
+        )
+        .route(
+            "/api/applications/{id}/priority-reasons",
+            put(applications::set_priority_reasons),
         )
         .route(
             "/api/courses/{id}",

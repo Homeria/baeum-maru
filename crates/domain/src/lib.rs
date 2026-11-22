@@ -13,6 +13,7 @@ mod course;
 mod lottery;
 mod member;
 mod personal;
+mod priority;
 mod recovery_code;
 mod room;
 mod staff;
@@ -26,9 +27,12 @@ pub use course::{
     Capacity, ClassTime, CourseError, CourseInput, LevelName, NewCourse, Schedule, ScheduleInput,
     SectionName, weekday_from_number,
 };
-pub use lottery::{LotteryDraw, LotterySeed, LotteryVersion, draw_lottery};
+pub use lottery::{
+    Allocation, LotteryDraw, LotterySeed, LotteryVersion, OverCapacity, allocate, draw_lottery,
+};
 pub use member::{Gender, MemberError, MemberInput, MemberName, MemberNo, NewMember, PhoneNumber};
 pub use personal::Personal;
+pub use priority::{NewPriorityReason, PriorityError, PriorityMethod, PriorityReasonName};
 pub use recovery_code::RecoveryCode;
 pub use room::{BuildingName, Floor, NewRoom, RoomError, RoomInput, RoomName};
 pub use staff::{

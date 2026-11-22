@@ -26,6 +26,37 @@ pub struct SubmitApplicationsRequest {
     pub course_ids: Vec<i64>,
     /// 규칙 예외 사유(BR-A6). 규칙을 어기지 않았으면 `null`.
     pub override_reason: Option<String>,
+    /// 고른 강좌마다 붙일 우선 배정 사유(BR-S12). 사유를 붙이지 않는 강좌는 빼도 된다.
+    pub priorities: Vec<CoursePrioritiesRequest>,
+}
+
+/// 고른 강좌 하나에 붙일 우선 배정 사유들.
+#[derive(Debug, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct CoursePrioritiesRequest {
+    #[ts(type = "number")]
+    pub course_id: i64,
+    #[ts(type = "number[]")]
+    pub reason_ids: Vec<i64>,
+}
+
+/// `PUT /api/applications/{id}/priority-reasons` 본문. 이 목록으로 바꾼다. 빈 목록이면 모두 뗀다.
+#[derive(Debug, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SetPriorityReasonsRequest {
+    #[ts(type = "number[]")]
+    pub reason_ids: Vec<i64>,
+}
+
+/// `PUT /api/applications/{id}/priority-reasons` 응답.
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SetPriorityReasonsResponse {
+    /// BR-S13: 추첨한 강좌라 추첨이 취소되고 추첨 전으로 돌아갔다.
+    pub lottery_cancelled: bool,
 }
 
 /// `DELETE /api/applications/{id}` 본문.
@@ -117,6 +148,9 @@ pub struct ApplicationResponse {
     pub submitted_at: String,
     /// 예외를 받은 규칙.
     pub overridden_rules: Vec<ApplicationRuleCode>,
+    /// 붙은 우선 배정 사유 id. id 순서.
+    #[ts(type = "number[]")]
+    pub priority_reason_ids: Vec<i64>,
 }
 
 impl From<ApplicationRecord> for ApplicationResponse {
@@ -130,6 +164,7 @@ impl From<ApplicationRecord> for ApplicationResponse {
                 .into_iter()
                 .map(ApplicationRuleCode::from)
                 .collect(),
+            priority_reason_ids: record.priority_reason_ids,
         }
     }
 }

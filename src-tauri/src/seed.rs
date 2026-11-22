@@ -178,6 +178,40 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn fills_priorities_with_one_course_over_capacity() {
+        let dir = tempfile::tempdir().unwrap();
+
+        run(dir.path()).await.unwrap();
+
+        let pool = db::open(dir.path()).await.unwrap();
+        assert_eq!(
+            count(&pool, "SELECT COUNT(*) FROM priority_reasons").await,
+            2
+        );
+        // 반장 10건(신청 있는 강좌 11개 중 스마트폰 활용 심화 빼고), 국가유공자 2 + 6건
+        assert_eq!(
+            count(&pool, "SELECT COUNT(*) FROM application_priorities").await,
+            18
+        );
+        assert_eq!(
+            count(&pool, "SELECT COUNT(*) FROM priority_changes").await,
+            18
+        );
+        // BR-S5: 자리 보장이 정원보다 많은 강좌는 스마트폰 활용 심화 하나
+        let over: Vec<(i64, i64)> = sqlx::query_as(
+            "SELECT c.capacity, COUNT(DISTINCT p.application_id) AS guaranteed
+             FROM courses c
+             JOIN applications a ON a.course_id = c.id
+             JOIN application_priorities p ON p.application_id = a.id
+             GROUP BY c.id HAVING guaranteed > c.capacity",
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert_eq!(over, [(5, 6)]);
+    }
+
+    #[tokio::test]
     async fn leaves_folder_with_files_untouched() {
         let dir = tempfile::tempdir().unwrap();
         let existing = dir.path().join("baeum-maru.db");
