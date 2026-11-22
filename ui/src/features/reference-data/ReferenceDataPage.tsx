@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { Tabs, type TabItem } from "../../components/Tabs/Tabs";
+import { PriorityReasonsPage } from "../priority-reasons/PriorityReasonsPage";
 import { RoomsPage } from "../rooms/RoomsPage";
 import { SubjectsPage } from "../subjects/SubjectsPage";
 import styles from "./ReferenceDataPage.module.css";
 
-type ListKey = "subjects" | "rooms";
+type ListKey = "subjects" | "rooms" | "priorityReasons";
 
 const LISTS: readonly TabItem<ListKey>[] = [
   { key: "subjects", label: "과목" },
   { key: "rooms", label: "강의실" },
+  { key: "priorityReasons", label: "우선 배정 사유" },
 ];
 
 /**
@@ -30,6 +32,7 @@ export function ReferenceDataPage() {
       <div role="tabpanel" className={styles.content}>
         {list === "subjects" && <SubjectsPage />}
         {list === "rooms" && <RoomsPage />}
+        {list === "priorityReasons" && <PriorityReasonsPage />}
       </div>
     </div>
   );
