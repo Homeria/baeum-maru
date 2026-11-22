@@ -7,6 +7,7 @@ pub mod applications;
 pub mod courses;
 pub mod lotteries;
 pub mod members;
+pub mod priority_reasons;
 pub mod recovery;
 pub mod rooms;
 pub mod sessions;
