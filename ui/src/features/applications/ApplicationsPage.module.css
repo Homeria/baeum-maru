@@ -121,3 +121,42 @@
   gap: var(--space-2);
   margin-bottom: var(--space-4);
 }
+
+/* 신청 하나에 붙이는 우선 배정 사유. 여러 개면 줄을 바꿔 이어 간다 */
+.priorityChoices {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.priorityLabel {
+  color: var(--color-text-muted);
+  font-size: 0.9em;
+}
+
+.priorityChoice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+}
+
+/* 신청 줄 위, 고른 강좌마다 우선 배정 칸 */
+.chosenPriorities {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  list-style: none;
+}
+
+.chosenPriority {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+}
