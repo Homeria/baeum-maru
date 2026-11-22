@@ -89,6 +89,10 @@ pub enum Action {
     AssignPriority,
     /// 추첨·재추첨·선발 마감(BR-L4, BR-L5). 호스트 PC에서만 한다(BR-L6)는 앱이 따로 확인한다.
     RunLottery,
+    /// 선발 마감 뒤 포기와 대기자 연락 결과 남기기(BR-C3, BR-W2).
+    RecordWithdrawals,
+    /// 잘못 처리한 포기 바로잡기(BR-W8).
+    CorrectWithdrawals,
     /// 우선 배정 사유 목록 바꾸기(BR-S10).
     ManagePriorityReasons,
     /// 직원 계정 관리.
@@ -122,7 +126,10 @@ impl Role {
             (_, Action::View) | (Role::Admin, _) => true,
             (
                 Role::Staff,
-                Action::ManagePriorityReasons | Action::ManageStaff | Action::ViewAccessLog,
+                Action::CorrectWithdrawals
+                | Action::ManagePriorityReasons
+                | Action::ManageStaff
+                | Action::ViewAccessLog,
             ) => false,
             (Role::Staff, _) => true,
             (Role::TempStaff, Action::EditMembers | Action::TakeApplications) => true,
@@ -376,6 +383,8 @@ mod tests {
             OverrideRules,
             AssignPriority,
             RunLottery,
+            RecordWithdrawals,
+            CorrectWithdrawals,
             ManagePriorityReasons,
             ManageStaff,
             ViewAccessLog,
@@ -396,7 +405,8 @@ mod tests {
                 TakeApplications,
                 OverrideRules,
                 AssignPriority,
-                RunLottery
+                RunLottery,
+                RecordWithdrawals
             ]
         );
         assert_eq!(

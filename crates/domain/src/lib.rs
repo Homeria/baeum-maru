@@ -19,6 +19,7 @@ mod room;
 mod staff;
 mod subject;
 mod term;
+mod waitlist;
 
 pub use application::{
     ApplicationRule, CourseForRules, Reason, ReasonError, RuleViolation, check_application,
@@ -42,3 +43,4 @@ pub use staff::{
 };
 pub use subject::{CategoryName, NewSubject, SubjectError, SubjectInput, SubjectName};
 pub use term::{NewTerm, TermError, TermInput, TermName, TermPeriod};
+pub use waitlist::{ContactResult, Waiting, WithdrawnFrom, contact_turns, open_seats};
