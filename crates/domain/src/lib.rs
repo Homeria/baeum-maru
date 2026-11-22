@@ -10,6 +10,7 @@
 
 mod application;
 mod course;
+mod lottery;
 mod member;
 mod personal;
 mod recovery_code;
@@ -25,6 +26,7 @@ pub use course::{
     Capacity, ClassTime, CourseError, CourseInput, LevelName, NewCourse, Schedule, ScheduleInput,
     SectionName, weekday_from_number,
 };
+pub use lottery::{LotteryDraw, LotterySeed, LotteryVersion, draw_lottery};
 pub use member::{Gender, MemberError, MemberInput, MemberName, MemberNo, NewMember, PhoneNumber};
 pub use personal::Personal;
 pub use recovery_code::RecoveryCode;
