@@ -1,11 +1,11 @@
-//! 비밀 다루기: PIN과 복구 코드의 해시, 새 복구 코드, 세션 증표.
+//! 비밀과 난수 다루기: PIN과 복구 코드의 해시, 새 복구 코드, 세션 증표, 추첨 시드.
 //!
 //! ADR 0014: PIN과 복구 코드는 argon2id(설정값은 crate 기본값). 해시는 일부러 느리게
 //! 만들어져서 요청 처리에서는 [`tokio::task::spawn_blocking`]으로 따로 돌린다.
 //! 세션 증표는 길고 무작위라 빠른 SHA-256으로 충분하다.
 
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
-use baeum_domain::{Pin, RecoveryCode};
+use baeum_domain::{LotterySeed, Pin, RecoveryCode};
 use sha2::{Digest, Sha256};
 
 /// 해시나 난수를 만들지 못했다. 오류 문장에 비밀 글자는 들어가지 않는다.
@@ -41,6 +41,13 @@ pub fn new_recovery_code() -> Result<RecoveryCode, SecretError> {
     let mut bytes = [0; RecoveryCode::LEN];
     getrandom::fill(&mut bytes).map_err(SecretError::Random)?;
     Ok(RecoveryCode::from_random(bytes))
+}
+
+/// 운영체제의 난수로 추첨 시드를 만든다(ADR 0016). 멈춤을 누른 순간에 부른다.
+pub fn new_lottery_seed() -> Result<LotterySeed, SecretError> {
+    let mut bytes = [0; 8];
+    getrandom::fill(&mut bytes).map_err(SecretError::Random)?;
+    Ok(LotterySeed::new(u64::from_le_bytes(bytes)))
 }
 
 /// 관리자의 새 PIN 해시와 새 복구 코드. 처음 설정(BR-K11)과 복구 코드 사용(BR-K12)에서 만든다.

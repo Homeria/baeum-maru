@@ -8,6 +8,7 @@ mod auth;
 mod courses;
 mod error;
 mod login;
+mod lotteries;
 mod members;
 mod paging;
 mod recovery;
@@ -137,6 +138,18 @@ pub fn router(state: AppState) -> Router {
             get(applications::list_application_counts),
         )
         .route(
+            "/api/terms/{term_id}/selections",
+            get(lotteries::list_selections),
+        )
+        .route(
+            "/api/courses/{id}/lottery",
+            get(lotteries::get_lottery).post(lotteries::run_lottery),
+        )
+        .route(
+            "/api/courses/{id}/selection-closure",
+            post(lotteries::close_selection),
+        )
+        .route(
             "/api/applications/{id}",
             delete(applications::delete_application),
         )
@@ -230,7 +243,9 @@ async fn listen(host: Version, data_dir: &DataDir) -> Result<(), ServeError> {
     let addr = SocketAddr::from((LISTEN_ADDR, PORT));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!(%addr, version = crate::version::CURRENT, "서버 시작");
-    axum::serve(listener, router(AppState::new(host, db))).await?;
+    // 처리 함수가 요청을 보낸 PC의 주소를 알게 한다 (BR-L6, auth::Client)
+    let app = router(AppState::new(host, db)).into_make_service_with_connect_info::<SocketAddr>();
+    axum::serve(listener, app).await?;
     Ok(())
 }
 

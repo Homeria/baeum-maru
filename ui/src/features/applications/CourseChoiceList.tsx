@@ -1,7 +1,9 @@
 import type { CourseResponse } from "../../api/generated/CourseResponse";
+import type { SelectionStageCode } from "../../api/generated/SelectionStageCode";
 import listStyles from "../../components/layout/listPage.module.css";
 import tableStyles from "../../components/table/table.module.css";
 import { courseName, scheduleSummary } from "../courses/courseFormData";
+import { STAGE_LABELS } from "../selection/selectionData";
 import { countLabel } from "./applicationsData";
 import styles from "./ApplicationsPage.module.css";
 
@@ -18,6 +20,8 @@ export interface CourseChoiceListProps {
   chosen: readonly number[];
   /** 고른 회원이 이미 신청한 강좌. 고를 수 없다. */
   appliedIds: ReadonlySet<number>;
+  /** 강좌 id로 찾는 선발 단계. 추첨한 강좌는 새 신청을 받지 않아 고를 수 없다(BR-L3). */
+  stages: ReadonlyMap<number, SelectionStageCode>;
   onToggle: (id: number) => void;
 }
 
@@ -29,6 +33,7 @@ export function CourseChoiceList({
   selectable,
   chosen,
   appliedIds,
+  stages,
   onToggle,
 }: CourseChoiceListProps) {
   return (
@@ -52,16 +57,19 @@ export function CourseChoiceList({
             {courses.map((course) => {
               const summary = scheduleSummary(course.schedules, showBuilding);
               const applied = appliedIds.has(course.id);
+              const stage = stages.get(course.id) ?? "not_drawn";
+              // 신청했거나 추첨한 강좌는 고를 수 없다
+              const locked = applied || stage !== "not_drawn";
               const checked = chosen.includes(course.id);
               return (
                 <tr
                   key={course.id}
                   className={
-                    selectable && !applied ? tableStyles.row : undefined
+                    selectable && !locked ? tableStyles.row : undefined
                   }
                   aria-current={checked ? "true" : undefined}
                   onClick={() => {
-                    if (selectable && !applied) {
+                    if (selectable && !locked) {
                       onToggle(course.id);
                     }
                   }}
@@ -69,6 +77,10 @@ export function CourseChoiceList({
                   <td>
                     {applied ? (
                       <span className={styles.muted}>신청함</span>
+                    ) : locked ? (
+                      <span className={styles.muted}>
+                        {STAGE_LABELS[stage]}
+                      </span>
                     ) : (
                       <input
                         type="checkbox"

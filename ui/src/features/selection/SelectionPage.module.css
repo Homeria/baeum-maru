@@ -1,0 +1,127 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  height: 100%;
+}
+
+.courseBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.courseSelect {
+  min-width: min(28rem, 100%);
+}
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  flex: 1;
+  min-height: 0;
+}
+
+.boardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4);
+}
+
+.courseTitle {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
+}
+
+/* 신청자 | 당첨자 | 대기자. 신청자들 앞에서 띄우는 화면이라 글자를 크게 */
+.columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  flex: 1;
+  min-height: 0;
+  font-size: 1.15rem;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.column[data-shuffling="true"] {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.columnTitle {
+  margin: 0;
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-lg);
+}
+
+.shuffling {
+  color: var(--color-primary);
+}
+
+.entrantList,
+.numberedList {
+  flex: 1;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  overflow-y: auto;
+}
+
+.entrantList {
+  list-style: none;
+}
+
+.numberedList {
+  padding-left: calc(var(--space-3) + 2.2em);
+}
+
+.entrantList li,
+.numberedList li {
+  padding: var(--space-1) 0;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+.drawButton {
+  min-width: 10rem;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.empty {
+  margin: 0 auto;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* 좁은 창에서는 세 목록을 위아래로 */
+@media (width < 720px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

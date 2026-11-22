@@ -193,3 +193,21 @@ pub async fn insert_deletion(
     .await
     .map(|result| result.last_insert_rowid())
 }
+
+/// 시드는 `0123456789abcdef`, 버전 1, 정원 20명. 취소되지 않은 기록.
+pub async fn insert_lottery_run(
+    pool: &SqlitePool,
+    course_id: i64,
+    staff_id: i64,
+) -> Result<i64, sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO lottery_runs (course_id, run_by, run_at, seed, version, capacity)
+         VALUES (?, ?, ?, '0123456789abcdef', 1, 20)",
+    )
+    .bind(course_id)
+    .bind(staff_id)
+    .bind(NOW)
+    .execute(pool)
+    .await
+    .map(|result| result.last_insert_rowid())
+}

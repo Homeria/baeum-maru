@@ -3,7 +3,10 @@
 //! ADR 0014: 요청마다 세션과 직원 계정을 함께 읽어서, 역할 변경·사용 중지·유효기간 만료가
 //! 다음 요청부터 바로 적용된다.
 
-use axum::extract::{FromRequestParts, Request, State};
+use std::convert::Infallible;
+use std::net::SocketAddr;
+
+use axum::extract::{ConnectInfo, FromRequestParts, Request, State};
 use axum::http::request::Parts;
 use axum::http::{HeaderMap, header};
 use axum::middleware::Next;
@@ -53,6 +56,42 @@ impl<S: Send + Sync> FromRequestParts<S> for CurrentStaff {
             .get::<CurrentStaff>()
             .copied()
             .ok_or(ApiError::LoginRequired)
+    }
+}
+
+/// 요청을 보낸 PC가 호스트 자신인지. 추첨처럼 호스트 PC에서만 하는 일(BR-L6)에 쓴다.
+///
+/// 처리 함수의 인자로 받으면 axum이 요청의 연결 주소로 정해 준다.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Client {
+    pub on_host: bool,
+}
+
+impl Client {
+    /// BR-L6: 호스트 PC에서 온 요청이어야 한다.
+    ///
+    /// # Errors
+    ///
+    /// 다른 PC에서 왔으면 [`ApiError::HostOnly`].
+    pub fn require_host(self) -> Result<(), ApiError> {
+        if self.on_host {
+            Ok(())
+        } else {
+            Err(ApiError::HostOnly)
+        }
+    }
+}
+
+impl<S: Send + Sync> FromRequestParts<S> for Client {
+    type Rejection = Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        // 서버가 연결마다 상대 주소를 넣어 둔다(serve의 into_make_service_with_connect_info).
+        // 주소를 모르면 호스트가 아니라고 본다
+        let on_host = ConnectInfo::<SocketAddr>::from_request_parts(parts, state)
+            .await
+            .is_ok_and(|ConnectInfo(addr)| addr.ip().is_loopback());
+        Ok(Client { on_host })
     }
 }
 

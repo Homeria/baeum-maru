@@ -39,6 +39,9 @@ pub enum SubmitError {
     /// 고른 강좌가 그 학기에 없다. 그 사이 지워졌거나 다른 학기의 강좌다.
     #[error("이 학기에 없는 강좌를 골랐습니다")]
     CourseNotFound(Vec<i64>),
+    /// BR-L3: 추첨한 강좌는 새 신청을 받지 않는다. 고른 강좌 가운데 추첨한 강좌들.
+    #[error("추첨한 강좌는 새 신청을 받지 않습니다")]
+    CourseDrawn(Vec<i64>),
     /// BR-A5: 규칙을 어겼다. 사유가 있어도 예외를 줄 수 없는 규칙(BR-A7)이면 여기로 온다.
     #[error("신청 규칙을 어겼습니다")]
     RulesBroken(Vec<RuleViolation>),
@@ -103,6 +106,16 @@ pub async fn submit(
         .collect();
     if !missing.is_empty() {
         return Err(SubmitError::CourseNotFound(missing));
+    }
+    let drawn_ids = drawn_course_ids(&mut tx, new.term_id).await?;
+    let drawn: Vec<i64> = new
+        .course_ids
+        .iter()
+        .copied()
+        .filter(|id| drawn_ids.contains(id))
+        .collect();
+    if !drawn.is_empty() {
+        return Err(SubmitError::CourseDrawn(drawn));
     }
     let applied_ids = applied_course_ids(&mut tx, new.term_id, new.member_id).await?;
     // 고른 강좌는 위에서, 신청한 강좌는 같은 학기 강좌라서 `courses`에 반드시 있다
@@ -349,6 +362,21 @@ async fn term_courses(
     Ok(courses)
 }
 
+/// `term_id` 학기에서 추첨한(취소되지 않은 추첨 기록이 있는) 강좌들. 마감한 강좌도 들어간다.
+async fn drawn_course_ids(
+    conn: &mut SqliteConnection,
+    term_id: i64,
+) -> Result<Vec<i64>, sqlx::Error> {
+    sqlx::query_scalar(
+        "SELECT r.course_id
+         FROM lottery_runs r JOIN courses c ON c.id = r.course_id
+         WHERE c.term_id = ? AND r.cancelled_at IS NULL",
+    )
+    .bind(term_id)
+    .fetch_all(conn)
+    .await
+}
+
 /// 회원이 `term_id` 학기에 유효한 신청을 낸 강좌들. 접수한 순서.
 async fn applied_course_ids(
     conn: &mut SqliteConnection,
@@ -375,8 +403,8 @@ mod tests {
     use super::*;
     use crate::db::open_temp;
     use crate::db::test_support::{
-        insert_application, insert_course, insert_member, insert_schedule, insert_staff,
-        insert_subject, insert_term,
+        insert_application, insert_course, insert_lottery_run, insert_member, insert_schedule,
+        insert_staff, insert_subject, insert_term,
     };
 
     fn now() -> OffsetDateTime {
@@ -587,6 +615,27 @@ mod tests {
             panic!("{error:?}");
         };
         assert_eq!(missing, [f.other_term_course, 999]);
+    }
+
+    #[tokio::test]
+    async fn br_l3_drawn_course_takes_no_new_application() {
+        let f = fixture().await;
+        let other_member = insert_member(&f.pool, "00002").await.unwrap();
+        insert_application(&f.pool, other_member, f.yoga_basic, "selected", f.staff_id)
+            .await
+            .unwrap();
+        insert_lottery_run(&f.pool, f.yoga_basic, f.staff_id)
+            .await
+            .unwrap();
+        let course_ids = [f.kuksundo, f.yoga_basic];
+
+        let result = submit(&f.pool, f.applying(&course_ids, None), now()).await;
+
+        assert!(
+            matches!(&result, Err(SubmitError::CourseDrawn(ids)) if *ids == [f.yoga_basic]),
+            "{result:?}"
+        );
+        assert_eq!(f.count("applications").await, 1);
     }
 
     #[tokio::test]
