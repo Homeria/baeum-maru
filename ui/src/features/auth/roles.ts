@@ -27,6 +27,8 @@ export type Action =
   | "overrideRules"
   | "assignPriority"
   | "runLottery"
+  | "recordWithdrawals"
+  | "correctWithdrawals"
   | "managePriorityReasons"
   | "manageStaff"
   | "viewAccessLog";
@@ -42,6 +44,7 @@ export function can(role: RoleCode, action: Action): boolean {
       return true;
     case "staff":
       return (
+        action !== "correctWithdrawals" &&
         action !== "managePriorityReasons" &&
         action !== "manageStaff" &&
         action !== "viewAccessLog"
