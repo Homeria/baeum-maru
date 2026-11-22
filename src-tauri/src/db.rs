@@ -17,7 +17,7 @@ pub(crate) mod test_support;
 use std::path::Path;
 use std::time::Duration;
 
-use chrono::{DateTime, SecondsFormat, Utc};
+use time::{OffsetDateTime, UtcOffset};
 
 use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
@@ -41,8 +41,20 @@ pub enum DbError {
 }
 
 /// DB에 시각을 쓰는 모양. [docs/conventions.md]: UTC, 밀리초까지, 끝에 Z
-pub fn timestamp_text(time: DateTime<Utc>) -> String {
-    time.to_rfc3339_opts(SecondsFormat::Millis, true)
+///
+/// 글자끼리 크기를 비교하므로 자리 수가 늘 같아야 한다.
+pub fn timestamp_text(time: OffsetDateTime) -> String {
+    let time = time.to_offset(UtcOffset::UTC);
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z",
+        time.year(),
+        u8::from(time.month()),
+        time.day(),
+        time.hour(),
+        time.minute(),
+        time.second(),
+        time.millisecond(),
+    )
 }
 
 /// UNIQUE 제약을 어겨서 난 오류인지. 테이블마다 어떤 UNIQUE인지는 부르는 쪽이 안다.
@@ -117,7 +129,41 @@ mod tests {
     use super::test_support::{
         NOW, insert_course, insert_room, insert_schedule, insert_staff, insert_subject, insert_term,
     };
+    use time::macros::datetime;
+
     use super::*;
+
+    #[test]
+    fn timestamp_text_always_has_same_shape() {
+        // 글자끼리 비교하므로 밀리초 세 자리와 Z가 늘 붙어야 한다
+        assert_eq!(
+            timestamp_text(datetime!(2026-11-15 01:02:03 UTC)),
+            "2026-11-15T01:02:03.000Z"
+        );
+        assert_eq!(
+            timestamp_text(datetime!(2026-11-15 01:02:03.25 UTC)),
+            "2026-11-15T01:02:03.250Z"
+        );
+        // 다른 시간대 시각도 UTC로 바꿔 쓴다
+        assert_eq!(
+            timestamp_text(datetime!(2026-11-15 09:00 +09:00)),
+            "2026-11-15T00:00:00.000Z"
+        );
+    }
+
+    #[tokio::test]
+    async fn reads_back_written_timestamp() {
+        let (_dir, pool) = open_temp().await;
+        let written = datetime!(2026-11-15 01:02:03.456 UTC);
+
+        let read: OffsetDateTime = sqlx::query_scalar("SELECT ?")
+            .bind(timestamp_text(written))
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+
+        assert_eq!(read, written);
+    }
 
     async fn text(pool: &SqlitePool, sql: &'static str) -> String {
         sqlx::query_scalar(sql).fetch_one(pool).await.unwrap()

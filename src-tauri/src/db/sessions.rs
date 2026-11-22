@@ -1,8 +1,8 @@
 //! 로그인 세션 시작과 끝. ADR 0014: 증표 자체는 두지 않고 SHA-256 해시만 둔다.
 
 use baeum_domain::SCREEN_LOCK;
-use chrono::{DateTime, Utc};
 use sqlx::SqlitePool;
+use time::OffsetDateTime;
 
 use super::access_logs::{self, AccessEvent};
 use super::staff::{LoginAccount, LoginAccountRow};
@@ -12,14 +12,14 @@ use super::timestamp_text;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionRecord {
     pub id: i64,
-    pub last_seen_at: DateTime<Utc>,
+    pub last_seen_at: OffsetDateTime,
     pub account: LoginAccount,
 }
 
 #[derive(sqlx::FromRow)]
 struct SessionRow {
     session_id: i64,
-    last_seen_at: DateTime<Utc>,
+    last_seen_at: OffsetDateTime,
     #[sqlx(flatten)]
     account: LoginAccountRow,
 }
@@ -54,7 +54,7 @@ pub async fn find(
 pub async fn touch(
     pool: &SqlitePool,
     session_id: i64,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<(), sqlx::Error> {
     sqlx::query("UPDATE sessions SET last_seen_at = ? WHERE id = ?")
         .bind(timestamp_text(now))
@@ -70,7 +70,7 @@ pub async fn unlock(
     pool: &SqlitePool,
     session_id: i64,
     staff_id: i64,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
     sqlx::query("UPDATE staff SET failed_pin_count = 0, locked_until = NULL WHERE id = ?")
@@ -95,7 +95,7 @@ pub async fn start(
     pool: &SqlitePool,
     staff_id: i64,
     token_hash: &[u8; 32],
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<(), sqlx::Error> {
     let locked_before = timestamp_text(now - SCREEN_LOCK);
     let now = timestamp_text(now);
@@ -132,7 +132,7 @@ pub async fn start(
 pub async fn end(
     pool: &SqlitePool,
     token_hash: &[u8; 32],
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<Option<i64>, sqlx::Error> {
     let mut tx = pool.begin().await?;
 
@@ -158,15 +158,18 @@ pub async fn end(
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
+
+    use time::macros::datetime;
 
     use super::*;
     use crate::db::access_logs::list_for_test;
     use crate::db::open_temp;
     use crate::db::test_support::insert_staff;
 
-    fn at(minute: u32) -> DateTime<Utc> {
-        Utc.with_ymd_and_hms(2026, 11, 15, 1, minute, 0).unwrap()
+    fn at(minute: u8) -> OffsetDateTime {
+        datetime!(2026-11-15 01:00 UTC)
+            .replace_minute(minute)
+            .unwrap()
     }
 
     async fn session_hashes(pool: &SqlitePool) -> Vec<Vec<u8>> {

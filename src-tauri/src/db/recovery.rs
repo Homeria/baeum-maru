@@ -1,7 +1,7 @@
 //! 복구 코드 읽기와 쓰기 (BR-K11, BR-K12). DB에는 코드의 해시만 둔다.
 
-use chrono::{DateTime, Utc};
 use sqlx::SqlitePool;
+use time::OffsetDateTime;
 
 use super::access_logs::{self, AccessEvent};
 use super::timestamp_text;
@@ -26,7 +26,7 @@ pub async fn use_code(
     used_code_hash: &str,
     new_code_hash: &str,
     new_pin_hash: &str,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<bool, sqlx::Error> {
     let now = timestamp_text(now);
     let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
@@ -60,15 +60,16 @@ pub async fn use_code(
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
+
+    use time::macros::datetime;
 
     use super::*;
     use crate::db::access_logs::list_for_test;
     use crate::db::open_temp;
     use crate::db::staff::{get_login_account, setup};
 
-    fn now() -> DateTime<Utc> {
-        Utc.with_ymd_and_hms(2026, 11, 15, 1, 2, 3).unwrap()
+    fn now() -> OffsetDateTime {
+        datetime!(2026-11-15 01:02:03 UTC)
     }
 
     #[tokio::test]

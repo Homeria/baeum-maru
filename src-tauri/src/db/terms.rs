@@ -1,8 +1,8 @@
 //! 학기 저장, 목록, 고치기, 지우기.
 
 use baeum_domain::NewTerm;
-use chrono::{DateTime, NaiveDate, Utc};
 use sqlx::SqlitePool;
+use time::{Date, OffsetDateTime};
 
 use super::{DeleteError, is_unique_violation, timestamp_text};
 
@@ -32,15 +32,15 @@ impl From<sqlx::Error> for SaveTermError {
 pub struct TermRecord {
     pub id: i64,
     pub name: String,
-    pub starts_on: NaiveDate,
-    pub ends_on: NaiveDate,
+    pub starts_on: Date,
+    pub ends_on: Date,
 }
 
 /// 확인을 통과한 학기를 저장하고 새 `id`를 돌려준다.
 pub async fn insert(
     pool: &SqlitePool,
     term: &NewTerm,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<i64, SaveTermError> {
     let now = timestamp_text(now);
     let result = sqlx::query(
@@ -80,7 +80,7 @@ pub async fn update(
     pool: &SqlitePool,
     id: i64,
     term: &NewTerm,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<Option<TermRecord>, SaveTermError> {
     let record = sqlx::query_as(
         "UPDATE terms SET name = ?, starts_on = ?, ends_on = ?, updated_at = ?
@@ -111,25 +111,21 @@ pub async fn delete(pool: &SqlitePool, id: i64) -> Result<bool, DeleteError> {
 #[cfg(test)]
 mod tests {
     use baeum_domain::TermInput;
-    use chrono::TimeZone;
+    use time::macros::{date, datetime};
 
     use super::*;
     use crate::db::open_temp;
     use crate::db::test_support::{insert_course, insert_subject};
 
-    fn now() -> DateTime<Utc> {
-        Utc.with_ymd_and_hms(2026, 11, 15, 1, 2, 3).unwrap()
+    fn now() -> OffsetDateTime {
+        datetime!(2026-11-15 01:02:03 UTC)
     }
 
-    fn date(text: &str) -> NaiveDate {
-        text.parse().unwrap()
-    }
-
-    fn new_term(name: &str, starts_on: &str, ends_on: &str) -> NewTerm {
+    fn new_term(name: &str, starts_on: Date, ends_on: Date) -> NewTerm {
         NewTerm::parse(TermInput {
             name,
-            starts_on: Some(date(starts_on)),
-            ends_on: Some(date(ends_on)),
+            starts_on: Some(starts_on),
+            ends_on: Some(ends_on),
         })
         .unwrap()
     }
@@ -140,7 +136,7 @@ mod tests {
 
         let id = insert(
             &pool,
-            &new_term("2027년 1학기", "2027-03-02", "2027-06-30"),
+            &new_term("2027년 1학기", date!(2027 - 03 - 02), date!(2027 - 06 - 30)),
             now(),
         )
         .await
@@ -151,8 +147,8 @@ mod tests {
             [TermRecord {
                 id,
                 name: "2027년 1학기".to_owned(),
-                starts_on: date("2027-03-02"),
-                ends_on: date("2027-06-30"),
+                starts_on: date!(2027 - 03 - 02),
+                ends_on: date!(2027 - 06 - 30),
             }]
         );
     }
@@ -161,9 +157,9 @@ mod tests {
     async fn lists_latest_term_first() {
         let (_dir, pool) = open_temp().await;
         for (name, starts_on, ends_on) in [
-            ("2027년 1학기", "2027-03-02", "2027-06-30"),
-            ("2027년 2학기", "2027-09-01", "2027-12-31"),
-            ("2026년 2학기", "2026-09-01", "2026-12-31"),
+            ("2027년 1학기", date!(2027 - 03 - 02), date!(2027 - 06 - 30)),
+            ("2027년 2학기", date!(2027 - 09 - 01), date!(2027 - 12 - 31)),
+            ("2026년 2학기", date!(2026 - 09 - 01), date!(2026 - 12 - 31)),
         ] {
             insert(&pool, &new_term(name, starts_on, ends_on), now())
                 .await
@@ -185,7 +181,7 @@ mod tests {
         let (_dir, pool) = open_temp().await;
         insert(
             &pool,
-            &new_term("2027년 1학기", "2027-03-02", "2027-06-30"),
+            &new_term("2027년 1학기", date!(2027 - 03 - 02), date!(2027 - 06 - 30)),
             now(),
         )
         .await
@@ -193,7 +189,7 @@ mod tests {
 
         let error = insert(
             &pool,
-            &new_term("2027년 1학기", "2027-09-01", "2027-12-31"),
+            &new_term("2027년 1학기", date!(2027 - 09 - 01), date!(2027 - 12 - 31)),
             now(),
         )
         .await
@@ -207,7 +203,7 @@ mod tests {
         let (_dir, pool) = open_temp().await;
         let id = insert(
             &pool,
-            &new_term("2027년 1학기", "2027-03-02", "2027-06-30"),
+            &new_term("2027년 1학기", date!(2027 - 03 - 02), date!(2027 - 06 - 30)),
             now(),
         )
         .await
@@ -216,7 +212,11 @@ mod tests {
         let term = update(
             &pool,
             id,
-            &new_term("2027년 봄학기", "2027-03-04", "2027-06-27"),
+            &new_term(
+                "2027년 봄학기",
+                date!(2027 - 03 - 04),
+                date!(2027 - 06 - 27),
+            ),
             now(),
         )
         .await
@@ -225,13 +225,13 @@ mod tests {
 
         assert_eq!(get(&pool, id).await.unwrap(), Some(term.clone()));
         assert_eq!(term.name, "2027년 봄학기");
-        assert_eq!(term.starts_on, date("2027-03-04"));
+        assert_eq!(term.starts_on, date!(2027 - 03 - 04));
         assert!(get(&pool, 999).await.unwrap().is_none());
         assert!(
             update(
                 &pool,
                 999,
-                &new_term("없음", "2027-03-02", "2027-06-30"),
+                &new_term("없음", date!(2027 - 03 - 02), date!(2027 - 06 - 30)),
                 now()
             )
             .await
@@ -245,7 +245,7 @@ mod tests {
         let (_dir, pool) = open_temp().await;
         let id = insert(
             &pool,
-            &new_term("2027년 1학기", "2027-03-02", "2027-06-30"),
+            &new_term("2027년 1학기", date!(2027 - 03 - 02), date!(2027 - 06 - 30)),
             now(),
         )
         .await
@@ -260,7 +260,7 @@ mod tests {
         let (_dir, pool) = open_temp().await;
         let id = insert(
             &pool,
-            &new_term("2027년 1학기", "2027-03-02", "2027-06-30"),
+            &new_term("2027년 1학기", date!(2027 - 03 - 02), date!(2027 - 06 - 30)),
             now(),
         )
         .await

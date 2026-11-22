@@ -1,8 +1,8 @@
 //! 회원 저장, 찾기, 고치기, 지우기.
 
 use baeum_domain::{Gender, NewMember, Personal};
-use chrono::{DateTime, NaiveDate, Utc};
 use sqlx::SqlitePool;
+use time::{Date, OffsetDateTime};
 
 use super::{is_unique_violation, timestamp_text};
 
@@ -33,7 +33,7 @@ impl From<sqlx::Error> for SaveMemberError {
 pub async fn insert(
     pool: &SqlitePool,
     member: &NewMember,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<i64, SaveMemberError> {
     let now = timestamp_text(now);
     let result = sqlx::query(
@@ -77,10 +77,10 @@ pub struct MemberRecord {
     pub member_no: Personal<String>,
     pub name: Personal<String>,
     pub phone_number: Personal<String>,
-    pub birth_date: Option<Personal<NaiveDate>>,
+    pub birth_date: Option<Personal<Date>>,
     pub gender: Option<Personal<Gender>>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
 }
 
 /// SELECT·RETURNING에서 이 순서로 칸을 읽는다.
@@ -89,10 +89,10 @@ type MemberRow = (
     String,
     String,
     String,
-    Option<NaiveDate>,
+    Option<Date>,
     Option<String>,
-    DateTime<Utc>,
-    DateTime<Utc>,
+    OffsetDateTime,
+    OffsetDateTime,
 );
 
 impl TryFrom<MemberRow> for MemberRecord {
@@ -189,7 +189,7 @@ pub async fn update(
     pool: &SqlitePool,
     id: i64,
     member: &NewMember,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<Option<MemberRecord>, SaveMemberError> {
     let row: Option<MemberRow> = sqlx::query_as(
         "UPDATE members
@@ -244,17 +244,18 @@ fn phone_digits(query: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use baeum_domain::MemberInput;
-    use chrono::{NaiveDate, TimeZone};
+    use time::Date;
+    use time::macros::{date, datetime};
 
     use super::*;
     use crate::db::open_temp;
 
-    fn today() -> NaiveDate {
-        NaiveDate::from_ymd_opt(2026, 11, 15).unwrap()
+    fn today() -> Date {
+        date!(2026 - 11 - 15)
     }
 
-    fn now() -> DateTime<Utc> {
-        Utc.with_ymd_and_hms(2026, 11, 15, 1, 2, 3).unwrap()
+    fn now() -> OffsetDateTime {
+        datetime!(2026-11-15 01:02:03 UTC)
     }
 
     fn input(member_no: &str) -> MemberInput<'_> {
@@ -296,7 +297,7 @@ mod tests {
     async fn saves_all_fields() {
         let (_dir, pool) = open_temp().await;
         let member = new_member(MemberInput {
-            birth_date: NaiveDate::from_ymd_opt(1950, 3, 1),
+            birth_date: Some(date!(1950 - 03 - 01)),
             gender: Some(Gender::Female),
             ..input("A-001")
         });
@@ -455,7 +456,7 @@ mod tests {
     async fn search_returns_saved_fields() {
         let (_dir, pool) = open_temp().await;
         let member = new_member(MemberInput {
-            birth_date: NaiveDate::from_ymd_opt(1950, 3, 1),
+            birth_date: Some(date!(1950 - 03 - 01)),
             gender: Some(Gender::Male),
             ..input("00001")
         });
@@ -468,7 +469,7 @@ mod tests {
         assert_eq!(record.name.expose(), "회원1");
         assert_eq!(record.phone_number.expose(), "01000000001");
         let birth_date = record.birth_date.as_ref().map(|date| *date.expose());
-        assert_eq!(birth_date, NaiveDate::from_ymd_opt(1950, 3, 1));
+        assert_eq!(birth_date, Some(date!(1950 - 03 - 01)));
         let gender = record.gender.as_ref().map(|gender| *gender.expose());
         assert_eq!(gender, Some(Gender::Male));
     }
@@ -480,8 +481,8 @@ mod tests {
         assert_eq!(phone_digits(" - "), None);
     }
 
-    fn later() -> DateTime<Utc> {
-        Utc.with_ymd_and_hms(2026, 11, 16, 9, 0, 0).unwrap()
+    fn later() -> OffsetDateTime {
+        datetime!(2026-11-16 09:00:00 UTC)
     }
 
     #[tokio::test]
@@ -509,7 +510,7 @@ mod tests {
     async fn update_replaces_every_field() {
         let (_dir, pool) = open_temp().await;
         let original = new_member(MemberInput {
-            birth_date: NaiveDate::from_ymd_opt(1950, 3, 1),
+            birth_date: Some(date!(1950 - 03 - 01)),
             gender: Some(Gender::Female),
             ..input("00001")
         });

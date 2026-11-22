@@ -1,6 +1,6 @@
 //! 강좌와 수업 시간 항목, 형식 확인.
 
-use chrono::Weekday;
+use time::Weekday;
 
 /// 강좌 항목이 형식에 맞지 않는다.
 ///
@@ -247,15 +247,17 @@ impl Schedule {
 ///
 /// ```
 /// use baeum_domain::weekday_from_number;
-/// use chrono::Weekday;
+/// use time::Weekday;
 ///
-/// assert_eq!(weekday_from_number(1), Some(Weekday::Mon));
-/// assert_eq!(weekday_from_number(7), Some(Weekday::Sun));
+/// assert_eq!(weekday_from_number(1), Some(Weekday::Monday));
+/// assert_eq!(weekday_from_number(7), Some(Weekday::Sunday));
 /// assert_eq!(weekday_from_number(0), None);
 /// ```
 pub fn weekday_from_number(number: u8) -> Option<Weekday> {
-    // chrono의 TryFrom<u8>은 0=월이라 하나 뺀다
-    Weekday::try_from(number.checked_sub(1)?).ok()
+    match number {
+        1..=7 => Some(Weekday::Monday.nth_next(number - 1)),
+        _ => None,
+    }
 }
 
 /// 화면에서 받은 수업 시간 한 줄. 시각은 확인 전 글자 그대로다.
@@ -428,8 +430,8 @@ mod tests {
             section: Some("1반"),
             capacity: Some(20),
             schedules: vec![
-                row(Weekday::Mon, "10:00", "11:00"),
-                row(Weekday::Wed, "10:00", "11:00"),
+                row(Weekday::Monday, "10:00", "11:00"),
+                row(Weekday::Wednesday, "10:00", "11:00"),
             ],
         }
     }
@@ -484,8 +486,8 @@ mod tests {
 
     #[test]
     fn br_t4_end_must_be_after_start() {
-        let same = Schedule::new(Weekday::Mon, time("10:00"), time("10:00"), None);
-        let reversed = Schedule::new(Weekday::Mon, time("11:00"), time("10:00"), None);
+        let same = Schedule::new(Weekday::Monday, time("10:00"), time("10:00"), None);
+        let reversed = Schedule::new(Weekday::Monday, time("11:00"), time("10:00"), None);
 
         assert_eq!(same, None);
         assert_eq!(reversed, None);
@@ -493,17 +495,17 @@ mod tests {
 
     #[test]
     fn overlaps_only_on_same_weekday() {
-        let monday = Schedule::new(Weekday::Mon, time("10:00"), time("11:00"), None).unwrap();
-        let tuesday = Schedule::new(Weekday::Tue, time("10:00"), time("11:00"), None).unwrap();
+        let monday = Schedule::new(Weekday::Monday, time("10:00"), time("11:00"), None).unwrap();
+        let tuesday = Schedule::new(Weekday::Tuesday, time("10:00"), time("11:00"), None).unwrap();
 
         assert!(!monday.overlaps(tuesday));
     }
 
     #[test]
     fn overlaps_when_times_cross() {
-        let first = Schedule::new(Weekday::Mon, time("10:00"), time("11:00"), None).unwrap();
-        let second = Schedule::new(Weekday::Mon, time("10:30"), time("12:00"), None).unwrap();
-        let inside = Schedule::new(Weekday::Mon, time("10:15"), time("10:45"), None).unwrap();
+        let first = Schedule::new(Weekday::Monday, time("10:00"), time("11:00"), None).unwrap();
+        let second = Schedule::new(Weekday::Monday, time("10:30"), time("12:00"), None).unwrap();
+        let inside = Schedule::new(Weekday::Monday, time("10:15"), time("10:45"), None).unwrap();
 
         assert!(first.overlaps(second));
         assert!(second.overlaps(first));
@@ -512,8 +514,8 @@ mod tests {
 
     #[test]
     fn back_to_back_does_not_overlap() {
-        let first = Schedule::new(Weekday::Mon, time("10:00"), time("11:00"), None).unwrap();
-        let next = Schedule::new(Weekday::Mon, time("11:00"), time("12:00"), None).unwrap();
+        let first = Schedule::new(Weekday::Monday, time("10:00"), time("11:00"), None).unwrap();
+        let next = Schedule::new(Weekday::Monday, time("11:00"), time("12:00"), None).unwrap();
 
         assert!(!first.overlaps(next));
     }
@@ -527,7 +529,7 @@ mod tests {
         assert_eq!(course.section().map(SectionName::as_str), Some("1반"));
         assert_eq!(course.capacity().value(), 20);
         assert_eq!(course.schedules().len(), 2);
-        assert_eq!(course.schedules()[1].weekday(), Weekday::Wed);
+        assert_eq!(course.schedules()[1].weekday(), Weekday::Wednesday);
     }
 
     #[test]
@@ -536,11 +538,11 @@ mod tests {
             schedules: vec![
                 ScheduleInput {
                     room_id: Some(5),
-                    ..row(Weekday::Mon, "10:00", "11:00")
+                    ..row(Weekday::Monday, "10:00", "11:00")
                 },
                 ScheduleInput {
                     room_id: Some(7),
-                    ..row(Weekday::Wed, "10:00", "11:00")
+                    ..row(Weekday::Wednesday, "10:00", "11:00")
                 },
             ],
             ..input()
@@ -566,9 +568,9 @@ mod tests {
     fn br_t4_reports_each_bad_row() {
         let errors = NewCourse::parse(CourseInput {
             schedules: vec![
-                row(Weekday::Mon, "10:00", "11:00"),
-                row(Weekday::Tue, "", "11:00"),
-                row(Weekday::Wed, "11:00", "10:00"),
+                row(Weekday::Monday, "10:00", "11:00"),
+                row(Weekday::Tuesday, "", "11:00"),
+                row(Weekday::Wednesday, "11:00", "10:00"),
             ],
             ..input()
         })
@@ -587,9 +589,9 @@ mod tests {
     fn br_t4_rows_in_one_course_must_not_overlap() {
         let errors = NewCourse::parse(CourseInput {
             schedules: vec![
-                row(Weekday::Mon, "10:00", "11:00"),
-                row(Weekday::Wed, "10:00", "11:00"),
-                row(Weekday::Mon, "10:30", "11:30"),
+                row(Weekday::Monday, "10:00", "11:00"),
+                row(Weekday::Wednesday, "10:00", "11:00"),
+                row(Weekday::Monday, "10:30", "11:30"),
             ],
             ..input()
         })

@@ -8,8 +8,9 @@ use axum::extract::{Path, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use baeum_domain::{Action, NewTerm, TermError};
-use chrono::Utc;
+
 use sqlx::SqlitePool;
+use time::OffsetDateTime;
 
 use super::auth::CurrentStaff;
 use super::error::ApiError;
@@ -48,7 +49,7 @@ pub async fn create_term(
     let Json(request) = body?;
     let term = NewTerm::parse(request.as_input())
         .map_err(|errors| ApiError::invalid_input(errors, field_name))?;
-    let id = terms::insert(&db, &term, Utc::now()).await?;
+    let id = terms::insert(&db, &term, OffsetDateTime::now_utc()).await?;
     tracing::info!(staff_id = staff.id, term_id = id, "학기 저장");
 
     let location = format!("/api/terms/{id}");
@@ -71,7 +72,7 @@ pub async fn update_term(
     let Json(request) = body?;
     let term = NewTerm::parse(request.as_input())
         .map_err(|errors| ApiError::invalid_input(errors, field_name))?;
-    let record = terms::update(&db, id, &term, Utc::now())
+    let record = terms::update(&db, id, &term, OffsetDateTime::now_utc())
         .await?
         .ok_or(ApiError::TermNotFound)?;
     tracing::info!(staff_id = staff.id, term_id = id, "학기 고침");

@@ -1,7 +1,7 @@
 //! 접속 기록 남기기. BR-K13: 쌓기만 하고, 고치기·지우기는 DB 트리거가 막는다.
 
-use chrono::{DateTime, Utc};
 use sqlx::{SqliteConnection, SqlitePool};
+use time::OffsetDateTime;
 
 use super::timestamp_text;
 
@@ -51,7 +51,7 @@ impl AccessEvent {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AccessLogRecord {
     pub id: i64,
-    pub occurred_at: DateTime<Utc>,
+    pub occurred_at: OffsetDateTime,
     /// 고른 직원이 없는 실패면 `None`.
     pub staff_id: Option<i64>,
     pub staff_name: Option<String>,
@@ -61,7 +61,7 @@ pub struct AccessLogRecord {
 #[derive(sqlx::FromRow)]
 struct AccessLogRow {
     id: i64,
-    occurred_at: DateTime<Utc>,
+    occurred_at: OffsetDateTime,
     staff_id: Option<i64>,
     staff_name: Option<String>,
     event: String,
@@ -123,7 +123,7 @@ pub async fn record(
     pool: &SqlitePool,
     staff_id: Option<i64>,
     event: AccessEvent,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<(), sqlx::Error> {
     let mut conn = pool.acquire().await?;
     insert(&mut conn, staff_id, event, &timestamp_text(now)).await
@@ -156,7 +156,8 @@ pub(crate) async fn list_for_test(pool: &SqlitePool) -> Vec<(Option<i64>, String
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
+
+    use time::macros::datetime;
 
     use super::*;
     use crate::db::open_temp;
@@ -166,7 +167,7 @@ mod tests {
     async fn records_event_with_and_without_staff() {
         let (_dir, pool) = open_temp().await;
         let staff_id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
-        let now = Utc.with_ymd_and_hms(2026, 11, 15, 1, 2, 3).unwrap();
+        let now = datetime!(2026-11-15 01:02:03 UTC);
 
         record(&pool, Some(staff_id), AccessEvent::Login, now)
             .await
@@ -188,7 +189,11 @@ mod tests {
     async fn lists_newest_first_by_page_with_staff_name() {
         let (_dir, pool) = open_temp().await;
         let staff_id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
-        let at = |minute| Utc.with_ymd_and_hms(2026, 11, 15, 1, minute, 0).unwrap();
+        let at = |minute: u8| {
+            datetime!(2026-11-15 01:00 UTC)
+                .replace_minute(minute)
+                .unwrap()
+        };
         record(&pool, None, AccessEvent::LoginFailed, at(0))
             .await
             .unwrap();

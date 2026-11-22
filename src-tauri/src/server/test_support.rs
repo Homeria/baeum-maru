@@ -10,9 +10,10 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::request::Builder;
 use axum::http::{HeaderValue, Request, Response, StatusCode, header};
-use chrono::Utc;
+
 use serde_json::{Value, json};
 use sqlx::SqlitePool;
+use time::OffsetDateTime;
 use tower::ServiceExt;
 use tower_http::set_header::SetRequestHeaderLayer;
 
@@ -37,7 +38,7 @@ pub async fn app_as(role: &str) -> (tempfile::TempDir, SqlitePool, Router) {
         .await
         .unwrap();
     let token = SessionToken::new().unwrap();
-    sessions::start(&db, staff_id, &token.hash(), Utc::now())
+    sessions::start(&db, staff_id, &token.hash(), OffsetDateTime::now_utc())
         .await
         .unwrap();
     let bearer = HeaderValue::from_str(&format!("Bearer {}", token.to_hex())).unwrap();

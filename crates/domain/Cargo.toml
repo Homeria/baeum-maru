@@ -10,8 +10,11 @@ publish = false
 
 # sqlx, axum, tauri에 의존하지 않는다 (ADR 0006).
 [dependencies]
-chrono = { version = "0.4", default-features = false, features = ["std"] }
 thiserror = "2"
+time = { version = "0.3.55", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+time = { version = "0.3.55", features = ["macros"] }
 
 [lints]
 workspace = true

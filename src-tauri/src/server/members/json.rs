@@ -3,8 +3,8 @@
 //! 회원 정보가 그대로 들어 있는 타입에는 `Debug`를 붙이지 않는다 (로그에 찍히지 않게).
 
 use baeum_domain::{Gender, MemberInput, Personal};
-use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
+use time::Date;
 use ts_rs::TS;
 
 use crate::db::members::MemberRecord;
@@ -50,7 +50,8 @@ pub struct MemberRequest {
     pub name: String,
     pub phone_number: String,
     /// `YYYY-MM-DD`. 선택.
-    pub birth_date: Option<NaiveDate>,
+    #[ts(type = "string | null")]
+    pub birth_date: Option<Date>,
     /// 선택.
     pub gender: Option<GenderJson>,
 }
@@ -90,7 +91,8 @@ pub struct MemberResponse {
     pub name: String,
     /// 숫자만.
     pub phone_number: String,
-    pub birth_date: Option<NaiveDate>,
+    #[ts(type = "string | null")]
+    pub birth_date: Option<Date>,
     pub gender: Option<GenderJson>,
     /// UTC, 밀리초까지, 끝에 Z. 화면에서 한국 시각으로 바꾼다.
     pub created_at: String,
@@ -140,7 +142,8 @@ pub struct MemberListItem {
     pub name: String,
     /// 숫자만. 하이픈은 화면에서 넣는다.
     pub phone_number: String,
-    pub birth_date: Option<NaiveDate>,
+    #[ts(type = "string | null")]
+    pub birth_date: Option<Date>,
     pub gender: Option<GenderJson>,
 }
 

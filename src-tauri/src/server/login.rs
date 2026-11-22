@@ -7,8 +7,8 @@ use axum::extract::State;
 use axum::extract::rejection::JsonRejection;
 use axum::http::{HeaderMap, StatusCode};
 use baeum_domain::is_account_locked;
-use chrono::{DateTime, Local, Utc};
 use sqlx::SqlitePool;
+use time::OffsetDateTime;
 
 use super::auth::{bearer_token, is_usable};
 use super::error::ApiError;
@@ -17,6 +17,7 @@ use crate::db::staff::LoginAccount;
 use crate::db::{sessions, staff};
 use crate::secret::{self, SessionToken};
 
+use crate::clock::local_today;
 use json::{
     LoginRequest, LoginResponse, LoginStaffListResponse, LoginStaffResponse, SignedInStaffResponse,
     UnlockRequest,
@@ -27,7 +28,7 @@ use json::{
 pub async fn list_login_staff(
     State(db): State<SqlitePool>,
 ) -> Result<Json<LoginStaffListResponse>, ApiError> {
-    let today = Local::now().date_naive();
+    let today = local_today();
     let choices = staff::list_for_login(&db, today)
         .await
         .map_err(ApiError::internal)?;
@@ -44,7 +45,7 @@ pub async fn login(
     body: Result<Json<LoginRequest>, JsonRejection>,
 ) -> Result<Json<LoginResponse>, ApiError> {
     let Json(LoginRequest { staff_id, pin }) = body?;
-    let now = Utc::now();
+    let now = OffsetDateTime::now_utc();
 
     let Some(account) = staff::get_login_account(&db, staff_id)
         .await
@@ -83,7 +84,7 @@ pub async fn unlock(
 ) -> Result<StatusCode, ApiError> {
     let token = bearer_token(&headers).ok_or(ApiError::LoginRequired)?;
     let Json(UnlockRequest { pin }) = body?;
-    let now = Utc::now();
+    let now = OffsetDateTime::now_utc();
 
     let session = sessions::find(&db, &token.hash())
         .await
@@ -106,7 +107,7 @@ pub async fn logout(
     headers: HeaderMap,
 ) -> Result<StatusCode, ApiError> {
     if let Some(token) = bearer_token(&headers) {
-        let ended = sessions::end(&db, &token.hash(), Utc::now())
+        let ended = sessions::end(&db, &token.hash(), OffsetDateTime::now_utc())
             .await
             .map_err(ApiError::internal)?;
         if let Some(staff_id) = ended {
@@ -125,7 +126,7 @@ async fn check_pin(
     account: LoginAccount,
     pin: String,
     failed_event: AccessEvent,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<LoginAccount, ApiError> {
     let refusal = if !is_usable(&account) {
         Some(ApiError::AccountUnavailable)
@@ -225,7 +226,7 @@ mod tests {
     async fn locked_admin_session(router: Router, db: &SqlitePool) -> String {
         let admin_id = setup_admin(router.clone()).await;
         let body = json_body(login(router, admin_id, "123456").await).await;
-        let old = Utc::now() - chrono::TimeDelta::minutes(10);
+        let old = OffsetDateTime::now_utc() - time::Duration::minutes(10);
         sqlx::query("UPDATE sessions SET last_seen_at = ?")
             .bind(crate::db::timestamp_text(old))
             .execute(db)

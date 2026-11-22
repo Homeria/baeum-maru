@@ -8,8 +8,9 @@ use axum::extract::{Path, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use baeum_domain::{Action, CourseError, NewCourse};
-use chrono::Utc;
+
 use sqlx::SqlitePool;
+use time::OffsetDateTime;
 
 use super::auth::CurrentStaff;
 use super::error::ApiError;
@@ -60,7 +61,7 @@ pub async fn create_course(
     let Path(term_id) = term_id?;
     let Json(request) = body?;
     let course = parse(&request)?;
-    let id = courses::insert(&db, term_id, &course, Utc::now()).await?;
+    let id = courses::insert(&db, term_id, &course, OffsetDateTime::now_utc()).await?;
     tracing::info!(staff_id = staff.id, term_id, course_id = id, "강좌 저장");
 
     let location = format!("/api/courses/{id}");
@@ -82,7 +83,7 @@ pub async fn update_course(
     let Path(id) = id?;
     let Json(request) = body?;
     let course = parse(&request)?;
-    let record = courses::update(&db, id, &course, Utc::now())
+    let record = courses::update(&db, id, &course, OffsetDateTime::now_utc())
         .await?
         .ok_or(ApiError::CourseNotFound)?;
     tracing::info!(staff_id = staff.id, course_id = id, "강좌 고침");

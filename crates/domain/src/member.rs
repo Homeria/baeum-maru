@@ -1,6 +1,6 @@
 //! 회원 정보 항목과 형식 확인.
 
-use chrono::NaiveDate;
+use time::Date;
 
 use crate::Personal;
 
@@ -152,7 +152,7 @@ pub struct MemberInput<'a> {
     /// 연락처.
     pub phone_number: &'a str,
     /// 생년월일. 선택.
-    pub birth_date: Option<NaiveDate>,
+    pub birth_date: Option<Date>,
     /// 성별. 선택.
     pub gender: Option<Gender>,
 }
@@ -165,7 +165,7 @@ pub struct NewMember {
     member_no: Personal<MemberNo>,
     name: Personal<MemberName>,
     phone_number: Personal<PhoneNumber>,
-    birth_date: Option<Personal<NaiveDate>>,
+    birth_date: Option<Personal<Date>>,
     gender: Option<Personal<Gender>>,
 }
 
@@ -176,7 +176,7 @@ impl NewMember {
     ///
     /// 틀린 항목이 있으면 [`MemberError`]를 항목 순서대로 **모두** 모아 돌려준다.
     /// 직원이 한 번에 모든 칸을 고칠 수 있게 하려는 것이다.
-    pub fn parse(input: MemberInput<'_>, today: NaiveDate) -> Result<Self, Vec<MemberError>> {
+    pub fn parse(input: MemberInput<'_>, today: Date) -> Result<Self, Vec<MemberError>> {
         let member_no = MemberNo::parse(input.member_no);
         let name = MemberName::parse(input.name);
         let phone_number = PhoneNumber::parse(input.phone_number);
@@ -220,7 +220,7 @@ impl NewMember {
     }
 
     /// 생년월일.
-    pub fn birth_date(&self) -> Option<&Personal<NaiveDate>> {
+    pub fn birth_date(&self) -> Option<&Personal<Date>> {
         self.birth_date.as_ref()
     }
 
@@ -232,6 +232,8 @@ impl NewMember {
 
 #[cfg(test)]
 mod tests {
+    use time::macros::date;
+
     use super::*;
 
     #[test]
@@ -327,8 +329,8 @@ mod tests {
         }
     }
 
-    fn today() -> NaiveDate {
-        NaiveDate::from_ymd_opt(2026, 11, 15).unwrap()
+    fn today() -> Date {
+        date!(2026 - 11 - 15)
     }
 
     fn input() -> MemberInput<'static> {
@@ -353,7 +355,7 @@ mod tests {
 
     #[test]
     fn br_m4_allows_optional_fields() {
-        let birth_date = NaiveDate::from_ymd_opt(1950, 3, 1).unwrap();
+        let birth_date = date!(1950 - 03 - 01);
         let member = NewMember::parse(
             MemberInput {
                 birth_date: Some(birth_date),
@@ -395,7 +397,7 @@ mod tests {
         let result = NewMember::parse(
             MemberInput {
                 phone_number: "123",
-                birth_date: NaiveDate::from_ymd_opt(2026, 11, 16),
+                birth_date: Some(date!(2026 - 11 - 16)),
                 ..input()
             },
             today(),

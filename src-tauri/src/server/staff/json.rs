@@ -3,8 +3,8 @@
 //! PIN이 들어 있는 요청은 `Debug`를 직접 써서 글자를 가린다.
 
 use baeum_domain::{Role, StaffInput, is_account_locked};
-use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
+use time::{Date, OffsetDateTime};
 use ts_rs::TS;
 
 use crate::db::staff::StaffRecord;
@@ -50,7 +50,8 @@ pub struct CreateStaffRequest {
     pub name: String,
     pub role: RoleCode,
     /// 마지막 날. 임시 직원은 필수.
-    pub valid_until: Option<NaiveDate>,
+    #[ts(type = "string | null")]
+    pub valid_until: Option<Date>,
     /// 숫자 4~8자리, 관리자는 6자리 이상.
     pub pin: String,
 }
@@ -83,7 +84,8 @@ impl std::fmt::Debug for CreateStaffRequest {
 pub struct UpdateStaffRequest {
     pub name: String,
     pub role: RoleCode,
-    pub valid_until: Option<NaiveDate>,
+    #[ts(type = "string | null")]
+    pub valid_until: Option<Date>,
     /// BR-K6: `true`면 사용 중지.
     pub disabled: bool,
 }
@@ -132,7 +134,8 @@ pub struct StaffResponse {
     pub name: String,
     pub role: RoleCode,
     /// 없으면 `null`(기한 없음).
-    pub valid_until: Option<NaiveDate>,
+    #[ts(type = "string | null")]
+    pub valid_until: Option<Date>,
     pub disabled: bool,
     /// BR-K7: PIN을 여러 번 틀려 지금 잠겨 있는지. PIN을 새로 정해 주면 풀린다.
     pub locked: bool,
@@ -140,7 +143,7 @@ pub struct StaffResponse {
 
 impl StaffResponse {
     /// `now`에 잠겨 있는지를 함께 담는다.
-    pub(super) fn new(record: StaffRecord, now: DateTime<Utc>) -> Self {
+    pub(super) fn new(record: StaffRecord, now: OffsetDateTime) -> Self {
         StaffResponse {
             id: record.id,
             name: record.name,

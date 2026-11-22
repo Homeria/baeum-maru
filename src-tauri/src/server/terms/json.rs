@@ -1,8 +1,8 @@
 //! `/api/terms`의 요청·응답 JSON 모양과 DB·업무 규칙 타입 사이의 변환.
 
 use baeum_domain::TermInput;
-use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
+use time::Date;
 use ts_rs::TS;
 
 use crate::db::terms::TermRecord;
@@ -14,9 +14,11 @@ use crate::db::terms::TermRecord;
 pub struct TermRequest {
     pub name: String,
     /// YYYY-MM-DD. 비웠으면 `null`.
-    pub starts_on: Option<NaiveDate>,
+    #[ts(type = "string | null")]
+    pub starts_on: Option<Date>,
     /// YYYY-MM-DD. 비웠으면 `null`.
-    pub ends_on: Option<NaiveDate>,
+    #[ts(type = "string | null")]
+    pub ends_on: Option<Date>,
 }
 
 impl TermRequest {
@@ -47,9 +49,11 @@ pub struct TermResponse {
     pub id: i64,
     pub name: String,
     /// YYYY-MM-DD
-    pub starts_on: NaiveDate,
+    #[ts(type = "string")]
+    pub starts_on: Date,
     /// YYYY-MM-DD
-    pub ends_on: NaiveDate,
+    #[ts(type = "string")]
+    pub ends_on: Date,
 }
 
 impl From<TermRecord> for TermResponse {

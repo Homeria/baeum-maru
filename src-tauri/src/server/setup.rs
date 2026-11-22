@@ -8,8 +8,9 @@ use axum::extract::rejection::JsonRejection;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use baeum_domain::NewStaff;
-use chrono::Utc;
+
 use sqlx::SqlitePool;
+use time::OffsetDateTime;
 
 use super::error::ApiError;
 use super::staff::field_name;
@@ -54,7 +55,7 @@ pub async fn setup(
         admin.profile().name(),
         &secrets.pin_hash,
         &secrets.recovery_code_hash,
-        Utc::now(),
+        OffsetDateTime::now_utc(),
     )
     .await?;
     tracing::info!(staff_id = admin_id, "처음 설정: 관리자와 복구 코드 만듦");

@@ -7,11 +7,6 @@ targets = ["x86_64-pc-windows-msvc"]
 [advisories]
 # 알려진 보안 취약점(RustSec)이 있거나 관리가 끊긴 crate가 들어오면 실패
 version = 2
-ignore = [
-    # chrono 관리 중단 공지. 보안 구멍은 아니다. sqlx·ts-rs도 chrono를 써서 바로 뺄 수 없다.
-    # jiff나 time으로 바꿀지는 따로 조사해서 정한다.
-    { id = "RUSTSEC-2026-0543", reason = "chrono 대체 조사 후 결정" },
-]
 
 [licenses]
 version = 2

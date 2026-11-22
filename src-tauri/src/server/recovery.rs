@@ -8,8 +8,9 @@ use axum::Json;
 use axum::extract::State;
 use axum::extract::rejection::JsonRejection;
 use baeum_domain::{Pin, RecoveryCode, Role};
-use chrono::Utc;
+
 use sqlx::SqlitePool;
+use time::OffsetDateTime;
 
 use super::auth::is_usable;
 use super::error::{ApiError, FieldError};
@@ -69,7 +70,7 @@ pub async fn recover(
         &stored,
         &secrets.recovery_code_hash,
         &secrets.pin_hash,
-        Utc::now(),
+        OffsetDateTime::now_utc(),
     )
     .await
     .map_err(ApiError::internal)?;

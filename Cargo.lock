@@ -165,8 +165,8 @@ dependencies = [
 name = "baeum-domain"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "thiserror 2.0.21",
+ "time",
 ]
 
 [[package]]
@@ -176,7 +176,6 @@ dependencies = [
  "argon2",
  "axum",
  "baeum-domain",
- "chrono",
  "getrandom 0.4.3",
  "serde",
  "serde_json",
@@ -186,6 +185,7 @@ dependencies = [
  "tauri-build",
  "tempfile",
  "thiserror 2.0.21",
+ "time",
  "tokio",
  "tower",
  "tower-http 0.7.1",
@@ -485,10 +485,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
 dependencies = [
  "iana-time-zone",
- "js-sys",
  "num-traits",
  "serde",
- "wasm-bindgen",
  "windows-link",
 ]
 
@@ -2328,6 +2326,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "num_threads"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cabcc654086861f9e1bc5115258de62ef92c79b20f4615a1b0cc57c4e82027d4"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "objc2"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3529,7 +3536,6 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "cfg-if",
- "chrono",
  "crc",
  "crossbeam-queue",
  "either",
@@ -3549,6 +3555,7 @@ dependencies = [
  "sha2 0.11.1",
  "smallvec",
  "thiserror 2.0.21",
+ "time",
  "tokio",
  "tokio-stream",
  "tracing",
@@ -3603,7 +3610,6 @@ dependencies = [
  "bitflags 2.13.2",
  "byteorder",
  "bytes",
- "chrono",
  "crc",
  "digest 0.11.3",
  "dotenvy",
@@ -3618,6 +3624,7 @@ dependencies = [
  "sha2 0.11.1",
  "sqlx-core",
  "thiserror 2.0.21",
+ "time",
  "tracing",
 ]
 
@@ -3631,7 +3638,6 @@ dependencies = [
  "base64 0.22.1",
  "bitflags 2.13.2",
  "byteorder",
- "chrono",
  "crc",
  "dotenvy",
  "etcetera",
@@ -3653,6 +3659,7 @@ dependencies = [
  "sqlx-core",
  "stringprep",
  "thiserror 2.0.21",
+ "time",
  "tracing",
  "whoami",
 ]
@@ -3664,7 +3671,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "88b6b78a34ddcb1db4046d462db8f79cee811019d7297b99fca8fac5de26672e"
 dependencies = [
  "atoi",
- "chrono",
  "flume",
  "form_urlencoded",
  "futures-channel",
@@ -3678,6 +3684,7 @@ dependencies = [
  "serde",
  "sqlx-core",
  "thiserror 2.0.21",
+ "time",
  "tracing",
  "url",
 ]
@@ -4193,7 +4200,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb87b95ec50ddfa440816d227a17b2ccbdda963a316a727fda0fc4334f7d134"
 dependencies = [
  "deranged",
+ "libc",
  "num-conv",
+ "num_threads",
  "powerfmt",
  "serde_core",
  "time-core",
@@ -4535,7 +4544,6 @@ version = "12.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "756050066659291d47a554a9f558125db17428b073c5ffce1daf5dcb0f7231d8"
 dependencies = [
- "chrono",
  "thiserror 2.0.21",
  "ts-rs-macros",
 ]

@@ -5,8 +5,8 @@
 use std::collections::HashMap;
 
 use baeum_domain::{ClassTime, LevelName, NewCourse, Schedule, SectionName, weekday_from_number};
-use chrono::{DateTime, Utc, Weekday};
 use sqlx::{SqliteConnection, SqlitePool};
+use time::{OffsetDateTime, Weekday};
 
 use super::{is_unique_violation, timestamp_text};
 
@@ -83,7 +83,7 @@ pub async fn insert(
     pool: &SqlitePool,
     term_id: i64,
     course: &NewCourse,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<i64, SaveCourseError> {
     let mut tx = pool.begin().await?;
     if !exists(
@@ -126,7 +126,7 @@ pub async fn update(
     pool: &SqlitePool,
     id: i64,
     course: &NewCourse,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<Option<CourseRecord>, SaveCourseError> {
     let mut tx = pool.begin().await?;
     if !exists(
@@ -377,14 +377,14 @@ async fn read(pool: &SqlitePool, filter: Filter) -> Result<Vec<CourseRecord>, sq
 #[cfg(test)]
 mod tests {
     use baeum_domain::{CourseInput, ScheduleInput};
-    use chrono::TimeZone;
+    use time::macros::datetime;
 
     use super::*;
     use crate::db::open_temp;
     use crate::db::test_support::{insert_room, insert_subject, insert_term};
 
-    fn now() -> DateTime<Utc> {
-        Utc.with_ymd_and_hms(2026, 11, 15, 1, 2, 3).unwrap()
+    fn now() -> OffsetDateTime {
+        datetime!(2026-11-15 01:02:03 UTC)
     }
 
     fn time(text: &str) -> ClassTime {
@@ -458,7 +458,10 @@ mod tests {
         let course = new_course(
             f.yoga_id,
             Some("초급"),
-            vec![row(Weekday::Wed, None), row(Weekday::Mon, Some(f.room_id))],
+            vec![
+                row(Weekday::Wednesday, None),
+                row(Weekday::Monday, Some(f.room_id)),
+            ],
         );
 
         let id = insert(&f.pool, f.term_id, &course, now()).await.unwrap();
@@ -475,7 +478,7 @@ mod tests {
                 capacity: 20,
                 schedules: vec![
                     ScheduleRecord {
-                        weekday: Weekday::Mon,
+                        weekday: Weekday::Monday,
                         start: time("10:00"),
                         end: time("11:00"),
                         room: Some(ScheduleRoom {
@@ -485,7 +488,7 @@ mod tests {
                         }),
                     },
                     ScheduleRecord {
-                        weekday: Weekday::Wed,
+                        weekday: Weekday::Wednesday,
                         start: time("10:00"),
                         end: time("11:00"),
                         room: None,
@@ -504,7 +507,7 @@ mod tests {
             (f.term_id, f.kuksundo_id, "초급"),
             (f.other_term_id, f.yoga_id, "초급"),
         ] {
-            let course = new_course(subject_id, Some(level), vec![row(Weekday::Mon, None)]);
+            let course = new_course(subject_id, Some(level), vec![row(Weekday::Monday, None)]);
             insert(&f.pool, term_id, &course, now()).await.unwrap();
         }
 
@@ -521,7 +524,7 @@ mod tests {
     #[tokio::test]
     async fn br_t3_same_course_in_term_is_duplicate() {
         let f = fixture().await;
-        let course = new_course(f.yoga_id, None, vec![row(Weekday::Mon, None)]);
+        let course = new_course(f.yoga_id, None, vec![row(Weekday::Monday, None)]);
         insert(&f.pool, f.term_id, &course, now()).await.unwrap();
 
         let error = insert(&f.pool, f.term_id, &course, now())
@@ -542,8 +545,8 @@ mod tests {
             999,
             None,
             vec![
-                row(Weekday::Mon, Some(f.room_id)),
-                row(Weekday::Wed, Some(998)),
+                row(Weekday::Monday, Some(f.room_id)),
+                row(Weekday::Wednesday, Some(998)),
             ],
         );
 
@@ -564,7 +567,7 @@ mod tests {
     #[tokio::test]
     async fn unknown_term_is_told_apart() {
         let f = fixture().await;
-        let course = new_course(f.yoga_id, None, vec![row(Weekday::Mon, None)]);
+        let course = new_course(f.yoga_id, None, vec![row(Weekday::Monday, None)]);
 
         let error = insert(&f.pool, 999, &course, now()).await.unwrap_err();
 
@@ -577,28 +580,28 @@ mod tests {
         let before = new_course(
             f.yoga_id,
             None,
-            vec![row(Weekday::Mon, None), row(Weekday::Wed, None)],
+            vec![row(Weekday::Monday, None), row(Weekday::Wednesday, None)],
         );
         let id = insert(&f.pool, f.term_id, &before, now()).await.unwrap();
 
         let after = new_course(
             f.kuksundo_id,
             Some("중급"),
-            vec![row(Weekday::Fri, Some(f.room_id))],
+            vec![row(Weekday::Friday, Some(f.room_id))],
         );
         let record = update(&f.pool, id, &after, now()).await.unwrap().unwrap();
 
         assert_eq!(record.subject_name, "국선도");
         assert_eq!(record.level.as_deref(), Some("중급"));
         let weekdays: Vec<Weekday> = record.schedules.iter().map(|s| s.weekday).collect();
-        assert_eq!(weekdays, [Weekday::Fri]);
+        assert_eq!(weekdays, [Weekday::Friday]);
         assert!(update(&f.pool, 999, &after, now()).await.unwrap().is_none());
     }
 
     #[tokio::test]
     async fn deletes_course() {
         let f = fixture().await;
-        let course = new_course(f.yoga_id, None, vec![row(Weekday::Mon, None)]);
+        let course = new_course(f.yoga_id, None, vec![row(Weekday::Monday, None)]);
         let id = insert(&f.pool, f.term_id, &course, now()).await.unwrap();
 
         assert!(delete(&f.pool, id).await.unwrap());
