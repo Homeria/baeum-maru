@@ -6,6 +6,8 @@ mod clock;
 mod data_dir;
 mod db;
 mod secret;
+#[cfg(feature = "dev-seed")]
+pub mod seed;
 mod server;
 mod version;
 

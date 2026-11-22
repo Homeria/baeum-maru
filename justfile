@@ -1,6 +1,7 @@
 # 배움마루 개발 명령. 목록 보기: just
 
 generated := "ui/src/api/generated"
+seed_dir := "target/debug/data"
 
 default:
     @just --list
@@ -16,6 +17,15 @@ dev:
 # 실제 앱 빌드 (설치 파일 없이)
 build:
     ui/node_modules/.bin/tauri build --no-bundle
+
+# 화면 확인용 더미 데이터를 넣는다. 개발 exe 옆 data 폴더라서 just dev가 포터블판으로 이 폴더를 쓴다.
+# 폴더가 비어 있지 않으면 아무것도 넣지 않고 멈춘다
+seed:
+    cargo run -p baeum-maru --features dev-seed --bin seed -- {{seed_dir}}
+
+# 더미 데이터 폴더를 지운다. just dev가 다시 원래 데이터 폴더를 쓴다
+seed-clear:
+    rm -rf {{seed_dir}}
 
 # 전부 검사한다. CI도 이 명령을 쓴다
 check: check-names check-rust check-bindings check-ui check-deps
@@ -35,8 +45,8 @@ check-names:
 
 check-rust:
     cargo fmt --all --check
-    cargo clippy --workspace --all-targets -- -D warnings
-    cargo test --workspace
+    cargo clippy --workspace --all-targets --all-features -- -D warnings
+    cargo test --workspace --all-features
 
 # [ADR 0012]: ts-rs 생성 파일이 Rust와 다르면 실패
 check-bindings:
