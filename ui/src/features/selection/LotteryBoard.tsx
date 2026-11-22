@@ -12,7 +12,7 @@ import {
   lotteryButtons,
   needsShuffle,
   shuffled,
-  splitResult,
+  resultColumns,
 } from "./selectionData";
 import styles from "./SelectionPage.module.css";
 
@@ -117,7 +117,7 @@ export function LotteryBoard({
   };
   const applicants = shown ?? data.entrants;
   // 섞는 동안에는 결과를 비운다 (재추첨 포함)
-  const result = splitResult(data.entrants, shuffling ? 0 : data.selectedCount);
+  const result = resultColumns(data, shuffling);
   const buttons = lotteryButtons(data);
 
   return (

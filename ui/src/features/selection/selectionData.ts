@@ -50,6 +50,32 @@ export function splitResult(
 }
 
 /**
+ * 당첨자·대기자 칸에 보여 줄 것.
+ *
+ * - 섞는 중: 둘 다 비운다 (재추첨 포함).
+ * - 추첨 전: 신청자가 정원 이하이면 모두 당첨될 사람이라 당첨자 칸에 미리 보여 준다(BR-S6).
+ *   기록은 "전원 당첨"을 눌러야 남는다. 정원보다 많으면 둘 다 비운다.
+ * - 추첨 뒤: 뽑힌 순서를 당첨과 대기로 나눈다.
+ */
+export function resultColumns(
+  lottery: CourseLotteryResponse,
+  shuffling: boolean,
+): {
+  selected: readonly EntrantResponse[];
+  waitlisted: readonly EntrantResponse[];
+} {
+  if (shuffling) {
+    return { selected: [], waitlisted: [] };
+  }
+  if (lottery.stage === "not_drawn") {
+    return needsShuffle(lottery)
+      ? { selected: [], waitlisted: [] }
+      : { selected: lottery.entrants, waitlisted: [] };
+  }
+  return splitResult(lottery.entrants, lottery.selectedCount);
+}
+
+/**
  * `items`를 섞은 새 목록. 화면에서 섞이는 모습을 보여 줄 때만 쓴다.
  *
  * 실제 결과는 호스트가 멈춤을 누른 순간 정한다(ADR 0016).

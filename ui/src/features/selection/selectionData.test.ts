@@ -5,6 +5,7 @@ import {
   entrantLabel,
   lotteryButtons,
   needsShuffle,
+  resultColumns,
   shuffled,
   splitResult,
   stagesByCourse,
@@ -63,6 +64,43 @@ describe("splitResult", () => {
 
   test("추첨 전(당첨 0명)이면 당첨이 없다", () => {
     expect(splitResult(entrants(2), 0).selected).toEqual([]);
+  });
+});
+
+describe("resultColumns", () => {
+  const ids = (list: readonly EntrantResponse[]) =>
+    list.map((entrant) => entrant.applicationId);
+
+  test("추첨 전 정원보다 많으면 둘 다 비운다", () => {
+    const result = resultColumns(lottery({}), false);
+
+    expect(result).toEqual({ selected: [], waitlisted: [] });
+  });
+
+  test("추첨 전 정원 이하이면 모두 당첨자 칸에 미리 보인다", () => {
+    const result = resultColumns(lottery({ entrants: entrants(2) }), false);
+
+    expect(ids(result.selected)).toEqual([1, 2]);
+    expect(result.waitlisted).toEqual([]);
+  });
+
+  test("섞는 중에는 둘 다 비운다", () => {
+    const drawn = lottery({ stage: "drawn", selectedCount: 2 });
+
+    expect(resultColumns(drawn, true)).toEqual({
+      selected: [],
+      waitlisted: [],
+    });
+  });
+
+  test("추첨 뒤에는 뽑힌 순서를 당첨과 대기로 나눈다", () => {
+    const result = resultColumns(
+      lottery({ stage: "drawn", selectedCount: 2 }),
+      false,
+    );
+
+    expect(ids(result.selected)).toEqual([1, 2]);
+    expect(ids(result.waitlisted)).toEqual([3]);
   });
 });
 
