@@ -373,18 +373,18 @@ async fn course_row(
 }
 
 #[derive(sqlx::FromRow)]
-struct RunRow {
-    id: i64,
+pub(super) struct RunRow {
+    pub(super) id: i64,
     capacity: i64,
 }
 
 impl RunRow {
-    fn capacity(&self) -> Result<usize, sqlx::Error> {
+    /// 추첨한 때의 정원.
+    pub(super) fn capacity(&self) -> Result<usize, sqlx::Error> {
         usize::try_from(self.capacity).map_err(|_| decode_error("추첨 기록의 정원이 범위 밖입니다"))
     }
 }
 
-/// 강좌의 취소되지 않은 추첨 기록. 없으면 `None`.
 /// 강좌의 취소되지 않은 추첨 기록에 취소 표시를 하고, 그 추첨으로 당첨·대기가 된 신청을
 /// 접수됨으로 되돌린다(BR-L4, BR-S13). 취소할 기록이 있었으면 `true`.
 ///
@@ -418,7 +418,8 @@ pub(super) async fn cancel_active_run(
     Ok(true)
 }
 
-async fn active_run(
+/// 강좌의 취소되지 않은 추첨 기록. 없으면 `None`.
+pub(super) async fn active_run(
     conn: &mut SqliteConnection,
     course_id: i64,
 ) -> Result<Option<RunRow>, sqlx::Error> {
@@ -450,7 +451,7 @@ impl From<EntrantRow> for Entrant {
 }
 
 /// 테이블 CHECK가 막는 값을 만났다. DB가 망가진 것이다.
-fn decode_error(message: &str) -> sqlx::Error {
+pub(super) fn decode_error(message: &str) -> sqlx::Error {
     sqlx::Error::Decode(message.into())
 }
 

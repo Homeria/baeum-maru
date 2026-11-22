@@ -227,3 +227,30 @@ pub async fn insert_priority_reason(pool: &SqlitePool, name: &str) -> Result<i64
     .await
     .map(|result| result.last_insert_rowid())
 }
+
+/// 선발 결과 변경 기록 한 줄. 종류와 상태는 `withdrawn` 같은 DB 글자.
+pub async fn insert_selection_change(
+    pool: &SqlitePool,
+    application_id: i64,
+    kind: &str,
+    from_status: &str,
+    to_status: &str,
+    reason: Option<&str>,
+    staff_id: i64,
+) -> Result<i64, sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO selection_changes
+             (application_id, kind, from_status, to_status, reason, changed_by, changed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(application_id)
+    .bind(kind)
+    .bind(from_status)
+    .bind(to_status)
+    .bind(reason)
+    .bind(staff_id)
+    .bind(NOW)
+    .execute(pool)
+    .await
+    .map(|result| result.last_insert_rowid())
+}

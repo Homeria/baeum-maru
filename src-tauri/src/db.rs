@@ -11,6 +11,7 @@ pub mod members;
 pub mod priority_reasons;
 pub mod recovery;
 pub mod rooms;
+pub mod selection_results;
 pub mod sessions;
 pub mod staff;
 pub mod subjects;
@@ -132,8 +133,8 @@ pub async fn open(dir: &Path) -> Result<SqlitePool, DbError> {
 mod tests {
     use super::test_support::{
         NOW, insert_application, insert_course, insert_deletion, insert_lottery_run, insert_member,
-        insert_priority_reason, insert_room, insert_schedule, insert_staff, insert_subject,
-        insert_term,
+        insert_priority_reason, insert_room, insert_schedule, insert_selection_change,
+        insert_staff, insert_subject, insert_term,
     };
     use time::macros::datetime;
 
@@ -1122,32 +1123,6 @@ mod tests {
         assert!(update.is_err());
         assert!(delete.is_err());
         assert!(is_foreign_key_violation(&application), "{application}");
-    }
-
-    /// 마감 뒤 신청 하나와 그 신청에 남기는 선발 결과 변경 기록.
-    async fn insert_selection_change(
-        pool: &SqlitePool,
-        application_id: i64,
-        kind: &str,
-        from_status: &str,
-        to_status: &str,
-        reason: Option<&str>,
-        staff_id: i64,
-    ) -> Result<sqlx::sqlite::SqliteQueryResult, sqlx::Error> {
-        sqlx::query(
-            "INSERT INTO selection_changes
-                 (application_id, kind, from_status, to_status, reason, changed_by, changed_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(application_id)
-        .bind(kind)
-        .bind(from_status)
-        .bind(to_status)
-        .bind(reason)
-        .bind(staff_id)
-        .bind(NOW)
-        .execute(pool)
-        .await
     }
 
     #[tokio::test]
