@@ -18,7 +18,9 @@ mod staff;
 mod subject;
 mod term;
 
-pub use application::{ApplicationRule, CourseForRules, RuleViolation, check_application};
+pub use application::{
+    ApplicationRule, CourseForRules, Reason, ReasonError, RuleViolation, check_application,
+};
 pub use course::{
     Capacity, ClassTime, CourseError, CourseInput, LevelName, NewCourse, Schedule, ScheduleInput,
     SectionName, weekday_from_number,

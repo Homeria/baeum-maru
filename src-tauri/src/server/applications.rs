@@ -1,0 +1,348 @@
+//! 신청: 회원별 목록·신청은 `/api/terms/{termId}/applications`,
+//! 강좌별 인원은 `/api/terms/{termId}/application-counts`.
+
+mod json;
+
+use axum::Json;
+use axum::extract::rejection::{JsonRejection, PathRejection, QueryRejection};
+use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use baeum_domain::{Action, Reason};
+use sqlx::SqlitePool;
+use time::OffsetDateTime;
+
+use super::auth::CurrentStaff;
+use super::error::{ApiError, FieldError};
+use crate::db::applications::{self, NewApplications, SubmitError};
+use crate::db::terms;
+
+pub use json::RuleViolationResponse;
+use json::{
+    ApplicationCountListResponse, ApplicationCountResponse, ApplicationListResponse,
+    ApplicationResponse, ListApplicationsParams, SubmitApplicationsRequest,
+    SubmitApplicationsResponse,
+};
+
+/// 회원이 이 학기에 낸 유효한 신청. 학기가 없으면 404.
+pub async fn list_applications(
+    State(db): State<SqlitePool>,
+    term_id: Result<Path<i64>, PathRejection>,
+    params: Result<Query<ListApplicationsParams>, QueryRejection>,
+) -> Result<Json<ApplicationListResponse>, ApiError> {
+    let Path(term_id) = term_id?;
+    let Query(params) = params?;
+    require_term(&db, term_id).await?;
+    let records = applications::list_for_member(&db, term_id, params.member_id)
+        .await
+        .map_err(ApiError::internal)?;
+    Ok(Json(ApplicationListResponse {
+        items: records.into_iter().map(ApplicationResponse::from).collect(),
+    }))
+}
+
+/// 이 학기 강좌별 유효한 신청 인원. 학기가 없으면 404.
+pub async fn list_application_counts(
+    State(db): State<SqlitePool>,
+    term_id: Result<Path<i64>, PathRejection>,
+) -> Result<Json<ApplicationCountListResponse>, ApiError> {
+    let Path(term_id) = term_id?;
+    require_term(&db, term_id).await?;
+    let counts = applications::count_by_course(&db, term_id)
+        .await
+        .map_err(ApiError::internal)?;
+    Ok(Json(ApplicationCountListResponse {
+        items: counts
+            .into_iter()
+            .map(ApplicationCountResponse::from)
+            .collect(),
+    }))
+}
+
+/// 회원 한 명의 신청 여러 건을 한 번에 저장한다(접수). 성공하면 201과 새 id들.
+///
+/// 규칙을 어기면 409 `RULES_BROKEN`과 어긴 규칙들(BR-A5). 사유를 적으면 받는다(BR-A6).
+pub async fn submit_applications(
+    State(db): State<SqlitePool>,
+    staff: CurrentStaff,
+    term_id: Result<Path<i64>, PathRejection>,
+    body: Result<Json<SubmitApplicationsRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, ApiError> {
+    staff.require(Action::TakeApplications)?;
+    let Path(term_id) = term_id?;
+    let Json(request) = body?;
+    if request.course_ids.is_empty() {
+        return Err(field_error(
+            "courseIds",
+            "강좌를 하나 이상 골라 주세요".to_owned(),
+        ));
+    }
+    let reason = parse_reason(request.override_reason.as_deref(), "overrideReason")?;
+    if reason.is_some() {
+        staff.require(Action::OverrideRules)?;
+    }
+    require_term(&db, term_id).await?;
+
+    let new = NewApplications {
+        term_id,
+        member_id: request.member_id,
+        course_ids: &request.course_ids,
+        override_reason: reason.as_ref().map(Reason::as_str),
+        staff_id: staff.id,
+    };
+    let ids = applications::submit(&db, new, OffsetDateTime::now_utc()).await?;
+    tracing::info!(
+        staff_id = staff.id,
+        term_id,
+        member_id = request.member_id,
+        count = ids.len(),
+        overridden = reason.is_some(),
+        "신청 저장"
+    );
+    Ok((
+        StatusCode::CREATED,
+        Json(SubmitApplicationsResponse { ids }),
+    ))
+}
+
+/// 학기가 있어야 한다.
+async fn require_term(db: &SqlitePool, term_id: i64) -> Result<(), ApiError> {
+    terms::get(db, term_id)
+        .await
+        .map_err(ApiError::internal)?
+        .ok_or(ApiError::TermNotFound)
+        .map(|_| ())
+}
+
+/// 사유 칸을 확인한다. 비었으면 `None`, 너무 길면 `field` 칸의 422.
+fn parse_reason(input: Option<&str>, field: &'static str) -> Result<Option<Reason>, ApiError> {
+    Reason::parse(input.unwrap_or("")).map_err(|error| field_error(field, error.to_string()))
+}
+
+/// 칸 하나가 틀렸다는 422.
+fn field_error(field: &str, message: String) -> ApiError {
+    ApiError::InvalidInput(vec![FieldError {
+        field: field.to_owned(),
+        message,
+    }])
+}
+
+impl From<SubmitError> for ApiError {
+    fn from(error: SubmitError) -> Self {
+        match error {
+            SubmitError::MemberNotFound => ApiError::MemberNotFound,
+            SubmitError::CourseNotFound(_) => ApiError::CourseNotFound,
+            SubmitError::RulesBroken(violations) => ApiError::RulesBroken(
+                violations
+                    .into_iter()
+                    .map(RuleViolationResponse::from)
+                    .collect(),
+            ),
+            SubmitError::Db(error) => ApiError::internal(error),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::Router;
+    use serde_json::{Value, json};
+
+    use super::*;
+    use crate::db::test_support::{
+        insert_course, insert_member, insert_schedule, insert_subject, insert_term,
+    };
+    use crate::server::test_support::{app, app_as, get, json_body, post};
+
+    /// 학기, 회원과 강좌 셋. 요가 초급(월 10시), 요가 중급(화 10시), 한글교실(월 10시).
+    ///
+    /// 강좌를 만들 수 없는 역할도 시험하려고 DB에 바로 넣는다.
+    struct Setup {
+        term_id: i64,
+        member_id: i64,
+        yoga_basic: i64,
+        yoga_middle: i64,
+        hangul: i64,
+    }
+
+    async fn setup(db: &SqlitePool) -> Setup {
+        let term_id = insert_term(db, "2027년 1학기", "2027-03-02", "2027-06-30")
+            .await
+            .unwrap();
+        let yoga = insert_subject(db, "요가", "요가", None).await.unwrap();
+        let hangul_subject = insert_subject(db, "한글교실", "한글교실", None)
+            .await
+            .unwrap();
+        let course = async |subject_id, level, weekday| {
+            let id = insert_course(db, term_id, subject_id, level, None)
+                .await
+                .unwrap();
+            insert_schedule(db, id, weekday, 600, 660, None)
+                .await
+                .unwrap();
+            id
+        };
+        Setup {
+            term_id,
+            member_id: insert_member(db, "00001").await.unwrap(),
+            yoga_basic: course(yoga, Some("초급"), 1).await,
+            yoga_middle: course(yoga, Some("중급"), 2).await,
+            hangul: course(hangul_subject, None, 1).await,
+        }
+    }
+
+    impl Setup {
+        fn uri(&self) -> String {
+            format!("/api/terms/{}/applications", self.term_id)
+        }
+
+        fn body(&self, course_ids: &[i64], reason: Option<&str>) -> String {
+            json!({
+                "memberId": self.member_id,
+                "courseIds": course_ids,
+                "overrideReason": reason,
+            })
+            .to_string()
+        }
+
+        async fn list(&self, router: Router) -> Value {
+            let uri = format!("{}?memberId={}", self.uri(), self.member_id);
+            json_body(get(router, &uri).await).await
+        }
+    }
+
+    #[tokio::test]
+    async fn submits_and_lists_applications_and_counts() {
+        let (_dir, db, router) = app().await;
+        let s = setup(&db).await;
+
+        let response = post(
+            router.clone(),
+            &s.uri(),
+            &s.body(&[s.yoga_basic, s.yoga_middle], Some("강사 허락")),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let ids = json_body(response).await["ids"].clone();
+        let list = s.list(router.clone()).await;
+        assert_eq!(list["items"][0]["id"], ids[0]);
+        assert_eq!(list["items"][0]["courseId"], s.yoga_basic);
+        assert_eq!(list["items"][0]["overriddenRules"], json!([]));
+        assert_eq!(
+            list["items"][1]["overriddenRules"],
+            json!(["no_same_subject"])
+        );
+        let counts_uri = format!("/api/terms/{}/application-counts", s.term_id);
+        assert_eq!(
+            json_body(get(router, &counts_uri).await).await,
+            json!({ "items": [
+                { "courseId": s.yoga_basic, "count": 1 },
+                { "courseId": s.yoga_middle, "count": 1 },
+            ]})
+        );
+    }
+
+    #[tokio::test]
+    async fn br_a5_broken_rules_are_conflict_with_violations() {
+        let (_dir, db, router) = app().await;
+        let s = setup(&db).await;
+        let first = post(router.clone(), &s.uri(), &s.body(&[s.yoga_basic], None)).await;
+        assert_eq!(first.status(), StatusCode::CREATED);
+
+        let response = post(
+            router.clone(),
+            &s.uri(),
+            &s.body(&[s.hangul, s.yoga_basic], None),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        let body = json_body(response).await;
+        assert_eq!(body["code"], "RULES_BROKEN");
+        assert_eq!(body["rule"], "BR-A5");
+        assert_eq!(
+            body["violations"],
+            json!([
+                { "courseId": s.hangul, "rule": "no_time_overlap",
+                  "otherCourseId": s.yoga_basic, "canOverride": true },
+                { "courseId": s.yoga_basic, "rule": "no_duplicate",
+                  "otherCourseId": s.yoga_basic, "canOverride": false },
+                { "courseId": s.yoga_basic, "rule": "no_time_overlap",
+                  "otherCourseId": s.hangul, "canOverride": true },
+            ])
+        );
+        assert_eq!(s.list(router).await["items"].as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn br_a6_temp_staff_cannot_override_but_can_submit() {
+        let (_dir, db, router) = app_as("temp_staff").await;
+        let s = setup(&db).await;
+
+        let overridden = post(
+            router.clone(),
+            &s.uri(),
+            &s.body(&[s.yoga_basic, s.hangul], Some("강사 허락")),
+        )
+        .await;
+        let plain = post(router, &s.uri(), &s.body(&[s.yoga_basic], None)).await;
+
+        assert_eq!(overridden.status(), StatusCode::FORBIDDEN);
+        assert_eq!(plain.status(), StatusCode::CREATED);
+    }
+
+    #[tokio::test]
+    async fn read_only_cannot_submit() {
+        let (_dir, db, router) = app_as("read_only").await;
+        let s = setup(&db).await;
+
+        let response = post(router, &s.uri(), &s.body(&[s.yoga_basic], None)).await;
+
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn empty_courses_and_long_reason_are_field_errors() {
+        let (_dir, db, router) = app().await;
+        let s = setup(&db).await;
+
+        let empty = post(router.clone(), &s.uri(), &s.body(&[], None)).await;
+        let long_reason = "가".repeat(101);
+        let long = post(
+            router,
+            &s.uri(),
+            &s.body(&[s.yoga_basic], Some(&long_reason)),
+        )
+        .await;
+
+        assert_eq!(empty.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(json_body(empty).await["fields"][0]["field"], "courseIds");
+        assert_eq!(long.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(
+            json_body(long).await["fields"][0]["field"],
+            "overrideReason"
+        );
+    }
+
+    #[tokio::test]
+    async fn unknown_term_member_and_course_are_not_found() {
+        let (_dir, db, router) = app().await;
+        let s = setup(&db).await;
+        let unknown_member =
+            json!({ "memberId": 999, "courseIds": [s.yoga_basic], "overrideReason": null });
+
+        let term = post(
+            router.clone(),
+            "/api/terms/999/applications",
+            &s.body(&[s.yoga_basic], None),
+        )
+        .await;
+        let member = post(router.clone(), &s.uri(), &unknown_member.to_string()).await;
+        let course = post(router, &s.uri(), &s.body(&[999], None)).await;
+
+        assert_eq!(json_body(term).await["code"], "TERM_NOT_FOUND");
+        assert_eq!(json_body(member).await["code"], "MEMBER_NOT_FOUND");
+        assert_eq!(json_body(course).await["code"], "COURSE_NOT_FOUND");
+    }
+}

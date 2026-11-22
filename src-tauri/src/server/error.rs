@@ -11,6 +11,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use ts_rs::TS;
 
+use super::applications::RuleViolationResponse;
 use crate::db::DeleteError;
 
 /// 요청을 처리하지 못했다.
@@ -46,6 +47,8 @@ pub enum ApiError {
     DuplicateCourse,
     /// 주소의 id인 강좌가 없다.
     CourseNotFound,
+    /// BR-A5: 신청 규칙을 어겼다. 어긴 규칙을 모두 담는다.
+    RulesBroken(Vec<RuleViolationResponse>),
     /// BR-K11: 처음 설정은 직원이 하나도 없을 때 한 번만 한다.
     SetupAlreadyDone,
     /// 주소나 본문의 id인 직원이 없다.
@@ -128,6 +131,7 @@ pub enum ErrorCode {
     TermInUse,
     DuplicateCourse,
     CourseNotFound,
+    RulesBroken,
     SetupAlreadyDone,
     StaffNotFound,
     DuplicateStaffName,
@@ -164,10 +168,16 @@ pub struct ErrorResponse {
     pub rule: Option<String>,
     /// [`ErrorCode::InvalidInput`]일 때 틀린 칸들. 그 밖에는 비어 있다.
     pub fields: Vec<FieldError>,
+    /// [`ErrorCode::RulesBroken`]일 때 어긴 신청 규칙들. 그 밖에는 비어 있다.
+    pub violations: Vec<RuleViolationResponse>,
 }
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
+        let violations = match &self {
+            ApiError::RulesBroken(violations) => violations.clone(),
+            _ => Vec::new(),
+        };
         let (status, code, message, rule, fields) = match self {
             ApiError::MalformedRequest => (
                 StatusCode::BAD_REQUEST,
@@ -274,6 +284,13 @@ impl IntoResponse for ApiError {
                 None,
                 Vec::new(),
             ),
+            ApiError::RulesBroken(_) => (
+                StatusCode::CONFLICT,
+                ErrorCode::RulesBroken,
+                "신청 규칙을 어긴 강좌가 있습니다",
+                Some("BR-A5"),
+                Vec::new(),
+            ),
             ApiError::SetupAlreadyDone => (
                 StatusCode::CONFLICT,
                 ErrorCode::SetupAlreadyDone,
@@ -378,6 +395,7 @@ impl IntoResponse for ApiError {
             message: message.to_owned(),
             rule: rule.map(str::to_owned),
             fields,
+            violations,
         };
         (status, Json(body)).into_response()
     }

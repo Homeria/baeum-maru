@@ -46,6 +46,41 @@ impl ApplicationRule {
     }
 }
 
+/// 사유 칸이 형식에 맞지 않는다.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum ReasonError {
+    /// 사유가 너무 길다.
+    #[error("사유는 100자까지 씁니다")]
+    TooLong,
+}
+
+/// 규칙 예외(BR-A6)나 신청 삭제(BR-D3)의 사유. 1~100자이고 앞뒤 공백은 지운다.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Reason(String);
+
+impl Reason {
+    const MAX_LEN: usize = 100;
+
+    /// 사유를 확인한다. 비었거나 공백뿐이면 `Ok(None)`.
+    ///
+    /// # Errors
+    ///
+    /// 100자를 넘으면 [`ReasonError::TooLong`].
+    pub fn parse(input: &str) -> Result<Option<Self>, ReasonError> {
+        let trimmed = input.trim();
+        match trimmed.chars().count() {
+            0 => Ok(None),
+            n if n > Self::MAX_LEN => Err(ReasonError::TooLong),
+            _ => Ok(Some(Reason(trimmed.to_owned()))),
+        }
+    }
+
+    /// 사유 글자.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 /// 규칙을 판단하는 데 필요한 강좌 정보.
 #[derive(Debug, Clone, Copy)]
 pub struct CourseForRules<'a> {
@@ -249,6 +284,17 @@ mod tests {
             check_application(&[], &[course(1, 10, &monday), course(2, 20, &monday)]),
             [violation(2, ApplicationRule::NoTimeOverlap, 1)]
         );
+    }
+
+    #[test]
+    fn reason_is_trimmed_and_up_to_100_chars() {
+        assert_eq!(Reason::parse("  "), Ok(None));
+        assert_eq!(
+            Reason::parse(" 강사 허락 ").unwrap().unwrap().as_str(),
+            "강사 허락"
+        );
+        assert!(Reason::parse(&"가".repeat(100)).unwrap().is_some());
+        assert_eq!(Reason::parse(&"가".repeat(101)), Err(ReasonError::TooLong));
     }
 
     #[test]
