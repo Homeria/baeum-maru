@@ -1,0 +1,126 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  height: 100%;
+}
+
+/* 왼쪽은 마감한 강좌, 오른쪽은 고른 강좌의 결과 */
+.content {
+  display: grid;
+  grid-template-columns: minmax(16rem, 1fr) minmax(0, 3fr);
+  gap: var(--space-6);
+  flex: 1;
+  min-height: 0;
+}
+
+.courses {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.hint,
+.empty {
+  margin: var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.boardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4);
+}
+
+.courseTitle {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.meta {
+  color: var(--color-text-muted);
+}
+
+.search {
+  margin-left: auto;
+  min-width: 14rem;
+}
+
+/* 당첨자 | 대기자 | 포기 */
+.columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  flex: 1;
+  min-height: 0;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.columnTitle {
+  margin: 0;
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-lg);
+}
+
+.list {
+  flex: 1;
+  margin: 0;
+  padding: var(--space-2);
+  overflow-y: auto;
+  list-style: none;
+}
+
+.entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2);
+  border-radius: 4px;
+}
+
+.entry + .entry {
+  border-top: 1px solid var(--color-border);
+}
+
+/* 연락할 차례(BR-W1). 옅은 바탕으로만 */
+.turn {
+  background: var(--color-priority-bg);
+}
+
+/* 이름 검색과 맞는 줄 */
+.match {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.name {
+  font-weight: 700;
+}
+
+.small {
+  color: var(--color-text-muted);
+  font-size: 0.9em;
+}
+
+.tag {
+  color: var(--color-primary);
+  font-size: 0.85em;
+}
