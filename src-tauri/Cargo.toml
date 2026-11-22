@@ -7,10 +7,21 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 publish = false
+# seed 실행 파일이 생겨도 `tauri dev`·`cargo run`은 앱을 띄운다
+default-run = "baeum-maru"
 
 # Tauri 관례: 실행 파일과 이름이 겹치지 않게 _lib를 붙인다 (Windows 빌드 충돌)
 [lib]
 name = "baeum_maru_lib"
+
+# 화면 확인용 더미 데이터 명령(`just seed`). 기능을 켜야만 빌드되므로 출시 빌드에는 들어가지 않는다
+[[bin]]
+name = "seed"
+path = "src/bin/seed.rs"
+required-features = ["dev-seed"]
+
+[features]
+dev-seed = []
 
 [dependencies]
 argon2 = "0.6.0"
