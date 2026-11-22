@@ -79,13 +79,16 @@ pub struct ScheduleRoom {
 }
 
 /// 확인을 통과한 강좌를 `term_id` 학기에 저장하고 새 `id`를 돌려준다.
+///
+/// 확인하고 저장하므로 `BEGIN IMMEDIATE`로 한다 (ADR 0005). 보통 `BEGIN`이면 동시에
+/// 저장할 때 기다리지 않고 "database is locked"로 실패한다.
 pub async fn insert(
     pool: &SqlitePool,
     term_id: i64,
     course: &NewCourse,
     now: OffsetDateTime,
 ) -> Result<i64, SaveCourseError> {
-    let mut tx = pool.begin().await?;
+    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
     if !exists(
         &mut tx,
         "SELECT EXISTS (SELECT 1 FROM terms WHERE id = ?)",
@@ -122,13 +125,14 @@ pub async fn insert(
 /// 없으면 `None`. 학기는 바꾸지 않는다.
 ///
 /// 수업 시간은 줄을 하나하나 맞추지 않고 모두 지운 뒤 다시 넣는다.
+/// [`insert`]처럼 `BEGIN IMMEDIATE`로 한다.
 pub async fn update(
     pool: &SqlitePool,
     id: i64,
     course: &NewCourse,
     now: OffsetDateTime,
 ) -> Result<Option<CourseRecord>, SaveCourseError> {
-    let mut tx = pool.begin().await?;
+    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
     if !exists(
         &mut tx,
         "SELECT EXISTS (SELECT 1 FROM courses WHERE id = ?)",
@@ -495,6 +499,58 @@ mod tests {
                     },
                 ],
             })
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn saves_all_when_many_save_at_once() {
+        let f = fixture().await;
+        let mut saves = tokio::task::JoinSet::new();
+        for number in 0..16 {
+            let pool = f.pool.clone();
+            let (term_id, subject_id) = (f.term_id, f.yoga_id);
+            saves.spawn(async move {
+                let level = format!("{number}반");
+                let course = new_course(subject_id, Some(&level), vec![row(Weekday::Monday, None)]);
+                insert(&pool, term_id, &course, now()).await
+            });
+        }
+
+        while let Some(saved) = saves.join_next().await {
+            saved.unwrap().unwrap();
+        }
+        assert_eq!(list(&f.pool, f.term_id).await.unwrap().len(), 16);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn updates_all_when_many_update_at_once() {
+        let f = fixture().await;
+        let mut ids = Vec::new();
+        for number in 0..16 {
+            let level = format!("{number}반");
+            let course = new_course(f.yoga_id, Some(&level), vec![row(Weekday::Monday, None)]);
+            ids.push(insert(&f.pool, f.term_id, &course, now()).await.unwrap());
+        }
+
+        let mut updates = tokio::task::JoinSet::new();
+        for (number, id) in ids.into_iter().enumerate() {
+            let pool = f.pool.clone();
+            let subject_id = f.kuksundo_id;
+            updates.spawn(async move {
+                let level = format!("{number}반");
+                let course = new_course(subject_id, Some(&level), vec![row(Weekday::Friday, None)]);
+                update(&pool, id, &course, now()).await
+            });
+        }
+
+        while let Some(updated) = updates.join_next().await {
+            assert!(updated.unwrap().unwrap().is_some());
+        }
+        let courses = list(&f.pool, f.term_id).await.unwrap();
+        assert!(
+            courses
+                .iter()
+                .all(|course| course.subject_id == f.kuksundo_id)
         );
     }
 
