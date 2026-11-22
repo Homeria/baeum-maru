@@ -8,14 +8,16 @@ use axum::extract::{Path, Query, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use baeum_domain::{Action, MemberError, NewMember};
-use chrono::{Local, Utc};
+
 use sqlx::SqlitePool;
+use time::OffsetDateTime;
 
 use super::auth::CurrentStaff;
 use super::error::ApiError;
 use super::paging::Paging;
 use crate::db::members::{self, SaveMemberError};
 
+use crate::clock::local_date;
 use json::{
     CreateMemberResponse, MemberListItem, MemberListResponse, MemberRequest, MemberResponse,
     SearchMembersParams,
@@ -68,9 +70,9 @@ pub async fn create_member(
 ) -> Result<impl IntoResponse, ApiError> {
     staff.require(Action::EditMembers)?;
     let Json(request) = body?;
-    let now = Utc::now();
+    let now = OffsetDateTime::now_utc();
     // 생년월일은 이 PC의 날짜로 비교 (한국에서 쓰므로 한국 날짜)
-    let today = now.with_timezone(&Local).date_naive();
+    let today = local_date(now);
 
     let member = NewMember::parse(request.as_input(), today)
         .map_err(|errors| ApiError::invalid_input(errors, field_name))?;
@@ -95,8 +97,8 @@ pub async fn update_member(
     staff.require(Action::EditMembers)?;
     let Path(id) = id?;
     let Json(request) = body?;
-    let now = Utc::now();
-    let today = now.with_timezone(&Local).date_naive();
+    let now = OffsetDateTime::now_utc();
+    let today = local_date(now);
 
     let member = NewMember::parse(request.as_input(), today)
         .map_err(|errors| ApiError::invalid_input(errors, field_name))?;

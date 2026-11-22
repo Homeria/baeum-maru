@@ -1,6 +1,6 @@
 //! 직원 계정과 역할, PIN, 잠금 규칙 (BR-K).
 
-use chrono::{DateTime, NaiveDate, TimeDelta, Utc};
+use time::{Date, Duration, OffsetDateTime};
 
 /// 직원 항목이 형식에 맞지 않는다.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -172,7 +172,7 @@ pub struct StaffInput<'a> {
     /// 역할.
     pub role: Role,
     /// 유효기간(마지막 날). 임시 직원은 필수.
-    pub valid_until: Option<NaiveDate>,
+    pub valid_until: Option<Date>,
 }
 
 /// 확인을 통과한 직원 정보: 이름, 역할, 유효기간. 고치기에 쓰고, [`NewStaff`]가 PIN과 함께 담는다.
@@ -180,7 +180,7 @@ pub struct StaffInput<'a> {
 pub struct StaffProfile {
     name: StaffName,
     role: Role,
-    valid_until: Option<NaiveDate>,
+    valid_until: Option<Date>,
 }
 
 impl StaffProfile {
@@ -215,7 +215,7 @@ impl StaffProfile {
     }
 
     /// 유효기간(마지막 날). 없으면 기한 없음.
-    pub fn valid_until(&self) -> Option<NaiveDate> {
+    pub fn valid_until(&self) -> Option<Date> {
         self.valid_until
     }
 }
@@ -270,7 +270,7 @@ fn parse_name_and_valid_until(
     input: StaffInput<'_>,
 ) -> (
     Result<StaffName, StaffError>,
-    Result<Option<NaiveDate>, StaffError>,
+    Result<Option<Date>, StaffError>,
 ) {
     let name = StaffName::parse(input.name);
     let valid_until = match (input.role, input.valid_until) {
@@ -281,7 +281,7 @@ fn parse_name_and_valid_until(
 }
 
 /// BR-K5: 유효기간이 `today`에도 남았는지. 마지막 날까지 쓸 수 있다. 기한이 없으면 늘 남았다.
-pub fn is_valid_on(valid_until: Option<NaiveDate>, today: NaiveDate) -> bool {
+pub fn is_valid_on(valid_until: Option<Date>, today: Date) -> bool {
     valid_until.is_none_or(|last_day| today <= last_day)
 }
 
@@ -289,18 +289,18 @@ pub fn is_valid_on(valid_until: Option<NaiveDate>, today: NaiveDate) -> bool {
 pub const MAX_FAILED_PINS: u32 = 5;
 
 /// BR-K7: 계정을 잠그는 시간.
-pub const ACCOUNT_LOCK: TimeDelta = TimeDelta::minutes(5);
+pub const ACCOUNT_LOCK: Duration = Duration::minutes(5);
 
 /// BR-K8: 요청이 없으면 세션을 잠그는 시간.
-pub const SCREEN_LOCK: TimeDelta = TimeDelta::minutes(10);
+pub const SCREEN_LOCK: Duration = Duration::minutes(10);
 
 /// BR-K7: `locked_until`까지 잠긴 계정이 `now`에도 잠겨 있는지. 그 시각이 되면 풀린다.
-pub fn is_account_locked(locked_until: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
+pub fn is_account_locked(locked_until: Option<OffsetDateTime>, now: OffsetDateTime) -> bool {
     locked_until.is_some_and(|until| now < until)
 }
 
 /// BR-K8: 마지막 요청이 `last_seen_at`인 세션이 `now`에 잠겼는지. 10분이 되면 잠긴다.
-pub fn is_screen_locked(last_seen_at: DateTime<Utc>, now: DateTime<Utc>) -> bool {
+pub fn is_screen_locked(last_seen_at: OffsetDateTime, now: OffsetDateTime) -> bool {
     now - last_seen_at >= SCREEN_LOCK
 }
 
@@ -310,12 +310,12 @@ pub struct FailedPin {
     /// 새로 센 연속 틀린 횟수. 잠그면 0으로 돌아간다.
     pub failed_count: u32,
     /// 잠갔으면 풀리는 시각.
-    pub locked_until: Option<DateTime<Utc>>,
+    pub locked_until: Option<OffsetDateTime>,
 }
 
 /// BR-K7: 지금까지 `failed_count`번 틀린 계정이 `now`에 또 틀렸다.
 /// 5번째면 5분 잠그고 횟수를 0으로 돌린다.
-pub fn record_failed_pin(failed_count: u32, now: DateTime<Utc>) -> FailedPin {
+pub fn record_failed_pin(failed_count: u32, now: OffsetDateTime) -> FailedPin {
     let failed_count = failed_count + 1;
     if failed_count >= MAX_FAILED_PINS {
         FailedPin {
@@ -332,19 +332,16 @@ pub fn record_failed_pin(failed_count: u32, now: DateTime<Utc>) -> FailedPin {
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
+
+    use time::macros::{date, datetime};
 
     use super::*;
 
-    fn date(text: &str) -> NaiveDate {
-        text.parse().unwrap()
-    }
-
-    fn input<'a>(name: &'a str, role: Role, valid_until: Option<&str>) -> StaffInput<'a> {
+    fn input(name: &str, role: Role, valid_until: Option<Date>) -> StaffInput<'_> {
         StaffInput {
             name,
             role,
-            valid_until: valid_until.map(date),
+            valid_until,
         }
     }
 
@@ -427,7 +424,10 @@ mod tests {
             StaffProfile::parse(input("직원1", Role::TempStaff, None)),
             Err(vec![StaffError::MissingValidUntil])
         );
-        assert!(StaffProfile::parse(input("직원1", Role::TempStaff, Some("2027-03-31"))).is_ok());
+        assert!(
+            StaffProfile::parse(input("직원1", Role::TempStaff, Some(date!(2027 - 03 - 31))))
+                .is_ok()
+        );
         assert!(StaffProfile::parse(input("직원1", Role::Staff, None)).is_ok());
     }
 
@@ -457,16 +457,16 @@ mod tests {
 
     #[test]
     fn br_k5_valid_through_last_day() {
-        let last_day = Some(date("2027-03-31"));
+        let last_day = Some(date!(2027 - 03 - 31));
 
-        assert!(is_valid_on(last_day, date("2027-03-31")));
-        assert!(!is_valid_on(last_day, date("2027-04-01")));
-        assert!(is_valid_on(None, date("2099-01-01")));
+        assert!(is_valid_on(last_day, date!(2027 - 03 - 31)));
+        assert!(!is_valid_on(last_day, date!(2027 - 04 - 01)));
+        assert!(is_valid_on(None, date!(2099 - 01 - 01)));
     }
 
     #[test]
     fn br_k7_fifth_failure_locks_for_five_minutes() {
-        let now = Utc.with_ymd_and_hms(2027, 3, 2, 9, 0, 0).unwrap();
+        let now = datetime!(2027-03-02 09:00:00 UTC);
 
         assert_eq!(
             record_failed_pin(3, now),
@@ -479,14 +479,16 @@ mod tests {
             record_failed_pin(4, now),
             FailedPin {
                 failed_count: 0,
-                locked_until: Some(now + TimeDelta::minutes(5))
+                locked_until: Some(now + Duration::minutes(5))
             }
         );
     }
 
-    fn at(hour: u32, minute: u32, second: u32) -> DateTime<Utc> {
-        Utc.with_ymd_and_hms(2026, 11, 15, hour, minute, second)
+    fn at(hour: u8, minute: u8, second: u8) -> OffsetDateTime {
+        date!(2026 - 11 - 15)
+            .with_hms(hour, minute, second)
             .unwrap()
+            .assume_utc()
     }
 
     #[test]

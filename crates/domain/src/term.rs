@@ -1,6 +1,6 @@
 //! 학기 항목과 형식 확인.
 
-use chrono::NaiveDate;
+use time::Date;
 
 /// 학기 항목이 형식에 맞지 않는다.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -55,8 +55,8 @@ impl TermName {
 /// BR-T2: 종료일은 시작일보다 앞설 수 없다. 하루짜리 학기도 된다.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TermPeriod {
-    starts_on: NaiveDate,
-    ends_on: NaiveDate,
+    starts_on: Date,
+    ends_on: Date,
 }
 
 impl TermPeriod {
@@ -65,7 +65,7 @@ impl TermPeriod {
     /// # Errors
     ///
     /// 종료일이 시작일보다 앞서면 [`TermError::EndBeforeStart`].
-    pub fn new(starts_on: NaiveDate, ends_on: NaiveDate) -> Result<Self, TermError> {
+    pub fn new(starts_on: Date, ends_on: Date) -> Result<Self, TermError> {
         if ends_on < starts_on {
             return Err(TermError::EndBeforeStart);
         }
@@ -73,12 +73,12 @@ impl TermPeriod {
     }
 
     /// 시작일.
-    pub fn starts_on(self) -> NaiveDate {
+    pub fn starts_on(self) -> Date {
         self.starts_on
     }
 
     /// 종료일.
-    pub fn ends_on(self) -> NaiveDate {
+    pub fn ends_on(self) -> Date {
         self.ends_on
     }
 }
@@ -89,9 +89,9 @@ pub struct TermInput<'a> {
     /// 학기 이름.
     pub name: &'a str,
     /// 시작일.
-    pub starts_on: Option<NaiveDate>,
+    pub starts_on: Option<Date>,
     /// 종료일.
-    pub ends_on: Option<NaiveDate>,
+    pub ends_on: Option<Date>,
 }
 
 /// 확인을 통과한 학기. DB에 저장하기 전의 모양이다.
@@ -148,10 +148,12 @@ impl NewTerm {
 
 #[cfg(test)]
 mod tests {
+    use time::Month;
+
     use super::*;
 
-    fn date(month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(2027, month, day).unwrap()
+    fn date(month: u8, day: u8) -> Date {
+        Date::from_calendar_date(2027, Month::try_from(month).unwrap(), day).unwrap()
     }
 
     fn input() -> TermInput<'static> {

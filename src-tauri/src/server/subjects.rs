@@ -8,8 +8,9 @@ use axum::extract::{Path, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use baeum_domain::{Action, NewSubject, SubjectError};
-use chrono::Utc;
+
 use sqlx::SqlitePool;
+use time::OffsetDateTime;
 
 use super::auth::CurrentStaff;
 use super::error::ApiError;
@@ -50,7 +51,7 @@ pub async fn create_subject(
     let Json(request) = body?;
     let subject = NewSubject::parse(request.as_input())
         .map_err(|errors| ApiError::invalid_input(errors, field_name))?;
-    let id = subjects::insert(&db, &subject, Utc::now()).await?;
+    let id = subjects::insert(&db, &subject, OffsetDateTime::now_utc()).await?;
     tracing::info!(staff_id = staff.id, subject_id = id, "과목 저장");
 
     let location = format!("/api/subjects/{id}");
@@ -73,7 +74,7 @@ pub async fn update_subject(
     let Json(request) = body?;
     let subject = NewSubject::parse(request.as_input())
         .map_err(|errors| ApiError::invalid_input(errors, field_name))?;
-    let record = subjects::update(&db, id, &subject, Utc::now())
+    let record = subjects::update(&db, id, &subject, OffsetDateTime::now_utc())
         .await?
         .ok_or(ApiError::SubjectNotFound)?;
     tracing::info!(staff_id = staff.id, subject_id = id, "과목 고침");

@@ -10,14 +10,16 @@ use axum::extract::{Path, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use baeum_domain::{Action, NewStaff, Pin, StaffError, StaffProfile};
-use chrono::{Local, Utc};
+
 use sqlx::SqlitePool;
+use time::OffsetDateTime;
 
 use super::auth::CurrentStaff;
 use super::error::ApiError;
 use crate::db::staff::{self, SaveStaffError};
 use crate::secret;
 
+use crate::clock::local_today;
 pub use json::RoleCode;
 use json::{
     CreateStaffRequest, CreateStaffResponse, ResetPinRequest, StaffListResponse, StaffResponse,
@@ -31,7 +33,7 @@ pub async fn list_staff(
 ) -> Result<Json<StaffListResponse>, ApiError> {
     current.require(Action::ManageStaff)?;
     let records = staff::list(&db).await.map_err(ApiError::internal)?;
-    let now = Utc::now();
+    let now = OffsetDateTime::now_utc();
     Ok(Json(StaffListResponse {
         items: records
             .into_iter()
@@ -52,7 +54,7 @@ pub async fn get_staff(
         .await
         .map_err(ApiError::internal)?
         .ok_or(ApiError::StaffNotFound)?;
-    Ok(Json(StaffResponse::new(record, Utc::now())))
+    Ok(Json(StaffResponse::new(record, OffsetDateTime::now_utc())))
 }
 
 /// 새 직원을 저장한다. 성공하면 201과 새 id를 돌려준다.
@@ -75,7 +77,7 @@ pub async fn create_staff(
     .map_err(ApiError::internal)?;
     let pin_hash = pin_hash.map_err(ApiError::internal)?;
 
-    let id = staff::insert(&db, &new_staff, &pin_hash, Utc::now()).await?;
+    let id = staff::insert(&db, &new_staff, &pin_hash, OffsetDateTime::now_utc()).await?;
     tracing::info!(staff_id = current.id, target_staff_id = id, "직원 저장");
 
     let location = format!("/api/staff/{id}");
@@ -101,8 +103,8 @@ pub async fn update_staff(
     let profile = StaffProfile::parse(request.as_input())
         .map_err(|errors| ApiError::invalid_input(errors, field_name))?;
 
-    let today = Local::now().date_naive();
-    let now = Utc::now();
+    let today = local_today();
+    let now = OffsetDateTime::now_utc();
     let record = staff::update(&db, id, &profile, request.disabled, today, now)
         .await?
         .ok_or(ApiError::StaffNotFound)?;
@@ -133,7 +135,7 @@ pub async fn reset_staff_pin(
         .await
         .map_err(ApiError::internal)?
         .map_err(ApiError::internal)?;
-    let changed = staff::reset_pin(&db, id, &pin_hash, Utc::now())
+    let changed = staff::reset_pin(&db, id, &pin_hash, OffsetDateTime::now_utc())
         .await
         .map_err(ApiError::internal)?;
     if !changed {

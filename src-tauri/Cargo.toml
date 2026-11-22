@@ -16,18 +16,19 @@ name = "baeum_maru_lib"
 argon2 = "0.6.0"
 axum = "0.8"
 baeum-domain = { version = "0.1.0", path = "../crates/domain" }
-chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde"] }
 getrandom = "0.4.3"
 serde = { version = "1", features = ["derive"] }
 sha2 = "0.11.1"
-sqlx = { version = "0.9.1", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "macros", "migrate", "chrono"] }
+sqlx = { version = "0.9.1", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "macros", "migrate", "time"] }
 tauri = { version = "2", features = [] }
 thiserror = "2"
+# ADR 0015: 날짜 JSON은 "2026-11-15" 글자 (serde-human-readable), 지역 날짜는 local-offset
+time = { version = "0.3.55", features = ["local-offset", "macros", "serde", "serde-human-readable"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
 tower-http = { version = "0.7", features = ["cors", "set-header"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-ts-rs = { version = "12", features = ["chrono-impl"] }
+ts-rs = "12"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

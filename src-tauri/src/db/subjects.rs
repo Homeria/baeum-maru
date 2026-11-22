@@ -1,8 +1,8 @@
 //! 과목 저장, 목록, 고치기, 지우기.
 
 use baeum_domain::{CategoryName, NewSubject};
-use chrono::{DateTime, Utc};
 use sqlx::SqlitePool;
+use time::OffsetDateTime;
 
 use super::{DeleteError, is_unique_violation, timestamp_text};
 
@@ -39,7 +39,7 @@ pub struct SubjectRecord {
 pub async fn insert(
     pool: &SqlitePool,
     subject: &NewSubject,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<i64, SaveSubjectError> {
     let now = timestamp_text(now);
     let result = sqlx::query(
@@ -79,7 +79,7 @@ pub async fn update(
     pool: &SqlitePool,
     id: i64,
     subject: &NewSubject,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<Option<SubjectRecord>, SaveSubjectError> {
     let record = sqlx::query_as(
         "UPDATE subjects SET name = ?, name_key = ?, category = ?, updated_at = ?
@@ -110,14 +110,14 @@ pub async fn delete(pool: &SqlitePool, id: i64) -> Result<bool, DeleteError> {
 #[cfg(test)]
 mod tests {
     use baeum_domain::SubjectInput;
-    use chrono::TimeZone;
+    use time::macros::datetime;
 
     use super::*;
     use crate::db::open_temp;
     use crate::db::test_support::{insert_course, insert_term};
 
-    fn now() -> DateTime<Utc> {
-        Utc.with_ymd_and_hms(2026, 11, 15, 1, 2, 3).unwrap()
+    fn now() -> OffsetDateTime {
+        datetime!(2026-11-15 01:02:03 UTC)
     }
 
     fn new_subject(name: &str, category: Option<&str>) -> NewSubject {

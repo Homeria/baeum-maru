@@ -140,8 +140,7 @@ impl From<CourseRecord> for CourseResponse {
 impl From<ScheduleRecord> for ScheduleResponse {
     fn from(record: ScheduleRecord) -> Self {
         ScheduleResponse {
-            // number_from_monday는 1~7이라 u8에 늘 들어간다
-            weekday: record.weekday.number_from_monday() as u8,
+            weekday: record.weekday.number_from_monday(),
             start: record.start.to_string(),
             end: record.end.to_string(),
             room: record.room.map(ScheduleRoomResponse::from),

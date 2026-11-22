@@ -1,8 +1,8 @@
 //! 직원 계정과 복구 코드 저장.
 
 use baeum_domain::{FailedPin, NewStaff, Role, StaffName, StaffProfile, record_failed_pin};
-use chrono::{DateTime, NaiveDate, Utc};
 use sqlx::SqlitePool;
+use time::{Date, OffsetDateTime};
 
 use super::access_logs::{self, AccessEvent};
 use super::{is_unique_violation, timestamp_text};
@@ -33,7 +33,7 @@ pub async fn setup(
     admin_name: &StaffName,
     pin_hash: &str,
     recovery_code_hash: &str,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<i64, SetupError> {
     let now = timestamp_text(now);
     let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
@@ -103,7 +103,7 @@ impl TryFrom<LoginChoiceRow> for LoginChoice {
 /// 잠긴 계정(BR-K7)은 넣는다. 고르면 잠겼다고 알려 준다.
 pub async fn list_for_login(
     pool: &SqlitePool,
-    today: NaiveDate,
+    today: Date,
 ) -> Result<Vec<LoginChoice>, sqlx::Error> {
     let rows: Vec<LoginChoiceRow> = sqlx::query_as(
         "SELECT id, name, role FROM staff
@@ -124,10 +124,10 @@ pub struct LoginAccount {
     pub role: Role,
     /// argon2id 해시. PIN 자체가 아니다.
     pub pin_hash: String,
-    pub valid_until: Option<NaiveDate>,
+    pub valid_until: Option<Date>,
     pub disabled: bool,
     /// 잠갔으면 풀리는 시각. 지난 시각이면 이미 풀렸다.
-    pub locked_until: Option<DateTime<Utc>>,
+    pub locked_until: Option<OffsetDateTime>,
 }
 
 /// DB에서 읽은 그대로의 한 줄. 역할은 글자다.
@@ -137,9 +137,9 @@ pub(super) struct LoginAccountRow {
     name: String,
     role: String,
     pin_hash: String,
-    valid_until: Option<NaiveDate>,
+    valid_until: Option<Date>,
     disabled: bool,
-    locked_until: Option<DateTime<Utc>>,
+    locked_until: Option<OffsetDateTime>,
 }
 
 impl TryFrom<LoginAccountRow> for LoginAccount {
@@ -182,7 +182,7 @@ pub async fn add_failed_pin(
     pool: &SqlitePool,
     staff_id: i64,
     event: AccessEvent,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<FailedPin, sqlx::Error> {
     let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
 
@@ -234,9 +234,9 @@ pub struct StaffRecord {
     pub id: i64,
     pub name: String,
     pub role: Role,
-    pub valid_until: Option<NaiveDate>,
+    pub valid_until: Option<Date>,
     pub disabled: bool,
-    pub locked_until: Option<DateTime<Utc>>,
+    pub locked_until: Option<OffsetDateTime>,
 }
 
 #[derive(sqlx::FromRow)]
@@ -244,9 +244,9 @@ struct StaffRow {
     id: i64,
     name: String,
     role: String,
-    valid_until: Option<NaiveDate>,
+    valid_until: Option<Date>,
     disabled: bool,
-    locked_until: Option<DateTime<Utc>>,
+    locked_until: Option<OffsetDateTime>,
 }
 
 impl TryFrom<StaffRow> for StaffRecord {
@@ -296,7 +296,7 @@ pub async fn insert(
     pool: &SqlitePool,
     staff: &NewStaff,
     pin_hash: &str,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<i64, SaveStaffError> {
     let profile = staff.profile();
     let now = timestamp_text(now);
@@ -325,8 +325,8 @@ pub async fn update(
     id: i64,
     profile: &StaffProfile,
     disabled: bool,
-    today: NaiveDate,
-    now: DateTime<Utc>,
+    today: Date,
+    now: OffsetDateTime,
 ) -> Result<Option<StaffRecord>, SaveStaffError> {
     let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
 
@@ -374,7 +374,7 @@ pub async fn reset_pin(
     pool: &SqlitePool,
     id: i64,
     pin_hash: &str,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Result<bool, sqlx::Error> {
     let result = sqlx::query(
         "UPDATE staff SET pin_hash = ?, failed_pin_count = 0, locked_until = NULL, updated_at = ?
@@ -390,15 +390,16 @@ pub async fn reset_pin(
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
+
+    use time::macros::{date, datetime};
 
     use super::*;
     use crate::db::access_logs::list_for_test;
     use crate::db::open_temp;
     use crate::db::test_support::insert_staff;
 
-    fn now() -> DateTime<Utc> {
-        Utc.with_ymd_and_hms(2026, 11, 15, 1, 2, 3).unwrap()
+    fn now() -> OffsetDateTime {
+        datetime!(2026-11-15 01:02:03 UTC)
     }
 
     fn name(input: &str) -> StaffName {
@@ -472,10 +473,6 @@ mod tests {
         assert_eq!(code_hash, "code-hash");
     }
 
-    fn date(text: &str) -> NaiveDate {
-        text.parse().unwrap()
-    }
-
     #[tokio::test]
     async fn login_list_hides_disabled_and_expired_staff() {
         let (_dir, pool) = open_temp().await;
@@ -493,7 +490,7 @@ mod tests {
             .await
             .unwrap();
 
-        let choices = list_for_login(&pool, date("2026-11-15")).await.unwrap();
+        let choices = list_for_login(&pool, date!(2026 - 11 - 15)).await.unwrap();
 
         assert_eq!(
             choices,
@@ -528,7 +525,7 @@ mod tests {
                 name: "임시1".to_owned(),
                 role: Role::TempStaff,
                 pin_hash: "hash".to_owned(),
-                valid_until: Some(date("2027-02-28")),
+                valid_until: Some(date!(2027 - 02 - 28)),
                 disabled: false,
                 locked_until: None,
             }
@@ -573,11 +570,11 @@ mod tests {
         );
     }
 
-    fn profile(name: &str, role: Role, valid_until: Option<&str>) -> StaffProfile {
+    fn profile(name: &str, role: Role, valid_until: Option<Date>) -> StaffProfile {
         StaffProfile::parse(baeum_domain::StaffInput {
             name,
             role,
-            valid_until: valid_until.map(date),
+            valid_until,
         })
         .unwrap()
     }
@@ -605,7 +602,7 @@ mod tests {
             staff,
             &profile("가직원", Role::Staff, None),
             true,
-            date("2026-11-15"),
+            date!(2026 - 11 - 15),
             now(),
         )
         .await
@@ -649,11 +646,14 @@ mod tests {
         let admin = insert(&pool, &new_staff("관리자", Role::Admin), "h", now())
             .await
             .unwrap();
-        let today = date("2026-11-15");
+        let today = date!(2026 - 11 - 15);
         let changes = [
             (profile("관리자", Role::Admin, None), true),
             (profile("관리자", Role::Staff, None), false),
-            (profile("관리자", Role::Admin, Some("2026-11-14")), false),
+            (
+                profile("관리자", Role::Admin, Some(date!(2026 - 11 - 14))),
+                false,
+            ),
         ];
 
         for (change, disabled) in &changes {
@@ -690,7 +690,7 @@ mod tests {
             999,
             &profile("없음", Role::Staff, None),
             false,
-            date("2026-11-15"),
+            date!(2026 - 11 - 15),
             now(),
         )
         .await
