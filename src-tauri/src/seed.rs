@@ -5,6 +5,7 @@
 mod applications;
 mod basics;
 mod members;
+mod selection_results;
 
 use std::fmt::Debug;
 use std::io::ErrorKind;
@@ -58,6 +59,7 @@ pub async fn run(dir: &Path) -> Result<SeedReport, SeedError> {
     let basics = basics::insert(&pool, today, now).await?;
     let member_ids = members::insert(&pool, today, now).await?;
     applications::insert(&pool, &basics, &member_ids, now).await?;
+    selection_results::insert(&pool, &basics, now).await?;
     pool.close().await;
     Ok(SeedReport {
         recovery_code: basics.recovery_code,
@@ -209,6 +211,42 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(over, [(5, 6)]);
+    }
+
+    #[tokio::test]
+    async fn closes_one_course_with_withdrawals_and_contacts() {
+        let dir = tempfile::tempdir().unwrap();
+
+        run(dir.path()).await.unwrap();
+
+        let pool = db::open(dir.path()).await.unwrap();
+        assert_eq!(
+            count(&pool, "SELECT COUNT(*) FROM selection_closures").await,
+            1
+        );
+        let changes: Vec<(String, String, String)> = sqlx::query_as(
+            "SELECT kind, from_status, to_status FROM selection_changes ORDER BY id",
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        let kinds: Vec<&str> = changes.iter().map(|(kind, _, _)| kind.as_str()).collect();
+        assert_eq!(kinds, ["withdrawn", "withdrawn", "unreachable", "accepted"]);
+        // 빈자리 1에 대기 3번이 연락할 차례
+        let course_id: i64 = sqlx::query_scalar("SELECT course_id FROM selection_closures")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        let result = db::selection_results::course_result(&pool, course_id)
+            .await
+            .unwrap();
+        assert_eq!(result.open_seats, 1);
+        let turns: Vec<(usize, bool)> = result
+            .waitlisted
+            .iter()
+            .map(|w| (w.waitlist_number, w.contact_turn))
+            .collect();
+        assert_eq!(turns, [(1, false), (3, true)]);
     }
 
     #[tokio::test]
