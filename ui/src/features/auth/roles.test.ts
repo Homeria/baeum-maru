@@ -10,6 +10,7 @@ const ACTIONS: readonly Action[] = [
   "editReferenceData",
   "takeApplications",
   "overrideRules",
+  "runLottery",
   "manageStaff",
   "viewAccessLog",
 ];
@@ -25,6 +26,7 @@ const ALLOWED: Record<RoleCode, readonly Action[]> = {
     "editReferenceData",
     "takeApplications",
     "overrideRules",
+    "runLottery",
   ],
   temp_staff: ["view", "editMembers", "takeApplications"],
   read_only: ["view"],

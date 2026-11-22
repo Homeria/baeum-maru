@@ -25,6 +25,7 @@ export type Action =
   | "editReferenceData"
   | "takeApplications"
   | "overrideRules"
+  | "runLottery"
   | "manageStaff"
   | "viewAccessLog";
 
