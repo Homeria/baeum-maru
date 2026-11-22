@@ -210,7 +210,7 @@ fn parse_reason(input: Option<&str>, field: &'static str) -> Result<Option<Reaso
 }
 
 /// 칸 하나가 틀렸다는 422.
-fn field_error(field: &str, message: String) -> ApiError {
+pub(super) fn field_error(field: &str, message: String) -> ApiError {
     ApiError::InvalidInput(vec![FieldError {
         field: field.to_owned(),
         message,

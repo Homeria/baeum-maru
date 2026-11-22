@@ -8,6 +8,7 @@ import { HostStatus } from "../features/host/HostStatus";
 import { MembersPage } from "../features/members/MembersPage";
 import { ReferenceDataPage } from "../features/reference-data/ReferenceDataPage";
 import { SelectionPage } from "../features/selection/SelectionPage";
+import { SelectionResultsPage } from "../features/selection-results/SelectionResultsPage";
 import { can } from "../features/auth/roles";
 import { StaffAdminPage } from "../features/staff/StaffAdminPage";
 import styles from "./App.module.css";
@@ -17,6 +18,7 @@ type MenuKey =
   | "courses"
   | "applications"
   | "selection"
+  | "selectionResults"
   | "referenceData"
   | "staff";
 
@@ -25,6 +27,7 @@ const MENU: readonly TabItem<MenuKey>[] = [
   { key: "courses", label: "강좌" },
   { key: "applications", label: "신청" },
   { key: "selection", label: "추첨" },
+  { key: "selectionResults", label: "선발 결과" },
   { key: "referenceData", label: "기초 정보" },
 ];
 
@@ -70,6 +73,8 @@ export function MainScreen({ session }: MainScreenProps) {
           <ApplicationsPage />
         ) : menu === "selection" ? (
           <SelectionPage />
+        ) : menu === "selectionResults" ? (
+          <SelectionResultsPage />
         ) : menu === "referenceData" ? (
           <ReferenceDataPage />
         ) : menu === "staff" && manageStaff ? (

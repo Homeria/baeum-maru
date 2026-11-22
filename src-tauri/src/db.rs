@@ -11,6 +11,8 @@ pub mod members;
 pub mod priority_reasons;
 pub mod recovery;
 pub mod rooms;
+pub mod selection_changes;
+pub mod selection_results;
 pub mod sessions;
 pub mod staff;
 pub mod subjects;
@@ -132,8 +134,8 @@ pub async fn open(dir: &Path) -> Result<SqlitePool, DbError> {
 mod tests {
     use super::test_support::{
         NOW, insert_application, insert_course, insert_deletion, insert_lottery_run, insert_member,
-        insert_priority_reason, insert_room, insert_schedule, insert_staff, insert_subject,
-        insert_term,
+        insert_priority_reason, insert_room, insert_schedule, insert_selection_change,
+        insert_staff, insert_subject, insert_term,
     };
     use time::macros::datetime;
 
@@ -1122,5 +1124,79 @@ mod tests {
         assert!(update.is_err());
         assert!(delete.is_err());
         assert!(is_foreign_key_violation(&application), "{application}");
+    }
+
+    #[tokio::test]
+    async fn br_w7_selection_changes_cannot_change_and_keep_application() {
+        let (_dir, pool, member_id, course_id, staff_id) = with_member_course_staff().await;
+        let application_id = insert_application(&pool, member_id, course_id, "withdrawn", staff_id)
+            .await
+            .unwrap();
+        insert_selection_change(
+            &pool,
+            application_id,
+            "withdrawn",
+            "selected",
+            "withdrawn",
+            None,
+            staff_id,
+        )
+        .await
+        .unwrap();
+
+        let update = sqlx::query("UPDATE selection_changes SET reason = '고침'")
+            .execute(&pool)
+            .await;
+        let delete = sqlx::query("DELETE FROM selection_changes")
+            .execute(&pool)
+            .await;
+        let application = sqlx::query("DELETE FROM applications WHERE id = ?")
+            .bind(application_id)
+            .execute(&pool)
+            .await
+            .unwrap_err();
+
+        assert!(update.is_err());
+        assert!(delete.is_err());
+        assert!(is_foreign_key_violation(&application), "{application}");
+    }
+
+    #[tokio::test]
+    async fn br_w8_selection_changes_allow_only_matching_status_moves() {
+        let (_dir, pool, member_id, course_id, staff_id) = with_member_course_staff().await;
+        let application_id =
+            insert_application(&pool, member_id, course_id, "waitlisted", staff_id)
+                .await
+                .unwrap();
+        let insert = |kind: &'static str,
+                      from: &'static str,
+                      to: &'static str,
+                      reason: Option<&'static str>| {
+            insert_selection_change(&pool, application_id, kind, from, to, reason, staff_id)
+        };
+
+        for (kind, from, to, reason) in [
+            ("withdrawn", "waitlisted", "withdrawn", None),
+            ("accepted", "waitlisted", "selected", None),
+            ("declined", "waitlisted", "withdrawn", None),
+            ("unreachable", "waitlisted", "waitlisted", None),
+            ("corrected", "withdrawn", "selected", Some("잘못 누름")),
+        ] {
+            insert(kind, from, to, reason).await.unwrap();
+        }
+        for (kind, from, to, reason) in [
+            // 바로잡기는 사유가 있어야 한다
+            ("corrected", "withdrawn", "waitlisted", None),
+            // 수락은 대기에서만
+            ("accepted", "selected", "selected", None),
+            // 빈 사유는 없는 사유로 넣는다
+            ("withdrawn", "selected", "withdrawn", Some("")),
+            ("promoted", "waitlisted", "selected", None),
+        ] {
+            assert!(
+                insert(kind, from, to, reason).await.is_err(),
+                "{kind} {from} {to}"
+            );
+        }
     }
 }

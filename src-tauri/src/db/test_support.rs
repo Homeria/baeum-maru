@@ -227,3 +227,88 @@ pub async fn insert_priority_reason(pool: &SqlitePool, name: &str) -> Result<i64
     .await
     .map(|result| result.last_insert_rowid())
 }
+
+/// 선발 결과 변경 기록 한 줄. 종류와 상태는 `withdrawn` 같은 DB 글자.
+pub async fn insert_selection_change(
+    pool: &SqlitePool,
+    application_id: i64,
+    kind: &str,
+    from_status: &str,
+    to_status: &str,
+    reason: Option<&str>,
+    staff_id: i64,
+) -> Result<i64, sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO selection_changes
+             (application_id, kind, from_status, to_status, reason, changed_by, changed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(application_id)
+    .bind(kind)
+    .bind(from_status)
+    .bind(to_status)
+    .bind(reason)
+    .bind(staff_id)
+    .bind(NOW)
+    .execute(pool)
+    .await
+    .map(|result| result.last_insert_rowid())
+}
+
+/// [`insert_drawn_course`]가 만든 것의 id.
+pub struct DrawnCourse {
+    pub term_id: i64,
+    pub course_id: i64,
+    pub staff_id: i64,
+}
+
+/// 정원 `capacity`명인 강좌에 회원 `applicants`명이 신청하고 추첨했다. `close`면 선발도 마감한다.
+///
+/// 추첨과 마감은 앱의 함수를 그대로 쓴다. 시드는 늘 같아서 결과도 같다.
+pub async fn insert_drawn_course(
+    pool: &SqlitePool,
+    capacity: i64,
+    applicants: usize,
+    close: bool,
+) -> DrawnCourse {
+    let term_id = insert_term(pool, "2027년 1학기", "2027-03-02", "2027-06-30")
+        .await
+        .unwrap();
+    let subject_id = insert_subject(pool, "요가", "요가", None).await.unwrap();
+    let course_id = insert_course(pool, term_id, subject_id, None, None)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE courses SET capacity = ? WHERE id = ?")
+        .bind(capacity)
+        .bind(course_id)
+        .execute(pool)
+        .await
+        .unwrap();
+    let staff_id = insert_staff(pool, "직원1", "staff", None).await.unwrap();
+    for number in 1..=applicants {
+        let member_id = insert_member(pool, &format!("{number:05}")).await.unwrap();
+        insert_application(pool, member_id, course_id, "submitted", staff_id)
+            .await
+            .unwrap();
+    }
+    let now = time::macros::datetime!(2026-11-22 01:02:03 UTC);
+    super::lotteries::run(
+        pool,
+        course_id,
+        staff_id,
+        baeum_domain::LotterySeed::new(7),
+        now,
+    )
+    .await
+    .unwrap();
+    if close {
+        super::lotteries::close(pool, course_id, staff_id, now)
+            .await
+            .unwrap();
+    }
+    DrawnCourse {
+        term_id,
+        course_id,
+        staff_id,
+    }
+}
