@@ -59,6 +59,8 @@ pub enum ApiError {
     NotDrawn,
     /// 접수됨 신청이 없어 추첨할 수 없다.
     NoApplicants,
+    /// BR-S5: 자리 보장 신청이 정원보다 많아 추첨할 수 없다.
+    PriorityOverCapacity,
     /// BR-L6: 호스트 PC에서만 하는 일이다.
     HostOnly,
     /// BR-A5: 신청 규칙을 어겼다. 어긴 규칙을 모두 담는다.
@@ -155,6 +157,7 @@ pub enum ErrorCode {
     SelectionClosed,
     NotDrawn,
     NoApplicants,
+    PriorityOverCapacity,
     HostOnly,
     RulesBroken,
     ApplicationNotFound,
@@ -351,6 +354,13 @@ impl IntoResponse for ApiError {
                 ErrorCode::NoApplicants,
                 "추첨할 신청이 없습니다",
                 None,
+                Vec::new(),
+            ),
+            ApiError::PriorityOverCapacity => (
+                StatusCode::CONFLICT,
+                ErrorCode::PriorityOverCapacity,
+                "우선 배정 신청이 정원보다 많아 추첨할 수 없습니다. 우선 배정을 줄이거나 정원을 늘려 주세요",
+                Some("BR-S5"),
                 Vec::new(),
             ),
             ApiError::HostOnly => (

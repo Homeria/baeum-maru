@@ -67,6 +67,7 @@ pub async fn run_lottery(
             RunLotteryError::CourseNotFound => ApiError::CourseNotFound,
             RunLotteryError::Closed => ApiError::SelectionClosed,
             RunLotteryError::NoApplicants => ApiError::NoApplicants,
+            RunLotteryError::OverCapacity { .. } => ApiError::PriorityOverCapacity,
             RunLotteryError::Db(error) => ApiError::internal(error),
         })?;
     tracing::info!(staff_id = staff.id, course_id = id, run_id, "추첨");

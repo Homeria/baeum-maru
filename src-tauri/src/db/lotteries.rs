@@ -1,9 +1,10 @@
-//! 추첨(BR-S6, BR-S7), 재추첨(BR-L4), 선발 마감(BR-L5)과 추첨 화면에 보여 줄 신청자.
+//! 추첨(BR-S6, BR-S7), 자리 보장(BR-S4, BR-S5), 재추첨(BR-L4), 선발 마감(BR-L5)과
+//! 추첨 화면에 보여 줄 신청자.
 //!
 //! 시드는 부른 쪽이 만들어 넘긴다(ADR 0016). 호스트 PC에서만 부르는지(BR-L6)와 역할은
 //! 서버가 확인한다.
 
-use baeum_domain::{Capacity, LotterySeed, LotteryVersion, Personal, draw_lottery};
+use baeum_domain::{Capacity, LotterySeed, LotteryVersion, Personal, allocate};
 use sqlx::{SqliteConnection, SqlitePool};
 use time::OffsetDateTime;
 
@@ -36,12 +37,23 @@ pub struct CourseStage {
     pub stage: SelectionStage,
 }
 
+/// 신청에 자리 보장 사유가 붙었는지 읽는 SELECT 칸. 신청 테이블은 `a`.
+macro_rules! guaranteed_column {
+    () => {
+        "EXISTS (SELECT 1 FROM application_priorities p
+                 JOIN priority_reasons pr ON pr.id = p.reason_id
+                 WHERE p.application_id = a.id AND pr.method = 'guaranteed') AS guaranteed"
+    };
+}
+
 /// 추첨 화면의 신청자 한 명.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entrant {
     pub application_id: i64,
     pub member_name: Personal<String>,
     pub member_no: Personal<String>,
+    /// 자리 보장 사유가 붙었다(BR-S4). 추첨 전에는 붙은 사유로, 추첨 뒤에는 기록으로 정한다.
+    pub guaranteed: bool,
 }
 
 /// 추첨 화면에 보여 줄 강좌 하나의 선발.
@@ -49,10 +61,10 @@ pub struct Entrant {
 pub struct CourseLottery {
     pub capacity: Capacity,
     pub stage: SelectionStage,
-    /// 추첨 전이면 접수됨 신청을 접수한 순서로, 추첨 뒤면 뽑힌 순서로.
+    /// 자리 보장 신청이 언제나 맨 앞이다. 그 뒤는 추첨 전이면 접수한 순서, 추첨 뒤면 뽑힌 순서.
     pub entrants: Vec<Entrant>,
-    /// 추첨 뒤 `entrants`의 앞에서 몇 명이 당첨인지. 나머지는 차례로 대기 순번 1, 2, …
-    /// 추첨 전이면 0.
+    /// 추첨 뒤 `entrants`의 앞에서 몇 명이 당첨인지(자리 보장 포함). 나머지는 차례로
+    /// 대기 순번 1, 2, … 추첨 전이면 0.
     pub selected_count: usize,
 }
 
@@ -67,6 +79,9 @@ pub enum RunLotteryError {
     /// 접수됨 신청이 없다. 빈 추첨으로 신청만 막히는 일(BR-L3)을 피한다.
     #[error("추첨할 신청이 없습니다")]
     NoApplicants,
+    /// BR-S5: 자리 보장 신청이 정원보다 많다. 이전 추첨도 그대로 둔다.
+    #[error("자리 보장 신청 {guaranteed}건이 정원 {capacity}명보다 많습니다")]
+    OverCapacity { guaranteed: usize, capacity: u16 },
     #[error("추첨하지 못했습니다: {0}")]
     Db(#[from] sqlx::Error),
 }
@@ -121,27 +136,39 @@ pub async fn course_lottery(
 
     let (entrants, selected_count) = match active_run(&mut conn, course_id).await? {
         Some(run) => {
+            // 자리 보장(id 순) 다음에 추첨 대상(뽑힌 순서)
             let rows: Vec<EntrantRow> = sqlx::query_as(
-                "SELECT a.id AS application_id, m.name, m.member_no
+                "SELECT a.id AS application_id, m.name, m.member_no, 1 AS guaranteed,
+                        a.id AS sort_key
+                 FROM lottery_guaranteed_entries g
+                 JOIN applications a ON a.id = g.application_id
+                 JOIN members m ON m.id = a.member_id
+                 WHERE g.lottery_run_id = ?1
+                 UNION ALL
+                 SELECT a.id, m.name, m.member_no, 0, e.position
                  FROM lottery_entries e
                  JOIN applications a ON a.id = e.application_id
                  JOIN members m ON m.id = a.member_id
-                 WHERE e.lottery_run_id = ?
-                 ORDER BY e.position",
+                 WHERE e.lottery_run_id = ?1
+                 ORDER BY guaranteed DESC, sort_key",
             )
             .bind(run.id)
             .fetch_all(&mut *conn)
             .await?;
-            let selected = rows.len().min(run.capacity()?);
-            (rows, selected)
+            let guaranteed = rows.iter().filter(|row| row.guaranteed).count();
+            // BR-S4: 남은 자리만큼 추첨 대상에서 당첨
+            let remaining = run.capacity()?.saturating_sub(guaranteed);
+            let drawn = rows.len() - guaranteed;
+            (rows, guaranteed + drawn.min(remaining))
         }
         None => {
-            let rows: Vec<EntrantRow> = sqlx::query_as(
-                "SELECT a.id AS application_id, m.name, m.member_no
-                 FROM applications a JOIN members m ON m.id = a.member_id
+            let rows: Vec<EntrantRow> = sqlx::query_as(concat!(
+                "SELECT a.id AS application_id, m.name, m.member_no, ",
+                guaranteed_column!(),
+                " FROM applications a JOIN members m ON m.id = a.member_id
                  WHERE a.course_id = ? AND a.status = 'submitted'
-                 ORDER BY a.submitted_at, a.id",
-            )
+                 ORDER BY guaranteed DESC, a.submitted_at, a.id"
+            ))
             .bind(course_id)
             .fetch_all(&mut *conn)
             .await?;
@@ -180,18 +207,36 @@ pub async fn run(
 
     cancel_active_run(&mut tx, course_id, staff_id, &now).await?;
 
-    let application_ids: Vec<i64> = sqlx::query_scalar(
-        "SELECT id FROM applications WHERE course_id = ? AND status = 'submitted'",
-    )
+    let applications: Vec<(i64, bool)> = sqlx::query_as(concat!(
+        "SELECT a.id, ",
+        guaranteed_column!(),
+        " FROM applications a WHERE a.course_id = ? AND a.status = 'submitted'"
+    ))
     .bind(course_id)
     .fetch_all(&mut *tx)
     .await?;
-    if application_ids.is_empty() {
+    if applications.is_empty() {
         return Err(RunLotteryError::NoApplicants);
+    }
+    let mut guaranteed = Vec::new();
+    let mut others = Vec::new();
+    for (id, is_guaranteed) in applications {
+        if is_guaranteed {
+            guaranteed.push(id);
+        } else {
+            others.push(id);
+        }
     }
 
     let version = LotteryVersion::CURRENT;
-    let draw = draw_lottery(&application_ids, capacity, seed, version);
+    // 정원을 넘으면 돌려주면서 tx가 사라져 위의 취소도 되돌려진다
+    let allocation = allocate(&guaranteed, &others, capacity, seed, version).map_err(|error| {
+        RunLotteryError::OverCapacity {
+            guaranteed: error.guaranteed,
+            capacity: error.capacity,
+        }
+    })?;
+    let draw = allocation.draw();
     let run_id = sqlx::query(
         "INSERT INTO lottery_runs (course_id, run_by, run_at, seed, version, capacity)
          VALUES (?, ?, ?, ?, ?, ?)",
@@ -206,6 +251,19 @@ pub async fn run(
     .await?
     .last_insert_rowid();
 
+    for &application_id in allocation.guaranteed() {
+        sqlx::query(
+            "INSERT INTO lottery_guaranteed_entries (lottery_run_id, application_id) VALUES (?, ?)",
+        )
+        .bind(run_id)
+        .bind(application_id)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("UPDATE applications SET status = 'selected' WHERE id = ?")
+            .bind(application_id)
+            .execute(&mut *tx)
+            .await?;
+    }
     for (index, &application_id) in draw.order().iter().enumerate() {
         let status = if index < draw.selected().len() {
             "selected"
@@ -377,6 +435,7 @@ struct EntrantRow {
     application_id: i64,
     name: String,
     member_no: String,
+    guaranteed: bool,
 }
 
 impl From<EntrantRow> for Entrant {
@@ -385,6 +444,7 @@ impl From<EntrantRow> for Entrant {
             application_id: row.application_id,
             member_name: Personal::new(row.name),
             member_no: Personal::new(row.member_no),
+            guaranteed: row.guaranteed,
         }
     }
 }
@@ -396,13 +456,14 @@ fn decode_error(message: &str) -> sqlx::Error {
 
 #[cfg(test)]
 mod tests {
-    use baeum_domain::LotteryDraw;
+    use baeum_domain::{LotteryDraw, draw_lottery};
     use time::macros::datetime;
 
     use super::*;
     use crate::db::open_temp;
     use crate::db::test_support::{
-        insert_application, insert_course, insert_member, insert_staff, insert_subject, insert_term,
+        insert_application, insert_course, insert_member, insert_priority_reason, insert_staff,
+        insert_subject, insert_term,
     };
 
     fn now() -> OffsetDateTime {
@@ -490,6 +551,153 @@ mod tests {
                 LotteryVersion::CURRENT,
             )
         }
+    }
+
+    impl Fixture {
+        /// 신청들에 자리 보장 사유("반장")를 붙인다.
+        async fn guarantee(&self, application_ids: &[i64]) {
+            let reason_id = insert_priority_reason(&self.pool, "반장").await.unwrap();
+            for &id in application_ids {
+                sqlx::query(
+                    "INSERT INTO application_priorities (application_id, reason_id) VALUES (?, ?)",
+                )
+                .bind(id)
+                .bind(reason_id)
+                .execute(&self.pool)
+                .await
+                .unwrap();
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn br_s4_before_lottery_shows_guaranteed_first() {
+        let f = fixture(3, 3).await;
+        let last = f.application_ids[2];
+        f.guarantee(&[last]).await;
+
+        let lottery = f.lottery().await;
+
+        assert_eq!(ids(&lottery)[0], last);
+        assert!(lottery.entrants[0].guaranteed);
+        assert!(!lottery.entrants[1].guaranteed);
+        assert_eq!(lottery.selected_count, 0);
+    }
+
+    #[tokio::test]
+    async fn br_s4_guaranteed_are_selected_and_rest_drawn_for_remaining_seats() {
+        let f = fixture(3, 6).await;
+        let a = &f.application_ids;
+        f.guarantee(&[a[4], a[0]]).await;
+
+        let run_id = f.run(SEED).await.unwrap();
+
+        let others = [a[1], a[2], a[3], a[5]];
+        let expected = draw_lottery(
+            &others,
+            Capacity::new(1).unwrap(),
+            LotterySeed::new(SEED),
+            LotteryVersion::CURRENT,
+        );
+        let lottery = f.lottery().await;
+        let mut shown = vec![a[0], a[4]];
+        shown.extend_from_slice(expected.order());
+        assert_eq!(ids(&lottery), shown);
+        assert!(lottery.entrants[..2].iter().all(|e| e.guaranteed));
+        assert!(lottery.entrants[2..].iter().all(|e| !e.guaranteed));
+        assert_eq!(lottery.selected_count, 3);
+
+        let selected: Vec<i64> = f
+            .statuses()
+            .await
+            .into_iter()
+            .filter(|(_, status)| status == "selected")
+            .map(|(id, _)| id)
+            .collect();
+        let mut want = vec![a[0], a[4], expected.selected()[0]];
+        want.sort_unstable();
+        assert_eq!(selected, want);
+        let recorded: Vec<i64> = sqlx::query_scalar(
+            "SELECT application_id FROM lottery_guaranteed_entries
+             WHERE lottery_run_id = ? ORDER BY application_id",
+        )
+        .bind(run_id)
+        .fetch_all(&f.pool)
+        .await
+        .unwrap();
+        assert_eq!(recorded, [a[0], a[4]]);
+    }
+
+    #[tokio::test]
+    async fn br_s4_guaranteed_filling_capacity_waitlists_everyone_else() {
+        let f = fixture(2, 4).await;
+        let a = &f.application_ids;
+        f.guarantee(&[a[0], a[1]]).await;
+
+        f.run(SEED).await.unwrap();
+
+        let lottery = f.lottery().await;
+        assert_eq!(lottery.selected_count, 2);
+        let waitlisted = f
+            .statuses()
+            .await
+            .into_iter()
+            .filter(|(_, status)| status == "waitlisted")
+            .count();
+        assert_eq!(waitlisted, 2);
+    }
+
+    #[tokio::test]
+    async fn br_s5_more_guaranteed_than_capacity_keeps_previous_run() {
+        let f = fixture(1, 3).await;
+        let previous = f.run(SEED).await.unwrap();
+        let a = &f.application_ids;
+        // 추첨 뒤 붙이면 원래는 추첨이 취소되지만(BR-S13), 여기서는 DB에 바로 넣어 재추첨을 시험한다
+        f.guarantee(&[a[0], a[1]]).await;
+
+        let error = f.run(SEED).await.unwrap_err();
+
+        assert!(
+            matches!(
+                error,
+                RunLotteryError::OverCapacity {
+                    guaranteed: 2,
+                    capacity: 1
+                }
+            ),
+            "{error}"
+        );
+        let active: i64 = sqlx::query_scalar(
+            "SELECT id FROM lottery_runs WHERE course_id = ? AND cancelled_at IS NULL",
+        )
+        .bind(f.course_id)
+        .fetch_one(&f.pool)
+        .await
+        .unwrap();
+        assert_eq!(active, previous);
+    }
+
+    #[tokio::test]
+    async fn br_l4_redraw_returns_guaranteed_to_submitted_before_drawing_again() {
+        let f = fixture(2, 3).await;
+        let a = &f.application_ids;
+        f.guarantee(&[a[2]]).await;
+        f.run(SEED).await.unwrap();
+
+        f.run(SEED + 1).await.unwrap();
+
+        let recorded: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM lottery_guaranteed_entries")
+            .fetch_one(&f.pool)
+            .await
+            .unwrap();
+        assert_eq!(recorded, 2);
+        assert_eq!(f.lottery().await.selected_count, 2);
+        let status: String = sqlx::query_scalar("SELECT status FROM applications WHERE id = ?")
+            .bind(a[2])
+            .fetch_one(&f.pool)
+            .await
+            .unwrap();
+        assert_eq!(status, "selected");
     }
 
     fn ids(lottery: &CourseLottery) -> Vec<i64> {
