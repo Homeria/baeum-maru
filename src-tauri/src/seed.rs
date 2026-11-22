@@ -2,7 +2,9 @@
 //!
 //! 실제 데이터와 섞이지 않도록 빈 폴더에만 넣는다. 모두 지어낸 데이터다.
 
+mod applications;
 mod basics;
+mod members;
 
 use std::fmt::Debug;
 use std::io::ErrorKind;
@@ -52,7 +54,10 @@ pub async fn run(dir: &Path) -> Result<SeedReport, SeedError> {
     ensure_empty(dir)?;
     let pool = db::open(dir).await?;
     let now = OffsetDateTime::now_utc();
-    let basics = basics::insert(&pool, local_date(now), now).await?;
+    let today = local_date(now);
+    let basics = basics::insert(&pool, today, now).await?;
+    let member_ids = members::insert(&pool, today, now).await?;
+    applications::insert(&pool, &basics, &member_ids, now).await?;
     pool.close().await;
     Ok(SeedReport {
         recovery_code: basics.recovery_code,
@@ -116,6 +121,60 @@ mod tests {
             15
         );
         assert!(!report.recovery_code.is_empty());
+    }
+
+    #[tokio::test]
+    async fn fills_members_with_a_few_same_names() {
+        let dir = tempfile::tempdir().unwrap();
+
+        run(dir.path()).await.unwrap();
+
+        let pool = db::open(dir.path()).await.unwrap();
+        assert_eq!(count(&pool, "SELECT COUNT(*) FROM members").await, 300);
+        let same_names = count(
+            &pool,
+            "SELECT COUNT(*) FROM (SELECT name FROM members GROUP BY name HAVING COUNT(*) > 1)",
+        )
+        .await;
+        assert_eq!(same_names, 3);
+    }
+
+    #[tokio::test]
+    async fn fills_applications_below_at_and_over_capacity() {
+        let dir = tempfile::tempdir().unwrap();
+
+        run(dir.path()).await.unwrap();
+
+        let pool = db::open(dir.path()).await.unwrap();
+        let rows: Vec<(i64, i64)> = sqlx::query_as(
+            "SELECT c.capacity, COUNT(a.id) FROM courses c
+             LEFT JOIN applications a ON a.course_id = c.id
+             GROUP BY c.id ORDER BY c.id",
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        // 스마트폰 활용 기초(정원 20)는 규칙 예외 3건이 더해져 36명
+        let expected = [
+            (20, 40),
+            (20, 22),
+            (15, 15),
+            (30, 45),
+            (12, 8),
+            (30, 30),
+            (10, 0),
+            (15, 18),
+            (12, 5),
+            (20, 36),
+            (5, 9),
+            (10, 10),
+        ];
+        assert_eq!(rows, expected);
+        assert_eq!(count(&pool, "SELECT COUNT(*) FROM rule_overrides").await, 3);
+        assert_eq!(
+            count(&pool, "SELECT COUNT(*) FROM application_deletions").await,
+            5
+        );
     }
 
     #[tokio::test]
