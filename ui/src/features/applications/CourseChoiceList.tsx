@@ -1,8 +1,9 @@
 import type { CourseResponse } from "../../api/generated/CourseResponse";
 import listStyles from "../../components/layout/listPage.module.css";
 import tableStyles from "../../components/table/table.module.css";
-import { scheduleSummary } from "../courses/courseFormData";
+import { courseName, scheduleSummary } from "../courses/courseFormData";
 import { countLabel } from "./applicationsData";
+import styles from "./ApplicationsPage.module.css";
 
 /** {@link CourseChoiceList}의 속성. */
 export interface CourseChoiceListProps {
@@ -11,13 +12,24 @@ export interface CourseChoiceListProps {
   counts: ReadonlyMap<number, number>;
   /** 강의실 이름에 건물을 붙일지. 건물이 여럿일 때만. */
   showBuilding: boolean;
+  /** 강좌를 고를 수 있는지. 회원을 고르고 신청을 받을 수 있는 역할일 때. */
+  selectable: boolean;
+  /** 고른 강좌. */
+  chosen: readonly number[];
+  /** 고른 회원이 이미 신청한 강좌. 고를 수 없다. */
+  appliedIds: ReadonlySet<number>;
+  onToggle: (id: number) => void;
 }
 
-/** 이 학기의 강좌와 신청 인원/정원. */
+/** 이 학기의 강좌와 신청 인원/정원. 맨 앞의 칸으로 신청할 강좌를 고른다. */
 export function CourseChoiceList({
   courses,
   counts,
   showBuilding,
+  selectable,
+  chosen,
+  appliedIds,
+  onToggle,
 }: CourseChoiceListProps) {
   return (
     <section className={listStyles.list} aria-label="강좌">
@@ -25,6 +37,9 @@ export function CourseChoiceList({
         <table className={tableStyles.table} aria-label="신청할 강좌">
           <thead>
             <tr>
+              <th scope="col">
+                <span className={styles.visuallyHidden}>고르기</span>
+              </th>
               <th scope="col">과목</th>
               <th scope="col">수준</th>
               <th scope="col">반</th>
@@ -36,8 +51,36 @@ export function CourseChoiceList({
           <tbody>
             {courses.map((course) => {
               const summary = scheduleSummary(course.schedules, showBuilding);
+              const applied = appliedIds.has(course.id);
+              const checked = chosen.includes(course.id);
               return (
-                <tr key={course.id}>
+                <tr
+                  key={course.id}
+                  className={
+                    selectable && !applied ? tableStyles.row : undefined
+                  }
+                  aria-current={checked ? "true" : undefined}
+                  onClick={() => {
+                    if (selectable && !applied) {
+                      onToggle(course.id);
+                    }
+                  }}
+                >
+                  <td>
+                    {applied ? (
+                      <span className={styles.muted}>신청함</span>
+                    ) : (
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={!selectable}
+                        aria-label={`${courseName(course)} 고르기`}
+                        // 줄을 누르면 고르므로 칸 자체의 누름은 줄에 맡김
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={() => onToggle(course.id)}
+                      />
+                    )}
+                  </td>
                   <td>{course.subjectName}</td>
                   <td>{course.level ?? ""}</td>
                   <td>{course.section ?? ""}</td>
