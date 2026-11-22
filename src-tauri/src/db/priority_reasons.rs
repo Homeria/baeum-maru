@@ -1,5 +1,4 @@
 //! 우선 배정 사유 저장, 목록, 고치기, 지우기 (BR-S10, BR-S11).
-#![cfg_attr(not(test), expect(dead_code, reason = "사유 API를 붙이기 전"))]
 
 use baeum_domain::{NewPriorityReason, PriorityMethod};
 use sqlx::SqlitePool;

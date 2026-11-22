@@ -37,6 +37,12 @@ pub enum ApiError {
     SubjectNotFound,
     /// BR-J2: 강좌가 쓰는 과목은 지울 수 없다.
     SubjectInUse,
+    /// BR-S10: 우선 배정 사유 이름은 겹치지 않는다.
+    DuplicatePriorityReasonName,
+    /// 주소의 id인 우선 배정 사유가 없다.
+    PriorityReasonNotFound,
+    /// BR-S10: 신청에 붙었던 사유는 지울 수 없다.
+    PriorityReasonInUse,
     /// BR-R2: 수업 시간이 쓰는 강의실은 지울 수 없다.
     RoomInUse,
     /// BR-T1: 학기 이름은 겹치지 않는다.
@@ -146,6 +152,9 @@ pub enum ErrorCode {
     DuplicateSubjectName,
     SubjectNotFound,
     SubjectInUse,
+    DuplicatePriorityReasonName,
+    PriorityReasonNotFound,
+    PriorityReasonInUse,
     RoomInUse,
     DuplicateTermName,
     TermNotFound,
@@ -277,6 +286,27 @@ impl IntoResponse for ApiError {
                 ErrorCode::SubjectInUse,
                 "강좌가 쓰는 과목은 지울 수 없습니다. 지난 학기 강좌도 이 과목을 씁니다",
                 Some("BR-J2"),
+                Vec::new(),
+            ),
+            ApiError::DuplicatePriorityReasonName => (
+                StatusCode::CONFLICT,
+                ErrorCode::DuplicatePriorityReasonName,
+                "이미 있는 사유입니다. 띄어쓰기만 달라도 같은 사유로 봅니다",
+                Some("BR-S10"),
+                Vec::new(),
+            ),
+            ApiError::PriorityReasonNotFound => (
+                StatusCode::NOT_FOUND,
+                ErrorCode::PriorityReasonNotFound,
+                "우선 배정 사유를 찾지 못했습니다. 지워졌을 수 있습니다",
+                None,
+                Vec::new(),
+            ),
+            ApiError::PriorityReasonInUse => (
+                StatusCode::CONFLICT,
+                ErrorCode::PriorityReasonInUse,
+                "신청에 붙인 적이 있는 사유는 지울 수 없습니다. 이름은 고칠 수 있습니다",
+                Some("BR-S10"),
                 Vec::new(),
             ),
             ApiError::RoomInUse => (
