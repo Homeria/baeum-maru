@@ -1,0 +1,237 @@
+//! 신청 규칙(BR-A1, BR-A2, BR-A4)과 규칙 예외(BR-A6, BR-A7) 판단.
+//!
+//! 최대 신청 개수(BR-A3)와 학기별 켜기·끄기는 아직 없다. A1, A2는 늘 켠다.
+
+use crate::course::Schedule;
+
+/// 신청을 받을 때 확인하는 규칙.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ApplicationRule {
+    /// BR-A4: 같은 회원이 같은 강좌에 유효한 신청을 두 건 가질 수 없다.
+    NoDuplicate,
+    /// BR-A1: 수업 시간이 하나라도 겹치는 강좌는 함께 신청할 수 없다.
+    NoTimeOverlap,
+    /// BR-A2: 같은 학기에 같은 과목은 하나만 신청할 수 있다.
+    NoSameSubject,
+}
+
+impl ApplicationRule {
+    /// 직원이 사유를 적으면 이 규칙을 어긴 신청도 받을 수 있는지(BR-A6).
+    /// BR-A4는 예외를 줄 수 없다(BR-A7).
+    pub fn can_override(self) -> bool {
+        !matches!(self, ApplicationRule::NoDuplicate)
+    }
+}
+
+/// 규칙을 판단하는 데 필요한 강좌 정보.
+#[derive(Debug, Clone, Copy)]
+pub struct CourseForRules<'a> {
+    /// 강좌 DB id.
+    pub course_id: i64,
+    /// 과목 DB id.
+    pub subject_id: i64,
+    /// 수업 시간. 주 2회 강좌는 두 줄이다.
+    pub schedules: &'a [Schedule],
+}
+
+/// 신청하려는 강좌가 어긴 규칙 하나.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RuleViolation {
+    /// 신청하려는 강좌.
+    pub course_id: i64,
+    /// 어긴 규칙.
+    pub rule: ApplicationRule,
+    /// 부딪힌 강좌. 이미 신청한 강좌이거나 이번에 함께 고른 강좌다.
+    pub other_course_id: i64,
+}
+
+/// 회원이 이미 유효한 신청을 낸 강좌 `applied`에 더해 `chosen` 강좌들을 신청할 때
+/// 어기는 규칙을 모두 찾는다. 하나도 없으면 빈 목록이다.
+///
+/// - 고른 강좌마다 이미 신청한 강좌, 그다음 앞서 고른 강좌와 비교한다. 이번에 고른
+///   강좌끼리 부딪히면 뒤에 고른 강좌에 붙인다.
+/// - 같은 강좌면 BR-A4만 알린다. 같은 강좌는 시간도 과목도 같아서 다른 규칙은 덧붙이지 않는다.
+///
+/// # Examples
+///
+/// ```
+/// use baeum_domain::{ApplicationRule, ClassTime, CourseForRules, Schedule, check_application};
+/// use time::Weekday;
+///
+/// let time = |text| ClassTime::parse(text).unwrap();
+/// let monday = [Schedule::new(Weekday::Monday, time("10:00"), time("11:00"), None).unwrap()];
+/// let yoga = CourseForRules { course_id: 1, subject_id: 10, schedules: &monday };
+/// let hangul = CourseForRules { course_id: 2, subject_id: 20, schedules: &monday };
+///
+/// let violations = check_application(&[yoga], &[hangul]);
+///
+/// assert_eq!(violations.len(), 1);
+/// assert_eq!(violations[0].rule, ApplicationRule::NoTimeOverlap);
+/// assert_eq!(violations[0].other_course_id, 1);
+/// ```
+pub fn check_application(
+    applied: &[CourseForRules<'_>],
+    chosen: &[CourseForRules<'_>],
+) -> Vec<RuleViolation> {
+    let mut violations = Vec::new();
+    for (index, course) in chosen.iter().enumerate() {
+        for other in applied.iter().chain(&chosen[..index]) {
+            for rule in broken_rules(course, other) {
+                violations.push(RuleViolation {
+                    course_id: course.course_id,
+                    rule,
+                    other_course_id: other.course_id,
+                });
+            }
+        }
+    }
+    violations
+}
+
+/// 두 강좌를 함께 신청할 때 어기는 규칙.
+fn broken_rules(course: &CourseForRules<'_>, other: &CourseForRules<'_>) -> Vec<ApplicationRule> {
+    if course.course_id == other.course_id {
+        return vec![ApplicationRule::NoDuplicate];
+    }
+    let mut rules = Vec::new();
+    let overlaps = course
+        .schedules
+        .iter()
+        .any(|schedule| other.schedules.iter().any(|o| schedule.overlaps(*o)));
+    if overlaps {
+        rules.push(ApplicationRule::NoTimeOverlap);
+    }
+    if course.subject_id == other.subject_id {
+        rules.push(ApplicationRule::NoSameSubject);
+    }
+    rules
+}
+
+#[cfg(test)]
+mod tests {
+    use time::Weekday;
+
+    use super::*;
+    use crate::course::ClassTime;
+
+    fn schedule(weekday: Weekday, start: &str, end: &str) -> Schedule {
+        let time = |text| ClassTime::parse(text).unwrap();
+        Schedule::new(weekday, time(start), time(end), None).unwrap()
+    }
+
+    fn course(course_id: i64, subject_id: i64, schedules: &[Schedule]) -> CourseForRules<'_> {
+        CourseForRules {
+            course_id,
+            subject_id,
+            schedules,
+        }
+    }
+
+    fn violation(course_id: i64, rule: ApplicationRule, other_course_id: i64) -> RuleViolation {
+        RuleViolation {
+            course_id,
+            rule,
+            other_course_id,
+        }
+    }
+
+    #[test]
+    fn different_time_and_subject_breaks_nothing() {
+        let monday = [schedule(Weekday::Monday, "10:00", "11:00")];
+        let tuesday = [schedule(Weekday::Tuesday, "10:00", "11:00")];
+
+        let violations = check_application(&[course(1, 10, &monday)], &[course(2, 20, &tuesday)]);
+
+        assert_eq!(violations, []);
+    }
+
+    #[test]
+    fn br_a4_same_course_again_is_only_duplicate() {
+        let monday = [schedule(Weekday::Monday, "10:00", "11:00")];
+        let yoga = course(1, 10, &monday);
+
+        assert_eq!(
+            check_application(&[yoga], &[yoga]),
+            [violation(1, ApplicationRule::NoDuplicate, 1)]
+        );
+    }
+
+    #[test]
+    fn br_a4_same_course_chosen_twice_is_duplicate() {
+        let monday = [schedule(Weekday::Monday, "10:00", "11:00")];
+        let yoga = course(1, 10, &monday);
+
+        assert_eq!(
+            check_application(&[], &[yoga, yoga]),
+            [violation(1, ApplicationRule::NoDuplicate, 1)]
+        );
+    }
+
+    #[test]
+    fn br_a1_compares_every_schedule_of_twice_weekly_course() {
+        let mon_wed = [
+            schedule(Weekday::Monday, "10:00", "11:00"),
+            schedule(Weekday::Wednesday, "10:00", "11:00"),
+        ];
+        let wednesday = [schedule(Weekday::Wednesday, "10:30", "12:00")];
+
+        assert_eq!(
+            check_application(&[course(1, 10, &mon_wed)], &[course(2, 20, &wednesday)]),
+            [violation(2, ApplicationRule::NoTimeOverlap, 1)]
+        );
+    }
+
+    #[test]
+    fn br_a1_back_to_back_courses_do_not_overlap() {
+        let first = [schedule(Weekday::Monday, "10:00", "11:00")];
+        let next = [schedule(Weekday::Monday, "11:00", "12:00")];
+
+        assert_eq!(
+            check_application(&[course(1, 10, &first)], &[course(2, 20, &next)]),
+            []
+        );
+    }
+
+    #[test]
+    fn br_a2_same_subject_at_different_level_is_broken() {
+        let monday = [schedule(Weekday::Monday, "10:00", "11:00")];
+        let tuesday = [schedule(Weekday::Tuesday, "10:00", "11:00")];
+
+        assert_eq!(
+            check_application(&[course(1, 10, &monday)], &[course(2, 10, &tuesday)]),
+            [violation(2, ApplicationRule::NoSameSubject, 1)]
+        );
+    }
+
+    #[test]
+    fn reports_every_broken_rule_and_every_other_course() {
+        let monday = [schedule(Weekday::Monday, "10:00", "11:00")];
+        let applied = [course(1, 10, &monday), course(2, 20, &monday)];
+
+        assert_eq!(
+            check_application(&applied, &[course(3, 10, &monday)]),
+            [
+                violation(3, ApplicationRule::NoTimeOverlap, 1),
+                violation(3, ApplicationRule::NoSameSubject, 1),
+                violation(3, ApplicationRule::NoTimeOverlap, 2),
+            ]
+        );
+    }
+
+    #[test]
+    fn chosen_courses_are_compared_with_each_other() {
+        let monday = [schedule(Weekday::Monday, "10:00", "11:00")];
+
+        assert_eq!(
+            check_application(&[], &[course(1, 10, &monday), course(2, 20, &monday)]),
+            [violation(2, ApplicationRule::NoTimeOverlap, 1)]
+        );
+    }
+
+    #[test]
+    fn br_a7_only_duplicate_cannot_be_overridden() {
+        assert!(!ApplicationRule::NoDuplicate.can_override());
+        assert!(ApplicationRule::NoTimeOverlap.can_override());
+        assert!(ApplicationRule::NoSameSubject.can_override());
+    }
+}
