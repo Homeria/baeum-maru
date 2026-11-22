@@ -3,8 +3,6 @@
 //! 바꿀 때마다 선발 결과 변경 기록을 남긴다(BR-W7). 누가 할 수 있는지는 서버가 확인한다.
 //! 읽고 확인한 뒤 쓰므로 모두 `BEGIN IMMEDIATE`로 한다 (ADR 0005).
 
-#![cfg_attr(not(test), expect(dead_code, reason = "선발 결과 API를 붙이기 전"))]
-
 use baeum_domain::{Capacity, ContactResult, WithdrawnFrom, open_seats};
 use sqlx::{SqliteConnection, SqlitePool};
 use time::OffsetDateTime;

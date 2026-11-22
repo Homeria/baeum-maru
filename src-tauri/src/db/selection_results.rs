@@ -3,8 +3,6 @@
 //! 대기 순번은 추첨 기록의 순서에서 계산한다(BR-W6). 연락할 차례도 저장하지 않고 그때그때
 //! 정한다(BR-W1).
 
-#![cfg_attr(not(test), expect(dead_code, reason = "선발 결과 API를 붙이기 전"))]
-
 use baeum_domain::{
     Capacity, ContactResult, Personal, Waiting, WithdrawnFrom, contact_turns, open_seats,
 };

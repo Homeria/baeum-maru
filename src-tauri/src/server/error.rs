@@ -63,6 +63,12 @@ pub enum ApiError {
     SelectionClosed,
     /// 추첨 전에는 마감할 수 없다.
     NotDrawn,
+    /// BR-C3: 포기와 승격은 선발 마감 뒤에만 한다.
+    SelectionNotClosed,
+    /// 신청이 지금 상태라 할 수 없다. 예: 대기자가 아닌 신청에 연락 결과
+    SelectionChangeNotAllowed,
+    /// BR-W3, BR-W8: 빈자리가 없어 당첨으로 바꿀 수 없다.
+    NoOpenSeat,
     /// 접수됨 신청이 없어 추첨할 수 없다.
     NoApplicants,
     /// BR-S5: 자리 보장 신청이 정원보다 많아 추첨할 수 없다.
@@ -167,6 +173,9 @@ pub enum ErrorCode {
     CourseDrawn,
     SelectionClosed,
     NotDrawn,
+    SelectionNotClosed,
+    SelectionChangeNotAllowed,
+    NoOpenSeat,
     NoApplicants,
     PriorityOverCapacity,
     HostOnly,
@@ -380,6 +389,27 @@ impl IntoResponse for ApiError {
                 ErrorCode::NotDrawn,
                 "추첨하지 않은 강좌는 마감할 수 없습니다",
                 None,
+                Vec::new(),
+            ),
+            ApiError::SelectionNotClosed => (
+                StatusCode::CONFLICT,
+                ErrorCode::SelectionNotClosed,
+                "선발을 마감한 강좌만 포기와 승격을 처리합니다. 추첨 탭에서 먼저 마감해 주세요",
+                Some("BR-C3"),
+                Vec::new(),
+            ),
+            ApiError::SelectionChangeNotAllowed => (
+                StatusCode::CONFLICT,
+                ErrorCode::SelectionChangeNotAllowed,
+                "신청 상태가 바뀌어 할 수 없습니다. 화면을 새로 고쳐 주세요",
+                None,
+                Vec::new(),
+            ),
+            ApiError::NoOpenSeat => (
+                StatusCode::CONFLICT,
+                ErrorCode::NoOpenSeat,
+                "빈자리가 없어 당첨으로 바꿀 수 없습니다",
+                Some("BR-W3"),
                 Vec::new(),
             ),
             ApiError::NoApplicants => (
