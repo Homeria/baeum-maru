@@ -128,8 +128,8 @@ pub async fn open(dir: &Path) -> Result<SqlitePool, DbError> {
 #[cfg(test)]
 mod tests {
     use super::test_support::{
-        NOW, insert_application, insert_course, insert_deletion, insert_member, insert_room,
-        insert_schedule, insert_staff, insert_subject, insert_term,
+        NOW, insert_application, insert_course, insert_deletion, insert_lottery_run, insert_member,
+        insert_room, insert_schedule, insert_staff, insert_subject, insert_term,
     };
     use time::macros::datetime;
 
@@ -841,5 +841,152 @@ mod tests {
 
         assert!(is_foreign_key_violation(&member), "{member}");
         assert!(is_foreign_key_violation(&course), "{course}");
+    }
+
+    #[tokio::test]
+    async fn br_l1_seed_must_be_16_lowercase_hex_digits() {
+        let (_dir, pool, _member_id, course_id, staff_id) = with_member_course_staff().await;
+        let insert = |seed: &'static str| {
+            sqlx::query(
+                "INSERT INTO lottery_runs (course_id, run_by, run_at, seed, version, capacity)
+                 VALUES (?, ?, ?, ?, 1, 20)",
+            )
+            .bind(course_id)
+            .bind(staff_id)
+            .bind(NOW)
+            .bind(seed)
+            .execute(&pool)
+        };
+
+        assert!(insert("0123456789ABCDEF").await.is_err());
+        assert!(insert("0123456789abcde").await.is_err());
+        assert!(insert("0123456789abcdeg").await.is_err());
+        insert("0123456789abcdef").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn br_l4_only_one_active_lottery_run_per_course() {
+        let (_dir, pool, _member_id, course_id, staff_id) = with_member_course_staff().await;
+        let first = insert_lottery_run(&pool, course_id, staff_id)
+            .await
+            .unwrap();
+
+        let error = insert_lottery_run(&pool, course_id, staff_id)
+            .await
+            .unwrap_err();
+        assert!(is_unique_violation(&error), "{error}");
+
+        sqlx::query("UPDATE lottery_runs SET cancelled_by = ?, cancelled_at = ? WHERE id = ?")
+            .bind(staff_id)
+            .bind(NOW)
+            .bind(first)
+            .execute(&pool)
+            .await
+            .unwrap();
+        insert_lottery_run(&pool, course_id, staff_id)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn br_l4_lottery_run_can_only_be_cancelled_once() {
+        let (_dir, pool, _member_id, course_id, staff_id) = with_member_course_staff().await;
+        let run_id = insert_lottery_run(&pool, course_id, staff_id)
+            .await
+            .unwrap();
+        let run = |sql: &'static str| sqlx::query(sql).bind(run_id).execute(&pool);
+
+        assert!(
+            run("UPDATE lottery_runs SET seed = 'ffffffffffffffff' WHERE id = ?")
+                .await
+                .is_err()
+        );
+        assert!(
+            run("UPDATE lottery_runs SET cancelled_at = run_at WHERE id = ?")
+                .await
+                .is_err()
+        );
+        assert!(run("DELETE FROM lottery_runs WHERE id = ?").await.is_err());
+
+        sqlx::query(
+            "UPDATE lottery_runs SET cancelled_by = run_by, cancelled_at = run_at WHERE id = ?",
+        )
+        .bind(run_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+        assert!(
+            run("UPDATE lottery_runs SET cancelled_at = 'x' WHERE id = ?")
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn br_l1_lottery_entries_keep_order_and_cannot_change() {
+        let (_dir, pool, member_id, course_id, staff_id) = with_member_course_staff().await;
+        let application_id = insert_application(&pool, member_id, course_id, "selected", staff_id)
+            .await
+            .unwrap();
+        let run_id = insert_lottery_run(&pool, course_id, staff_id)
+            .await
+            .unwrap();
+        let insert = |position: i64| {
+            sqlx::query(
+                "INSERT INTO lottery_entries (lottery_run_id, application_id, position)
+                 VALUES (?, ?, ?)",
+            )
+            .bind(run_id)
+            .bind(application_id)
+            .bind(position)
+            .execute(&pool)
+        };
+
+        assert!(insert(0).await.is_err());
+        insert(1).await.unwrap();
+        // 같은 신청을 두 번 넣을 수 없음
+        assert!(insert(2).await.is_err());
+
+        let update = sqlx::query("UPDATE lottery_entries SET position = 2")
+            .execute(&pool)
+            .await;
+        let delete = sqlx::query("DELETE FROM lottery_entries")
+            .execute(&pool)
+            .await;
+        let application = sqlx::query("DELETE FROM applications WHERE id = ?")
+            .bind(application_id)
+            .execute(&pool)
+            .await
+            .unwrap_err();
+
+        assert!(update.is_err());
+        assert!(delete.is_err());
+        assert!(is_foreign_key_violation(&application), "{application}");
+    }
+
+    #[tokio::test]
+    async fn br_l5_selection_closure_is_once_and_permanent() {
+        let (_dir, pool, _member_id, course_id, staff_id) = with_member_course_staff().await;
+        let close = || {
+            sqlx::query(
+                "INSERT INTO selection_closures (course_id, closed_by, closed_at) VALUES (?, ?, ?)",
+            )
+            .bind(course_id)
+            .bind(staff_id)
+            .bind(NOW)
+            .execute(&pool)
+        };
+
+        close().await.unwrap();
+        assert!(close().await.is_err());
+
+        let update = sqlx::query("UPDATE selection_closures SET closed_at = 'x'")
+            .execute(&pool)
+            .await;
+        let delete = sqlx::query("DELETE FROM selection_closures")
+            .execute(&pool)
+            .await;
+        assert!(update.is_err());
+        assert!(delete.is_err());
     }
 }
