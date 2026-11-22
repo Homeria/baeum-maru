@@ -89,6 +89,7 @@ pub async fn submit_applications(
         course_ids: &request.course_ids,
         override_reason: reason.as_ref().map(Reason::as_str),
         staff_id: staff.id,
+        priorities: &[],
     };
     let ids = applications::submit(&db, new, OffsetDateTime::now_utc()).await?;
     tracing::info!(
@@ -163,6 +164,11 @@ impl From<SubmitError> for ApiError {
             SubmitError::MemberNotFound => ApiError::MemberNotFound,
             SubmitError::CourseNotFound(_) => ApiError::CourseNotFound,
             SubmitError::CourseDrawn(_) => ApiError::CourseDrawn,
+            // 화면은 목록에서 고른 사유만 보낸다. 그 사이 지워졌을 때만 온다
+            error @ (SubmitError::PriorityForUnchosenCourse(_)
+            | SubmitError::PriorityReasonNotFound(_)) => {
+                field_error("priorities", error.to_string())
+            }
             SubmitError::RulesBroken(violations) => ApiError::RulesBroken(
                 violations
                     .into_iter()

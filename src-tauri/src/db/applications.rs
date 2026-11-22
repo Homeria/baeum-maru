@@ -1,6 +1,6 @@
 //! 신청 저장(규칙 확인과 규칙 예외), 목록, 지우기(삭제 기록).
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use baeum_domain::{
     ApplicationRule, ClassTime, CourseForRules, RuleViolation, Schedule, check_application,
@@ -9,6 +9,7 @@ use baeum_domain::{
 use sqlx::{SqliteConnection, SqlitePool};
 use time::OffsetDateTime;
 
+use super::application_priorities::{self, ChangeTarget};
 use super::timestamp_text;
 
 /// 유효한 신청의 상태(BR-A 머리말). 탈락·포기는 규칙 계산과 인원에서 빠진다.
@@ -29,6 +30,16 @@ pub struct NewApplications<'a> {
     pub override_reason: Option<&'a str>,
     /// 접수한 직원.
     pub staff_id: i64,
+    /// 강좌마다 붙일 우선 배정 사유(BR-S12). 없는 강좌는 빼도 된다.
+    pub priorities: &'a [CoursePriorities<'a>],
+}
+
+/// 고른 강좌 하나에 붙일 우선 배정 사유들.
+#[derive(Debug, Clone, Copy)]
+pub struct CoursePriorities<'a> {
+    /// [`NewApplications::course_ids`]에 있는 강좌.
+    pub course_id: i64,
+    pub reason_ids: &'a [i64],
 }
 
 /// 신청을 저장하지 못했다.
@@ -42,6 +53,12 @@ pub enum SubmitError {
     /// BR-L3: 추첨한 강좌는 새 신청을 받지 않는다. 고른 강좌 가운데 추첨한 강좌들.
     #[error("추첨한 강좌는 새 신청을 받지 않습니다")]
     CourseDrawn(Vec<i64>),
+    /// 우선 배정 사유를 고르지 않은 강좌에 붙였다.
+    #[error("고르지 않은 강좌에 우선 배정을 붙였습니다")]
+    PriorityForUnchosenCourse(Vec<i64>),
+    /// 목록에 없는 우선 배정 사유. 그 사이 지워졌을 수 있다.
+    #[error("목록에 없는 우선 배정 사유를 골랐습니다")]
+    PriorityReasonNotFound(Vec<i64>),
     /// BR-A5: 규칙을 어겼다. 사유가 있어도 예외를 줄 수 없는 규칙(BR-A7)이면 여기로 온다.
     #[error("신청 규칙을 어겼습니다")]
     RulesBroken(Vec<RuleViolation>),
@@ -57,6 +74,8 @@ pub struct ApplicationRecord {
     pub submitted_at: OffsetDateTime,
     /// 예외를 받은 규칙. 규칙 순서.
     pub overridden_rules: Vec<ApplicationRule>,
+    /// 붙은 우선 배정 사유(BR-S12). id 순서.
+    pub priority_reason_ids: Vec<i64>,
 }
 
 /// 강좌 하나의 유효한 신청 인원.
@@ -117,6 +136,25 @@ pub async fn submit(
     if !drawn.is_empty() {
         return Err(SubmitError::CourseDrawn(drawn));
     }
+    let unchosen: Vec<i64> = new
+        .priorities
+        .iter()
+        .map(|priority| priority.course_id)
+        .filter(|id| !new.course_ids.contains(id))
+        .collect();
+    if !unchosen.is_empty() {
+        return Err(SubmitError::PriorityForUnchosenCourse(unchosen));
+    }
+    let reason_ids: BTreeSet<i64> = new
+        .priorities
+        .iter()
+        .flat_map(|priority| priority.reason_ids.iter().copied())
+        .collect();
+    let missing = application_priorities::missing_reasons(&mut tx, &reason_ids).await?;
+    if !missing.is_empty() {
+        return Err(SubmitError::PriorityReasonNotFound(missing));
+    }
+
     let applied_ids = applied_course_ids(&mut tx, new.term_id, new.member_id).await?;
     // 고른 강좌는 위에서, 신청한 강좌는 같은 학기 강좌라서 `courses`에 반드시 있다
     let for_rules = |id: &i64| courses[id].for_rules(*id);
@@ -166,6 +204,23 @@ pub async fn submit(
                 .await?;
             }
         }
+        let target = ChangeTarget {
+            application_id: id,
+            member_id: new.member_id,
+            course_id,
+            staff_id: new.staff_id,
+            now: &now,
+        };
+        // 같은 사유가 두 번 와도 한 번만 붙인다
+        let reasons: BTreeSet<i64> = new
+            .priorities
+            .iter()
+            .filter(|priority| priority.course_id == course_id)
+            .flat_map(|priority| priority.reason_ids.iter().copied())
+            .collect();
+        for reason_id in reasons {
+            application_priorities::attach(&mut tx, &target, reason_id).await?;
+        }
         ids.push(id);
     }
 
@@ -203,6 +258,27 @@ pub async fn list_for_member(
     .fetch_all(pool)
     .await?;
 
+    let priorities: Vec<(i64, i64)> = sqlx::query_as(concat!(
+        "SELECT p.application_id, p.reason_id
+         FROM application_priorities p
+         JOIN applications a ON a.id = p.application_id
+         JOIN courses c ON c.id = a.course_id
+         WHERE c.term_id = ? AND a.member_id = ? AND a.status IN ",
+        valid_statuses!(),
+        " ORDER BY p.reason_id"
+    ))
+    .bind(term_id)
+    .bind(member_id)
+    .fetch_all(pool)
+    .await?;
+    let mut reasons_by_application: HashMap<i64, Vec<i64>> = HashMap::new();
+    for (application_id, reason_id) in priorities {
+        reasons_by_application
+            .entry(application_id)
+            .or_default()
+            .push(reason_id);
+    }
+
     let mut by_application: HashMap<i64, Vec<ApplicationRule>> = HashMap::new();
     for row in overrides {
         let rule = ApplicationRule::from_code(&row.rule)
@@ -222,6 +298,7 @@ pub async fn list_for_member(
                 course_id: row.course_id,
                 submitted_at: row.submitted_at,
                 overridden_rules,
+                priority_reason_ids: reasons_by_application.remove(&row.id).unwrap_or_default(),
             }
         })
         .collect())
@@ -488,6 +565,7 @@ mod tests {
                 course_ids,
                 override_reason: reason,
                 staff_id: self.staff_id,
+                priorities: &[],
             }
         }
 

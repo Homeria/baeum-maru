@@ -109,6 +109,7 @@ async fn submit(
             course_ids: &basics.course_ids[course..=course],
             override_reason,
             staff_id: basics.admin_id,
+            priorities: &[],
         },
         now,
     )

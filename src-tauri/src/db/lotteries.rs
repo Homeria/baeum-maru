@@ -178,22 +178,7 @@ pub async fn run(
     let capacity = course.capacity()?;
     let now = timestamp_text(now);
 
-    if let Some(previous) = active_run(&mut tx, course_id).await? {
-        sqlx::query("UPDATE lottery_runs SET cancelled_by = ?, cancelled_at = ? WHERE id = ?")
-            .bind(staff_id)
-            .bind(&now)
-            .bind(previous.id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query(
-            "UPDATE applications SET status = 'submitted'
-             WHERE status IN ('selected', 'waitlisted')
-               AND id IN (SELECT application_id FROM lottery_entries WHERE lottery_run_id = ?)",
-        )
-        .bind(previous.id)
-        .execute(&mut *tx)
-        .await?;
-    }
+    cancel_active_run(&mut tx, course_id, staff_id, &now).await?;
 
     let application_ids: Vec<i64> = sqlx::query_scalar(
         "SELECT id FROM applications WHERE course_id = ? AND status = 'submitted'",
@@ -342,6 +327,39 @@ impl RunRow {
 }
 
 /// 강좌의 취소되지 않은 추첨 기록. 없으면 `None`.
+/// 강좌의 취소되지 않은 추첨 기록에 취소 표시를 하고, 그 추첨으로 당첨·대기가 된 신청을
+/// 접수됨으로 되돌린다(BR-L4, BR-S13). 취소할 기록이 있었으면 `true`.
+///
+/// `now`는 [`timestamp_text`] 글자. 부르는 쪽이 `BEGIN IMMEDIATE` 트랜잭션 안에서 부른다.
+pub(super) async fn cancel_active_run(
+    conn: &mut SqliteConnection,
+    course_id: i64,
+    staff_id: i64,
+    now: &str,
+) -> Result<bool, sqlx::Error> {
+    let Some(run) = active_run(conn, course_id).await? else {
+        return Ok(false);
+    };
+    sqlx::query("UPDATE lottery_runs SET cancelled_by = ?, cancelled_at = ? WHERE id = ?")
+        .bind(staff_id)
+        .bind(now)
+        .bind(run.id)
+        .execute(&mut *conn)
+        .await?;
+    sqlx::query(
+        "UPDATE applications SET status = 'submitted'
+         WHERE status IN ('selected', 'waitlisted')
+           AND id IN (SELECT application_id FROM lottery_entries WHERE lottery_run_id = ?1
+                      UNION
+                      SELECT application_id FROM lottery_guaranteed_entries
+                      WHERE lottery_run_id = ?1)",
+    )
+    .bind(run.id)
+    .execute(&mut *conn)
+    .await?;
+    Ok(true)
+}
+
 async fn active_run(
     conn: &mut SqliteConnection,
     course_id: i64,
