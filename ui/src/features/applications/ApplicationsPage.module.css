@@ -110,3 +110,14 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+.deleteButton {
+  margin-left: auto;
+}
+
+.deleteReason {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
