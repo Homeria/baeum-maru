@@ -136,7 +136,7 @@ pub async fn delete_application(
 }
 
 /// 학기가 있어야 한다.
-async fn require_term(db: &SqlitePool, term_id: i64) -> Result<(), ApiError> {
+pub(super) async fn require_term(db: &SqlitePool, term_id: i64) -> Result<(), ApiError> {
     terms::get(db, term_id)
         .await
         .map_err(ApiError::internal)?

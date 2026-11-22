@@ -3,9 +3,6 @@
 //! 시드는 부른 쪽이 만들어 넘긴다(ADR 0016). 호스트 PC에서만 부르는지(BR-L6)와 역할은
 //! 서버가 확인한다.
 
-// 서버 API는 다음 커밋에서 붙인다
-#![cfg_attr(not(test), expect(dead_code, reason = "추첨 API를 붙이기 전"))]
-
 use baeum_domain::{Capacity, LotterySeed, LotteryVersion, Personal, draw_lottery};
 use sqlx::{SqliteConnection, SqlitePool};
 use time::OffsetDateTime;

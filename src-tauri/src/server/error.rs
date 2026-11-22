@@ -53,6 +53,14 @@ pub enum ApiError {
     CourseInUse,
     /// BR-L3: 추첨한 강좌는 새 신청을 받지 않는다.
     CourseDrawn,
+    /// BR-L5: 선발을 마감한 강좌는 다시 추첨하거나 마감할 수 없다.
+    SelectionClosed,
+    /// 추첨 전에는 마감할 수 없다.
+    NotDrawn,
+    /// 접수됨 신청이 없어 추첨할 수 없다.
+    NoApplicants,
+    /// BR-L6: 호스트 PC에서만 하는 일이다.
+    HostOnly,
     /// BR-A5: 신청 규칙을 어겼다. 어긴 규칙을 모두 담는다.
     RulesBroken(Vec<RuleViolationResponse>),
     /// 주소의 id인 신청이 없다.
@@ -144,6 +152,10 @@ pub enum ErrorCode {
     CourseNotFound,
     CourseInUse,
     CourseDrawn,
+    SelectionClosed,
+    NotDrawn,
+    NoApplicants,
+    HostOnly,
     RulesBroken,
     ApplicationNotFound,
     ApplicationNotDeletable,
@@ -318,6 +330,34 @@ impl IntoResponse for ApiError {
                 ErrorCode::CourseDrawn,
                 "추첨한 강좌는 새 신청을 받지 않습니다. 고른 강좌에서 빼 주세요",
                 Some("BR-L3"),
+                Vec::new(),
+            ),
+            ApiError::SelectionClosed => (
+                StatusCode::CONFLICT,
+                ErrorCode::SelectionClosed,
+                "선발을 마감한 강좌입니다. 다시 추첨할 수 없습니다",
+                Some("BR-L5"),
+                Vec::new(),
+            ),
+            ApiError::NotDrawn => (
+                StatusCode::CONFLICT,
+                ErrorCode::NotDrawn,
+                "추첨하지 않은 강좌는 마감할 수 없습니다",
+                None,
+                Vec::new(),
+            ),
+            ApiError::NoApplicants => (
+                StatusCode::CONFLICT,
+                ErrorCode::NoApplicants,
+                "추첨할 신청이 없습니다",
+                None,
+                Vec::new(),
+            ),
+            ApiError::HostOnly => (
+                StatusCode::FORBIDDEN,
+                ErrorCode::HostOnly,
+                "추첨과 선발 마감은 호스트 PC에서만 합니다",
+                Some("BR-L6"),
                 Vec::new(),
             ),
             ApiError::RulesBroken(_) => (

@@ -6,10 +6,14 @@
 //! [`app`]과 [`app_as`]의 라우터는 로그인한 직원의 세션 증표를 요청마다 붙인다.
 //! 요청에 `Authorization` 머리글이 이미 있으면 그것을 쓴다.
 
-use axum::Router;
+use std::net::{Ipv4Addr, SocketAddr};
+
 use axum::body::Body;
+use axum::extract::ConnectInfo;
+use axum::extract::connect_info::MockConnectInfo;
 use axum::http::request::Builder;
 use axum::http::{HeaderValue, Request, Response, StatusCode, header};
+use axum::{Extension, Router};
 
 use serde_json::{Value, json};
 use sqlx::SqlitePool;
@@ -50,13 +54,27 @@ pub async fn app_as(role: &str) -> (tempfile::TempDir, SqlitePool, Router) {
 }
 
 /// 직원이 하나도 없는 새 DB로 라우터를 만든다. 로그인하지 않은 상태다.
+///
+/// 요청은 호스트 PC 자신(127.0.0.1)에서 온 것으로 본다. 다른 PC는 [`from_other_pc`].
 pub async fn app_without_staff() -> (tempfile::TempDir, SqlitePool, Router) {
     let (dir, db) = crate::db::open_temp().await;
     let router = router(AppState::new(
         crate::version::CURRENT.parse().unwrap(),
         db.clone(),
-    ));
+    ))
+    .layer(MockConnectInfo(SocketAddr::from((
+        Ipv4Addr::LOCALHOST,
+        50000,
+    ))));
     (dir, db, router)
+}
+
+/// 요청이 같은 네트워크의 다른 PC에서 온 것으로 바꾼다.
+///
+/// 진짜 연결 주소(`ConnectInfo`)를 넣으면 [`MockConnectInfo`]보다 먼저 쓰인다.
+pub fn from_other_pc(router: Router) -> Router {
+    let other_pc = SocketAddr::from((Ipv4Addr::new(192, 168, 0, 20), 50000));
+    router.layer(Extension(ConnectInfo(other_pc)))
 }
 
 pub async fn get(router: Router, uri: &str) -> Response<Body> {

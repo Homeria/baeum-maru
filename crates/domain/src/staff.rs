@@ -85,6 +85,8 @@ pub enum Action {
     TakeApplications,
     /// 신청 규칙을 어긴 신청을 사유를 적고 받기(BR-A6).
     OverrideRules,
+    /// 추첨·재추첨·선발 마감(BR-L4, BR-L5). 호스트 PC에서만 한다(BR-L6)는 앱이 따로 확인한다.
+    RunLottery,
     /// 직원 계정 관리.
     ManageStaff,
     /// 접속 기록 보기.
@@ -365,6 +367,7 @@ mod tests {
             EditReferenceData,
             TakeApplications,
             OverrideRules,
+            RunLottery,
             ManageStaff,
             ViewAccessLog,
         ];
@@ -382,7 +385,8 @@ mod tests {
                 EditCourses,
                 EditReferenceData,
                 TakeApplications,
-                OverrideRules
+                OverrideRules,
+                RunLottery
             ]
         );
         assert_eq!(
