@@ -25,7 +25,9 @@ export type Action =
   | "editReferenceData"
   | "takeApplications"
   | "overrideRules"
+  | "assignPriority"
   | "runLottery"
+  | "managePriorityReasons"
   | "manageStaff"
   | "viewAccessLog";
 
@@ -39,7 +41,11 @@ export function can(role: RoleCode, action: Action): boolean {
     case "admin":
       return true;
     case "staff":
-      return action !== "manageStaff" && action !== "viewAccessLog";
+      return (
+        action !== "managePriorityReasons" &&
+        action !== "manageStaff" &&
+        action !== "viewAccessLog"
+      );
     case "temp_staff":
       return (
         action === "view" ||
