@@ -16,6 +16,29 @@ pub enum ApplicationRule {
 }
 
 impl ApplicationRule {
+    /// 모든 규칙.
+    pub const ALL: [ApplicationRule; 3] = [
+        ApplicationRule::NoDuplicate,
+        ApplicationRule::NoTimeOverlap,
+        ApplicationRule::NoSameSubject,
+    ];
+
+    /// DB와 API에서 쓰는 이름.
+    pub fn code(self) -> &'static str {
+        match self {
+            ApplicationRule::NoDuplicate => "no_duplicate",
+            ApplicationRule::NoTimeOverlap => "no_time_overlap",
+            ApplicationRule::NoSameSubject => "no_same_subject",
+        }
+    }
+
+    /// [`ApplicationRule::code`]의 이름에서 규칙을 찾는다. 모르는 이름이면 `None`.
+    pub fn from_code(code: &str) -> Option<Self> {
+        ApplicationRule::ALL
+            .into_iter()
+            .find(|rule| rule.code() == code)
+    }
+
     /// 직원이 사유를 적으면 이 규칙을 어긴 신청도 받을 수 있는지(BR-A6).
     /// BR-A4는 예외를 줄 수 없다(BR-A7).
     pub fn can_override(self) -> bool {
@@ -226,6 +249,14 @@ mod tests {
             check_application(&[], &[course(1, 10, &monday), course(2, 20, &monday)]),
             [violation(2, ApplicationRule::NoTimeOverlap, 1)]
         );
+    }
+
+    #[test]
+    fn rule_code_round_trips() {
+        for rule in ApplicationRule::ALL {
+            assert_eq!(ApplicationRule::from_code(rule.code()), Some(rule));
+        }
+        assert_eq!(ApplicationRule::from_code("unknown"), None);
     }
 
     #[test]
