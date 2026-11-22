@@ -9,6 +9,20 @@ use sqlx::SqlitePool;
 /// 만든 시각·고친 시각 칸에 넣는 값.
 pub const NOW: &str = "2026-11-15T00:00:00.000Z";
 
+/// 이름과 연락처는 지어낸 값이다.
+pub async fn insert_member(pool: &SqlitePool, member_no: &str) -> Result<i64, sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO members (member_no, name, phone_number, created_at, updated_at)
+         VALUES (?, '회원1', '01000000001', ?, ?)",
+    )
+    .bind(member_no)
+    .bind(NOW)
+    .bind(NOW)
+    .execute(pool)
+    .await
+    .map(|result| result.last_insert_rowid())
+}
+
 pub async fn insert_room(
     pool: &SqlitePool,
     building: Option<&str>,
@@ -132,6 +146,48 @@ pub async fn insert_staff(
     .bind(role)
     .bind(valid_until)
     .bind(NOW)
+    .bind(NOW)
+    .execute(pool)
+    .await
+    .map(|result| result.last_insert_rowid())
+}
+
+/// 상태는 `submitted` 같은 DB 글자.
+pub async fn insert_application(
+    pool: &SqlitePool,
+    member_id: i64,
+    course_id: i64,
+    status: &str,
+    staff_id: i64,
+) -> Result<i64, sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO applications (member_id, course_id, status, submitted_by, submitted_at)
+         VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(member_id)
+    .bind(course_id)
+    .bind(status)
+    .bind(staff_id)
+    .bind(NOW)
+    .execute(pool)
+    .await
+    .map(|result| result.last_insert_rowid())
+}
+
+/// 사유는 없음(NULL).
+pub async fn insert_deletion(
+    pool: &SqlitePool,
+    member_id: i64,
+    course_id: i64,
+    staff_id: i64,
+) -> Result<i64, sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO application_deletions (member_id, course_id, deleted_by, deleted_at)
+         VALUES (?, ?, ?, ?)",
+    )
+    .bind(member_id)
+    .bind(course_id)
+    .bind(staff_id)
     .bind(NOW)
     .execute(pool)
     .await

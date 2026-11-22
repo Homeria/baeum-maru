@@ -98,7 +98,9 @@ pub async fn delete_course(
 ) -> Result<StatusCode, ApiError> {
     staff.require(Action::EditCourses)?;
     let Path(id) = id?;
-    let deleted = courses::delete(&db, id).await.map_err(ApiError::internal)?;
+    let deleted = courses::delete(&db, id)
+        .await
+        .map_err(|error| ApiError::from_delete(error, ApiError::CourseInUse))?;
     if !deleted {
         return Err(ApiError::CourseNotFound);
     }
@@ -153,6 +155,7 @@ mod tests {
     use serde_json::{Value, json};
 
     use super::*;
+    use crate::db::test_support::{insert_application, insert_member};
     use crate::server::test_support::{
         app, create, create_room, create_subject, create_term, delete, get, json_body, patch, post,
     };
@@ -355,5 +358,33 @@ mod tests {
             StatusCode::NOT_FOUND
         );
         assert_eq!(delete(router, &uri).await.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn br_t6_course_with_application_is_conflict() {
+        let (_dir, db, router) = app().await;
+        let (term_id, subject_id, _) = setup(&router).await;
+        let body = course(
+            json!(subject_id),
+            json!([{ "weekday": 1, "start": "10:00", "end": "11:00", "roomId": null }]),
+        );
+        let id = create(router.clone(), &courses_uri(term_id), &body).await;
+        let member_id = insert_member(&db, "00001").await.unwrap();
+        let staff_id: i64 = sqlx::query_scalar("SELECT id FROM staff")
+            .fetch_one(&db)
+            .await
+            .unwrap();
+        insert_application(&db, member_id, id, "submitted", staff_id)
+            .await
+            .unwrap();
+
+        let response = delete(router.clone(), &format!("/api/courses/{id}")).await;
+
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        let body = json_body(response).await;
+        assert_eq!(body["code"], "COURSE_IN_USE");
+        assert_eq!(body["rule"], "BR-T6");
+        let still = get(router, &format!("/api/courses/{id}")).await;
+        assert_eq!(still.status(), StatusCode::OK);
     }
 }

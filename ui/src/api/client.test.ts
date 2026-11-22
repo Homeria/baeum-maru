@@ -30,12 +30,31 @@ describe("hostErrorFrom", () => {
     expect(error.rule).toBe("BR-M2");
   });
 
+  test("어긴 신청 규칙들을 담는다", () => {
+    const violation = {
+      courseId: 3,
+      rule: "no_time_overlap" as const,
+      otherCourseId: 1,
+      canOverride: true,
+    };
+    const error = hostErrorFrom(409, {
+      code: "RULES_BROKEN",
+      message: "신청 규칙을 어긴 강좌가 있습니다",
+      rule: "BR-A5",
+      fields: [],
+      violations: [violation],
+    });
+
+    expect(error.violations).toEqual([violation]);
+  });
+
   test("본문이 없으면 일반 문구를 쓴다", () => {
     const error = hostErrorFrom(502, null);
 
     expect(error.code).toBeNull();
     expect(error.message).toContain("502");
     expect(error.fields).toEqual([]);
+    expect(error.violations).toEqual([]);
   });
 
   test("모양이 다른 본문은 호스트 오류로 보지 않는다", () => {

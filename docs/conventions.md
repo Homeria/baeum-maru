@@ -176,14 +176,15 @@ mod tests {
 오류 응답 모양:
 
 ```json
-{ "code": "TIME_CONFLICT", "message": "수업 시간이 겹칩니다", "rule": "BR-A1", "fields": [] }
+{ "code": "DUPLICATE_COURSE", "message": "같은 학기에 같은 강좌가 있습니다", "rule": "BR-T3", "fields": [], "violations": [] }
 ```
 
 - `code`: 영어 대문자. 한 번 정하면 바꾸지 않는다. 바꾸면 버전 둘째 자리를 올린다 (첫 출시 전에는 0.1.0 고정, ADR 0010).
 - `message`: 직원에게 그대로 보여 줘도 되는 한국어 문장
 - `rule`: 업무 규칙 위반일 때만. 아니면 `null`
 - `fields`: 입력 칸이 형식에 맞지 않을 때(`INVALID_INPUT`) 틀린 칸을 모두 담는다. `{ "field": "memberNo", "message": "..." }`. 그 밖에는 빈 배열
-- 상태 코드: 요청 모양이 틀림 400, 로그인 필요·화면 잠김·PIN이 틀림 401, 역할에 없는 일·계정이 잠겼거나 쓸 수 없음 403, 대상이 없음 404, 입력 칸이 틀림 422, 이미 있음·버전 다름 409, 내부 오류 500
+- `violations`: 신청 규칙을 어겼을 때(`RULES_BROKEN`) 어긴 규칙을 모두 담는다. `{ "courseId": 3, "rule": "no_time_overlap", "otherCourseId": 1, "canOverride": true }`. 그 밖에는 빈 배열
+- 상태 코드: 요청 모양이 틀림 400, 로그인 필요·화면 잠김·PIN이 틀림 401, 역할에 없는 일·계정이 잠겼거나 쓸 수 없음 403, 대상이 없음 404, 입력 칸이 틀림 422, 이미 있음·신청 규칙 위반·버전 다름 409, 내부 오류 500
 
 ## 로그와 개인정보
 

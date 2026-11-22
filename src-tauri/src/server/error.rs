@@ -11,6 +11,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use ts_rs::TS;
 
+use super::applications::RuleViolationResponse;
 use crate::db::DeleteError;
 
 /// 요청을 처리하지 못했다.
@@ -24,6 +25,8 @@ pub enum ApiError {
     DuplicateMemberNo,
     /// 주소의 id인 회원이 없다.
     MemberNotFound,
+    /// BR-M5: 신청이나 삭제 기록이 있는 회원은 지울 수 없다.
+    MemberInUse,
     /// BR-R1: 같은 건물 안에서 강의실 이름은 겹치지 않는다.
     DuplicateRoomName,
     /// 주소의 id인 강의실이 없다.
@@ -46,6 +49,14 @@ pub enum ApiError {
     DuplicateCourse,
     /// 주소의 id인 강좌가 없다.
     CourseNotFound,
+    /// BR-T6: 신청이나 삭제 기록이 있는 강좌는 지울 수 없다.
+    CourseInUse,
+    /// BR-A5: 신청 규칙을 어겼다. 어긴 규칙을 모두 담는다.
+    RulesBroken(Vec<RuleViolationResponse>),
+    /// 주소의 id인 신청이 없다.
+    ApplicationNotFound,
+    /// BR-D1: 접수됨(선발 전) 신청만 지울 수 있다.
+    ApplicationNotDeletable,
     /// BR-K11: 처음 설정은 직원이 하나도 없을 때 한 번만 한다.
     SetupAlreadyDone,
     /// 주소나 본문의 id인 직원이 없다.
@@ -117,6 +128,7 @@ pub enum ErrorCode {
     InvalidInput,
     DuplicateMemberNo,
     MemberNotFound,
+    MemberInUse,
     DuplicateRoomName,
     RoomNotFound,
     DuplicateSubjectName,
@@ -128,6 +140,10 @@ pub enum ErrorCode {
     TermInUse,
     DuplicateCourse,
     CourseNotFound,
+    CourseInUse,
+    RulesBroken,
+    ApplicationNotFound,
+    ApplicationNotDeletable,
     SetupAlreadyDone,
     StaffNotFound,
     DuplicateStaffName,
@@ -164,10 +180,16 @@ pub struct ErrorResponse {
     pub rule: Option<String>,
     /// [`ErrorCode::InvalidInput`]일 때 틀린 칸들. 그 밖에는 비어 있다.
     pub fields: Vec<FieldError>,
+    /// [`ErrorCode::RulesBroken`]일 때 어긴 신청 규칙들. 그 밖에는 비어 있다.
+    pub violations: Vec<RuleViolationResponse>,
 }
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
+        let violations = match &self {
+            ApiError::RulesBroken(violations) => violations.clone(),
+            _ => Vec::new(),
+        };
         let (status, code, message, rule, fields) = match self {
             ApiError::MalformedRequest => (
                 StatusCode::BAD_REQUEST,
@@ -195,6 +217,13 @@ impl IntoResponse for ApiError {
                 ErrorCode::MemberNotFound,
                 "회원을 찾지 못했습니다. 지워졌을 수 있습니다",
                 None,
+                Vec::new(),
+            ),
+            ApiError::MemberInUse => (
+                StatusCode::CONFLICT,
+                ErrorCode::MemberInUse,
+                "신청 기록이 있는 회원은 지울 수 없습니다. 지운 신청의 기록도 포함합니다",
+                Some("BR-M5"),
                 Vec::new(),
             ),
             ApiError::DuplicateRoomName => (
@@ -272,6 +301,34 @@ impl IntoResponse for ApiError {
                 ErrorCode::CourseNotFound,
                 "강좌를 찾지 못했습니다. 지워졌을 수 있습니다",
                 None,
+                Vec::new(),
+            ),
+            ApiError::CourseInUse => (
+                StatusCode::CONFLICT,
+                ErrorCode::CourseInUse,
+                "신청 기록이 있는 강좌는 지울 수 없습니다. 지운 신청의 기록도 포함합니다",
+                Some("BR-T6"),
+                Vec::new(),
+            ),
+            ApiError::RulesBroken(_) => (
+                StatusCode::CONFLICT,
+                ErrorCode::RulesBroken,
+                "신청 규칙을 어긴 강좌가 있습니다",
+                Some("BR-A5"),
+                Vec::new(),
+            ),
+            ApiError::ApplicationNotFound => (
+                StatusCode::NOT_FOUND,
+                ErrorCode::ApplicationNotFound,
+                "신청을 찾지 못했습니다. 지워졌을 수 있습니다",
+                None,
+                Vec::new(),
+            ),
+            ApiError::ApplicationNotDeletable => (
+                StatusCode::CONFLICT,
+                ErrorCode::ApplicationNotDeletable,
+                "선발 뒤의 신청은 지울 수 없습니다. 포기로 처리해 주세요",
+                Some("BR-D1"),
                 Vec::new(),
             ),
             ApiError::SetupAlreadyDone => (
@@ -378,6 +435,7 @@ impl IntoResponse for ApiError {
             message: message.to_owned(),
             rule: rule.map(str::to_owned),
             fields,
+            violations,
         };
         (status, Json(body)).into_response()
     }

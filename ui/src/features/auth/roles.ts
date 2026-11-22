@@ -23,6 +23,8 @@ export type Action =
   | "deleteMembers"
   | "editCourses"
   | "editReferenceData"
+  | "takeApplications"
+  | "overrideRules"
   | "manageStaff"
   | "viewAccessLog";
 
@@ -38,7 +40,11 @@ export function can(role: RoleCode, action: Action): boolean {
     case "staff":
       return action !== "manageStaff" && action !== "viewAccessLog";
     case "temp_staff":
-      return action === "view" || action === "editMembers";
+      return (
+        action === "view" ||
+        action === "editMembers" ||
+        action === "takeApplications"
+      );
     case "read_only":
       return action === "view";
   }

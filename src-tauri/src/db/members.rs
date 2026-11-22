@@ -4,7 +4,7 @@ use baeum_domain::{Gender, NewMember, Personal};
 use sqlx::SqlitePool;
 use time::{Date, OffsetDateTime};
 
-use super::{is_unique_violation, timestamp_text};
+use super::{DeleteError, is_unique_violation, timestamp_text};
 
 /// 회원을 저장하거나 고치지 못했다.
 #[derive(Debug, thiserror::Error)]
@@ -211,8 +211,8 @@ pub async fn update(
 
 /// `id`인 회원을 지운다. 지웠으면 `true`, 없으면 `false`.
 ///
-/// BR-M5: 신청 기록이 있는 회원은 지우지 않는다. 신청 테이블의 외래 키가 막는다(신청 기능에서 추가).
-pub async fn delete(pool: &SqlitePool, id: i64) -> Result<bool, sqlx::Error> {
+/// BR-M5: 신청이나 삭제 기록이 있는 회원은 [`DeleteError::InUse`]. 두 테이블의 외래 키가 막는다.
+pub async fn delete(pool: &SqlitePool, id: i64) -> Result<bool, DeleteError> {
     let result = sqlx::query("DELETE FROM members WHERE id = ?")
         .bind(id)
         .execute(pool)

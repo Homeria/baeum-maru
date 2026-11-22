@@ -3,6 +3,7 @@
 //! ADR 0005: SQLite + sqlx. 구조 변경은 시작할 때 자동으로 적용한다.
 
 pub mod access_logs;
+pub mod applications;
 pub mod courses;
 pub mod members;
 pub mod recovery;
@@ -127,7 +128,8 @@ pub async fn open(dir: &Path) -> Result<SqlitePool, DbError> {
 #[cfg(test)]
 mod tests {
     use super::test_support::{
-        NOW, insert_course, insert_room, insert_schedule, insert_staff, insert_subject, insert_term,
+        NOW, insert_application, insert_course, insert_deletion, insert_member, insert_room,
+        insert_schedule, insert_staff, insert_subject, insert_term,
     };
     use time::macros::datetime;
 
@@ -200,17 +202,6 @@ mod tests {
         open(dir.path()).await.unwrap().close().await;
 
         open(dir.path()).await.unwrap();
-    }
-
-    async fn insert_member(pool: &SqlitePool, member_no: &str) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            "INSERT INTO members (member_no, name, phone_number, created_at, updated_at)
-             VALUES (?, '회원1', '01000000001', '2026-11-15T00:00:00.000Z', '2026-11-15T00:00:00.000Z')",
-        )
-        .bind(member_no)
-        .execute(pool)
-        .await
-        .map(|_| ())
     }
 
     #[tokio::test]
@@ -689,5 +680,166 @@ mod tests {
 
         assert!(insert(vec![7; 32]).await.is_err());
         assert!(insert(vec![8; 16]).await.is_err());
+    }
+
+    /// 회원, 강좌, 직원 하나씩. (폴더, DB, 회원 id, 강좌 id, 직원 id)
+    async fn with_member_course_staff() -> (tempfile::TempDir, SqlitePool, i64, i64, i64) {
+        let (dir, pool, term_id, subject_id) = with_term_and_subject().await;
+        let member_id = insert_member(&pool, "00001").await.unwrap();
+        let course_id = insert_course(&pool, term_id, subject_id, None, None)
+            .await
+            .unwrap();
+        let staff_id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
+        (dir, pool, member_id, course_id, staff_id)
+    }
+
+    #[tokio::test]
+    async fn br_a4_rejects_second_valid_application() {
+        let (_dir, pool, member_id, course_id, staff_id) = with_member_course_staff().await;
+        insert_application(&pool, member_id, course_id, "submitted", staff_id)
+            .await
+            .unwrap();
+
+        let error = insert_application(&pool, member_id, course_id, "submitted", staff_id)
+            .await
+            .unwrap_err();
+
+        assert!(is_unique_violation(&error), "{error}");
+    }
+
+    #[tokio::test]
+    async fn br_a4_allows_again_after_withdrawn_or_rejected() {
+        let (_dir, pool, member_id, course_id, staff_id) = with_member_course_staff().await;
+        for status in ["withdrawn", "rejected", "submitted"] {
+            insert_application(&pool, member_id, course_id, status, staff_id)
+                .await
+                .unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn applications_reject_unknown_status() {
+        let (_dir, pool, member_id, course_id, staff_id) = with_member_course_staff().await;
+
+        let result = insert_application(&pool, member_id, course_id, "paid", staff_id).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn br_a7_rule_overrides_take_only_overridable_rules_with_reason() {
+        let (_dir, pool, member_id, course_id, staff_id) = with_member_course_staff().await;
+        let application_id = insert_application(&pool, member_id, course_id, "submitted", staff_id)
+            .await
+            .unwrap();
+        let insert = |rule: &'static str, reason: &'static str| {
+            sqlx::query(
+                "INSERT INTO rule_overrides (application_id, rule, reason, staff_id, created_at)
+                 VALUES (?, ?, ?, ?, ?)",
+            )
+            .bind(application_id)
+            .bind(rule)
+            .bind(reason)
+            .bind(staff_id)
+            .bind(NOW)
+            .execute(&pool)
+        };
+
+        assert!(insert("no_duplicate", "사유").await.is_err());
+        assert!(insert("no_time_overlap", "").await.is_err());
+        insert("no_time_overlap", "강사 허락").await.unwrap();
+        insert("no_same_subject", "강사 허락").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn deleting_application_removes_its_overrides() {
+        let (_dir, pool, member_id, course_id, staff_id) = with_member_course_staff().await;
+        let application_id = insert_application(&pool, member_id, course_id, "submitted", staff_id)
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO rule_overrides (application_id, rule, reason, staff_id, created_at)
+             VALUES (?, 'no_time_overlap', '강사 허락', ?, ?)",
+        )
+        .bind(application_id)
+        .bind(staff_id)
+        .bind(NOW)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        sqlx::query("DELETE FROM applications WHERE id = ?")
+            .bind(application_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let left: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM rule_overrides")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(left, 0);
+    }
+
+    #[tokio::test]
+    async fn br_d3_deletion_records_cannot_be_changed_or_deleted() {
+        let (_dir, pool, member_id, course_id, staff_id) = with_member_course_staff().await;
+        insert_deletion(&pool, member_id, course_id, staff_id)
+            .await
+            .unwrap();
+
+        let update = sqlx::query("UPDATE application_deletions SET reason = '고침'")
+            .execute(&pool)
+            .await;
+        let delete = sqlx::query("DELETE FROM application_deletions")
+            .execute(&pool)
+            .await;
+
+        assert!(update.is_err());
+        assert!(delete.is_err());
+    }
+
+    #[tokio::test]
+    async fn br_m5_and_br_t6_reject_deleting_member_and_course_with_application() {
+        let (_dir, pool, member_id, course_id, staff_id) = with_member_course_staff().await;
+        insert_application(&pool, member_id, course_id, "submitted", staff_id)
+            .await
+            .unwrap();
+
+        let member = sqlx::query("DELETE FROM members WHERE id = ?")
+            .bind(member_id)
+            .execute(&pool)
+            .await
+            .unwrap_err();
+        let course = sqlx::query("DELETE FROM courses WHERE id = ?")
+            .bind(course_id)
+            .execute(&pool)
+            .await
+            .unwrap_err();
+
+        assert!(is_foreign_key_violation(&member), "{member}");
+        assert!(is_foreign_key_violation(&course), "{course}");
+    }
+
+    #[tokio::test]
+    async fn br_m5_and_br_t6_reject_deleting_member_and_course_with_deletion_record() {
+        let (_dir, pool, member_id, course_id, staff_id) = with_member_course_staff().await;
+        insert_deletion(&pool, member_id, course_id, staff_id)
+            .await
+            .unwrap();
+
+        let member = sqlx::query("DELETE FROM members WHERE id = ?")
+            .bind(member_id)
+            .execute(&pool)
+            .await
+            .unwrap_err();
+        let course = sqlx::query("DELETE FROM courses WHERE id = ?")
+            .bind(course_id)
+            .execute(&pool)
+            .await
+            .unwrap_err();
+
+        assert!(is_foreign_key_violation(&member), "{member}");
+        assert!(is_foreign_key_violation(&course), "{course}");
     }
 }

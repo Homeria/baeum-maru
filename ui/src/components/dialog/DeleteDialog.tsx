@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import styles from "./DeleteDialog.module.css";
 
 /** {@link DeleteDialog}의 속성. */
@@ -6,6 +6,8 @@ export interface DeleteDialogProps {
   /** 묻는 말. 예: "회원1님을 지울까요?" */
   title: string;
   deleting: boolean;
+  /** 경고 문장 위에 더 보여 줄 것. 예: 지우는 사유 칸 */
+  children?: ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -18,6 +20,7 @@ export interface DeleteDialogProps {
 export function DeleteDialog({
   title,
   deleting,
+  children,
   onConfirm,
   onCancel,
 }: DeleteDialogProps) {
@@ -44,6 +47,7 @@ export function DeleteDialog({
       <h2 id={titleId} className={styles.title}>
         {title}
       </h2>
+      {children}
       <p className={styles.body}>지우면 되돌릴 수 없습니다.</p>
       <div className={styles.actions}>
         <button

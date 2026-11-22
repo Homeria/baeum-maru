@@ -62,7 +62,7 @@ pub enum Role {
     Admin,
     /// 직원. 직원 관리와 접속 기록 보기 말고 모두.
     Staff,
-    /// 임시 직원(사회복무요원, 자원봉사자). 보기와 회원 등록·고치기만.
+    /// 임시 직원(사회복무요원, 자원봉사자). 보기, 회원 등록·고치기, 신청 받기·지우기만.
     TempStaff,
     /// 조회 전용. 보기만.
     ReadOnly,
@@ -81,6 +81,10 @@ pub enum Action {
     EditCourses,
     /// 기초 정보(과목·강의실) 등록·고치기·지우기.
     EditReferenceData,
+    /// 신청 받기·지우기.
+    TakeApplications,
+    /// 신청 규칙을 어긴 신청을 사유를 적고 받기(BR-A6).
+    OverrideRules,
     /// 직원 계정 관리.
     ManageStaff,
     /// 접속 기록 보기.
@@ -112,7 +116,7 @@ impl Role {
             (_, Action::View) | (Role::Admin, _) => true,
             (Role::Staff, Action::ManageStaff | Action::ViewAccessLog) => false,
             (Role::Staff, _) => true,
-            (Role::TempStaff, Action::EditMembers) => true,
+            (Role::TempStaff, Action::EditMembers | Action::TakeApplications) => true,
             (Role::TempStaff | Role::ReadOnly, _) => false,
         }
     }
@@ -359,6 +363,8 @@ mod tests {
             DeleteMembers,
             EditCourses,
             EditReferenceData,
+            TakeApplications,
+            OverrideRules,
             ManageStaff,
             ViewAccessLog,
         ];
@@ -374,10 +380,15 @@ mod tests {
                 EditMembers,
                 DeleteMembers,
                 EditCourses,
-                EditReferenceData
+                EditReferenceData,
+                TakeApplications,
+                OverrideRules
             ]
         );
-        assert_eq!(allowed(Role::TempStaff), [View, EditMembers]);
+        assert_eq!(
+            allowed(Role::TempStaff),
+            [View, EditMembers, TakeApplications]
+        );
         assert_eq!(allowed(Role::ReadOnly), [View]);
     }
 

@@ -3,6 +3,7 @@
 //! ADR 0008: 요청은 HTTP + JSON.
 
 mod access_logs;
+mod applications;
 mod auth;
 mod courses;
 mod error;
@@ -23,7 +24,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use axum::extract::FromRef;
 use axum::http::{HeaderName, HeaderValue, Method, header};
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post};
 use axum::{Router, middleware};
 use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
@@ -126,6 +127,18 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/terms/{term_id}/courses",
             get(courses::list_courses).post(courses::create_course),
+        )
+        .route(
+            "/api/terms/{term_id}/applications",
+            get(applications::list_applications).post(applications::submit_applications),
+        )
+        .route(
+            "/api/terms/{term_id}/application-counts",
+            get(applications::list_application_counts),
+        )
+        .route(
+            "/api/applications/{id}",
+            delete(applications::delete_application),
         )
         .route(
             "/api/courses/{id}",
