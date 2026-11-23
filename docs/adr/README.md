@@ -19,7 +19,7 @@
 | [0009](0009-frontend.md) | 화면 기술: React + Vite, 한 번에 그리는 줄 수 제한 | 채택 |
 | [0010](0010-distribution.md) | 배포와 업데이트: 설치판 + 완전 포터블판, 출시는 서명 필수, 버전 번호로 호환 판단 | 채택 |
 | [0011](0011-backup.md) | 백업과 복원: 자동 백업(하루·종료·작업 직전), 두 번째 위치, 통째 복원 | 채택 |
-| [0012](0012-skeleton.md) | 뼈대: TypeScript·앱 내장 화면·TanStack Query·React Compiler·ts-rs, just check, GitHub Flow, CI 경로 제한, Dependabot·cargo-deny | 일부 대체됨 (0013) |
+| [0012](0012-skeleton.md) | 뼈대: TypeScript·앱 내장 화면·TanStack Query·React Compiler·ts-rs, just check, GitHub Flow, CI 경로 제한, Dependabot·cargo-deny | 일부 대체됨 (0013, 0020) |
 | [0013](0013-defer-dependabot.md) | Dependabot 버전 업데이트는 출시 준비 때 붙인다 (0012의 일부 대체) | 채택 |
 | [0014](0014-staff-login.md) | 직원 확인 구현: argon2 PIN 해시, DB 세션, 잠금 값 | 채택 |
 | [0015](0015-date-time-crate.md) | 날짜·시각은 time crate로 다룬다 (chrono 관리 중단) | 채택 |
@@ -27,3 +27,4 @@
 | [0017](0017-priority-allocation.md) | 우선 배정: 기관이 만드는 사유 목록 + 사유마다 배정 방식(지금은 자리 보장), 신청마다 표시 | 채택 |
 | [0018](0018-save-dialog.md) | 결과 명단 파일은 받는 PC에서 앱(Rust)이 저장 창을 띄워 저장한다 (tauri-plugin-dialog) | 채택 |
 | [0019](0019-website.md) | 웹사이트는 이 저장소의 site/에 두고 GitHub Actions로 Pages에 올린다 (공개 배포는 출시 준비 때) | 채택 |
+| [0020](0020-split-ci-jobs.md) | 앱 검사는 작업 셋(화면, 의존성, Rust)으로 나눠 함께 돌리고 apt 패키지를 캐시한다 (0012의 일부 대체) | 채택 |
