@@ -3,7 +3,7 @@
 //! 두 번째 위치는 그 PC의 폴더라서 호스트 PC에서만 바꾼다. 다른 PC에서는 보기만 한다.
 //! 복원도 호스트 PC에서만 한다. 호스트 앱을 다시 켜야 하고, 고른 파일도 호스트의 경로다.
 
-mod json;
+pub(crate) mod json;
 
 use std::path::PathBuf;
 
@@ -18,8 +18,8 @@ use time::OffsetDateTime;
 use super::auth::{Client, CurrentStaff};
 use super::error::{ApiError, FieldError};
 use crate::backup::inspect::{self, InspectError};
-use crate::backup::name::BackupName;
 use crate::backup::restore::{PrepareError, RestoreOutcome};
+use crate::backup::source::{RestoreSource, SourceError};
 use crate::backup::{Backups, SecondLocationError, SecondLocationStatus};
 use crate::db::courses;
 
@@ -152,10 +152,12 @@ pub async fn preview_restore(
     staff.require(Action::ManageBackups)?;
     client.require_host()?;
     let Json(request) = body?;
-    let source = RestoreSource::from_request(&backups, request).await?;
+    let source = RestoreSource::resolve(backups.dir(), request.file_name, request.path)
+        .await
+        .map_err(source_error)?;
     let preview = inspect::inspect(&source.file)
         .await
-        .map_err(|error| source.invalid(&error))?;
+        .map_err(|error| unusable(source.field, &error))?;
     Ok(Json(RestorePreviewResponse {
         taken_at: source.name.map(|name| local_text(name.taken_at)),
         kind: source.name.map(|name| BackupKindCode::split(name.kind).0),
@@ -175,12 +177,14 @@ pub async fn restore(
     staff.require(Action::ManageBackups)?;
     client.require_host()?;
     let Json(request) = body?;
-    let source = RestoreSource::from_request(&backups, request).await?;
+    let source = RestoreSource::resolve(backups.dir(), request.file_name, request.path)
+        .await
+        .map_err(source_error)?;
     backups
         .prepare_restore(&source.file, staff.id, OffsetDateTime::now_utc())
         .await
         .map_err(|error| match error {
-            PrepareError::Inspect(error) => source.invalid(&error),
+            PrepareError::Inspect(error) => unusable(source.field, &error),
             PrepareError::Backup(error) => {
                 tracing::warn!(%error, staff_id = staff.id, "복원 직전 백업 실패");
                 ApiError::BackupFailed
@@ -190,68 +194,21 @@ pub async fn restore(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// 복원할 백업 파일.
-struct RestoreSource {
-    file: PathBuf,
-    /// 파일 이름이 백업 이름 모양이면 그 이름.
-    name: Option<BackupName>,
-    /// 오류를 붙일 요청 칸.
-    field: &'static str,
+/// 고르지 못한 복원 파일을 API 오류로.
+fn source_error(error: SourceError) -> ApiError {
+    match error.field() {
+        Some(field) => field_error(field, &error.to_string()),
+        None => ApiError::MalformedRequest,
+    }
 }
 
-impl RestoreSource {
-    /// 목록의 파일 이름이나 다른 곳의 경로 중 하나를 받는다.
-    async fn from_request(backups: &Backups, request: RestoreRequest) -> Result<Self, ApiError> {
-        let source = match (request.file_name, request.path) {
-            (Some(file_name), None) => {
-                // 백업 이름 모양만 받아서 백업 폴더 밖을 가리키지 못하게 한다
-                let name = BackupName::parse(&file_name)
-                    .ok_or_else(|| field_error("fileName", "백업 목록에 없는 파일입니다"))?;
-                RestoreSource {
-                    file: backups.file_of(name),
-                    name: Some(name),
-                    field: "fileName",
-                }
-            }
-            (None, Some(path)) => {
-                let file = PathBuf::from(path.trim());
-                if !file.is_absolute() {
-                    return Err(field_error(
-                        "path",
-                        "파일 경로는 드라이브부터 적어야 합니다",
-                    ));
-                }
-                let name = file
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .and_then(BackupName::parse);
-                RestoreSource {
-                    file,
-                    name,
-                    field: "path",
-                }
-            }
-            _ => return Err(ApiError::MalformedRequest),
-        };
-        let is_file = tokio::fs::metadata(&source.file)
-            .await
-            .is_ok_and(|metadata| metadata.is_file());
-        if !is_file {
-            return Err(field_error(
-                source.field,
-                "백업 파일이 없습니다. 외장 디스크나 USB가 꽂혀 있는지 확인해 주세요",
-            ));
-        }
-        Ok(source)
+/// 복원할 수 없는 파일을 API 오류로. `field`는 요청 칸.
+fn unusable(field: &str, error: &InspectError) -> ApiError {
+    if let InspectError::Broken(source) = error {
+        // 없는 파일도 여기로 온다. 경로는 남기지 않는다
+        tracing::info!(error = %source, "복원할 수 없는 파일");
     }
-
-    fn invalid(&self, error: &InspectError) -> ApiError {
-        if let InspectError::Broken(source) = error {
-            // 없는 파일도 여기로 온다. 경로는 남기지 않는다
-            tracing::info!(error = %source, "복원할 수 없는 파일");
-        }
-        field_error(self.field, &error.to_string())
-    }
+    field_error(field, &error.to_string())
 }
 
 fn field_error(field: &str, message: &str) -> ApiError {

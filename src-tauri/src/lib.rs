@@ -3,6 +3,7 @@
 //! 창(Tauri)을 띄우고, 같은 프로세스에서 HTTP 서버를 돌린다.
 
 mod backup;
+mod broken_db;
 mod clock;
 mod data_dir;
 mod db;
@@ -14,6 +15,7 @@ mod secret;
 #[cfg(feature = "dev-seed")]
 pub mod seed;
 mod server;
+mod startup;
 mod version;
 
 use tauri::Manager;
@@ -41,7 +43,10 @@ pub fn run() {
             save_file::save_file,
             pick::pick_folder,
             pick::pick_backup_file,
-            restart::restart_app
+            restart::restart_app,
+            broken_db::startup_state,
+            broken_db::preview_broken_db_backup,
+            broken_db::restore_broken_db
         ])
         .setup(|app| {
             let host: version::Version = version::CURRENT.parse()?;
@@ -55,8 +60,8 @@ pub fn run() {
                 data_dir.path(),
                 OffsetDateTime::now_utc(),
             ));
-            // DB를 연 뒤에 서버와 백업을 시작한다. 열지 못하면 창만 뜬다
-            match tauri::async_runtime::block_on(db::open(data_dir.path())) {
+            // DB를 연 뒤에 서버와 백업을 시작한다. 쓸 수 없으면 그 까닭을 맡겨 두고 화면이 묻는다
+            match tauri::async_runtime::block_on(startup::open_checked(data_dir.path())) {
                 Ok(db) => {
                     tracing::info!(portable = data_dir.is_portable(), "DB 열림");
                     if let Some(outcome) = restored {
@@ -74,7 +79,9 @@ pub fn run() {
                     // 앱을 끌 때 백업에 쓴다
                     app.manage(backups);
                 }
-                Err(error) => tracing::error!(%error, "DB를 열지 못했습니다"),
+                Err(problem) => {
+                    app.manage(broken_db::BrokenDb::new(data_dir.path(), problem));
+                }
             }
             Ok(())
         })
