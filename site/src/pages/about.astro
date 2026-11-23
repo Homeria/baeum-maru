@@ -9,11 +9,15 @@ import BaseLayout from "../layouts/BaseLayout.astro";
   description="배움마루를 만드는 이유와 무료 공개 원칙을 안내합니다."
   currentPath="/about/"
 >
-  <h1 class="pageTitle">소개</h1>
-  <p class="pageLead">
-    배움마루는 예산이 적은 소규모 교육·여가 프로그램 운영 기관도 수강 신청과
-    선발, 결과 명단 정리를 무료로 처리할 수 있도록 만드는 프로그램입니다.
-  </p>
+  <div class="pageHeader">
+    <h1 id="main-heading" tabindex="-1" class="pageTitle">
+      소개
+    </h1>
+    <p class="pageLead">
+      배움마루는 예산이 적은 소규모 교육·여가 프로그램 운영 기관도 수강 신청과
+      선발, 결과 명단 정리를 무료로 처리할 수 있도록 만드는 프로그램입니다.
+    </p>
+  </div>
 
   <section class="section prose">
     <h2>무료 공개 원칙</h2>

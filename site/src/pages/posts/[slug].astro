@@ -30,7 +30,9 @@ const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
     <p class="postMeta">
       <a href={withBase("/posts/")}>이야기 목록으로</a>
     </p>
-    <h1 class="pageTitle">{post.data.title}</h1>
+    <h1 id="main-heading" tabindex="-1" class="pageTitle">
+      {post.data.title}
+    </h1>
     <p class="postMeta">
       <span>{post.data.category}</span> ·{" "}
       <time datetime={post.data.publishedAt.toISOString()}>

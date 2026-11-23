@@ -7,12 +7,9 @@ interface Props {
 const { title, tone = "info" } = Astro.props;
 ---
 
-<section
-  class:list={["notice", tone === "info" && "noticeInfo"]}
-  aria-label={title}
->
+<div class:list={["notice", tone === "info" && "noticeInfo"]}>
   <h2 class="noticeTitle">{title}</h2>
   <div class="noticeBody">
     <slot />
   </div>
-</section>
+</div>
