@@ -8,6 +8,9 @@
 - 용어: `docs/domain/GLOSSARY.md`. 문서, 화면, 코드는 여기 정한 말과 영어 이름을 쓴다. 없는 용어가 필요하면 먼저 추가를 제안한다.
 - 업무 규칙: `docs/domain/BUSINESS_RULES.md`. 규칙마다 `BR-…` 번호가 있다.
 - 개념 ERD: `docs/domain/ERD.md`
+- 기준 사례: `docs/domain/case-a-senior-culture-center.md` (익명). 기관 유형별 차이: `docs/domain/variation-map.md`
+- 로드맵과 진행 상태: `docs/roadmap.md`. 기능을 머지하면 같이 고친다.
+- 기관용 개인정보 안내 조사 메모: `docs/privacy-notice.md`
 - 아키텍처 결정: `docs/adr/`. 채택한 결정을 따르고, 바꿔야 하면 새 ADR을 제안한다.
 - 선택 기록: `docs/choices/`. 기능을 만들며 고른 것과 이유. 기관 직원이 읽는 블로그와 다운로드 페이지의 글감이다.
 - 코드 규칙: `docs/conventions.md` (주석, 문서 주석, TODO, 테스트 이름)
