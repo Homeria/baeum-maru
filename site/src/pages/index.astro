@@ -1,0 +1,20 @@
+---
+import { SITE, withBase } from "../config/site";
+---
+
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{SITE.name}</title>
+    <meta name="description" content={SITE.description} />
+    <link rel="icon" type="image/svg+xml" href={withBase("/favicon.svg")} />
+  </head>
+  <body>
+    <main>
+      <h1>{SITE.name}</h1>
+      <p>{SITE.description}</p>
+    </main>
+  </body>
+</html>

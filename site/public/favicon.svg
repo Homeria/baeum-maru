@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="배움마루">
+  <rect width="64" height="64" rx="14" fill="#1e4b63" />
+  <path
+    d="M16 24c6-3 12-3 16 1 4-4 10-4 16-1v22c-6-3-12-3-16 1-4-4-10-4-16-1V24z"
+    fill="#f5f8fa"
+  />
+  <path d="M32 25v22" stroke="#1e4b63" stroke-width="2.5" />
+</svg>
