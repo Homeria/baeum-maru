@@ -11,6 +11,7 @@ pub mod name;
 pub mod restore;
 pub mod retention;
 pub mod settings;
+pub mod source;
 pub mod store;
 
 use std::path::{Path, PathBuf};
@@ -138,9 +139,9 @@ impl Backups {
             .unwrap_or_else(PoisonError::into_inner) = failure;
     }
 
-    /// 첫 번째 위치에 있는 백업 `name`의 파일.
-    pub fn file_of(&self, name: BackupName) -> PathBuf {
-        self.dir.join(name.to_string())
+    /// 첫 번째 위치(백업 폴더).
+    pub fn dir(&self) -> &Path {
+        &self.dir
     }
 
     /// 첫 번째 위치의 백업들. 새것부터.

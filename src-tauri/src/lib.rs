@@ -3,6 +3,7 @@
 //! 창(Tauri)을 띄우고, 같은 프로세스에서 HTTP 서버를 돌린다.
 
 mod backup;
+mod broken_db;
 mod clock;
 mod data_dir;
 mod db;
@@ -42,7 +43,10 @@ pub fn run() {
             save_file::save_file,
             pick::pick_folder,
             pick::pick_backup_file,
-            restart::restart_app
+            restart::restart_app,
+            broken_db::startup_state,
+            broken_db::preview_broken_db_backup,
+            broken_db::restore_broken_db
         ])
         .setup(|app| {
             let host: version::Version = version::CURRENT.parse()?;
@@ -76,7 +80,7 @@ pub fn run() {
                     app.manage(backups);
                 }
                 Err(problem) => {
-                    app.manage(problem);
+                    app.manage(broken_db::BrokenDb::new(data_dir.path(), problem));
                 }
             }
             Ok(())

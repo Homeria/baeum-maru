@@ -7,6 +7,9 @@
 //! 2. 바꾸기([`apply_pending`]): 다음 시작 때 DB를 열기 전에 받아 둔 파일로 바꾼다.
 //!    실패하면 지금 DB를 그대로 둔다.
 //! 3. 기록([`record`]): DB를 연 뒤 되돌린 DB의 접속 기록에 남긴다.
+//!
+//! DB가 깨졌을 때([`restore_broken`])는 DB를 쥔 곳이 없어서 그 자리에서 바꾼다. 깨진 DB는
+//! 복원 직전 백업을 만들 수 없으니 데이터 폴더에 `baeum-maru.broken.db` 하나로 남긴다.
 
 use std::path::{Path, PathBuf};
 
@@ -14,17 +17,19 @@ use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use time::{OffsetDateTime, PrimitiveDateTime};
 
-use super::inspect::{InspectError, inspect};
+use super::inspect::{BackupPreview, InspectError, inspect};
 use super::name::{BackupKind, BackupName};
-use super::store::{self, BackupError};
+use super::store::{self, BackupError, StoredBackup};
 use crate::clock;
-use crate::db;
 use crate::db::access_logs::{self, AccessEvent};
+use crate::db::{self, DbError};
 
 /// 받아 둔 백업 파일. 이 파일이 있으면 다음 시작 때 바꾼다.
 const PENDING_DB: &str = "restore-pending.db";
 /// 누가 언제 복원했는지.
 const PENDING_INFO: &str = "restore-pending.json";
+/// 깨진 DB를 남겨 두는 이름. 하나만 둔다.
+const BROKEN_DB: &str = "baeum-maru.broken.db";
 /// 바꾸는 동안 지금 DB 파일들을 잠깐 옮겨 두는 꼬리.
 const REPLACED: &str = ".replaced";
 /// DB와 함께 다니는 보조 파일(WAL). 남으면 옛 내용이 새 파일에 덮일 수 있다.
@@ -40,6 +45,17 @@ pub enum PrepareError {
     Backup(#[source] BackupError),
     #[error("백업 파일을 받아 두지 못했습니다: {0}")]
     Io(#[from] std::io::Error),
+}
+
+/// 깨진 DB를 되돌리지 못했다. 깨진 DB는 제자리에 그대로 있다.
+#[derive(Debug, thiserror::Error)]
+pub enum BrokenRestoreError {
+    #[error(transparent)]
+    Inspect(#[from] InspectError),
+    #[error("백업 파일을 옮기지 못했습니다: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("되돌린 DB를 열지 못했습니다: {0}")]
+    Open(#[from] DbError),
 }
 
 /// 시작할 때 복원한 결과. 백업 탭에 보여 준다.
@@ -143,25 +159,116 @@ pub async fn record(pool: &SqlitePool, outcome: RestoreOutcome, now: OffsetDateT
     }
 }
 
+/// DB가 깨졌을 때 권할 백업. 백업 폴더 `backups_dir`의 백업들(새것부터)과, 그중 새것부터
+/// 살펴서 처음으로 쓸 수 있는 것과 그 미리보기.
+pub async fn suggest(
+    backups_dir: &Path,
+) -> (Vec<StoredBackup>, Option<(BackupName, BackupPreview)>) {
+    let backups = store::list(backups_dir).await.unwrap_or_else(|error| {
+        tracing::warn!(%error, "백업 목록을 읽지 못했습니다");
+        Vec::new()
+    });
+    let mut suggestion = None;
+    for backup in &backups {
+        let file = backups_dir.join(backup.name.to_string());
+        match inspect(&file).await {
+            Ok(preview) => {
+                suggestion = Some((backup.name, preview));
+                break;
+            }
+            Err(error) => tracing::info!(%error, kind = ?backup.name.kind, "권할 수 없는 백업"),
+        }
+    }
+    (backups, suggestion)
+}
+
+/// 깨진 DB를 `source` 백업으로 바로 바꾼다. 앱이 DB를 쥐고 있지 않을 때만 부른다.
+///
+/// 깨진 DB는 `baeum-maru.broken.db`로 남긴다. 실패하면 깨진 DB를 제자리로 돌려놓는다.
+/// 성공하면 되돌린 DB를 열어 구조 변경을 적용하고, 접속 기록에 직원 없이 복원을 남긴다.
+pub async fn restore_broken(
+    data_dir: &Path,
+    source: &Path,
+    now: OffsetDateTime,
+) -> Result<(), BrokenRestoreError> {
+    inspect(source).await?;
+    let db_file = db::file(data_dir);
+    let broken = data_dir.join(BROKEN_DB);
+    // 지난번에 남긴 깨진 DB는 지운다. 회원 정보 사본이 쌓이지 않게 하나만 둔다
+    for old in db_family(&broken) {
+        remove_if_exists(&old).await?;
+    }
+    let moved = move_aside(&db_file, |suffix| with_suffix(&broken, suffix)).await?;
+    if let Err(error) = write_then_rename(&db_file, Content::CopyOf(source)).await {
+        put_back(&moved).await;
+        return Err(error.into());
+    }
+    match db::open(data_dir).await {
+        Ok(pool) => {
+            record(
+                &pool,
+                RestoreOutcome::Restored {
+                    staff_id: None,
+                    at: clock::local_datetime(now),
+                },
+                now,
+            )
+            .await;
+            pool.close().await;
+            tracing::info!("깨진 DB를 백업으로 되돌림");
+            Ok(())
+        }
+        Err(error) => {
+            for file in db_family(&db_file) {
+                let _ = remove_if_exists(&file).await;
+            }
+            put_back(&moved).await;
+            Err(error.into())
+        }
+    }
+}
+
+/// DB 파일과 보조 파일들에 붙는 꼬리. DB 파일 자신은 빈 꼬리다.
+const FAMILY: [&str; 3] = ["", SIDE_FILES[0], SIDE_FILES[1]];
+
+/// DB 파일과 보조 파일들(`-wal`, `-shm`).
+fn db_family(db_file: &Path) -> Vec<PathBuf> {
+    FAMILY
+        .iter()
+        .map(|suffix| with_suffix(db_file, suffix))
+        .collect()
+}
+
+/// `db_file`과 보조 파일들 중 있는 것을 옮긴다. `aside`는 꼬리(`""`, `-wal`, `-shm`)를 받아
+/// 옮길 곳을 정한다. 옮긴 (원래, 옮긴 곳) 목록을 돌려준다. 중간에 실패하면 되돌려 놓는다.
+async fn move_aside(
+    db_file: &Path,
+    aside: impl Fn(&str) -> PathBuf,
+) -> std::io::Result<Vec<(PathBuf, PathBuf)>> {
+    let mut moved = Vec::new();
+    for suffix in FAMILY {
+        let file = with_suffix(db_file, suffix);
+        if tokio::fs::try_exists(&file).await? {
+            let target = aside(suffix);
+            if let Err(error) = tokio::fs::rename(&file, &target).await {
+                put_back(&moved).await;
+                return Err(error);
+            }
+            moved.push((file, target));
+        }
+    }
+    Ok(moved)
+}
+
 /// 지금 DB 파일들을 옆으로 옮기고 받아 둔 파일을 그 자리에 둔다. 실패하면 되돌려 놓는다.
 async fn swap(data_dir: &Path, pending: &Path) -> std::io::Result<()> {
     // 받아 둔 사이에 파일이 상했을 수 있다
     inspect(pending).await.map_err(std::io::Error::other)?;
     let db_file = db::file(data_dir);
-    let current: Vec<PathBuf> = std::iter::once(db_file.clone())
-        .chain(SIDE_FILES.iter().map(|side| with_suffix(&db_file, side)))
-        .collect();
-    let mut moved = Vec::new();
-    for file in &current {
-        if tokio::fs::try_exists(file).await? {
-            let aside = with_suffix(file, REPLACED);
-            if let Err(error) = tokio::fs::rename(file, &aside).await {
-                put_back(&moved).await;
-                return Err(error);
-            }
-            moved.push((file.clone(), aside));
-        }
-    }
+    let moved = move_aside(&db_file, |suffix| {
+        with_suffix(&with_suffix(&db_file, suffix), REPLACED)
+    })
+    .await?;
     if let Err(error) = tokio::fs::rename(pending, &db_file).await {
         put_back(&moved).await;
         return Err(error);
@@ -393,5 +500,110 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
 
         assert_eq!(apply_pending(dir.path(), NOW).await, None);
+    }
+
+    /// 데이터 폴더에 회원 한 명짜리 하루 백업을 만들고, DB를 깨뜨린다. 그 백업 파일을 돌려준다.
+    async fn broken_with_backup(dir: &Path) -> PathBuf {
+        let pool = db::open(dir).await.unwrap();
+        insert_member(&pool, "00001").await.unwrap();
+        let name = store::create(
+            &pool,
+            &super::super::dir(dir),
+            BackupKind::Daily,
+            datetime!(2026-11-22 09:00),
+        )
+        .await
+        .unwrap();
+        pool.close().await;
+        tokio::fs::write(db::file(dir), b"broken db").await.unwrap();
+        tokio::fs::write(with_suffix(&db::file(dir), "-wal"), b"old wal")
+            .await
+            .unwrap();
+        super::super::dir(dir).join(name.to_string())
+    }
+
+    #[tokio::test]
+    async fn broken_db_is_replaced_and_kept_aside_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let backup = broken_with_backup(dir.path()).await;
+        // 지난번에 남긴 깨진 DB
+        tokio::fs::write(dir.path().join(BROKEN_DB), b"older broken")
+            .await
+            .unwrap();
+
+        restore_broken(dir.path(), &backup, NOW).await.unwrap();
+
+        let pool = db::open(dir.path()).await.unwrap();
+        assert_eq!(member_count(&pool).await, 1);
+        let logged: Vec<Option<i64>> =
+            sqlx::query_scalar("SELECT staff_id FROM access_logs WHERE event = 'restore'")
+                .fetch_all(&pool)
+                .await
+                .unwrap();
+        assert_eq!(logged, [None]);
+        // 깨진 DB는 하나만, 새것으로 남는다
+        assert_eq!(
+            tokio::fs::read(dir.path().join(BROKEN_DB)).await.unwrap(),
+            b"broken db"
+        );
+        assert_eq!(
+            tokio::fs::read(with_suffix(&dir.path().join(BROKEN_DB), "-wal"))
+                .await
+                .unwrap(),
+            b"old wal"
+        );
+    }
+
+    #[tokio::test]
+    async fn failed_broken_restore_leaves_broken_db_in_place() {
+        let dir = tempfile::tempdir().unwrap();
+        broken_with_backup(dir.path()).await;
+        let bad = dir.path().join("메모.db");
+        tokio::fs::write(&bad, b"not a database").await.unwrap();
+
+        let result = restore_broken(dir.path(), &bad, NOW).await;
+
+        assert!(matches!(result, Err(BrokenRestoreError::Inspect(_))));
+        assert_eq!(
+            tokio::fs::read(db::file(dir.path())).await.unwrap(),
+            b"broken db"
+        );
+        assert!(
+            !tokio::fs::try_exists(dir.path().join(BROKEN_DB))
+                .await
+                .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn suggests_newest_usable_backup() {
+        let dir = tempfile::tempdir().unwrap();
+        let usable = broken_with_backup(dir.path()).await;
+        let backups = super::super::dir(dir.path());
+        // 더 새것이지만 깨진 백업
+        let newer = BackupName {
+            taken_at: datetime!(2026-11-23 09:00),
+            kind: BackupKind::Exit,
+        };
+        tokio::fs::write(backups.join(newer.to_string()), b"broken backup")
+            .await
+            .unwrap();
+
+        let (listed, suggestion) = suggest(&backups).await;
+
+        assert_eq!(listed.len(), 2);
+        let (name, preview) = suggestion.unwrap();
+        assert_eq!(backups.join(name.to_string()), usable);
+        assert_eq!(preview.member_count, 1);
+    }
+
+    #[tokio::test]
+    async fn no_backups_means_no_suggestion() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let (listed, suggestion) = suggest(&super::super::dir(dir.path())).await;
+
+        assert!(listed.is_empty());
+        assert!(suggestion.is_none());
     }
 }
