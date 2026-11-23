@@ -134,8 +134,8 @@ pub async fn open(dir: &Path) -> Result<SqlitePool, DbError> {
 mod tests {
     use super::test_support::{
         NOW, insert_application, insert_course, insert_deletion, insert_lottery_run, insert_member,
-        insert_priority_reason, insert_room, insert_schedule, insert_selection_change,
-        insert_staff, insert_subject, insert_term,
+        insert_priority_reason, insert_room, insert_roster_export, insert_schedule,
+        insert_selection_change, insert_staff, insert_subject, insert_term,
     };
     use time::macros::datetime;
 
@@ -1159,6 +1159,44 @@ mod tests {
         assert!(update.is_err());
         assert!(delete.is_err());
         assert!(is_foreign_key_violation(&application), "{application}");
+    }
+
+    #[tokio::test]
+    async fn br_p11_roster_exports_cannot_change_and_keep_term() {
+        let (_dir, pool, term_id, _subject_id) = with_term_and_subject().await;
+        let staff_id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
+        insert_roster_export(&pool, term_id, "raw", "circle", staff_id)
+            .await
+            .unwrap();
+
+        let update = sqlx::query("UPDATE roster_exports SET mask_char = 'x'")
+            .execute(&pool)
+            .await;
+        let delete = sqlx::query("DELETE FROM roster_exports")
+            .execute(&pool)
+            .await;
+        let term = sqlx::query("DELETE FROM terms WHERE id = ?")
+            .bind(term_id)
+            .execute(&pool)
+            .await
+            .unwrap_err();
+
+        assert!(update.is_err());
+        assert!(delete.is_err());
+        assert!(is_foreign_key_violation(&term), "{term}");
+    }
+
+    #[tokio::test]
+    async fn br_p11_roster_exports_accept_only_known_kinds_and_mask_chars() {
+        let (_dir, pool, term_id, _subject_id) = with_term_and_subject().await;
+        let staff_id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
+        let insert = |kind: &'static str, mask_char: &'static str| {
+            insert_roster_export(&pool, term_id, kind, mask_char, staff_id)
+        };
+
+        assert!(insert("posted_by_member", "asterisk").await.is_ok());
+        assert!(insert("attendance", "circle").await.is_err());
+        assert!(insert("raw", "#").await.is_err());
     }
 
     #[tokio::test]
