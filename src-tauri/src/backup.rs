@@ -6,3 +6,4 @@
 
 pub mod name;
 pub mod retention;
+pub mod store;
