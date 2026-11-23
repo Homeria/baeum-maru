@@ -2,6 +2,7 @@
 //!
 //! 창(Tauri)을 띄우고, 같은 프로세스에서 HTTP 서버를 돌린다.
 
+mod backup;
 mod clock;
 mod data_dir;
 mod db;
