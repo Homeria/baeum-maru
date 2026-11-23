@@ -57,3 +57,18 @@
 .size {
   text-align: right;
 }
+
+.preview {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-6);
+  line-height: 1.6;
+}
+
+.rowAction {
+  text-align: right;
+}
+
+.rowAction button {
+  padding: 0 var(--space-2);
+  font: inherit;
+}

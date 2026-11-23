@@ -1,5 +1,7 @@
 import type { BackupKindCode } from "../../api/generated/BackupKindCode";
 import type { BackupResponse } from "../../api/generated/BackupResponse";
+import type { RestoreOutcomeResponse } from "../../api/generated/RestoreOutcomeResponse";
+import type { RestorePreviewResponse } from "../../api/generated/RestorePreviewResponse";
 import type { SecondLocationResponse } from "../../api/generated/SecondLocationResponse";
 
 /** 백업 종류의 화면 이름. 용어집의 "백업 종류". */
@@ -77,4 +79,28 @@ function daysBetween(date: string, today: Date): number {
   const from = Date.UTC(year, month - 1, day);
   const to = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
   return Math.round((to - from) / (24 * 60 * 60 * 1000));
+}
+
+/** 이번에 켤 때 복원한 결과의 문장. */
+export function restoreOutcomeText(outcome: RestoreOutcomeResponse): string {
+  return outcome.restored
+    ? `${formatTakenAt(outcome.at)}에 백업으로 되돌렸습니다`
+    : `${formatTakenAt(outcome.at)}에 백업으로 되돌리지 못해 그 전 데이터를 그대로 쓰고 있습니다. 다른 백업을 골라 주세요`;
+}
+
+/** 복원 확인 창에 보여 줄 줄들. 예: `백업: 2026-11-20 09:00 · 하루 한 번` */
+export function previewLines(preview: RestorePreviewResponse): string[] {
+  const taken =
+    preview.takenAt === null
+      ? "알 수 없음 (파일 이름이 바뀜)"
+      : formatTakenAt(preview.takenAt);
+  const kind =
+    preview.kind === null ? "" : ` · ${BACKUP_KIND_LABELS[preview.kind]}`;
+  const terms =
+    preview.termNames.length === 0 ? "없음" : preview.termNames.join(", ");
+  return [
+    `백업: ${taken}${kind}`,
+    `학기: ${terms}`,
+    `회원 ${preview.memberCount}명, 신청 ${preview.applicationCount}건`,
+  ];
 }

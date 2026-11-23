@@ -4,6 +4,8 @@ import {
   formatSize,
   formatTakenAt,
   kindText,
+  previewLines,
+  restoreOutcomeText,
   secondLocationWarning,
 } from "./backupData";
 
@@ -84,5 +86,50 @@ describe("secondLocationWarning", () => {
     expect(secondLocationWarning(second({ lastCopiedAt: null }), TODAY)).toBe(
       "두 번째 위치에 아직 복사한 백업이 없습니다",
     );
+  });
+});
+
+describe("previewLines", () => {
+  test("백업 시각과 종류, 학기, 회원·신청 수를 보여 준다", () => {
+    expect(
+      previewLines({
+        takenAt: "2026-11-20T09:00:00",
+        kind: "daily",
+        termNames: ["2026년 2학기", "2027년 1학기"],
+        memberCount: 120,
+        applicationCount: 340,
+      }),
+    ).toEqual([
+      "백업: 2026-11-20 09:00 · 하루 한 번",
+      "학기: 2026년 2학기, 2027년 1학기",
+      "회원 120명, 신청 340건",
+    ]);
+  });
+
+  test("이름을 바꾼 파일과 빈 데이터", () => {
+    expect(
+      previewLines({
+        takenAt: null,
+        kind: null,
+        termNames: [],
+        memberCount: 0,
+        applicationCount: 0,
+      }),
+    ).toEqual([
+      "백업: 알 수 없음 (파일 이름이 바뀜)",
+      "학기: 없음",
+      "회원 0명, 신청 0건",
+    ]);
+  });
+});
+
+describe("restoreOutcomeText", () => {
+  test("되돌렸는지 못 했는지 알린다", () => {
+    expect(
+      restoreOutcomeText({ at: "2026-11-23T10:00:00", restored: true }),
+    ).toBe("2026-11-23 10:00에 백업으로 되돌렸습니다");
+    expect(
+      restoreOutcomeText({ at: "2026-11-23T10:00:00", restored: false }),
+    ).toContain("그 전 데이터를 그대로 쓰고 있습니다");
   });
 });
