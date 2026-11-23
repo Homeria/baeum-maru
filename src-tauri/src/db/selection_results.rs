@@ -6,7 +6,7 @@
 use baeum_domain::{
     Capacity, ContactResult, Personal, Waiting, WithdrawnFrom, contact_turns, open_seats,
 };
-use sqlx::SqlitePool;
+use sqlx::{SqliteConnection, SqlitePool};
 
 use super::lotteries::{active_run, decode_error};
 
@@ -130,6 +130,14 @@ pub async fn course_result(
     course_id: i64,
 ) -> Result<CourseResult, CourseResultError> {
     let mut conn = pool.acquire().await?;
+    course_result_in(&mut conn, course_id).await
+}
+
+/// [`course_result`]를 주어진 연결에서 읽는다. 여러 강좌를 한 트랜잭션에서 읽을 때 쓴다.
+pub(super) async fn course_result_in(
+    conn: &mut SqliteConnection,
+    course_id: i64,
+) -> Result<CourseResult, CourseResultError> {
     let course: Option<(i64, bool)> = sqlx::query_as(
         "SELECT c.capacity, EXISTS (SELECT 1 FROM selection_closures s WHERE s.course_id = c.id)
          FROM courses c WHERE c.id = ?",
@@ -141,7 +149,7 @@ pub async fn course_result(
         return Err(CourseResultError::CourseNotFound);
     };
     // 마감은 추첨 기록이 있어야 할 수 있다(lotteries::close)
-    let run = match (closed, active_run(&mut conn, course_id).await?) {
+    let run = match (closed, active_run(&mut *conn, course_id).await?) {
         (true, Some(run)) => run,
         _ => return Err(CourseResultError::NotClosed),
     };
