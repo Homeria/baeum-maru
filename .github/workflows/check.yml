@@ -1,4 +1,5 @@
-# [ADR 0012]: 적어 둔 경로가 바뀐 때만 just check를 돌린다. 문서만 고치면 돌지 않는다.
+# [ADR 0012]: 적어 둔 경로가 바뀐 때만 돌린다. 문서만 고치면 돌지 않는다.
+# [ADR 0020]: just check를 작업 셋(화면, 의존성, Rust)으로 나눠 함께 돌린다.
 name: 검사
 
 on:
@@ -45,21 +46,11 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  ui:
+    name: 화면
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-
-      - name: Tauri 시스템 패키지
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-
-      # rust-toolchain.toml의 버전과 구성 요소를 명시적으로 설치
-      - name: Rust
-        run: rustup toolchain install
-
-      - uses: Swatinem/rust-cache@v2
 
       - uses: actions/setup-node@v7
         with:
@@ -69,7 +60,51 @@ jobs:
 
       - uses: taiki-e/install-action@v2
         with:
-          tool: just,cargo-deny
+          tool: just
 
       - run: just setup
-      - run: just check
+      - run: just check-names
+      - run: just check-ui
+
+  deps:
+    name: 의존성
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      # rust-toolchain.toml의 버전과 구성 요소를 명시적으로 설치
+      - name: Rust
+        run: rustup toolchain install
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just,cargo-deny
+
+      - run: just check-deps
+
+  rust:
+    name: Rust
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      # Tauri가 링크하는 시스템 패키지. 캐시가 있으면 Ubuntu 미러에 가지 않는다.
+      # 목록을 바꾸면 version도 바꿔 캐시를 새로 만든다.
+      - name: Tauri 시스템 패키지
+        uses: awalsh128/cache-apt-pkgs-action@v1.6.3
+        with:
+          packages: libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+          version: tauri-1
+
+      # rust-toolchain.toml의 버전과 구성 요소를 명시적으로 설치
+      - name: Rust
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - run: just check-rust
+      - run: just check-bindings
