@@ -28,6 +28,9 @@ use time::{OffsetDateTime, UtcOffset};
 
 use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
+
+use crate::backup::{self, name::BackupKind, name::BackupName, store::BackupError};
+use crate::clock;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 
 /// 데이터 폴더 안의 DB 파일 이름.
@@ -45,6 +48,9 @@ pub enum DbError {
     Open(#[from] sqlx::Error),
     #[error("DB 구조 변경을 적용하지 못했습니다: {0}")]
     Migrate(#[from] sqlx::migrate::MigrateError),
+    /// ADR 0005: 구조 변경 전에 백업하지 못하면 구조 변경을 하지 않는다.
+    #[error("DB 구조 변경 전에 백업하지 못해 구조 변경을 하지 않았습니다: {0}")]
+    BackupBeforeMigration(#[source] BackupError),
 }
 
 /// DB에 시각을 쓰는 모양. [docs/conventions.md]: UTC, 밀리초까지, 끝에 Z
@@ -113,6 +119,9 @@ pub async fn open(dir: &Path) -> Result<SqlitePool, DbError> {
     tokio::fs::create_dir_all(dir)
         .await
         .map_err(DbError::CreateDir)?;
+    let existed = tokio::fs::try_exists(dir.join(FILE_NAME))
+        .await
+        .map_err(DbError::CreateDir)?;
 
     // [ADR 0005]: 실험 01의 설정. 정전 때 마지막 저장을 잃지 않도록 synchronous는 FULL
     let options = SqliteConnectOptions::new()
@@ -127,8 +136,41 @@ pub async fn open(dir: &Path) -> Result<SqlitePool, DbError> {
         .max_connections(8)
         .connect_with(options)
         .await?;
+    if existed {
+        backup_before_migration(&pool, dir, OffsetDateTime::now_utc()).await?;
+    }
     MIGRATOR.run(&pool).await?;
     Ok(pool)
+}
+
+/// 아직 적용하지 않은 구조 변경이 있으면 먼저 백업한다(ADR 0005, 0011). 만든 백업 이름을 돌려준다.
+async fn backup_before_migration(
+    pool: &SqlitePool,
+    dir: &Path,
+    now: OffsetDateTime,
+) -> Result<Option<BackupName>, DbError> {
+    // 구조 변경 기록 테이블이 없으면(빈 파일) 모두 아직이다
+    let applied: Vec<i64> =
+        sqlx::query_scalar("SELECT version FROM _sqlx_migrations WHERE success = 1")
+            .fetch_all(pool)
+            .await
+            .unwrap_or_default();
+    let pending = MIGRATOR
+        .iter()
+        .any(|migration| !applied.contains(&migration.version));
+    if !pending {
+        return Ok(None);
+    }
+    let name = backup::store::create(
+        pool,
+        &backup::dir(dir),
+        BackupKind::BeforeMigration,
+        clock::local_datetime(now),
+    )
+    .await
+    .map_err(DbError::BackupBeforeMigration)?;
+    tracing::info!("DB 구조 변경 전 백업");
+    Ok(Some(name))
 }
 
 #[cfg(test)]
@@ -209,6 +251,33 @@ mod tests {
         open(dir.path()).await.unwrap().close().await;
 
         open(dir.path()).await.unwrap();
+
+        // 적용할 구조 변경이 없으면 백업하지 않는다. 새 DB도 마찬가지
+        let backups = backup::store::list(&backup::dir(dir.path())).await.unwrap();
+        assert!(backups.is_empty());
+    }
+
+    #[tokio::test]
+    async fn backs_up_before_pending_migration() {
+        let (dir, pool) = open_temp().await;
+        // 마지막 구조 변경을 아직 적용하지 않은 옛 DB처럼 만든다
+        sqlx::query(
+            "DELETE FROM _sqlx_migrations WHERE version = (SELECT MAX(version) FROM _sqlx_migrations)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let name = backup_before_migration(&pool, dir.path(), datetime!(2026-11-23 01:00 UTC))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            name.map(|name| name.kind),
+            Some(BackupKind::BeforeMigration)
+        );
+        let backups = backup::store::list(&backup::dir(dir.path())).await.unwrap();
+        assert_eq!(backups.len(), 1);
     }
 
     #[tokio::test]

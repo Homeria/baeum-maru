@@ -2,7 +2,7 @@
 //!
 //! 유효기간과 생년월일은 기관의 달력 날짜라 UTC가 아니라 이 PC의 날짜로 본다.
 
-use time::{Date, OffsetDateTime, UtcOffset};
+use time::{Date, OffsetDateTime, PrimitiveDateTime, UtcOffset};
 
 /// `now`가 이 PC의 지역 시간으로 며칠인지.
 ///
@@ -15,6 +15,21 @@ pub fn local_date(now: OffsetDateTime) -> Date {
             now.date()
         }
     }
+}
+
+/// `now`가 이 PC의 지역 시각으로 언제인지. 초 아래는 버린다. 예: 백업 파일 이름
+///
+/// 지역 시간대를 얻지 못하면 [`local_date`]처럼 UTC로 본다.
+pub fn local_datetime(now: OffsetDateTime) -> PrimitiveDateTime {
+    let local = match UtcOffset::local_offset_at(now) {
+        Ok(offset) => now.to_offset(offset),
+        Err(_) => {
+            tracing::warn!("지역 시간대를 얻지 못해 UTC 시각으로 봄");
+            now
+        }
+    };
+    let local = PrimitiveDateTime::new(local.date(), local.time());
+    local.replace_nanosecond(0).unwrap_or(local)
 }
 
 /// 지금 이 PC의 지역 날짜.
