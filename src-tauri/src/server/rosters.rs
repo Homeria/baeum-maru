@@ -136,9 +136,11 @@ mod tests {
         assert_eq!(response.headers()[header::CONTENT_TYPE], XLSX);
         assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
         let (sheet, rows) = read_sheet(&bytes(response).await, 0);
-        assert_eq!(sheet, "결과 명단");
-        assert_eq!(rows.len(), 6);
-        assert!(rows[1][4].starts_with("010-"));
+        assert_eq!(sheet, "요가(2)");
+        // 머리글 + 당첨 2명과 대기 3명 중 긴 쪽
+        assert_eq!(rows.len(), 4);
+        assert_eq!(rows[0][2], "당첨자 연락처");
+        assert!(rows[1][2].starts_with("010-"));
         let recorded: (String, String) =
             sqlx::query_as("SELECT kind, included_columns FROM roster_exports")
                 .fetch_one(&db)
@@ -148,7 +150,8 @@ mod tests {
             recorded,
             (
                 "raw".to_owned(),
-                "course_name,result,name,member_no,phone_number".to_owned()
+                "course_name,capacity,result,waitlist_number,name,member_no,phone_number,guaranteed"
+                    .to_owned()
             )
         );
     }

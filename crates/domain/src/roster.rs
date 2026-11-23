@@ -1,14 +1,14 @@
 //! 결과 명단(BR-P1~P11): 명단 종류, 넣을 칸, 가림.
 //!
-//! 명단 종류마다 늘 넣는 칸과 넣을지 고르는 칸이 다르다. 게시용은 연락처와 생년월일을
-//! 넣으면 늘 가린다(BR-P5). 이 규칙은 [`RosterSpec::new`]가 지킨다.
+//! 세 종류 모두 늘 넣는 칸과 넣을지 고르는 칸이 같다. 원본은 연락처와 생년월일도 가릴지
+//! 고르고, 게시용은 넣으면 늘 가린다(BR-P5, BR-P6). 이 규칙은 [`RosterSpec::new`]가 지킨다.
 
 use std::fmt;
 
 /// 결과 명단의 종류(BR-P1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RosterKind {
-    /// 원본 명단. 한 줄이 신청 하나인 긴 표.
+    /// 원본 명단. 강좌마다 시트 하나에 당첨자와 대기자를 나란히 둔다.
     Raw,
     /// 게시용 강좌별. 강좌마다 시트 하나.
     PostedByCourse,
@@ -33,17 +33,14 @@ impl RosterKind {
         }
     }
 
-    /// 게시용인지. 게시용은 포기한 신청을 넣지 않는다(BR-P3).
-    pub fn is_posted(self) -> bool {
-        self != RosterKind::Raw
-    }
-
     /// 이 종류에 늘 들어가는 칸(BR-P2, BR-P3, BR-P4).
+    ///
+    /// 원본은 강좌 이름과 정원을 시트 이름에, 결과를 당첨자·대기자 묶음으로 보여 준다.
     pub fn fixed_columns(self) -> &'static [RosterColumn] {
         use RosterColumn::*;
+        // 지금은 세 종류가 같다. 종류마다 달라질 수 있어 종류를 받는다
         match self {
-            RosterKind::Raw => &[CourseName, Result, Name, MemberNo],
-            RosterKind::PostedByCourse | RosterKind::PostedByMember => &[
+            RosterKind::Raw | RosterKind::PostedByCourse | RosterKind::PostedByMember => &[
                 CourseName,
                 Capacity,
                 Result,
@@ -59,15 +56,7 @@ impl RosterKind {
     pub fn optional_columns(self) -> &'static [RosterColumn] {
         use RosterColumn::*;
         match self {
-            RosterKind::Raw => &[
-                Capacity,
-                WaitlistNumber,
-                PhoneNumber,
-                BirthDate,
-                Gender,
-                Guaranteed,
-            ],
-            RosterKind::PostedByCourse | RosterKind::PostedByMember => {
+            RosterKind::Raw | RosterKind::PostedByCourse | RosterKind::PostedByMember => {
                 &[PhoneNumber, BirthDate, Gender]
             }
         }
@@ -92,7 +81,7 @@ impl RosterKind {
     }
 }
 
-/// 결과 명단에 넣을 수 있는 칸. [`RosterColumn::ALL`]의 순서가 원본 명단의 칸 순서다.
+/// 결과 명단에 넣을 수 있는 칸. [`RosterColumn::ALL`]의 순서가 명단의 칸 순서다.
 ///
 /// 우선 배정 사유와 포기 사유는 어느 명단에도 넣지 않으므로 없다(BR-P8).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -454,11 +443,21 @@ mod tests {
 
     #[test]
     fn br_p2_raw_keeps_fixed_columns_and_adds_chosen_in_order() {
-        let raw = spec(RosterKind::Raw, &[PhoneNumber, Capacity], &[]).unwrap();
+        let raw = spec(RosterKind::Raw, &[Gender, PhoneNumber], &[]).unwrap();
 
         assert_eq!(
             raw.columns(),
-            [CourseName, Capacity, Result, Name, MemberNo, PhoneNumber]
+            [
+                CourseName,
+                Capacity,
+                Result,
+                WaitlistNumber,
+                Name,
+                MemberNo,
+                PhoneNumber,
+                Gender,
+                Guaranteed
+            ]
         );
         assert!(raw.masked().is_empty());
     }

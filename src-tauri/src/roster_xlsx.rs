@@ -31,6 +31,9 @@ pub fn build(spec: &RosterSpec, roster: &[RosterCourse]) -> Result<Vec<u8>, Xlsx
     }
 }
 
+/// Excel 시트 이름의 최대 글자 수.
+const SHEET_NAME_MAX: usize = 31;
+
 /// 모든 칸의 글꼴. Excel 기본 글꼴(Calibri)에는 한글이 없어 프로그램에 따라 빈칸이 된다.
 /// 한국어 Windows 기본 글꼴을 직접 지정한다(실험 02).
 const FONT: &str = "맑은 고딕";
@@ -204,6 +207,40 @@ fn posted_column_width(column: RosterColumn) -> f64 {
     column_width(column) * 1.4
 }
 
+/// 강좌마다 시트 이름 `강좌 이름(정원)`.
+///
+/// Excel 규칙에 맞춘다: 31자 이하, `: \ / ? * [ ]`는 쓸 수 없다. 길면 강좌 이름을 자른다.
+/// 겹치면(대소문자 무시) 이름 뒤에 `-2`, `-3`을 붙인다.
+fn sheet_names(roster: &[RosterCourse]) -> Vec<String> {
+    let mut taken: Vec<String> = Vec::with_capacity(roster.len());
+    let mut names = Vec::with_capacity(roster.len());
+    for course in roster {
+        let base: String = course
+            .name
+            .chars()
+            .filter(|c| !matches!(c, ':' | '\\' | '/' | '?' | '*' | '[' | ']'))
+            .collect();
+        let base = base.trim_matches(|c: char| c == '\'' || c.is_whitespace());
+        let capacity = format!("({})", course.capacity.value());
+        let name = (1..)
+            .map(|n| {
+                let suffix = if n == 1 {
+                    capacity.clone()
+                } else {
+                    format!("-{n}{capacity}")
+                };
+                let room = SHEET_NAME_MAX.saturating_sub(suffix.chars().count());
+                let head: String = base.chars().take(room).collect();
+                format!("{}{suffix}", head.trim_end())
+            })
+            .find(|candidate| !taken.contains(&candidate.to_lowercase()))
+            .unwrap_or_default();
+        taken.push(name.to_lowercase());
+        names.push(name);
+    }
+    names
+}
+
 /// A4, 가로 폭을 한 쪽에 맞춰 인쇄한다(실험 02).
 fn print_on_a4(sheet: &mut Worksheet) {
     sheet.set_paper_size(9); // 9 = A4
@@ -213,14 +250,15 @@ fn print_on_a4(sheet: &mut Worksheet) {
 
 #[cfg(test)]
 mod tests {
-    use baeum_domain::{MaskChar, RosterChoice};
+    use baeum_domain::{Capacity, MaskChar, RosterChoice};
 
     use super::*;
     use test_support::{read_sheet, sample_roster};
 
     #[test]
     fn br_p1_builds_each_kind() {
-        let sheet_of = |kind: RosterKind| {
+        // 첫 시트의 첫 칸으로 종류를 알아본다
+        let first_cell = |kind: RosterKind| {
             let spec = RosterSpec::new(RosterChoice {
                 kind,
                 include: &[],
@@ -228,11 +266,38 @@ mod tests {
                 mask_char: MaskChar::Circle,
             })
             .unwrap();
-            read_sheet(&build(&spec, &sample_roster()).unwrap(), 0).0
+            read_sheet(&build(&spec, &sample_roster()).unwrap(), 0).1[0][0].clone()
         };
 
-        assert_eq!(sheet_of(RosterKind::Raw), "결과 명단");
-        assert_eq!(sheet_of(RosterKind::PostedByCourse), "요가 초급(2)");
-        assert_eq!(sheet_of(RosterKind::PostedByMember), "회원별 결과");
+        assert_eq!(first_cell(RosterKind::Raw), "당첨자");
+        assert_eq!(
+            first_cell(RosterKind::PostedByCourse),
+            "요가 초급 (정원 2명)"
+        );
+        assert_eq!(first_cell(RosterKind::PostedByMember), "선발 결과 (회원별)");
+    }
+
+    #[test]
+    fn sheet_names_follow_excel_rules() {
+        let course = |name: &str| RosterCourse {
+            course_id: 1,
+            name: name.to_owned(),
+            capacity: Capacity::new(20).unwrap(),
+            entries: Vec::new(),
+        };
+        let roster = [
+            course("스마트폰: 카톡/사진 [기초]"),
+            course("요가"),
+            course("요가"),
+            course("아주 긴 강좌 이름이 들어가는 경우를 위한 시험용 강좌 이름 초급 1반"),
+        ];
+
+        let names = sheet_names(&roster);
+
+        assert_eq!(names[0], "스마트폰 카톡사진 기초(20)");
+        assert_eq!(names[1], "요가(20)");
+        assert_eq!(names[2], "요가-2(20)");
+        assert_eq!(names[3].chars().count(), 31);
+        assert!(names[3].ends_with("(20)"));
     }
 }
