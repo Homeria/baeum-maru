@@ -88,13 +88,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Tauri가 링크하는 시스템 패키지. 캐시가 있으면 Ubuntu 미러에 가지 않는다.
-      # 목록을 바꾸면 version도 바꿔 캐시를 새로 만든다.
+      # Tauri가 링크하는 시스템 패키지. 미러가 잠깐 어긋나거나 끊기면 다시 받는다.
       - name: Tauri 시스템 패키지
-        uses: awalsh128/cache-apt-pkgs-action@v1.6.3
-        with:
-          packages: libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-          version: tauri-1
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update
+          sudo apt-get -o Acquire::Retries=3 install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
       # rust-toolchain.toml의 버전과 구성 요소를 명시적으로 설치
       - name: Rust
