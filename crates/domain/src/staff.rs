@@ -93,6 +93,8 @@ pub enum Action {
     RecordWithdrawals,
     /// 잘못 처리한 포기 바로잡기(BR-W8).
     CorrectWithdrawals,
+    /// 원본 명단 내보내기(BR-P10). 게시용 명단은 보기와 같다.
+    ExportRawRoster,
     /// 우선 배정 사유 목록 바꾸기(BR-S10).
     ManagePriorityReasons,
     /// 직원 계정 관리.
@@ -385,6 +387,7 @@ mod tests {
             RunLottery,
             RecordWithdrawals,
             CorrectWithdrawals,
+            ExportRawRoster,
             ManagePriorityReasons,
             ManageStaff,
             ViewAccessLog,
@@ -406,7 +409,8 @@ mod tests {
                 OverrideRules,
                 AssignPriority,
                 RunLottery,
-                RecordWithdrawals
+                RecordWithdrawals,
+                ExportRawRoster
             ]
         );
         assert_eq!(

@@ -14,6 +14,7 @@ mod paging;
 mod priority_reasons;
 mod recovery;
 mod rooms;
+mod rosters;
 mod selection_results;
 mod setup;
 mod staff;
@@ -160,6 +161,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/courses/{id}/selection-closure",
             post(lotteries::close_selection),
+        )
+        .route(
+            "/api/terms/{term_id}/roster-exports",
+            post(rosters::export_roster),
         )
         .route(
             "/api/terms/{term_id}/selection-results",

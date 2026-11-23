@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { getJson, hostErrorFrom } from "./client";
+import { getJson, hostErrorFrom, postForFile } from "./client";
 import { clearSession, getSession, setSession } from "./session";
 
 describe("hostErrorFrom", () => {
@@ -150,5 +150,22 @@ describe("세션 증표", () => {
 
     await expect(getJson("/api/rooms")).rejects.toThrow();
     expect(getSession()?.locked).toBe(true);
+  });
+});
+
+describe("postForFile", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test("응답 본문을 바이트로 돌려준다", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response(new Uint8Array([80, 75])))),
+    );
+
+    const bytes = await postForFile("/api/terms/1/roster-exports", {});
+
+    expect(Array.from(bytes)).toEqual([80, 75]);
   });
 });

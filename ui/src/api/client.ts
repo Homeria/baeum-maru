@@ -188,6 +188,15 @@ export async function postNoContent(
   await send("POST", path, body);
 }
 
+/** POST 요청으로 JSON을 보내고 파일 내용(바이트)을 받는다. 예: Excel 명단 */
+export async function postForFile(
+  path: string,
+  body: unknown,
+): Promise<Uint8Array> {
+  const response = await send("POST", path, body);
+  return new Uint8Array(await response.arrayBuffer());
+}
+
 /** DELETE 요청을 보낸다. 본문(예: 지우는 사유)은 선택. 성공하면 본문이 없다(204). */
 export async function sendDelete(path: string, body?: unknown): Promise<void> {
   await send("DELETE", path, body);

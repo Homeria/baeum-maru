@@ -5,6 +5,8 @@
 mod clock;
 mod data_dir;
 mod db;
+mod roster_xlsx;
+mod save_file;
 mod secret;
 #[cfg(feature = "dev-seed")]
 pub mod seed;
@@ -26,6 +28,9 @@ pub fn run() {
     tracing_subscriber::fmt().with_env_filter(filter).init();
 
     tauri::Builder::default()
+        // ADR 0018: 저장 창은 앱(Rust)에서만 띄운다. 화면에 권한을 열지 않는다
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![save_file::save_file])
         .setup(|app| {
             let host: version::Version = version::CURRENT.parse()?;
             let exe = std::env::current_exe()?;

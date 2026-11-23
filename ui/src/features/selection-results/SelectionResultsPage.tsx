@@ -5,23 +5,28 @@ import { listClosedCourses } from "../../api/selectionResults";
 import { listTerms } from "../../api/terms";
 import formStyles from "../../components/form/form.module.css";
 import tableStyles from "../../components/table/table.module.css";
+import { useCan } from "../auth/useCan";
 import { courseName } from "../courses/courseFormData";
 import { TermBar } from "../terms/TermBar";
 import { currentTerm } from "../terms/termFormData";
 import { CourseResultBoard } from "./CourseResultBoard";
 import { openSeatsLabel } from "./resultsData";
+import { RosterExportDialog } from "./RosterExportDialog";
 import styles from "./SelectionResultsPage.module.css";
 
 /**
  * 선발 결과 탭. 선발을 마감한 강좌에서 포기와 대기자 승격을 처리한다(BR-C3, BR-W).
  *
  * 왼쪽은 마감한 강좌와 빈자리, 오른쪽은 고른 강좌의 당첨자·대기자·포기다.
- * 학기를 바꾸면 고른 강좌를 비운다.
+ * 학기를 바꾸면 고른 강좌를 비운다. 위쪽 버튼으로 결과 명단을 Excel로 내보낸다(BR-P1).
  */
 export function SelectionResultsPage() {
   const terms = useQuery({ queryKey: ["terms"], queryFn: listTerms });
   const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
   const [courseId, setCourseId] = useState<number | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const canExportRaw = useCan("exportRawRoster");
   const current = terms.data
     ? currentTerm(terms.data.items, selectedTermId)
     : null;
@@ -67,17 +72,49 @@ export function SelectionResultsPage() {
 
   return (
     <div className={styles.page}>
-      <TermBar
-        terms={terms.data.items}
-        current={current}
-        onSelect={(id) => {
-          setSelectedTermId(id);
-          setCourseId(null);
-        }}
-        notice={null}
-        onNotice={() => undefined}
-        canEdit={false}
-      />
+      <div className={styles.toolbar}>
+        <TermBar
+          terms={terms.data.items}
+          current={current}
+          onSelect={(id) => {
+            setSelectedTermId(id);
+            setCourseId(null);
+            setNotice(null);
+          }}
+          notice={null}
+          onNotice={() => undefined}
+          canEdit={false}
+        />
+        <button
+          type="button"
+          className={`${formStyles.secondary} ${styles.exportButton}`}
+          // 마감한 강좌가 없으면 만들 명단이 없음(BR-P1)
+          disabled={!closed.data || closed.data.items.length === 0}
+          onClick={() => {
+            setNotice(null);
+            setExporting(true);
+          }}
+        >
+          결과 명단 내보내기
+        </button>
+      </div>
+      {notice && (
+        <p className={formStyles.notice} role="status">
+          {notice}
+        </p>
+      )}
+      {exporting && (
+        <RosterExportDialog
+          termId={current.id}
+          termName={current.name}
+          canExportRaw={canExportRaw}
+          onSaved={(path) => {
+            setExporting(false);
+            setNotice(`저장했습니다: ${path}`);
+          }}
+          onCancel={() => setExporting(false)}
+        />
+      )}
       {failure ? (
         <p className={formStyles.formError} role="alert">
           {failure.message}

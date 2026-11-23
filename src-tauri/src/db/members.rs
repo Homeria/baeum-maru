@@ -62,7 +62,7 @@ fn gender_text(gender: Gender) -> &'static str {
 }
 
 /// [`gender_text`]의 반대. CHECK 제약이 있어 다른 글자는 나오지 않는다.
-fn gender_from_text(text: &str) -> Result<Gender, sqlx::Error> {
+pub(super) fn gender_from_text(text: &str) -> Result<Gender, sqlx::Error> {
     match text {
         "male" => Ok(Gender::Male),
         "female" => Ok(Gender::Female),

@@ -228,6 +228,30 @@ pub async fn insert_priority_reason(pool: &SqlitePool, name: &str) -> Result<i64
     .map(|result| result.last_insert_rowid())
 }
 
+/// 내보내기 기록 한 줄. 종류, 칸, 가림 글자는 `raw` 같은 DB 글자.
+pub async fn insert_roster_export(
+    pool: &SqlitePool,
+    term_id: i64,
+    kind: &str,
+    mask_char: &str,
+    staff_id: i64,
+) -> Result<i64, sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO roster_exports
+             (term_id, kind, included_columns, masked_columns, mask_char, course_count,
+              exported_by, exported_at)
+         VALUES (?, ?, 'course_name,result,name,member_no', 'name', ?, 1, ?, ?)",
+    )
+    .bind(term_id)
+    .bind(kind)
+    .bind(mask_char)
+    .bind(staff_id)
+    .bind(NOW)
+    .execute(pool)
+    .await
+    .map(|result| result.last_insert_rowid())
+}
+
 /// 선발 결과 변경 기록 한 줄. 종류와 상태는 `withdrawn` 같은 DB 글자.
 pub async fn insert_selection_change(
     pool: &SqlitePool,
