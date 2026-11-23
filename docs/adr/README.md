@@ -26,3 +26,4 @@
 | [0016](0016-lottery-random.md) | 추첨 난수: 멈춤 순간의 OS 난수 시드 + 직접 만든 SplitMix64·피셔-예이츠 섞기 | 채택 (0017에서 대상·자리 수 보완) |
 | [0017](0017-priority-allocation.md) | 우선 배정: 기관이 만드는 사유 목록 + 사유마다 배정 방식(지금은 자리 보장), 신청마다 표시 | 채택 |
 | [0018](0018-save-dialog.md) | 결과 명단 파일은 받는 PC에서 앱(Rust)이 저장 창을 띄워 저장한다 (tauri-plugin-dialog) | 채택 |
+| [0019](0019-website.md) | 웹사이트는 이 저장소의 site/에 두고 GitHub Actions로 Pages에 올린다 (공개 배포는 출시 준비 때) | 채택 |
