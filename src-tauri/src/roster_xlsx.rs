@@ -6,6 +6,7 @@
 mod posted_by_course;
 mod posted_by_member;
 mod raw;
+mod side_by_side;
 
 use baeum_domain::{
     Gender, MaskChar, RosterColumn, RosterKind, RosterSpec, format_phone_number, mask_member_no,
@@ -38,8 +39,79 @@ const SHEET_NAME_MAX: usize = 31;
 /// 한국어 Windows 기본 글꼴을 직접 지정한다(실험 02).
 const FONT: &str = "맑은 고딕";
 
+// 색은 여기에만 둔다. 나중에 테마를 고를 수 있게 되면 이 값들을 바꾼다.
+
+/// 머리글 바탕색.
+const HEADER_FILL: &str = "#E8E8E8";
 /// 자리 보장 당첨을 칠하는 색(BR-P4). 흑백으로 인쇄해도 회색으로 구별되게 진하게 둔다.
 const PRIORITY_FILL: &str = "#FFD966";
+
+/// 표의 머리글, 내용, 자리 보장 칸 모양. 가운데 정렬, 가는 테두리.
+struct TableFormats {
+    header: Format,
+    body: Format,
+    /// 자리 보장으로 당첨된 칸(BR-P4).
+    priority: Format,
+}
+
+impl TableFormats {
+    fn new(font_size: f64) -> Self {
+        let body = Format::new()
+            .set_font_name(FONT)
+            .set_font_size(font_size)
+            .set_align(FormatAlign::Center)
+            .set_align(FormatAlign::VerticalCenter)
+            .set_border(FormatBorder::Thin);
+        TableFormats {
+            header: body.clone().set_bold().set_background_color(HEADER_FILL),
+            priority: body.clone().set_background_color(PRIORITY_FILL),
+            body,
+        }
+    }
+}
+
+/// 게시용 명단 맨 위의 제목과 안내 줄 모양.
+struct PostedHeading {
+    title: Format,
+    note: Format,
+}
+
+impl PostedHeading {
+    fn new() -> Self {
+        let base = Format::new()
+            .set_font_name(FONT)
+            .set_align(FormatAlign::VerticalCenter);
+        PostedHeading {
+            title: base
+                .clone()
+                .set_bold()
+                .set_font_size(20)
+                .set_align(FormatAlign::Center),
+            note: base.set_font_size(12).set_align(FormatAlign::Left),
+        }
+    }
+
+    /// 0번 줄에 제목, 1번 줄에 안내를 표 너비(`width`칸)만큼 합쳐 쓴다.
+    fn write(
+        &self,
+        sheet: &mut Worksheet,
+        width: u16,
+        title: &str,
+        note: &str,
+    ) -> Result<(), XlsxError> {
+        for (row, text, format, height) in
+            [(0, title, &self.title, 36.0), (1, note, &self.note, 22.0)]
+        {
+            if width <= 1 {
+                sheet.write_string_with_format(row, 0, text, format)?;
+            } else {
+                sheet.merge_range(row, 0, row, width - 1, text, format)?;
+            }
+            sheet.set_row_height(row, height)?;
+        }
+        Ok(())
+    }
+}
 
 /// 게시용 명단의 글씨와 칸 모양. 붙여 두고 어르신들이 보므로 글씨를 크게 한다.
 struct PostedFormats {
@@ -60,7 +132,7 @@ impl PostedFormats {
         let body = base.clone().set_border(FormatBorder::Thin);
         PostedFormats {
             title: base.clone().set_bold().set_font_size(20),
-            header: body.clone().set_bold().set_background_color("#E8E8E8"),
+            header: body.clone().set_bold().set_background_color(HEADER_FILL),
             priority: body.clone().set_background_color(PRIORITY_FILL),
             body,
         }
