@@ -81,8 +81,11 @@ jobs:
         if: matrix.kind != 'ui'
         run: rustup toolchain install
 
+      # 캐시는 main에서만 저장한다. PR은 읽기만 해서 PR마다 1GB씩 쌓이지 않는다.
       - if: matrix.kind == 'rust'
         uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - if: matrix.kind == 'ui'
         uses: actions/setup-node@v7
