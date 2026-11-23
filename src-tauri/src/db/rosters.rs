@@ -4,8 +4,6 @@
 //! 무엇을 넣고 가릴지는 [`RosterSpec`]이 정하고, Excel 모양은 다른 모듈이 만든다.
 //! 여기서는 회원 정보를 모두 읽는다. 명단에 넣지 않는 칸은 Excel을 만들 때 버린다.
 
-#![cfg_attr(not(test), expect(dead_code, reason = "명단 내보내기 API를 붙이기 전"))]
-
 use std::collections::HashMap;
 
 use baeum_domain::{Capacity, Gender, Personal, RosterColumn, RosterSpec};

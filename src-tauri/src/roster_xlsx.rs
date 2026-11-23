@@ -3,8 +3,6 @@
 //! 무엇을 넣고 가릴지는 [`RosterSpec`]이 정한다. 여기서는 그대로 칸을 채우고 모양만 정한다.
 //! 회원번호와 연락처는 앞자리 0이 사라지지 않게 늘 글자로 쓴다(실험 02).
 
-#![cfg_attr(not(test), expect(dead_code, reason = "명단 내보내기 API를 붙이기 전"))]
-
 mod posted_by_course;
 mod posted_by_member;
 mod raw;
@@ -18,7 +16,7 @@ use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Worksheet, XlsxError};
 use crate::db::rosters::{RosterCourse, RosterEntry, RosterResult};
 
 #[cfg(test)]
-mod test_support;
+pub mod test_support;
 
 /// 명단 Excel 파일의 내용을 만든다. 종류는 `spec`을 따른다(BR-P1).
 ///
