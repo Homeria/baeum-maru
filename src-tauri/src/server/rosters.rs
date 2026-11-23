@@ -140,10 +140,10 @@ mod tests {
         assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
         let (sheet, rows) = read_sheet(&bytes(response).await, 0);
         assert_eq!(sheet, "요가(2)");
-        // 머리글 + 당첨 2명과 대기 3명 중 긴 쪽
-        assert_eq!(rows.len(), 4);
-        assert_eq!(rows[0][2], "연락처");
-        assert!(rows[1][2].starts_with("010-"));
+        // 제목, 빈 줄, 머리글 + 당첨 2명과 대기 3명 중 긴 쪽
+        assert_eq!(rows.len(), 6);
+        assert_eq!(rows[2][2], "연락처");
+        assert!(rows[3][2].starts_with("010-"));
         let recorded: (String, String) =
             sqlx::query_as("SELECT kind, included_columns FROM roster_exports")
                 .fetch_one(&db)

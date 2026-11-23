@@ -77,22 +77,23 @@ impl TableFormats {
     }
 }
 
-/// 게시용 명단 맨 위의 제목과 안내 줄 모양.
-struct PostedHeading {
+/// 명단 맨 위의 제목과 안내 줄 모양.
+struct Heading {
     title: Format,
     note: Format,
 }
 
-impl PostedHeading {
-    fn new() -> Self {
+impl Heading {
+    /// 제목 글씨 크기는 명단마다 다르다. 게시용은 크게, 원본은 조금 작게.
+    fn new(title_size: f64) -> Self {
         let base = Format::new()
             .set_font_name(FONT)
             .set_align(FormatAlign::VerticalCenter);
-        PostedHeading {
+        Heading {
             title: base
                 .clone()
                 .set_bold()
-                .set_font_size(20)
+                .set_font_size(title_size)
                 .set_align(FormatAlign::Center),
             note: base.set_font_size(12).set_align(FormatAlign::Left),
         }
@@ -118,6 +119,11 @@ impl PostedHeading {
         }
         Ok(())
     }
+}
+
+/// 강좌별 시트의 제목. 예: `요가 초급 (정원 20명)`
+fn course_title(course: &RosterCourse) -> String {
+    format!("{} (정원 {}명)", course.name, course.capacity.value())
 }
 
 /// 칸 하나에 쓸 값.
@@ -297,8 +303,8 @@ mod tests {
 
     #[test]
     fn br_p1_builds_each_kind() {
-        // 첫 시트의 첫 칸으로 종류를 알아본다
-        let first_cell = |kind: RosterKind| {
+        // 첫 시트의 줄들로 종류를 알아본다
+        let first_rows = |kind: RosterKind| {
             let spec = RosterSpec::new(RosterChoice {
                 kind,
                 include: &[],
@@ -306,16 +312,19 @@ mod tests {
                 mask_char: MaskChar::Circle,
             })
             .unwrap();
-            read_sheet(&build(&spec, &sample_roster(), "2027년 1학기").unwrap(), 0).1[0][0].clone()
+            read_sheet(&build(&spec, &sample_roster(), "2027년 1학기").unwrap(), 0).1
         };
 
-        assert_eq!(first_cell(RosterKind::Raw), "당첨자");
+        let raw = first_rows(RosterKind::Raw);
         assert_eq!(
-            first_cell(RosterKind::PostedByCourse),
-            "요가 초급 (정원 2명)"
+            (raw[0][0].as_str(), raw[2][0].as_str()),
+            ("요가 초급 (정원 2명)", "당첨자")
         );
+        let by_course = first_rows(RosterKind::PostedByCourse);
+        assert_eq!(by_course[0][0], "요가 초급 (정원 2명)");
+        assert!(by_course[1][0].starts_with("※"));
         assert_eq!(
-            first_cell(RosterKind::PostedByMember),
+            first_rows(RosterKind::PostedByMember)[0][0],
             "2027년 1학기 회원별 선발 결과"
         );
     }

@@ -7,7 +7,7 @@ use baeum_domain::RosterSpec;
 use rust_xlsxwriter::{Workbook, XlsxError};
 
 use super::side_by_side::{table_width, write_side_by_side};
-use super::{PostedHeading, TableFormats, print_on_a4, sheet_names};
+use super::{Heading, TableFormats, course_title, print_on_a4, sheet_names};
 use crate::db::rosters::RosterCourse;
 
 /// 게시용 표의 글씨 크기.
@@ -22,7 +22,7 @@ const HEADER_ROW: u32 = 3;
 
 /// 게시용 강좌별 명단 Excel 파일의 내용을 만든다.
 pub fn posted_by_course(spec: &RosterSpec, roster: &[RosterCourse]) -> Result<Vec<u8>, XlsxError> {
-    let heading = PostedHeading::new();
+    let heading = Heading::new(20.0);
     let formats = TableFormats::new(FONT_SIZE);
     let width = table_width(spec);
     let names = sheet_names(roster);
@@ -31,8 +31,7 @@ pub fn posted_by_course(spec: &RosterSpec, roster: &[RosterCourse]) -> Result<Ve
     for (course, name) in roster.iter().zip(names) {
         let sheet = workbook.add_worksheet();
         sheet.set_name(name)?;
-        let title = format!("{} (정원 {}명)", course.name, course.capacity.value());
-        heading.write(sheet, width, &title, &[NOTE])?;
+        heading.write(sheet, width, &course_title(course), &[NOTE])?;
         write_side_by_side(sheet, spec, course, &formats, HEADER_ROW, WIDTH_SCALE)?;
         sheet.set_repeat_rows(HEADER_ROW, HEADER_ROW)?;
         print_on_a4(sheet);

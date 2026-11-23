@@ -1,30 +1,38 @@
-//! 원본 명단(BR-P2): 강좌마다 시트 하나. 왼쪽에 당첨자, 오른쪽에 대기자를 나란히 둔다.
+//! 원본 명단(BR-P2): 강좌마다 시트 하나. 맨 위에 강좌 이름과 정원을 제목으로 쓰고, 왼쪽에
+//! 당첨자, 오른쪽에 대기자를 나란히 둔다.
 //!
-//! 사무용이라 보통 크기 글씨이고 제목 없이 첫 줄이 머리글이다. 포기한 신청은 넣지 않는다.
+//! 사무용이라 보통 크기 글씨이고 안내 줄은 없다. 포기한 신청은 넣지 않는다.
 
 use baeum_domain::{RosterKind, RosterSpec};
 use rust_xlsxwriter::{Workbook, XlsxError};
 
-use super::side_by_side::write_side_by_side;
-use super::{TableFormats, print_on_a4, sheet_names};
+use super::side_by_side::{table_width, write_side_by_side};
+use super::{Heading, TableFormats, course_title, print_on_a4, sheet_names};
 use crate::db::rosters::RosterCourse;
 
 /// 원본 명단의 글씨 크기. Excel 기본과 같다.
 const FONT_SIZE: f64 = 11.0;
+/// 제목 글씨 크기. 게시용보다 작게.
+const TITLE_SIZE: f64 = 16.0;
+/// 표 머리글 줄. 0번 제목, 1번은 비운다.
+const HEADER_ROW: u32 = 2;
 
-/// 원본 명단 Excel 파일의 내용을 만든다. 첫 줄은 머리글이고 고정한다.
+/// 원본 명단 Excel 파일의 내용을 만든다. 머리글 줄까지 고정한다.
 pub fn raw_roster(spec: &RosterSpec, roster: &[RosterCourse]) -> Result<Vec<u8>, XlsxError> {
     debug_assert_eq!(spec.kind(), RosterKind::Raw);
+    let heading = Heading::new(TITLE_SIZE);
     let formats = TableFormats::new(FONT_SIZE);
+    let width = table_width(spec);
     let names = sheet_names(roster);
 
     let mut workbook = Workbook::new();
     for (course, name) in roster.iter().zip(names) {
         let sheet = workbook.add_worksheet();
         sheet.set_name(name)?;
-        write_side_by_side(sheet, spec, course, &formats, 0, 1.0)?;
-        sheet.set_freeze_panes(1, 0)?;
-        sheet.set_repeat_rows(0, 0)?;
+        heading.write(sheet, width, &course_title(course), &[])?;
+        write_side_by_side(sheet, spec, course, &formats, HEADER_ROW, 1.0)?;
+        sheet.set_freeze_panes(HEADER_ROW + 1, 0)?;
+        sheet.set_repeat_rows(HEADER_ROW, HEADER_ROW)?;
         print_on_a4(sheet);
     }
     workbook.save_to_buffer()
@@ -62,9 +70,10 @@ mod tests {
 
         let (name, rows) = read_sheet(&bytes, 0);
         assert_eq!(name, "요가 초급(2)");
+        assert_eq!(rows[0][0], "요가 초급 (정원 2명)");
         // 포기한 남궁민수는 없다
         assert_eq!(
-            rows,
+            rows[2..],
             [
                 ["당첨자", "회원번호", "대기자", "회원번호", "대기 순번"],
                 ["홍길동", "00012", "김철", "00034", "1"],
@@ -72,8 +81,8 @@ mod tests {
         );
         let (second, rows) = read_sheet(&bytes, 1);
         assert_eq!(second, "서예(1)");
-        assert_eq!(rows[1], ["박영희", "00078", "김철", "00034", "1"]);
-        assert_eq!(rows[2], ["", "", "김철", "00034", "2"]);
+        assert_eq!(rows[3], ["박영희", "00078", "김철", "00034", "1"]);
+        assert_eq!(rows[4], ["", "", "김철", "00034", "2"]);
     }
 
     #[test]
@@ -85,7 +94,7 @@ mod tests {
 
         let (_, rows) = read_sheet(&bytes, 0);
         assert_eq!(
-            rows,
+            rows[2..],
             [
                 [
                     "당첨자",

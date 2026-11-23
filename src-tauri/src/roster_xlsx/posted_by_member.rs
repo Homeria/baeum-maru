@@ -11,7 +11,7 @@ use baeum_domain::{RosterColumn, RosterSpec};
 use rust_xlsxwriter::{Format, FormatAlign, Workbook, Worksheet, XlsxError};
 
 use super::{
-    FONT, PRIORITY_TEXT, PostedHeading, TableFormats, cell, column_width, print_on_a4, text_width,
+    FONT, Heading, PRIORITY_TEXT, TableFormats, cell, column_width, print_on_a4, text_width,
 };
 use crate::db::rosters::{RosterCourse, RosterEntry, RosterResult};
 
@@ -107,7 +107,7 @@ pub fn posted_by_member(
     let sheet = workbook.add_worksheet();
     sheet.set_name(SHEET_NAME)?;
     let title = format!("{term_name} 회원별 선발 결과");
-    PostedHeading::new().write(sheet, waitlisted_col + 1, &title, &NOTES)?;
+    Heading::new(20.0).write(sheet, waitlisted_col + 1, &title, &NOTES)?;
 
     let header = &formats.table.header;
     sheet.write_string_with_format(HEADER_ROW, 0, "번호", header)?;
