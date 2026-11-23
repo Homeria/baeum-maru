@@ -1,0 +1,18 @@
+---
+interface Props {
+  title: string;
+  tone?: "info" | "neutral";
+}
+
+const { title, tone = "info" } = Astro.props;
+---
+
+<section
+  class:list={["notice", tone === "info" && "noticeInfo"]}
+  aria-label={title}
+>
+  <h2 class="noticeTitle">{title}</h2>
+  <div class="noticeBody">
+    <slot />
+  </div>
+</section>

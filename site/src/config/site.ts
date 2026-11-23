@@ -16,6 +16,20 @@ export const SITE = {
   aiNotice: "AI 도구의 도움을 받아 정리하고 제작자가 확인합니다.",
 } as const;
 
+/** 상단 메뉴 항목. */
+export interface NavItem {
+  label: string;
+  path: string;
+}
+
+/** 공통 머리글과 바닥글에 쓰는 메뉴 목록. */
+export const NAV_ITEMS: readonly NavItem[] = [
+  { label: "홈", path: "/" },
+  { label: "다운로드", path: "/download/" },
+  { label: "이야기", path: "/posts/" },
+  { label: "소개", path: "/about/" },
+];
+
 /**
  * GitHub Pages 하위 경로(base)를 붙인 내부 경로를 만든다.
  *

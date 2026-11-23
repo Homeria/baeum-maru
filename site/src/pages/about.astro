@@ -1,0 +1,51 @@
+---
+import NoticeBox from "../components/NoticeBox.astro";
+import { SITE, withBase } from "../config/site";
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="소개"
+  description="배움마루를 만드는 이유와 무료 공개 원칙을 안내합니다."
+  currentPath="/about/"
+>
+  <h1 class="pageTitle">소개</h1>
+  <p class="pageLead">
+    배움마루는 예산이 적은 소규모 교육·여가 프로그램 운영 기관도 수강 신청과
+    선발, 결과 명단 정리를 무료로 처리할 수 있도록 만드는 프로그램입니다.
+  </p>
+
+  <section class="section prose">
+    <h2>무료 공개 원칙</h2>
+    <p>
+      누구나 무료로 사용할 수 있는 공개 프로그램(MIT 라이선스)입니다. 자세한
+      소개와 다루는 업무 범위는 다음 단계에서 채워 나갈 예정입니다.
+    </p>
+    <p>
+      회원 정보와 신청 데이터는 외부 서버로 보내지 않고 기관 PC 안에만
+      보관합니다.
+    </p>
+  </section>
+
+  <section class="section prose">
+    <h2>의견과 오류 제보</h2>
+    <p>
+      버그 제보나 기능 제안은
+      <a href={SITE.issuesUrl} target="_blank" rel="noopener noreferrer">
+        GitHub 이슈
+      </a>
+      로 남겨 주세요. 제보하실 때는 실제 이용자의 이름, 연락처, 생년월일 같은
+      개인정보를 올리지 않도록 주의해 주세요.
+    </p>
+    <p>
+      <a href={withBase("/posts/")}>만드는 이야기</a>에서 기능별 설계 이유를
+      읽어 보실 수 있습니다.
+    </p>
+  </section>
+
+  <section class="section">
+    <NoticeBox title="이 웹사이트를 만드는 방법" tone="neutral">
+      <p>{SITE.aiNotice}</p>
+    </NoticeBox>
+  </section>
+</BaseLayout>

@@ -1,0 +1,42 @@
+---
+import { getCollection, render } from "astro:content";
+import { withBase } from "../../config/site";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("posts");
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+
+const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+---
+
+<BaseLayout
+  title={post.data.title}
+  description={post.data.summary}
+  currentPath="/posts/"
+>
+  <article class="prose">
+    <p class="postMeta">
+      <a href={withBase("/posts/")}>이야기 목록으로</a>
+    </p>
+    <h1 class="pageTitle">{post.data.title}</h1>
+    <p class="postMeta">
+      <span>{post.data.category}</span> ·{" "}
+      <time datetime={post.data.publishedAt.toISOString()}>
+        {dateFormatter.format(post.data.publishedAt)}
+      </time>
+    </p>
+    <Content />
+  </article>
+</BaseLayout>

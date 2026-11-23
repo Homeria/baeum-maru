@@ -1,0 +1,366 @@
+/* 기관 직원이 오래된 사무실 모니터와 휴대폰 모두에서 편하게 읽도록 넉넉한 글자 크기와 높은 대비를 쓴다. */
+
+:root {
+  --bg: #f6f8fa;
+  --surface: #ffffff;
+  --surface-tint: #eef5f8;
+  --surface-muted: #f0f3f6;
+  --text: #1b242c;
+  --text-muted: #4b5a68;
+  --border: #d5dfe7;
+  --accent: #1c4e68;
+  --accent-hover: #143a4e;
+  --accent-soft: #e2eff5;
+  --focus: #0b6fa4;
+  --radius: 10px;
+  --max-width: 880px;
+  --reading-width: 720px;
+  --font-sans:
+    "Pretendard", "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo",
+    "Noto Sans KR", system-ui, -apple-system, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.72;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.skipLink {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--accent);
+  color: #ffffff;
+  padding: 0.75rem 1.25rem;
+  z-index: 100;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.skipLink:focus {
+  left: 1rem;
+  top: 1rem;
+}
+
+.container {
+  width: 100%;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+.siteHeader {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.headerInner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.brand:hover {
+  color: var(--accent);
+}
+
+.navList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+}
+
+.navLink {
+  display: inline-block;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.navLink:hover {
+  background: var(--surface-muted);
+  color: var(--accent);
+}
+
+.navLink[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.siteMain {
+  flex: 1;
+  padding: 2.5rem 0 4rem;
+}
+
+.siteFooter {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 2rem 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.footerInner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+}
+
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: center;
+}
+
+.pageTitle {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.65rem, 3vw, 2.15rem);
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+.pageLead {
+  margin: 0 0 2rem;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  max-width: var(--reading-width);
+}
+
+.section {
+  margin-top: 2.5rem;
+}
+
+.section h2 {
+  margin: 0 0 1rem;
+  font-size: 1.35rem;
+  line-height: 1.4;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.35rem 1.4rem;
+}
+
+.card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.12rem;
+}
+
+.card p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.notice {
+  border-radius: var(--radius);
+  padding: 1.35rem 1.5rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.noticeInfo {
+  background: var(--surface-tint);
+  border-color: #b8d3e1;
+}
+
+.noticeTitle {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  color: var(--accent);
+}
+
+.noticeBody > :first-child {
+  margin-top: 0;
+}
+
+.noticeBody > :last-child {
+  margin-bottom: 0;
+}
+
+.linkRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin-top: 1.25rem;
+  align-items: center;
+}
+
+.buttonLink {
+  display: inline-block;
+  padding: 0.65rem 1.2rem;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.buttonLink:hover {
+  background: var(--accent-hover);
+  color: #ffffff;
+}
+
+.buttonLinkSecondary {
+  display: inline-block;
+  padding: 0.65rem 1.2rem;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.buttonLinkSecondary:hover {
+  background: var(--surface-muted);
+  color: var(--accent);
+}
+
+.postList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.postCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.5rem;
+}
+
+.postMeta {
+  margin: 0 0 0.35rem;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+}
+
+.postTitle {
+  margin: 0 0 0.45rem;
+  font-size: 1.25rem;
+}
+
+.postTitle a {
+  text-decoration: none;
+  color: var(--text);
+}
+
+.postTitle a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.prose {
+  max-width: var(--reading-width);
+}
+
+.prose h2 {
+  margin-top: 2.25rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.35rem;
+}
+
+.prose h3 {
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.15rem;
+}
+
+.prose p,
+.prose ul,
+.prose ol {
+  margin-top: 0;
+  margin-bottom: 1.1rem;
+}
+
+.prose li + li {
+  margin-top: 0.35rem;
+}
+
+@media (max-width: 600px) {
+  body {
+    font-size: 1rem;
+  }
+
+  .siteMain {
+    padding: 1.75rem 0 3rem;
+  }
+
+  .navLink {
+    padding: 0.4rem 0.65rem;
+  }
+}
