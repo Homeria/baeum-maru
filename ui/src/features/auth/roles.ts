@@ -29,6 +29,7 @@ export type Action =
   | "runLottery"
   | "recordWithdrawals"
   | "correctWithdrawals"
+  | "exportRawRoster"
   | "managePriorityReasons"
   | "manageStaff"
   | "viewAccessLog";
