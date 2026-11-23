@@ -16,6 +16,8 @@ use time::OffsetDateTime;
 use super::applications::require_term;
 use super::auth::{Client, CurrentStaff};
 use super::error::ApiError;
+use crate::backup::Backups;
+use crate::backup::name::BackupKind;
 use crate::db::lotteries::{self, CloseSelectionError, RunLotteryError};
 use crate::secret;
 
@@ -53,6 +55,7 @@ pub async fn get_lottery(
 /// 시드는 지금(멈춤을 누른 순간) 운영체제 난수로 만든다(ADR 0016).
 pub async fn run_lottery(
     State(db): State<SqlitePool>,
+    State(backups): State<Backups>,
     staff: CurrentStaff,
     client: Client,
     id: Result<Path<i64>, PathRejection>,
@@ -60,6 +63,13 @@ pub async fn run_lottery(
     staff.require(Action::RunLottery)?;
     client.require_host()?;
     let Path(id) = id?;
+    // ADR 0011: 되돌리기 어려운 작업 직전 백업. 실패해도 추첨은 한다
+    backups
+        .make(
+            BackupKind::BeforeLottery { course_id: id },
+            OffsetDateTime::now_utc(),
+        )
+        .await;
     let seed = secret::new_lottery_seed().map_err(ApiError::internal)?;
     let run_id = lotteries::run(&db, id, staff.id, seed, OffsetDateTime::now_utc())
         .await
@@ -77,6 +87,7 @@ pub async fn run_lottery(
 /// 강좌의 선발을 마감한다(BR-L5). 성공하면 204(본문 없음).
 pub async fn close_selection(
     State(db): State<SqlitePool>,
+    State(backups): State<Backups>,
     staff: CurrentStaff,
     client: Client,
     id: Result<Path<i64>, PathRejection>,
@@ -84,6 +95,12 @@ pub async fn close_selection(
     staff.require(Action::RunLottery)?;
     client.require_host()?;
     let Path(id) = id?;
+    backups
+        .make(
+            BackupKind::BeforeClose { course_id: id },
+            OffsetDateTime::now_utc(),
+        )
+        .await;
     lotteries::close(&db, id, staff.id, OffsetDateTime::now_utc())
         .await
         .map_err(|error| match error {
@@ -226,7 +243,7 @@ mod tests {
 
     #[tokio::test]
     async fn br_l4_l5_redraw_until_closed() {
-        let (_dir, db, router) = app().await;
+        let (dir, db, router) = app().await;
         let s = setup(&db, 3).await;
         assert_eq!(s.close(router.clone()).await, StatusCode::CONFLICT);
         s.draw(router.clone()).await;
@@ -236,6 +253,19 @@ mod tests {
 
         assert_eq!(again, StatusCode::OK);
         assert_eq!(closed, StatusCode::NO_CONTENT);
+        // ADR 0011: 추첨과 마감 직전마다 백업이 남는다
+        let kinds: Vec<BackupKind> = crate::backup::store::list(&crate::backup::dir(dir.path()))
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|backup| backup.name.kind)
+            .collect();
+        assert!(kinds.contains(&BackupKind::BeforeLottery {
+            course_id: s.course_id
+        }));
+        assert!(kinds.contains(&BackupKind::BeforeClose {
+            course_id: s.course_id
+        }));
         assert_eq!(s.lottery(router.clone()).await["stage"], "closed");
         let (status, body) = s.draw(router.clone()).await;
         assert_eq!(status, StatusCode::CONFLICT);

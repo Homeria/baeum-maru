@@ -75,7 +75,7 @@ pub enum ApiError {
     NoApplicants,
     /// BR-S5: 자리 보장 신청이 정원보다 많아 추첨할 수 없다.
     PriorityOverCapacity,
-    /// BR-L6: 호스트 PC에서만 하는 일이다.
+    /// BR-L6, ADR 0011: 호스트 PC에서만 하는 일이다. 예: 추첨, 두 번째 위치 바꾸기
     HostOnly,
     /// BR-A5: 신청 규칙을 어겼다. 어긴 규칙을 모두 담는다.
     RulesBroken(Vec<RuleViolationResponse>),
@@ -111,6 +111,8 @@ pub enum ApiError {
     NotAllowed,
     /// ADR 0012: 앱과 호스트의 버전 앞 두 자리가 다르다.
     VersionMismatch,
+    /// ADR 0011: 지금 백업을 만들지 못했다. 자세한 내용은 로그에만 있다.
+    BackupFailed,
     /// DB 같은 내부 문제. 자세한 내용은 로그에만 있다.
     Internal,
 }
@@ -199,6 +201,7 @@ pub enum ErrorCode {
     SessionLocked,
     NotAllowed,
     VersionMismatch,
+    BackupFailed,
     Internal,
 }
 
@@ -439,7 +442,7 @@ impl IntoResponse for ApiError {
             ApiError::HostOnly => (
                 StatusCode::FORBIDDEN,
                 ErrorCode::HostOnly,
-                "추첨과 선발 마감은 호스트 PC에서만 합니다",
+                "호스트 PC에서만 할 수 있습니다",
                 Some("BR-L6"),
                 Vec::new(),
             ),
@@ -559,6 +562,13 @@ impl IntoResponse for ApiError {
                 StatusCode::CONFLICT,
                 ErrorCode::VersionMismatch,
                 "이 PC의 배움마루 버전이 호스트와 다릅니다. 같은 버전으로 맞춰 주세요",
+                None,
+                Vec::new(),
+            ),
+            ApiError::BackupFailed => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                ErrorCode::BackupFailed,
+                "백업하지 못했습니다. 디스크 공간이 남아 있는지 확인해 주세요",
                 None,
                 Vec::new(),
             ),

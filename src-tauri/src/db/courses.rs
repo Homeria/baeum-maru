@@ -380,6 +380,23 @@ async fn read(pool: &SqlitePool, filter: Filter) -> Result<Vec<CourseRecord>, sq
         .collect())
 }
 
+/// 모든 강좌의 화면 이름(과목, 수준, 반). 강좌 id로 찾는다. 예: 백업 목록의 "추첨 직전 · 요가 초급"
+pub async fn names(pool: &SqlitePool) -> Result<HashMap<i64, String>, sqlx::Error> {
+    let rows: Vec<(i64, String, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT c.id, s.name, c.level, c.section
+         FROM courses c JOIN subjects s ON s.id = c.subject_id",
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(|(id, subject, level, section)| {
+            let name = super::rosters::course_name(&subject, level.as_deref(), section.as_deref());
+            (id, name)
+        })
+        .collect())
+}
+
 #[cfg(test)]
 mod tests {
     use baeum_domain::{CourseInput, ScheduleInput};

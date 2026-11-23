@@ -2,9 +2,11 @@
 //!
 //! 창(Tauri)을 띄우고, 같은 프로세스에서 HTTP 서버를 돌린다.
 
+mod backup;
 mod clock;
 mod data_dir;
 mod db;
+mod pick_folder;
 mod roster_xlsx;
 mod save_file;
 mod secret;
@@ -16,6 +18,10 @@ mod version;
 use tauri::Manager;
 use tracing_subscriber::EnvFilter;
 
+use time::OffsetDateTime;
+
+use crate::backup::Backups;
+use crate::backup::name::BackupKind;
 use crate::data_dir::DataDir;
 
 /// 앱을 시작한다. 창을 닫으면 돌아온다.
@@ -28,9 +34,12 @@ pub fn run() {
     tracing_subscriber::fmt().with_env_filter(filter).init();
 
     tauri::Builder::default()
-        // ADR 0018: 저장 창은 앱(Rust)에서만 띄운다. 화면에 권한을 열지 않는다
+        // ADR 0018: 저장 창과 폴더 고르기 창은 앱(Rust)에서만 띄운다. 화면에 권한을 열지 않는다
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![save_file::save_file])
+        .invoke_handler(tauri::generate_handler![
+            save_file::save_file,
+            pick_folder::pick_folder
+        ])
         .setup(|app| {
             let host: version::Version = version::CURRENT.parse()?;
             let exe = std::env::current_exe()?;
@@ -38,10 +47,31 @@ pub fn run() {
                 .parent()
                 .ok_or("실행 파일이 있는 폴더를 찾지 못했습니다")?;
             let data_dir = DataDir::resolve(exe_dir, app.path().app_data_dir()?);
-            // 호스트·접속 선택이 생길 때까지는 늘 띄움
-            tauri::async_runtime::spawn(server::serve(host, data_dir));
+            // DB를 연 뒤에 서버와 백업을 시작한다. 열지 못하면 창만 뜬다
+            match tauri::async_runtime::block_on(db::open(data_dir.path())) {
+                Ok(db) => {
+                    tracing::info!(portable = data_dir.is_portable(), "DB 열림");
+                    let backups = Backups::new(db.clone(), data_dir.path());
+                    tauri::async_runtime::spawn(backups.clone().run_daily());
+                    // 호스트·접속 선택이 생길 때까지는 늘 띄움
+                    tauri::async_runtime::spawn(server::serve(host, db, backups.clone()));
+                    // 앱을 끌 때 백업에 쓴다
+                    app.manage(backups);
+                }
+                Err(error) => tracing::error!(%error, "DB를 열지 못했습니다"),
+            }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("창을 띄우지 못했습니다");
+        .build(tauri::generate_context!())
+        .expect("창을 띄우지 못했습니다")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event
+                && let Some(backups) = app.try_state::<Backups>()
+            {
+                // 창이 다 닫힌 뒤라 기다려도 직원은 기다리지 않는다
+                tauri::async_runtime::block_on(
+                    backups.make(BackupKind::Exit, OffsetDateTime::now_utc()),
+                );
+            }
+        });
 }

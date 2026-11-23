@@ -5,6 +5,7 @@
 mod access_logs;
 mod applications;
 mod auth;
+mod backups;
 mod courses;
 mod error;
 mod login;
@@ -34,8 +35,7 @@ use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 
-use crate::data_dir::DataDir;
-use crate::db::{self, DbError};
+use crate::backup::Backups;
 use crate::version::Version;
 
 /// ADR 0004: 포트 47800 고정.
@@ -62,11 +62,18 @@ pub struct AppState {
     /// 이 PC(호스트)의 버전.
     host: Version,
     db: SqlitePool,
+    backups: Backups,
 }
 
 impl AppState {
-    pub fn new(host: Version, db: SqlitePool) -> Self {
-        AppState { host, db }
+    pub fn new(host: Version, db: SqlitePool, backups: Backups) -> Self {
+        AppState { host, db, backups }
+    }
+}
+
+impl FromRef<AppState> for Backups {
+    fn from_ref(state: &AppState) -> Self {
+        state.backups.clone()
     }
 }
 
@@ -210,6 +217,14 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/staff/{id}/pin", post(staff::reset_staff_pin))
         .route("/api/access-logs", get(access_logs::list_access_logs))
+        .route(
+            "/api/backups",
+            get(backups::list_backups).post(backups::create_backup),
+        )
+        .route(
+            "/api/backups/second-location",
+            put(backups::set_second_location),
+        )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::require_session,
@@ -261,31 +276,20 @@ fn cors() -> CorsLayer {
         ])
 }
 
-/// 서버를 시작하지 못했다.
-#[derive(Debug, thiserror::Error)]
-enum ServeError {
-    #[error(transparent)]
-    Db(#[from] DbError),
-    #[error("포트 {PORT}을 열지 못했습니다: {0}")]
-    Listen(#[from] std::io::Error),
-}
-
-/// DB를 열고 서버를 띄워 끝날 때까지 돈다. 실패하면 로그만 남긴다.
-pub async fn serve(host: Version, data_dir: DataDir) {
-    if let Err(error) = listen(host, &data_dir).await {
-        tracing::error!(%error, "서버를 시작하지 못했습니다");
+/// 서버를 띄워 끝날 때까지 돈다. 포트를 열지 못하면 로그만 남긴다.
+pub async fn serve(host: Version, db: SqlitePool, backups: Backups) {
+    if let Err(error) = listen(host, db, backups).await {
+        tracing::error!(%error, "서버를 시작하지 못했습니다 (포트 {PORT})");
     }
 }
 
-async fn listen(host: Version, data_dir: &DataDir) -> Result<(), ServeError> {
-    let db = db::open(data_dir.path()).await?;
-    tracing::info!(portable = data_dir.is_portable(), "DB 열림");
-
+async fn listen(host: Version, db: SqlitePool, backups: Backups) -> Result<(), std::io::Error> {
     let addr = SocketAddr::from((LISTEN_ADDR, PORT));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!(%addr, version = crate::version::CURRENT, "서버 시작");
     // 처리 함수가 요청을 보낸 PC의 주소를 알게 한다 (BR-L6, auth::Client)
-    let app = router(AppState::new(host, db)).into_make_service_with_connect_info::<SocketAddr>();
+    let app = router(AppState::new(host, db, backups))
+        .into_make_service_with_connect_info::<SocketAddr>();
     axum::serve(listener, app).await?;
     Ok(())
 }
@@ -305,8 +309,9 @@ mod tests {
 
     async fn send(request: Request<Body>) -> Response<Body> {
         let dir = tempfile::tempdir().unwrap();
-        let db = db::open(dir.path()).await.unwrap();
-        router(AppState::new("0.1.0".parse().unwrap(), db))
+        let db = crate::db::open(dir.path()).await.unwrap();
+        let backups = Backups::new(db.clone(), dir.path());
+        router(AppState::new("0.1.0".parse().unwrap(), db, backups))
             .oneshot(request)
             .await
             .unwrap()

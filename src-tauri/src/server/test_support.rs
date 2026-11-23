@@ -58,9 +58,11 @@ pub async fn app_as(role: &str) -> (tempfile::TempDir, SqlitePool, Router) {
 /// 요청은 호스트 PC 자신(127.0.0.1)에서 온 것으로 본다. 다른 PC는 [`from_other_pc`].
 pub async fn app_without_staff() -> (tempfile::TempDir, SqlitePool, Router) {
     let (dir, db) = crate::db::open_temp().await;
+    let backups = crate::backup::Backups::new(db.clone(), dir.path());
     let router = router(AppState::new(
         crate::version::CURRENT.parse().unwrap(),
         db.clone(),
+        backups,
     ))
     .layer(MockConnectInfo(SocketAddr::from((
         Ipv4Addr::LOCALHOST,
