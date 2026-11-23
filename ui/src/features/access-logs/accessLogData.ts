@@ -7,6 +7,7 @@ export const ACCESS_EVENT_LABELS: Record<AccessEventCode, string> = {
   logout: "로그아웃",
   unlock_failed: "잠금 풀기 실패",
   recovery_used: "복구 코드 사용",
+  restore: "복원",
 };
 
 /** 실패라서 눈에 띄게 보여 줄 일. */

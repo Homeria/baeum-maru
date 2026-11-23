@@ -1,6 +1,7 @@
 //! `/api/backups`: 백업 목록, 지금 백업, 두 번째 위치 바꾸기(ADR 0011). 관리자만 한다.
 //!
 //! 두 번째 위치는 그 PC의 폴더라서 호스트 PC에서만 바꾼다. 다른 PC에서는 보기만 한다.
+//! 복원도 호스트 PC에서만 한다. 호스트 앱을 다시 켜야 하고, 고른 파일도 호스트의 경로다.
 
 mod json;
 
@@ -16,12 +17,16 @@ use time::OffsetDateTime;
 
 use super::auth::{Client, CurrentStaff};
 use super::error::{ApiError, FieldError};
+use crate::backup::inspect::{self, InspectError};
+use crate::backup::name::BackupName;
+use crate::backup::restore::{PrepareError, RestoreOutcome};
 use crate::backup::{Backups, SecondLocationError, SecondLocationStatus};
 use crate::db::courses;
 
 use json::{
     BackupFailureResponse, BackupKindCode, BackupListResponse, BackupResponse,
-    SecondLocationRequest, SecondLocationResponse, local_text,
+    RestoreOutcomeResponse, RestorePreviewResponse, RestoreRequest, SecondLocationRequest,
+    SecondLocationResponse, local_text,
 };
 
 /// 백업 목록, 마지막 자동 백업 실패, 두 번째 위치.
@@ -52,10 +57,21 @@ pub async fn list_backups(
         at: local_text(failure.at),
         kind: BackupKindCode::split(failure.kind).0,
     });
+    let last_restore = backups.restore_outcome().map(|outcome| match outcome {
+        RestoreOutcome::Restored { at, .. } => RestoreOutcomeResponse {
+            at: local_text(at),
+            restored: true,
+        },
+        RestoreOutcome::Failed { at } => RestoreOutcomeResponse {
+            at: local_text(at),
+            restored: false,
+        },
+    });
     let second = backups.second_location().await;
     Ok(Json(BackupListResponse {
         items,
         last_failure,
+        last_restore,
         second_location: second_location_response(second, client),
     }))
 }
@@ -124,6 +140,125 @@ pub async fn set_second_location(
     tracing::info!(staff_id = staff.id, turned_on, "두 번째 위치 바꿈");
     let second = backups.second_location().await;
     Ok(Json(second_location_response(second, client)))
+}
+
+/// 복원할 백업을 살펴보고 미리보기를 돌려준다. 호스트 PC에서만.
+pub async fn preview_restore(
+    State(backups): State<Backups>,
+    staff: CurrentStaff,
+    client: Client,
+    body: Result<Json<RestoreRequest>, JsonRejection>,
+) -> Result<Json<RestorePreviewResponse>, ApiError> {
+    staff.require(Action::ManageBackups)?;
+    client.require_host()?;
+    let Json(request) = body?;
+    let source = RestoreSource::from_request(&backups, request).await?;
+    let preview = inspect::inspect(&source.file)
+        .await
+        .map_err(|error| source.invalid(&error))?;
+    Ok(Json(RestorePreviewResponse {
+        taken_at: source.name.map(|name| local_text(name.taken_at)),
+        kind: source.name.map(|name| BackupKindCode::split(name.kind).0),
+        term_names: preview.term_names,
+        member_count: preview.member_count,
+        application_count: preview.application_count,
+    }))
+}
+
+/// 복원을 준비한다. 성공하면 204이고, 화면이 앱을 다시 켜면 바뀐다. 호스트 PC에서만.
+pub async fn restore(
+    State(backups): State<Backups>,
+    staff: CurrentStaff,
+    client: Client,
+    body: Result<Json<RestoreRequest>, JsonRejection>,
+) -> Result<StatusCode, ApiError> {
+    staff.require(Action::ManageBackups)?;
+    client.require_host()?;
+    let Json(request) = body?;
+    let source = RestoreSource::from_request(&backups, request).await?;
+    backups
+        .prepare_restore(&source.file, staff.id, OffsetDateTime::now_utc())
+        .await
+        .map_err(|error| match error {
+            PrepareError::Inspect(error) => source.invalid(&error),
+            PrepareError::Backup(error) => {
+                tracing::warn!(%error, staff_id = staff.id, "복원 직전 백업 실패");
+                ApiError::BackupFailed
+            }
+            PrepareError::Io(error) => ApiError::internal(error),
+        })?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// 복원할 백업 파일.
+struct RestoreSource {
+    file: PathBuf,
+    /// 파일 이름이 백업 이름 모양이면 그 이름.
+    name: Option<BackupName>,
+    /// 오류를 붙일 요청 칸.
+    field: &'static str,
+}
+
+impl RestoreSource {
+    /// 목록의 파일 이름이나 다른 곳의 경로 중 하나를 받는다.
+    async fn from_request(backups: &Backups, request: RestoreRequest) -> Result<Self, ApiError> {
+        let source = match (request.file_name, request.path) {
+            (Some(file_name), None) => {
+                // 백업 이름 모양만 받아서 백업 폴더 밖을 가리키지 못하게 한다
+                let name = BackupName::parse(&file_name)
+                    .ok_or_else(|| field_error("fileName", "백업 목록에 없는 파일입니다"))?;
+                RestoreSource {
+                    file: backups.file_of(name),
+                    name: Some(name),
+                    field: "fileName",
+                }
+            }
+            (None, Some(path)) => {
+                let file = PathBuf::from(path.trim());
+                if !file.is_absolute() {
+                    return Err(field_error(
+                        "path",
+                        "파일 경로는 드라이브부터 적어야 합니다",
+                    ));
+                }
+                let name = file
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .and_then(BackupName::parse);
+                RestoreSource {
+                    file,
+                    name,
+                    field: "path",
+                }
+            }
+            _ => return Err(ApiError::MalformedRequest),
+        };
+        let is_file = tokio::fs::metadata(&source.file)
+            .await
+            .is_ok_and(|metadata| metadata.is_file());
+        if !is_file {
+            return Err(field_error(
+                source.field,
+                "백업 파일이 없습니다. 외장 디스크나 USB가 꽂혀 있는지 확인해 주세요",
+            ));
+        }
+        Ok(source)
+    }
+
+    fn invalid(&self, error: &InspectError) -> ApiError {
+        if let InspectError::Broken(source) = error {
+            // 없는 파일도 여기로 온다. 경로는 남기지 않는다
+            tracing::info!(error = %source, "복원할 수 없는 파일");
+        }
+        field_error(self.field, &error.to_string())
+    }
+}
+
+fn field_error(field: &str, message: &str) -> ApiError {
+    ApiError::InvalidInput(vec![FieldError {
+        field: field.to_owned(),
+        message: message.to_owned(),
+    }])
 }
 
 fn second_location_response(
@@ -265,5 +400,148 @@ mod tests {
         assert_eq!(list["secondLocation"]["changeable"], false);
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
         assert_eq!(json_body(response).await["code"], "HOST_ONLY");
+    }
+
+    async fn first_backup(router: axum::Router) -> String {
+        let created = json_body(post(router, "/api/backups", "{}").await).await;
+        created["fileName"].as_str().unwrap().to_owned()
+    }
+
+    #[tokio::test]
+    async fn previews_backup_from_list_and_from_other_place() {
+        let (dir, db, router) = app().await;
+        insert_term(&db, "2027년 1학기", "2027-03-01", "2027-06-30")
+            .await
+            .unwrap();
+        let file_name = first_backup(router.clone()).await;
+        let elsewhere = tempfile::tempdir().unwrap();
+        let copied = elsewhere.path().join("옛 백업.db");
+        tokio::fs::copy(crate::backup::dir(dir.path()).join(&file_name), &copied)
+            .await
+            .unwrap();
+
+        let from_list = post(
+            router.clone(),
+            "/api/backups/restore-preview",
+            &json!({ "fileName": file_name }).to_string(),
+        )
+        .await;
+        let from_path = post(
+            router,
+            "/api/backups/restore-preview",
+            &json!({ "path": copied.display().to_string() }).to_string(),
+        )
+        .await;
+
+        assert_eq!(from_list.status(), StatusCode::OK);
+        let from_list = json_body(from_list).await;
+        assert_eq!(from_list["kind"], "manual");
+        assert_eq!(from_list["termNames"], json!(["2027년 1학기"]));
+        assert_eq!(from_list["memberCount"], 0);
+        assert_eq!(from_list["applicationCount"], 0);
+        let from_path = json_body(from_path).await;
+        // 이름을 바꾼 파일은 시각을 알 수 없다
+        assert_eq!(from_path["takenAt"], Value::Null);
+        assert_eq!(from_path["termNames"], json!(["2027년 1학기"]));
+    }
+
+    #[tokio::test]
+    async fn restore_is_prepared_for_next_start() {
+        let (dir, _db, router) = app().await;
+        let file_name = first_backup(router.clone()).await;
+
+        let response = post(
+            router.clone(),
+            "/api/backups/restore",
+            &json!({ "fileName": file_name }).to_string(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert!(
+            tokio::fs::try_exists(dir.path().join("restore-pending.db"))
+                .await
+                .unwrap()
+        );
+        let list = json_body(get(router, "/api/backups").await).await;
+        assert_eq!(list["items"][0]["kind"], "before_restore");
+        assert_eq!(list["lastRestore"], Value::Null);
+    }
+
+    #[tokio::test]
+    async fn unusable_sources_are_invalid_input() {
+        let (dir, _db, router) = app().await;
+        let text = dir.path().join("메모.db");
+        tokio::fs::write(&text, b"not a database").await.unwrap();
+        let cases = [
+            (
+                json!({ "fileName": "../baeum-maru.db" }),
+                "fileName",
+                "백업 목록에 없는 파일",
+            ),
+            (
+                json!({ "fileName": "20261123-090000_daily.db" }),
+                "fileName",
+                "백업 파일이 없습니다",
+            ),
+            (json!({ "path": "백업.db" }), "path", "드라이브부터"),
+            (
+                json!({ "path": text.display().to_string() }),
+                "path",
+                "DB 파일이 아닙니다",
+            ),
+        ];
+        for (body, field, message) in cases {
+            let response = post(router.clone(), "/api/backups/restore", &body.to_string()).await;
+
+            assert_eq!(
+                response.status(),
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "{body}"
+            );
+            let error = json_body(response).await;
+            assert_eq!(error["fields"][0]["field"], field, "{body}");
+            assert!(
+                error["fields"][0]["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains(message),
+                "{body}: {error}"
+            );
+        }
+        let both = post(
+            router,
+            "/api/backups/restore",
+            &json!({ "fileName": "a", "path": "b" }).to_string(),
+        )
+        .await;
+        assert_eq!(both.status(), StatusCode::BAD_REQUEST);
+        assert!(
+            !tokio::fs::try_exists(dir.path().join("restore-pending.db"))
+                .await
+                .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn only_admin_on_host_restores() {
+        let (_dir, _db, router) = app_as("staff").await;
+        let staff = post(router, "/api/backups/restore", r#"{"fileName":"x"}"#).await;
+        assert_eq!(staff.status(), StatusCode::FORBIDDEN);
+
+        let (_dir, _db, router) = app().await;
+        let file_name = first_backup(router.clone()).await;
+        let router = from_other_pc(router);
+        for uri in ["/api/backups/restore-preview", "/api/backups/restore"] {
+            let response = post(
+                router.clone(),
+                uri,
+                &json!({ "fileName": file_name }).to_string(),
+            )
+            .await;
+
+            assert_eq!(response.status(), StatusCode::FORBIDDEN, "{uri}");
+            assert_eq!(json_body(response).await["code"], "HOST_ONLY");
+        }
     }
 }

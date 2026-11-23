@@ -6,7 +6,8 @@ mod backup;
 mod clock;
 mod data_dir;
 mod db;
-mod pick_folder;
+mod pick;
+mod restart;
 mod roster_xlsx;
 mod save_file;
 mod secret;
@@ -38,7 +39,9 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             save_file::save_file,
-            pick_folder::pick_folder
+            pick::pick_folder,
+            pick::pick_backup_file,
+            restart::restart_app
         ])
         .setup(|app| {
             let host: version::Version = version::CURRENT.parse()?;
@@ -47,11 +50,24 @@ pub fn run() {
                 .parent()
                 .ok_or("실행 파일이 있는 폴더를 찾지 못했습니다")?;
             let data_dir = DataDir::resolve(exe_dir, app.path().app_data_dir()?);
+            // 복원을 준비해 두고 다시 켠 것이면 DB를 열기 전에 바꾼다 (ADR 0011)
+            let restored = tauri::async_runtime::block_on(backup::restore::apply_pending(
+                data_dir.path(),
+                OffsetDateTime::now_utc(),
+            ));
             // DB를 연 뒤에 서버와 백업을 시작한다. 열지 못하면 창만 뜬다
             match tauri::async_runtime::block_on(db::open(data_dir.path())) {
                 Ok(db) => {
                     tracing::info!(portable = data_dir.is_portable(), "DB 열림");
-                    let backups = Backups::new(db.clone(), data_dir.path());
+                    if let Some(outcome) = restored {
+                        tauri::async_runtime::block_on(backup::restore::record(
+                            &db,
+                            outcome,
+                            OffsetDateTime::now_utc(),
+                        ));
+                    }
+                    let backups =
+                        Backups::new(db.clone(), data_dir.path()).with_restore_outcome(restored);
                     tauri::async_runtime::spawn(backups.clone().run_daily());
                     // 호스트·접속 선택이 생길 때까지는 늘 띄움
                     tauri::async_runtime::spawn(server::serve(host, db, backups.clone()));

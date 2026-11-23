@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { pickBackupFile } from "../../api/appCommands";
 import {
   createBackup,
   listBackups,
+  previewRestore,
   setSecondLocation,
+  type RestoreSource,
 } from "../../api/backups";
+import type { RestorePreviewResponse } from "../../api/generated/RestorePreviewResponse";
 import { pickFolder } from "../../api/pickFolder";
 import tableStyles from "../../components/table/table.module.css";
 import {
@@ -12,20 +16,26 @@ import {
   formatSize,
   formatTakenAt,
   kindText,
+  restoreOutcomeText,
   secondLocationWarning,
 } from "./backupData";
 import styles from "./BackupPanel.module.css";
+import { RestoreDialog } from "./RestoreDialog";
 
 const QUERY_KEY = ["backups"] as const;
 
 /**
  * 백업 탭(ADR 0011). 관리자에게만 보인다.
  *
- * 백업 목록과 지금 백업, 두 번째 위치를 보여 준다. 두 번째 위치는 호스트 PC에서만 바꾼다.
+ * 백업 목록과 지금 백업, 두 번째 위치, 복원을 보여 준다. 두 번째 위치와 복원은 호스트 PC에서만 한다.
  */
 export function BackupPanel() {
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState<{
+    source: RestoreSource;
+    preview: RestorePreviewResponse;
+  } | null>(null);
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: listBackups,
@@ -63,6 +73,26 @@ export function BackupPanel() {
     },
   });
 
+  const preview = useMutation({
+    mutationFn: async (source: RestoreSource | "pick") => {
+      if (source !== "pick") {
+        return { source, preview: await previewRestore(source) };
+      }
+      const path = await pickBackupFile();
+      // 파일 고르기 창을 닫았으면 하지 않는다
+      if (path === null) {
+        return null;
+      }
+      const picked: RestoreSource = { path };
+      return { source: picked, preview: await previewRestore(picked) };
+    },
+    onSuccess: (found) => {
+      if (found !== null) {
+        setRestoring(found);
+      }
+    },
+  });
+
   if (isPending) {
     return <p className={tableStyles.message}>불러오는 중입니다…</p>;
   }
@@ -76,11 +106,22 @@ export function BackupPanel() {
 
   const second = data.secondLocation;
   const secondWarning = secondLocationWarning(second, new Date());
-  const busy = backupNow.isPending || changeSecond.isPending;
-  const failure = backupNow.error ?? changeSecond.error;
+  // 두 번째 위치를 바꿀 수 있는 PC가 호스트다. 복원도 호스트에서만 한다
+  const onHost = second.changeable;
+  const busy =
+    backupNow.isPending || changeSecond.isPending || preview.isPending;
+  const failure = backupNow.error ?? changeSecond.error ?? preview.error;
 
   return (
     <section className={styles.panel} aria-label="백업">
+      {data.lastRestore !== null && (
+        <p
+          className={data.lastRestore.restored ? styles.notice : styles.warning}
+          role={data.lastRestore.restored ? "status" : "alert"}
+        >
+          {restoreOutcomeText(data.lastRestore)}
+        </p>
+      )}
       {data.lastFailure !== null && (
         <p className={styles.warning} role="alert">
           {formatTakenAt(data.lastFailure.at)}{" "}
@@ -147,9 +188,24 @@ export function BackupPanel() {
         >
           {backupNow.isPending ? "백업하는 중…" : "지금 백업"}
         </button>
+        {onHost && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setNotice(null);
+              preview.mutate("pick");
+            }}
+          >
+            다른 곳의 백업 파일로 복원
+          </button>
+        )}
         <button type="button" onClick={() => void refetch()}>
           새로 보기
         </button>
+        {!onHost && (
+          <p className={styles.muted}>복원은 호스트 PC에서만 할 수 있습니다</p>
+        )}
         {failure !== null ? (
           <p className={styles.warning} role="alert">
             {failure.message}
@@ -170,6 +226,7 @@ export function BackupPanel() {
               <th scope="col">시각</th>
               <th scope="col">종류</th>
               <th scope="col">크기</th>
+              {onHost && <th scope="col">복원</th>}
             </tr>
           </thead>
           <tbody>
@@ -178,6 +235,21 @@ export function BackupPanel() {
                 <td>{formatTakenAt(item.takenAt)}</td>
                 <td>{kindText(item)}</td>
                 <td className={styles.size}>{formatSize(item.size)}</td>
+                {onHost && (
+                  <td className={styles.rowAction}>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      aria-label={`${formatTakenAt(item.takenAt)} ${kindText(item)} 백업으로 복원`}
+                      onClick={() => {
+                        setNotice(null);
+                        preview.mutate({ fileName: item.fileName });
+                      }}
+                    >
+                      복원
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -186,6 +258,14 @@ export function BackupPanel() {
           <p className={tableStyles.message}>백업이 없습니다</p>
         )}
       </div>
+
+      {restoring !== null && (
+        <RestoreDialog
+          source={restoring.source}
+          preview={restoring.preview}
+          onCancel={() => setRestoring(null)}
+        />
+      )}
     </section>
   );
 }

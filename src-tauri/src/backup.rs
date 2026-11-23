@@ -6,7 +6,9 @@
 //! 자동 백업이 실패해도 하던 일(추첨, 마감, 종료)은 막지 않는다. 로그를 남기고, 마지막 실패를
 //! 기억해 백업 탭에 보여 준다.
 
+pub mod inspect;
 pub mod name;
+pub mod restore;
 pub mod retention;
 pub mod settings;
 pub mod store;
@@ -20,6 +22,7 @@ use time::{OffsetDateTime, PrimitiveDateTime};
 
 use crate::clock;
 use name::{BackupKind, BackupName};
+use restore::{PrepareError, RestoreOutcome};
 use settings::BackupSettings;
 use store::{BackupError, StoredBackup};
 
@@ -71,9 +74,12 @@ pub fn dir(data_dir: &Path) -> PathBuf {
 #[derive(Debug, Clone)]
 pub struct Backups {
     pool: SqlitePool,
+    data_dir: PathBuf,
     /// 첫 번째 위치.
     dir: PathBuf,
     settings_file: PathBuf,
+    /// 이번에 켤 때 복원한 결과. 켤 때 한 번 정하고 바꾸지 않는다.
+    restore_outcome: Option<RestoreOutcome>,
     /// 서버, 하루 백업 작업, 앱 종료가 함께 쓰고 고친다. 잠깐 쓰고 바로 놓는다.
     last_failure: Arc<Mutex<Option<Failure>>>,
 }
@@ -83,10 +89,37 @@ impl Backups {
     pub fn new(pool: SqlitePool, data_dir: &Path) -> Self {
         Backups {
             pool,
+            data_dir: data_dir.to_owned(),
             dir: dir(data_dir),
             settings_file: settings::file(data_dir),
+            restore_outcome: None,
             last_failure: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// 이번에 켤 때 복원한 결과를 붙인다.
+    pub fn with_restore_outcome(self, restore_outcome: Option<RestoreOutcome>) -> Self {
+        Backups {
+            restore_outcome,
+            ..self
+        }
+    }
+
+    /// 이번에 켤 때 복원한 결과. 복원하지 않았으면 `None`.
+    pub fn restore_outcome(&self) -> Option<RestoreOutcome> {
+        self.restore_outcome
+    }
+
+    /// `source` 백업으로 복원을 준비한다. 앱을 다시 켜면 바뀐다. 만든 복원 직전 백업 이름을 돌려준다.
+    pub async fn prepare_restore(
+        &self,
+        source: &Path,
+        staff_id: i64,
+        now: OffsetDateTime,
+    ) -> Result<BackupName, PrepareError> {
+        let before = restore::prepare(&self.pool, &self.data_dir, source, staff_id, now).await?;
+        tracing::info!(staff_id, "복원 준비");
+        Ok(before)
     }
 
     /// 마지막으로 실패한 자동 백업. 그 뒤로 자동 백업이 됐으면 `None`.
@@ -103,6 +136,11 @@ impl Backups {
             .last_failure
             .lock()
             .unwrap_or_else(PoisonError::into_inner) = failure;
+    }
+
+    /// 첫 번째 위치에 있는 백업 `name`의 파일.
+    pub fn file_of(&self, name: BackupName) -> PathBuf {
+        self.dir.join(name.to_string())
     }
 
     /// 첫 번째 위치의 백업들. 새것부터.

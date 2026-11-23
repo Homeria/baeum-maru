@@ -27,6 +27,7 @@ pub enum AccessEventCode {
     Logout,
     UnlockFailed,
     RecoveryUsed,
+    Restore,
 }
 
 impl From<AccessEvent> for AccessEventCode {
@@ -37,6 +38,7 @@ impl From<AccessEvent> for AccessEventCode {
             AccessEvent::Logout => AccessEventCode::Logout,
             AccessEvent::UnlockFailed => AccessEventCode::UnlockFailed,
             AccessEvent::RecoveryUsed => AccessEventCode::RecoveryUsed,
+            AccessEvent::Restore => AccessEventCode::Restore,
         }
     }
 }
