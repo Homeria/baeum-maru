@@ -39,6 +39,13 @@ const FILE_NAME: &str = "baeum-maru.db";
 /// `src-tauri/migrations/`의 구조 변경 파일. 빌드할 때 실행 파일에 들어간다.
 static MIGRATOR: Migrator = sqlx::migrate!();
 
+/// 이 앱이 아는 구조 변경인지. 모르는 것이 있으면 더 새 버전 앱이 만든 DB다.
+pub fn is_known_migration(version: i64) -> bool {
+    MIGRATOR
+        .iter()
+        .any(|migration| migration.version == version)
+}
+
 /// DB를 열지 못했다.
 #[derive(Debug, thiserror::Error)]
 pub enum DbError {

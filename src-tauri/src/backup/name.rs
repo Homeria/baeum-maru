@@ -29,6 +29,8 @@ pub enum BackupKind {
     BeforeClose { course_id: i64 },
     /// DB 구조 변경 직전. 지우지 않는다.
     BeforeMigration,
+    /// 복원 직전. 복원 자체를 되돌릴 수 있게 한다.
+    BeforeRestore,
 }
 
 impl BackupKind {
@@ -41,6 +43,7 @@ impl BackupKind {
             BackupKind::BeforeLottery { course_id } => format!("before-lottery-c{course_id}"),
             BackupKind::BeforeClose { course_id } => format!("before-close-c{course_id}"),
             BackupKind::BeforeMigration => "before-migration".to_owned(),
+            BackupKind::BeforeRestore => "before-restore".to_owned(),
         }
     }
 
@@ -54,6 +57,7 @@ impl BackupKind {
             "manual" => Some(BackupKind::Manual),
             "exit" => Some(BackupKind::Exit),
             "before-migration" => Some(BackupKind::BeforeMigration),
+            "before-restore" => Some(BackupKind::BeforeRestore),
             _ => course("before-lottery-c")
                 .map(|course_id| BackupKind::BeforeLottery { course_id })
                 .or_else(|| {
@@ -125,6 +129,7 @@ mod tests {
             BackupKind::BeforeLottery { course_id: 3 },
             BackupKind::BeforeClose { course_id: 45 },
             BackupKind::BeforeMigration,
+            BackupKind::BeforeRestore,
         ];
         for kind in kinds {
             let written = name(kind);

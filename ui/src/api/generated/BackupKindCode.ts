@@ -3,4 +3,4 @@
 /**
  * 백업을 만든 까닭.
  */
-export type BackupKindCode = "daily" | "manual" | "exit" | "before_lottery" | "before_close" | "before_migration";
+export type BackupKindCode = "daily" | "manual" | "exit" | "before_lottery" | "before_close" | "before_migration" | "before_restore";

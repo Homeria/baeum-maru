@@ -6,6 +6,7 @@
 //! 자동 백업이 실패해도 하던 일(추첨, 마감, 종료)은 막지 않는다. 로그를 남기고, 마지막 실패를
 //! 기억해 백업 탭에 보여 준다.
 
+pub mod inspect;
 pub mod name;
 pub mod retention;
 pub mod settings;

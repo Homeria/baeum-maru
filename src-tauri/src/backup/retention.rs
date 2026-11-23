@@ -1,7 +1,7 @@
 //! 오래된 백업 정리(ADR 0011).
 //!
 //! - 하루 한 번 백업: 최근 30개(하루 하나씩이니 30일치)
-//! - 지금 백업, 앱 종료, 추첨·선발 마감 직전: 합쳐서 최근 20개
+//! - 지금 백업, 앱 종료, 추첨·선발 마감 직전, 복원 직전: 합쳐서 최근 20개
 //! - 구조 변경 직전: 지우지 않는다
 
 use super::name::{BackupKind, BackupName};
@@ -21,7 +21,8 @@ pub fn to_remove(backups: &[BackupName]) -> Vec<BackupName> {
             BackupKind::Manual
             | BackupKind::Exit
             | BackupKind::BeforeLottery { .. }
-            | BackupKind::BeforeClose { .. } => event.push(*backup),
+            | BackupKind::BeforeClose { .. }
+            | BackupKind::BeforeRestore => event.push(*backup),
             BackupKind::BeforeMigration => {}
         }
     }
@@ -67,7 +68,8 @@ mod tests {
     fn event_backups_share_20_places() {
         let mut backups = days(BackupKind::Exit, 15);
         backups.extend(days(BackupKind::BeforeLottery { course_id: 1 }, 4));
-        backups.extend(days(BackupKind::Manual, 3));
+        backups.extend(days(BackupKind::Manual, 2));
+        backups.extend(days(BackupKind::BeforeRestore, 1));
 
         let removed = to_remove(&backups);
 
