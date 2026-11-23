@@ -7,6 +7,8 @@ target/
 # 화면 의존성과 빌드 결과물
 node_modules/
 /ui/dist/
+/site/dist/
+/site/.astro/
 
 # 실제 운영 데이터 (회원 개인정보) — 절대 커밋 금지
 /runtime/

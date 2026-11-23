@@ -1,0 +1,15 @@
+---
+interface Props {
+  title: string;
+  tone?: "info" | "neutral";
+}
+
+const { title, tone = "info" } = Astro.props;
+---
+
+<div class:list={["notice", tone === "info" && "noticeInfo"]}>
+  <h2 class="noticeTitle">{title}</h2>
+  <div class="noticeBody">
+    <slot />
+  </div>
+</div>

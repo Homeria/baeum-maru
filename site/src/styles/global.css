@@ -1,0 +1,570 @@
+/* 기관 직원이 오래된 사무실 모니터, 고대비 모드, 휴대폰 모두에서 편하게 읽도록 설계한다. */
+
+:root {
+  color-scheme: light;
+  --bg: #f4f7f9;
+  --surface: #ffffff;
+  --surface-tint: #ebf4f8;
+  --surface-muted: #edf2f6;
+  --text: #16212b;
+  --text-muted: #455666;
+  --border-subtle: #d2dde6;
+  /* WCAG 1.4.11: 대화형 버튼·카드 테두리는 흰 배경 대비 3:1 이상을 유지한다. */
+  --border-control: #6b7f91;
+  --accent: #184b66;
+  --accent-hover: #10374c;
+  --accent-soft: #dfeef6;
+  --focus: #0a6799;
+  --radius: 12px;
+  --max-width: 920px;
+  --reading-width: 720px;
+  --font-sans:
+    "Pretendard", "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo",
+    "Noto Sans KR", system-ui, -apple-system, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 100%;
+  background: var(--bg);
+  color: var(--text);
+  /* 페이지 전환 시 스크롤바 유무로 화면이 좌우로 흔들리는 현상을 막는다. */
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  min-block-size: 100vh;
+  min-block-size: 100dvb;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.72;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 0.22em;
+  text-decoration-thickness: 1.5px;
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+:where(a:any-link, button, [tabindex="-1"]):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+img,
+svg {
+  max-inline-size: 100%;
+  block-size: auto;
+  display: block;
+}
+
+/* 화면에서는 감추되 스크린 리더와 키보드 포커스 시에는 노출한다. */
+.visuallyHidden:where(:not(:focus-within, :active)) {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  inline-size: 1px !important;
+  block-size: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+.skipLink {
+  position: fixed;
+  inset-block-start: 0.75rem;
+  inset-inline-start: 0.75rem;
+  z-index: 100;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.skipLink:hover {
+  color: #ffffff;
+  background: var(--accent-hover);
+}
+
+.container {
+  inline-size: 100%;
+  max-inline-size: var(--max-width);
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+
+.siteHeader {
+  background: var(--surface);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.headerInner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: safe center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  padding-block: 0.9rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-block-size: 44px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.brand:hover {
+  color: var(--accent);
+}
+
+.navList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  flex-wrap: balance;
+  gap: 0.25rem 0.4rem;
+}
+
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  padding-inline: 0.9rem;
+  border-radius: 8px;
+  border-block-end: 3px solid transparent;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.navLink:hover {
+  background: var(--surface-muted);
+  color: var(--accent);
+}
+
+/* 색만으로 현재 위치를 알리지 않도록 아래쪽 선과 굵기를 함께 쓴다. */
+.navLink[aria-current="page"] {
+  background: var(--accent-soft);
+  border-block-end-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.siteMain {
+  flex: 1;
+  padding-block: 2.25rem 4rem;
+}
+
+.siteFooter {
+  background: var(--surface);
+  border-block-start: 1px solid var(--border-subtle);
+  padding-block: 2rem;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.footerInner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: safe center;
+  gap: 1rem 2rem;
+}
+
+.footerBrand {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: center;
+}
+
+.footerLinks a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 36px;
+}
+
+.hero {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-block-start: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  margin-block-end: 2rem;
+}
+
+.eyebrow {
+  display: inline-block;
+  margin: 0 0 0.85rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  border: 1px solid #b5d2e2;
+  color: var(--accent);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.pageTitle {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.7rem, 3.2vw, 2.25rem);
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+}
+
+.pageLead {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  max-inline-size: var(--reading-width);
+}
+
+.pageHeader {
+  margin-block-end: 2rem;
+}
+
+.section {
+  margin-block-start: 2.75rem;
+}
+
+.section h2 {
+  margin: 0 0 1rem;
+  font-size: 1.35rem;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+}
+
+.sectionLead {
+  margin: -0.35rem 0 1.25rem;
+  color: var(--text-muted);
+  max-inline-size: var(--reading-width);
+}
+
+/* 이웃 카드의 제목·본문·바닥줄 높이를 맞추기 위해 subgrid를 쓴다. */
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+  gap: 1.1rem;
+}
+
+.cardGridTwo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 1.15rem;
+}
+
+.card {
+  container: card / inline-size;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.65rem;
+  background: var(--surface);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.45rem;
+}
+
+:is(.cardGrid, .cardGridTwo) > .card {
+  grid-row: span 3;
+  /* subgrid 미지원 브라우저용 폴백 */
+  grid-template-rows: auto 1fr auto;
+  grid-template-rows: subgrid;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.4;
+}
+
+.card p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.cardFooter {
+  margin-block-start: 0.35rem;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--border-subtle);
+  font-size: 0.95rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.cardMeta {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+}
+
+/* 카드 전체를 클릭 대상으로 넓히되, 내부에 다른 링크가 생겨도 동작하게 유지한다. */
+.card:has(a.cardLink) {
+  position: relative;
+  border-color: var(--border-control);
+}
+
+.card a.cardLink {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.card a.cardLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.card:has(a.cardLink) :is(a:not(.cardLink), button) {
+  position: relative;
+  z-index: 1;
+}
+
+.card a.cardLink:focus-visible {
+  outline: none;
+}
+
+.card:has(a.cardLink:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.card:has(a.cardLink:hover) {
+  border-color: var(--accent);
+  background: #fbfdfe;
+}
+
+.card:has(a.cardLink:hover) a.cardLink {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .card:has(a.cardLink),
+  .buttonLink,
+  .buttonLinkSecondary,
+  .navLink {
+    transition:
+      background-color 140ms ease,
+      border-color 140ms ease,
+      color 140ms ease,
+      transform 140ms ease;
+  }
+
+  .card:has(a.cardLink:hover) {
+    transform: translateY(-2px);
+  }
+}
+
+@container card (inline-size > 380px) {
+  .card {
+    padding: 1.65rem 1.75rem;
+  }
+}
+
+.notice {
+  border-radius: var(--radius);
+  padding: 1.4rem 1.55rem;
+  border: 1px solid var(--border-subtle);
+  border-inline-start: 4px solid var(--border-control);
+  background: var(--surface);
+}
+
+.noticeInfo {
+  background: var(--surface-tint);
+  border-color: #b5d2e2;
+  border-inline-start-color: var(--accent);
+}
+
+.noticeTitle {
+  margin: 0 0 0.55rem;
+  font-size: 1.12rem;
+  color: var(--accent);
+}
+
+.noticeBody > :first-child {
+  margin-block-start: 0;
+}
+
+.noticeBody > :last-child {
+  margin-block-end: 0;
+}
+
+.linkRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin-block-start: 1.35rem;
+  align-items: center;
+}
+
+.buttonLink,
+.buttonLinkSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 44px;
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.buttonLink {
+  background: var(--accent);
+  border: 1.5px solid var(--accent);
+  color: #ffffff;
+}
+
+.buttonLink:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: #ffffff;
+}
+
+.buttonLinkSecondary {
+  background: var(--surface);
+  border: 1.5px solid var(--border-control);
+  color: var(--text);
+}
+
+.buttonLinkSecondary:hover {
+  background: var(--surface-muted);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.postList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.postCard {
+  display: grid;
+  gap: 0.45rem;
+  background: var(--surface);
+  border: 1.5px solid var(--border-control);
+  border-radius: var(--radius);
+  padding: 1.45rem 1.55rem;
+}
+
+.postMeta {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+}
+
+.postTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.4;
+}
+
+.prose {
+  max-inline-size: var(--reading-width);
+}
+
+.prose h2 {
+  margin-block: 2.25rem 0.75rem;
+  font-size: 1.35rem;
+}
+
+.prose h3 {
+  margin-block: 1.75rem 0.5rem;
+  font-size: 1.15rem;
+}
+
+.prose p,
+.prose ul,
+.prose ol {
+  margin-block: 0 1.1rem;
+}
+
+.prose li + li {
+  margin-block-start: 0.35rem;
+}
+
+@media (pointer: coarse) {
+  .navLink,
+  .buttonLink,
+  .buttonLinkSecondary,
+  .footerLinks a {
+    min-block-size: 48px;
+  }
+}
+
+@media (max-width: 600px) {
+  body {
+    font-size: 1rem;
+  }
+
+  .siteMain {
+    padding-block: 1.5rem 3rem;
+  }
+
+  .navLink {
+    padding-inline: 0.7rem;
+  }
+}
+
+/* Windows 고대비 모드(Forced Colors Mode)에서 현재 메뉴와 카드·안내 상자 경계를 유지한다. */
+@media (forced-colors: active) {
+  .navLink[aria-current="page"] {
+    border: 2px solid Highlight;
+  }
+
+  .card,
+  .postCard,
+  .hero,
+  .notice {
+    border: 1px solid CanvasText;
+  }
+
+  .notice {
+    border-inline-start: 4px solid Highlight;
+  }
+
+  .buttonLink,
+  .buttonLinkSecondary {
+    border: 2px solid ButtonText;
+  }
+
+  .card:has(a.cardLink:focus-visible),
+  :where(a:any-link, button, [tabindex="-1"]):focus-visible {
+    outline: 3px solid Highlight;
+  }
+}

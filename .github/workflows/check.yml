@@ -17,6 +17,7 @@ on:
       - "justfile"
       - "deny.toml"
       - ".github/workflows/**"
+      - "!.github/workflows/site-*.yml"
       - "!**/*.md"
   push:
     branches: [main]
@@ -33,6 +34,7 @@ on:
       - "justfile"
       - "deny.toml"
       - ".github/workflows/**"
+      - "!.github/workflows/site-*.yml"
       - "!**/*.md"
 
 concurrency:

@@ -1,0 +1,92 @@
+---
+import { NAV_ITEMS, SITE, withBase } from "../config/site";
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+  currentPath: string;
+}
+
+const { title, description = SITE.description, currentPath } = Astro.props;
+const pageTitle = title ? `${title} | ${SITE.name}` : SITE.name;
+
+function isCurrent(itemPath: string): boolean {
+  if (itemPath === "/") {
+    return currentPath === "/";
+  }
+  return currentPath === itemPath || currentPath.startsWith(itemPath);
+}
+---
+
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href={withBase("/favicon.svg")} />
+  </head>
+  <body>
+    <header class="siteHeader">
+      <a class="skipLink visuallyHidden" href="#main-heading">
+        본문 바로가기
+      </a>
+      <div class="container headerInner">
+        <a class="brand" href={withBase("/")}>
+          <img
+            src={withBase("/favicon.svg")}
+            alt=""
+            width="30"
+            height="30"
+            aria-hidden="true"
+          />
+          <span>{SITE.name}</span>
+        </a>
+        <nav aria-label="주요">
+          <ul class="navList">
+            {NAV_ITEMS.map((item) => (
+              <li>
+                <a
+                  class="navLink"
+                  href={withBase(item.path)}
+                  aria-current={isCurrent(item.path) ? "page" : undefined}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main class="siteMain">
+      <div class="container">
+        <slot />
+      </div>
+    </main>
+
+    <footer class="siteFooter">
+      <div class="container footerInner">
+        <div>
+          <strong class="footerBrand">{SITE.name}</strong>
+          <div>{SITE.description}</div>
+        </div>
+        <div class="footerLinks">
+          <a href={withBase("/download/")}>다운로드</a>
+          <a href={withBase("/posts/")}>이야기</a>
+          <a href={withBase("/about/")}>소개</a>
+          <a
+            href={SITE.repositoryUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub 저장소
+          </a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
