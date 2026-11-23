@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { Tabs, type TabItem } from "../../components/Tabs/Tabs";
 import { AccessLogList } from "../access-logs/AccessLogList";
+import { BackupPanel } from "../backups/BackupPanel";
 import styles from "../reference-data/ReferenceDataPage.module.css";
 import { StaffPage } from "./StaffPage";
 
-type ListKey = "staff" | "accessLogs";
+type ListKey = "staff" | "accessLogs" | "backups";
 
 const LISTS: readonly TabItem<ListKey>[] = [
   { key: "staff", label: "직원" },
   { key: "accessLogs", label: "접속 기록" },
+  { key: "backups", label: "백업" },
 ];
 
-/** 직원 관리 탭. 관리자에게만 보인다 (BR-K3). */
+/** 직원 관리 탭: 직원, 접속 기록, 백업. 관리자에게만 보인다 (BR-K3). */
 export function StaffAdminPage() {
   const [list, setList] = useState<ListKey>("staff");
 
@@ -26,6 +28,7 @@ export function StaffAdminPage() {
       <div role="tabpanel" className={styles.content}>
         {list === "staff" && <StaffPage />}
         {list === "accessLogs" && <AccessLogList />}
+        {list === "backups" && <BackupPanel />}
       </div>
     </div>
   );
