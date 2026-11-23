@@ -23,6 +23,15 @@ import {
 } from "./rosterChoices";
 import styles from "./SelectionResultsPage.module.css";
 
+/** 명단 종류마다 모양 설명(BR-P2~P4). */
+const KIND_HINTS: Record<RosterKindCode, string> = {
+  raw: "강좌마다 시트 하나. 당첨자와 대기자를 나란히 두고 대기 순번을 붙입니다.",
+  posted_by_course:
+    "강좌마다 시트 하나. 큰 글씨로 당첨자 다음에 대기자를 순번대로 둡니다.",
+  posted_by_member:
+    "회원 한 명이 한 줄(가나다순). 강좌마다 결과 칸을 따로 둡니다.",
+};
+
 /** {@link RosterExportDialog}의 속성. */
 export interface RosterExportDialogProps {
   termId: number;
@@ -118,7 +127,8 @@ export function RosterExportDialog({
         결과 명단 내보내기
       </h2>
       <p className={dialogStyles.body}>
-        {termName}에서 선발을 마감한 강좌가 들어갑니다.
+        {termName}에서 선발을 마감한 강좌가 들어갑니다. 포기한 신청은 넣지 않고,
+        자리 보장 당첨은 색칠합니다.
       </p>
 
       <fieldset className={styles.exportGroup} disabled={busy}>
@@ -136,12 +146,7 @@ export function RosterExportDialog({
             </label>
           ))}
         </div>
-        <p className={styles.exportHint}>
-          늘 넣는 칸:{" "}
-          {rule.fixed.map((column) => COLUMN_LABELS[column]).join(", ")}
-          {kind !== "raw" &&
-            ". 자리 보장 당첨은 색칠하고, 포기한 신청은 넣지 않습니다"}
-        </p>
+        <p className={styles.exportHint}>{KIND_HINTS[kind]}</p>
       </fieldset>
 
       <fieldset className={styles.exportGroup} disabled={busy}>

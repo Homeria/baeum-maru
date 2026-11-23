@@ -52,15 +52,18 @@ interface KindRule {
   alwaysMasked: readonly RosterColumnCode[];
 }
 
+/** 세 종류 모두 늘 넣는 칸. 강좌 이름과 정원은 시트 이름이나 제목에 들어간다. */
+const FIXED: readonly RosterColumnCode[] = [
+  "course_name",
+  "capacity",
+  "result",
+  "waitlist_number",
+  "name",
+  "member_no",
+];
+
 const POSTED: KindRule = {
-  fixed: [
-    "course_name",
-    "capacity",
-    "result",
-    "waitlist_number",
-    "name",
-    "member_no",
-  ],
+  fixed: FIXED,
   optional: ["phone_number", "birth_date", "gender"],
   maskable: ["name", "member_no"],
   alwaysMasked: ["phone_number", "birth_date"],
@@ -68,15 +71,8 @@ const POSTED: KindRule = {
 
 export const KIND_RULES: Record<RosterKindCode, KindRule> = {
   raw: {
-    fixed: ["course_name", "result", "name", "member_no"],
-    optional: [
-      "capacity",
-      "waitlist_number",
-      "phone_number",
-      "birth_date",
-      "gender",
-      "guaranteed",
-    ],
+    fixed: FIXED,
+    optional: ["phone_number", "birth_date", "gender"],
     maskable: ["name", "member_no", "phone_number", "birth_date"],
     alwaysMasked: [],
   },
@@ -102,9 +98,11 @@ export interface RosterChoices {
 
 /** 처음 쓰는 PC의 선택(BR-P2, BR-P6). */
 export function defaultChoices(kind: RosterKindCode): RosterChoices {
-  return kind === "raw"
-    ? { include: ["capacity", "waitlist_number"], mask: [], maskChar: "circle" }
-    : { include: [], mask: ["name"], maskChar: "circle" };
+  return {
+    include: [],
+    mask: kind === "raw" ? [] : ["name"],
+    maskChar: "circle",
+  };
 }
 
 /** PC에 기억할 곳. 브라우저의 `localStorage`. */

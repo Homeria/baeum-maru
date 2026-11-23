@@ -33,13 +33,13 @@ describe("기억한 선택", () => {
   test("BR-P9: 연락처·생년월일·성별은 기억했어도 끈 채로 연다", () => {
     const storage = memoryStorage();
     rememberChoices(storage, "raw", {
-      include: ["capacity", "phone_number", "gender", "guaranteed"],
+      include: ["phone_number", "gender"],
       mask: ["phone_number"],
       maskChar: "x",
     });
 
     expect(rememberedChoices(storage, "raw")).toEqual({
-      include: ["capacity", "guaranteed"],
+      include: [],
       mask: ["phone_number"],
       maskChar: "x",
     });
@@ -72,6 +72,26 @@ describe("기억한 선택", () => {
     );
   });
 
+  test("예전에 기억한 원본의 정원·우선 선택은 버린다", () => {
+    const old = memoryStorage(
+      JSON.stringify({
+        choices: {
+          raw: {
+            include: ["capacity", "waitlist_number", "guaranteed"],
+            mask: ["name"],
+            maskChar: "x",
+          },
+        },
+      }),
+    );
+
+    expect(rememberedChoices(old, "raw")).toEqual({
+      include: [],
+      mask: ["name"],
+      maskChar: "x",
+    });
+  });
+
   test("고장 났거나 규칙에 없는 값은 버린다", () => {
     expect(rememberedChoices(memoryStorage("{고장"), "raw")).toEqual(
       defaultChoices("raw"),
@@ -100,27 +120,27 @@ describe("요청", () => {
   test("넣지 않은 칸의 가림은 보내지 않는다", () => {
     expect(
       exportRequest("raw", {
-        include: ["capacity"],
+        include: ["gender"],
         mask: ["name", "phone_number"],
         maskChar: "circle",
       }),
     ).toEqual({
       kind: "raw",
-      include: ["capacity"],
+      include: ["gender"],
       mask: ["name"],
       maskChar: "circle",
     });
   });
 
   test("켜고 끄면 정한 순서를 지킨다", () => {
-    const order = ["capacity", "waitlist_number", "gender"] as const;
+    const order = ["phone_number", "birth_date", "gender"] as const;
 
-    expect(toggle(["gender"], "capacity", true, order)).toEqual([
-      "capacity",
+    expect(toggle(["gender"], "phone_number", true, order)).toEqual([
+      "phone_number",
       "gender",
     ]);
-    expect(toggle(["capacity", "gender"], "gender", false, order)).toEqual([
-      "capacity",
+    expect(toggle(["phone_number", "gender"], "gender", false, order)).toEqual([
+      "phone_number",
     ]);
   });
 
