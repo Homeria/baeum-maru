@@ -138,6 +138,11 @@ impl Backups {
             .unwrap_or_else(PoisonError::into_inner) = failure;
     }
 
+    /// 첫 번째 위치에 있는 백업 `name`의 파일.
+    pub fn file_of(&self, name: BackupName) -> PathBuf {
+        self.dir.join(name.to_string())
+    }
+
     /// 첫 번째 위치의 백업들. 새것부터.
     pub async fn list(&self) -> Result<Vec<StoredBackup>, BackupError> {
         store::list(&self.dir).await

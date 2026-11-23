@@ -6,7 +6,8 @@ mod backup;
 mod clock;
 mod data_dir;
 mod db;
-mod pick_folder;
+mod pick;
+mod restart;
 mod roster_xlsx;
 mod save_file;
 mod secret;
@@ -38,7 +39,9 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             save_file::save_file,
-            pick_folder::pick_folder
+            pick::pick_folder,
+            pick::pick_backup_file,
+            restart::restart_app
         ])
         .setup(|app| {
             let host: version::Version = version::CURRENT.parse()?;

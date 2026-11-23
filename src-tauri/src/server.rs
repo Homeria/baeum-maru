@@ -225,6 +225,11 @@ pub fn router(state: AppState) -> Router {
             "/api/backups/second-location",
             put(backups::set_second_location),
         )
+        .route(
+            "/api/backups/restore-preview",
+            post(backups::preview_restore),
+        )
+        .route("/api/backups/restore", post(backups::restore))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::require_session,

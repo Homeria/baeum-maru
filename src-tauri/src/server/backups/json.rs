@@ -91,7 +91,47 @@ pub struct BackupListResponse {
     /// 새것부터.
     pub items: Vec<BackupResponse>,
     pub last_failure: Option<BackupFailureResponse>,
+    /// 이번에 앱을 켤 때 복원한 결과. 복원하지 않았으면 `null`.
+    pub last_restore: Option<RestoreOutcomeResponse>,
     pub second_location: SecondLocationResponse,
+}
+
+/// 앱을 다시 켜며 복원한 결과.
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct RestoreOutcomeResponse {
+    /// 호스트 PC의 지역 시각.
+    pub at: String,
+    /// `false`면 바꾸지 못해 그 전 데이터를 그대로 쓰고 있다.
+    pub restored: bool,
+}
+
+/// 복원 미리보기와 복원의 본문. 둘 중 하나만 채운다.
+#[derive(Debug, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export)]
+pub struct RestoreRequest {
+    /// 백업 목록의 파일 이름.
+    pub file_name: Option<String>,
+    /// 다른 곳에서 고른 백업 파일의 경로(호스트 PC의 경로).
+    pub path: Option<String>,
+}
+
+/// 복원 미리보기. 회원 이름 같은 개인정보는 담지 않는다.
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct RestorePreviewResponse {
+    /// 파일 이름에서 읽은 백업 시각. 이름을 바꾼 파일이면 `null`.
+    pub taken_at: Option<String>,
+    pub kind: Option<BackupKindCode>,
+    /// 시작일 순서.
+    pub term_names: Vec<String>,
+    #[ts(type = "number")]
+    pub member_count: i64,
+    #[ts(type = "number")]
+    pub application_count: i64,
 }
 
 /// `PUT /api/backups/second-location`의 본문.
