@@ -6,7 +6,7 @@
 use baeum_domain::{RosterColumn, RosterSpec};
 use rust_xlsxwriter::{Format, FormatBorder, Worksheet, XlsxError};
 
-use super::{Cell, TableFormats, cell, column_width};
+use super::{Cell, TableFormats, cell, column_width, text_width};
 use crate::db::rosters::{RosterCourse, RosterEntry, RosterResult};
 
 /// 당첨자 묶음이나 대기자 묶음 하나.
@@ -87,7 +87,7 @@ pub(super) fn write_side_by_side(
                 top: row == first_row,
                 bottom: row == first_row || row == last_row,
             };
-            let col_width = column_width(*column).max(header_width(label));
+            let col_width = column_width(*column).max(text_width(label));
             sheet.set_column_width(col, col_width * width_scale)?;
             sheet.write_string_with_format(
                 first_row,
@@ -134,15 +134,6 @@ fn header_label(group: &Group<'_>, column: RosterColumn) -> &'static str {
     } else {
         column.label()
     }
-}
-
-/// 머리글이 잘리지 않는 칸 너비. 한글 한 글자가 영문 두 글자쯤 된다.
-fn header_width(label: &str) -> f64 {
-    let wide: u32 = label
-        .chars()
-        .map(|c| if c.is_ascii() { 1 } else { 2 })
-        .sum();
-    f64::from(wide) + 2.0
 }
 
 /// 묶음 바깥에 닿은 쪽만 굵은 선으로 바꾼 서식.

@@ -32,7 +32,7 @@ pub fn posted_by_course(spec: &RosterSpec, roster: &[RosterCourse]) -> Result<Ve
         let sheet = workbook.add_worksheet();
         sheet.set_name(name)?;
         let title = format!("{} (정원 {}명)", course.name, course.capacity.value());
-        heading.write(sheet, width, &title, NOTE)?;
+        heading.write(sheet, width, &title, &[NOTE])?;
         write_side_by_side(sheet, spec, course, &formats, HEADER_ROW, WIDTH_SCALE)?;
         sheet.set_repeat_rows(HEADER_ROW, HEADER_ROW)?;
         print_on_a4(sheet);

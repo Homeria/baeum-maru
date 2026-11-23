@@ -20,15 +20,20 @@ use crate::db::rosters::{RosterCourse, RosterEntry, RosterResult};
 pub mod test_support;
 
 /// 명단 Excel 파일의 내용을 만든다. 종류는 `spec`을 따른다(BR-P1).
+/// `term_name`은 회원별 명단의 제목에 쓴다. 예: `2027년 1학기`
 ///
 /// # Errors
 ///
 /// Excel 파일을 만들지 못하면 [`XlsxError`].
-pub fn build(spec: &RosterSpec, roster: &[RosterCourse]) -> Result<Vec<u8>, XlsxError> {
+pub fn build(
+    spec: &RosterSpec,
+    roster: &[RosterCourse],
+    term_name: &str,
+) -> Result<Vec<u8>, XlsxError> {
     match spec.kind() {
         RosterKind::Raw => raw::raw_roster(spec, roster),
         RosterKind::PostedByCourse => posted_by_course::posted_by_course(spec, roster),
-        RosterKind::PostedByMember => posted_by_member::posted_by_member(spec, roster),
+        RosterKind::PostedByMember => posted_by_member::posted_by_member(spec, roster, term_name),
     }
 }
 
@@ -45,6 +50,8 @@ const FONT: &str = "맑은 고딕";
 const HEADER_FILL: &str = "#E8E8E8";
 /// 자리 보장 당첨을 칠하는 색(BR-P4). 흑백으로 인쇄해도 회색으로 구별되게 진하게 둔다.
 const PRIORITY_FILL: &str = "#FFD966";
+/// 칸을 칠할 수 없는 곳(회원별 명단의 여러 줄 칸)에서 자리 보장 당첨 줄의 글자색(BR-P4).
+const PRIORITY_TEXT: &str = "#C55A11";
 
 /// 표의 머리글, 내용, 자리 보장 칸 모양. 가운데 정렬, 가는 테두리.
 struct TableFormats {
@@ -91,17 +98,17 @@ impl PostedHeading {
         }
     }
 
-    /// 0번 줄에 제목, 1번 줄에 안내를 표 너비(`width`칸)만큼 합쳐 쓴다.
+    /// 0번 줄에 제목, 그 아래 줄마다 안내를 표 너비(`width`칸)만큼 합쳐 쓴다.
     fn write(
         &self,
         sheet: &mut Worksheet,
         width: u16,
         title: &str,
-        note: &str,
+        notes: &[&str],
     ) -> Result<(), XlsxError> {
-        for (row, text, format, height) in
-            [(0, title, &self.title, 36.0), (1, note, &self.note, 22.0)]
-        {
+        let lines = std::iter::once((title, &self.title, 36.0))
+            .chain(notes.iter().map(|note| (*note, &self.note, 22.0)));
+        for (row, (text, format, height)) in (0u32..).zip(lines) {
             if width <= 1 {
                 sheet.write_string_with_format(row, 0, text, format)?;
             } else {
@@ -111,46 +118,6 @@ impl PostedHeading {
         }
         Ok(())
     }
-}
-
-/// 게시용 명단의 글씨와 칸 모양. 붙여 두고 어르신들이 보므로 글씨를 크게 한다.
-struct PostedFormats {
-    title: Format,
-    header: Format,
-    body: Format,
-    /// 자리 보장으로 당첨된 칸(BR-P4).
-    priority: Format,
-}
-
-impl PostedFormats {
-    fn new() -> Self {
-        let base = Format::new()
-            .set_font_name(FONT)
-            .set_font_size(14)
-            .set_align(FormatAlign::Center)
-            .set_align(FormatAlign::VerticalCenter);
-        let body = base.clone().set_border(FormatBorder::Thin);
-        PostedFormats {
-            title: base.clone().set_bold().set_font_size(20),
-            header: body.clone().set_bold().set_background_color(HEADER_FILL),
-            priority: body.clone().set_background_color(PRIORITY_FILL),
-            body,
-        }
-    }
-}
-
-/// 게시용 명단의 표에 넣는 칸. 강좌 이름과 정원은 제목에, 우선은 색칠로 보이므로 뺀다.
-fn posted_table_columns(spec: &RosterSpec) -> Vec<RosterColumn> {
-    spec.columns()
-        .iter()
-        .copied()
-        .filter(|column| {
-            !matches!(
-                column,
-                RosterColumn::CourseName | RosterColumn::Capacity | RosterColumn::Guaranteed
-            )
-        })
-        .collect()
 }
 
 /// 칸 하나에 쓸 값.
@@ -274,11 +241,6 @@ fn column_width(column: RosterColumn) -> f64 {
     }
 }
 
-/// 게시용 표의 칸 너비. 글씨가 커서 원본보다 넓다.
-fn posted_column_width(column: RosterColumn) -> f64 {
-    column_width(column) * 1.4
-}
-
 /// 강좌마다 시트 이름 `강좌 이름(정원)`.
 ///
 /// Excel 규칙에 맞춘다: 31자 이하, `: \ / ? * [ ]`는 쓸 수 없다. 길면 강좌 이름을 자른다.
@@ -313,6 +275,12 @@ fn sheet_names(roster: &[RosterCourse]) -> Vec<String> {
     names
 }
 
+/// 글자가 잘리지 않는 칸 너비. 한글 한 글자가 영문 두 글자쯤 된다.
+fn text_width(text: &str) -> f64 {
+    let wide: u32 = text.chars().map(|c| if c.is_ascii() { 1 } else { 2 }).sum();
+    f64::from(wide) + 2.0
+}
+
 /// A4, 가로 폭을 한 쪽에 맞춰 인쇄한다(실험 02).
 fn print_on_a4(sheet: &mut Worksheet) {
     sheet.set_paper_size(9); // 9 = A4
@@ -338,7 +306,7 @@ mod tests {
                 mask_char: MaskChar::Circle,
             })
             .unwrap();
-            read_sheet(&build(&spec, &sample_roster()).unwrap(), 0).1[0][0].clone()
+            read_sheet(&build(&spec, &sample_roster(), "2027년 1학기").unwrap(), 0).1[0][0].clone()
         };
 
         assert_eq!(first_cell(RosterKind::Raw), "당첨자");
@@ -346,7 +314,10 @@ mod tests {
             first_cell(RosterKind::PostedByCourse),
             "요가 초급 (정원 2명)"
         );
-        assert_eq!(first_cell(RosterKind::PostedByMember), "선발 결과 (회원별)");
+        assert_eq!(
+            first_cell(RosterKind::PostedByMember),
+            "2027년 1학기 회원별 선발 결과"
+        );
     }
 
     #[test]

@@ -14,10 +14,10 @@ use baeum_domain::{Action, RosterChoice, RosterColumn, RosterError, RosterKind, 
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::applications::{field_error, require_term};
+use super::applications::field_error;
 use super::auth::CurrentStaff;
 use super::error::ApiError;
-use crate::db::rosters;
+use crate::db::{rosters, terms};
 use crate::roster_xlsx;
 
 use json::RosterExportRequest;
@@ -55,7 +55,10 @@ pub async fn export_roster(
         };
         field_error(field, error.to_string())
     })?;
-    require_term(&db, term_id).await?;
+    let term = terms::get(&db, term_id)
+        .await
+        .map_err(ApiError::internal)?
+        .ok_or(ApiError::TermNotFound)?;
 
     let roster = rosters::term_roster(&db, term_id)
         .await
@@ -63,7 +66,7 @@ pub async fn export_roster(
     if roster.is_empty() {
         return Err(ApiError::NoClosedCourses);
     }
-    let file = roster_xlsx::build(&spec, &roster).map_err(ApiError::internal)?;
+    let file = roster_xlsx::build(&spec, &roster, &term.name).map_err(ApiError::internal)?;
     let export_id = rosters::record_export(
         &db,
         term_id,
