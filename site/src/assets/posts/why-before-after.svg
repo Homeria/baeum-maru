@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 370" role="img" aria-labelledby="title desc">
+  <title id="title">예전 여섯 단계 수작업과 배움마루의 하나의 흐름 비교</title>
+  <desc id="desc">예전에는 종이 신청서에서 엑셀, 메모장, 추첨기, 결과 텍스트, 다시 엑셀까지 여섯 단계를 거쳤지만, 배움마루는 회원 관리부터 접수, 추첨과 대기자, 게시용 명단까지 하나로 잇습니다.</desc>
+  <defs>
+    <style>
+      .sans { font-family: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+      .badge { font-size: 12px; font-weight: 700; fill: #ffffff; }
+      .panelTitle { font-size: 16px; font-weight: 700; fill: #16212b; }
+      .boxText { font-size: 14px; font-weight: 600; fill: #16212b; }
+      .boxAccent { font-size: 14px; font-weight: 700; fill: #184b66; }
+      .note { font-size: 13px; fill: #455666; }
+      .noteWarn { font-size: 13px; fill: #9a3412; font-weight: 600; }
+      .noteAccent { font-size: 13px; fill: #184b66; font-weight: 600; }
+    </style>
+    <marker id="arrowMuted" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#7c8b99" />
+    </marker>
+    <marker id="arrowAccent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#184b66" />
+    </marker>
+  </defs>
+
+  <rect width="760" height="370" rx="14" fill="#f4f7f9" stroke="#d2dde6" stroke-width="1.5" />
+
+  <!-- 위 패널: 예전 현장 -->
+  <rect x="24" y="20" width="712" height="176" rx="12" fill="#ffffff" stroke="#d2dde6" stroke-width="1.5" />
+  <rect x="44" y="36" width="78" height="24" rx="12" fill="#9a3412" />
+  <text x="83" y="52" text-anchor="middle" class="sans badge">예전 현장</text>
+  <text x="134" y="53" class="sans panelTitle">같은 명단이 여섯 단계를 거치던 과정</text>
+
+  <!-- 1~3단계 -->
+  <rect x="44" y="74" width="196" height="38" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.2" />
+  <text x="142" y="98" text-anchor="middle" class="sans boxText">1. 종이 신청서</text>
+
+  <line x1="240" y1="93" x2="274" y2="93" stroke="#7c8b99" stroke-width="2" marker-end="url(#arrowMuted)" />
+
+  <rect x="282" y="74" width="196" height="38" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.2" />
+  <text x="380" y="98" text-anchor="middle" class="sans boxText">2. 엑셀 입력</text>
+
+  <line x1="478" y1="93" x2="512" y2="93" stroke="#7c8b99" stroke-width="2" marker-end="url(#arrowMuted)" />
+
+  <rect x="520" y="74" width="196" height="38" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.2" />
+  <text x="618" y="98" text-anchor="middle" class="sans boxText">3. 메모장 텍스트</text>
+
+  <!-- 4~6단계 -->
+  <rect x="44" y="124" width="196" height="38" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.2" />
+  <text x="142" y="148" text-anchor="middle" class="sans boxText">4. 추첨 프로그램</text>
+
+  <line x1="240" y1="143" x2="274" y2="143" stroke="#7c8b99" stroke-width="2" marker-end="url(#arrowMuted)" />
+
+  <rect x="282" y="124" width="196" height="38" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.2" />
+  <text x="380" y="148" text-anchor="middle" class="sans boxText">5. 결과 텍스트</text>
+
+  <line x1="478" y1="143" x2="512" y2="143" stroke="#7c8b99" stroke-width="2" marker-end="url(#arrowMuted)" />
+
+  <rect x="520" y="124" width="196" height="38" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.2" />
+  <text x="618" y="148" text-anchor="middle" class="sans boxText">6. 다시 엑셀 정리</text>
+
+  <text x="380" y="184" text-anchor="middle" class="sans noteWarn">시간 겹침과 중복 과목은 사람 눈으로 확인 · 학기마다 회원 정보 다시 입력</text>
+
+  <!-- 아래 패널: 배움마루 -->
+  <rect x="24" y="212" width="712" height="138" rx="12" fill="#ffffff" stroke="#184b66" stroke-width="1.8" />
+  <rect x="44" y="228" width="78" height="24" rx="12" fill="#184b66" />
+  <text x="83" y="244" text-anchor="middle" class="sans badge">배움마루</text>
+  <text x="134" y="245" class="sans panelTitle">접수부터 명단까지 한 곳에서 이어서 처리</text>
+
+  <rect x="44" y="268" width="146" height="44" rx="9" fill="#ebf4f8" stroke="#184b66" stroke-width="1.4" />
+  <text x="117" y="295" text-anchor="middle" class="sans boxAccent">회원 관리</text>
+
+  <line x1="190" y1="290" x2="210" y2="290" stroke="#184b66" stroke-width="2" marker-end="url(#arrowAccent)" />
+
+  <rect x="218" y="268" width="146" height="44" rx="9" fill="#ebf4f8" stroke="#184b66" stroke-width="1.4" />
+  <text x="291" y="295" text-anchor="middle" class="sans boxAccent">규칙 확인 접수</text>
+
+  <line x1="364" y1="290" x2="384" y2="290" stroke="#184b66" stroke-width="2" marker-end="url(#arrowAccent)" />
+
+  <rect x="392" y="268" width="146" height="44" rx="9" fill="#ebf4f8" stroke="#184b66" stroke-width="1.4" />
+  <text x="465" y="295" text-anchor="middle" class="sans boxAccent">추첨 · 대기자</text>
+
+  <line x1="538" y1="290" x2="558" y2="290" stroke="#184b66" stroke-width="2" marker-end="url(#arrowAccent)" />
+
+  <rect x="566" y="268" width="150" height="44" rx="9" fill="#ebf4f8" stroke="#184b66" stroke-width="1.4" />
+  <text x="641" y="295" text-anchor="middle" class="sans boxAccent">게시용 명단</text>
+
+  <text x="380" y="335" text-anchor="middle" class="sans noteAccent">시간 겹침·중복 자동 확인 · 회원 정보 다음 학기 재사용 · 개인정보 가림 출력</text>
+</svg>
