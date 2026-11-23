@@ -5,13 +5,14 @@
 
 #![cfg_attr(not(test), expect(dead_code, reason = "명단 내보내기 API를 붙이기 전"))]
 
+pub mod posted_by_course;
 pub mod raw;
 
 use baeum_domain::{
     Gender, MaskChar, RosterColumn, RosterSpec, format_phone_number, mask_member_no, mask_name,
     mask_phone_number, masked_birth_date,
 };
-use rust_xlsxwriter::{Format, Worksheet, XlsxError};
+use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Worksheet, XlsxError};
 
 use crate::db::rosters::{RosterCourse, RosterEntry, RosterResult};
 
@@ -21,6 +22,49 @@ mod test_support;
 /// 모든 칸의 글꼴. Excel 기본 글꼴(Calibri)에는 한글이 없어 프로그램에 따라 빈칸이 된다.
 /// 한국어 Windows 기본 글꼴을 직접 지정한다(실험 02).
 const FONT: &str = "맑은 고딕";
+
+/// 자리 보장 당첨을 칠하는 색(BR-P4). 흑백으로 인쇄해도 회색으로 구별되게 진하게 둔다.
+const PRIORITY_FILL: &str = "#FFD966";
+
+/// 게시용 명단의 글씨와 칸 모양. 붙여 두고 어르신들이 보므로 글씨를 크게 한다.
+struct PostedFormats {
+    title: Format,
+    header: Format,
+    body: Format,
+    /// 자리 보장으로 당첨된 칸(BR-P4).
+    priority: Format,
+}
+
+impl PostedFormats {
+    fn new() -> Self {
+        let base = Format::new()
+            .set_font_name(FONT)
+            .set_font_size(14)
+            .set_align(FormatAlign::Center)
+            .set_align(FormatAlign::VerticalCenter);
+        let body = base.clone().set_border(FormatBorder::Thin);
+        PostedFormats {
+            title: base.clone().set_bold().set_font_size(20),
+            header: body.clone().set_bold().set_background_color("#E8E8E8"),
+            priority: body.clone().set_background_color(PRIORITY_FILL),
+            body,
+        }
+    }
+}
+
+/// 게시용 명단의 표에 넣는 칸. 강좌 이름과 정원은 제목에, 우선은 색칠로 보이므로 뺀다.
+fn posted_table_columns(spec: &RosterSpec) -> Vec<RosterColumn> {
+    spec.columns()
+        .iter()
+        .copied()
+        .filter(|column| {
+            !matches!(
+                column,
+                RosterColumn::CourseName | RosterColumn::Capacity | RosterColumn::Guaranteed
+            )
+        })
+        .collect()
+}
 
 /// 칸 하나에 쓸 값.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -141,6 +185,11 @@ fn column_width(column: RosterColumn) -> f64 {
         | RosterColumn::Gender
         | RosterColumn::Guaranteed => 8.0,
     }
+}
+
+/// 게시용 표의 칸 너비. 글씨가 커서 원본보다 넓다.
+fn posted_column_width(column: RosterColumn) -> f64 {
+    column_width(column) * 1.4
 }
 
 /// A4, 가로 폭을 한 쪽에 맞춰 인쇄한다(실험 02).
