@@ -32,7 +32,6 @@ pub enum InspectError {
 }
 
 /// `file`이 복원할 수 있는 백업인지 보고 미리보기 값을 센다.
-#[cfg_attr(not(test), expect(dead_code, reason = "복원 API를 붙이기 전"))]
 pub async fn inspect(file: &Path) -> Result<BackupPreview, InspectError> {
     // immutable: 다른 프로그램이 쓰지 않는 파일로 보고 잠금이나 보조 파일(-wal, -shm)을 만들지 않는다
     let mut conn = SqliteConnectOptions::new()

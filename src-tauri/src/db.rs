@@ -21,7 +21,7 @@ pub mod terms;
 #[cfg(test)]
 pub(crate) mod test_support;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use time::{OffsetDateTime, UtcOffset};
@@ -38,6 +38,11 @@ const FILE_NAME: &str = "baeum-maru.db";
 
 /// `src-tauri/migrations/`의 구조 변경 파일. 빌드할 때 실행 파일에 들어간다.
 static MIGRATOR: Migrator = sqlx::migrate!();
+
+/// 데이터 폴더 `dir` 안의 DB 파일.
+pub fn file(dir: &Path) -> PathBuf {
+    dir.join(FILE_NAME)
+}
 
 /// 이 앱이 아는 구조 변경인지. 모르는 것이 있으면 더 새 버전 앱이 만든 DB다.
 pub fn is_known_migration(version: i64) -> bool {

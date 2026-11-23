@@ -18,16 +18,19 @@ pub enum AccessEvent {
     UnlockFailed,
     /// BR-K12: 복구 코드로 관리자 PIN을 다시 정했다.
     RecoveryUsed,
+    /// ADR 0011: 관리자가 백업으로 되돌렸다. 되돌린 DB에 남긴다.
+    Restore,
 }
 
 impl AccessEvent {
     /// 모든 값.
-    const ALL: [AccessEvent; 5] = [
+    const ALL: [AccessEvent; 6] = [
         AccessEvent::Login,
         AccessEvent::LoginFailed,
         AccessEvent::Logout,
         AccessEvent::UnlockFailed,
         AccessEvent::RecoveryUsed,
+        AccessEvent::Restore,
     ];
 
     /// DB `access_logs.event`에 쓰는 값.
@@ -38,6 +41,7 @@ impl AccessEvent {
             AccessEvent::Logout => "logout",
             AccessEvent::UnlockFailed => "unlock_failed",
             AccessEvent::RecoveryUsed => "recovery_used",
+            AccessEvent::Restore => "restore",
         }
     }
 
