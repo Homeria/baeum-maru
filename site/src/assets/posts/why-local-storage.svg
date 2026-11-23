@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" role="img" aria-labelledby="title desc">
+  <title id="title">외부 중앙 서버 방식과 기관 PC 보관 방식 비교</title>
+  <desc id="desc">외부 중앙 서버 방식은 여러 기관의 회원 정보가 한곳에 모여 유출 위험과 월 결제 부담이 있지만, 배움마루는 데이터를 기관 PC 안에만 보관합니다.</desc>
+  <defs>
+    <style>
+      .sans { font-family: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+      .badge { font-size: 12px; font-weight: 700; fill: #ffffff; }
+      .heading { font-size: 16px; font-weight: 700; fill: #16212b; }
+      .box { font-size: 13px; font-weight: 600; fill: #16212b; }
+      .boxAccent { font-size: 14px; font-weight: 700; fill: #184b66; }
+      .boxWarn { font-size: 14px; font-weight: 700; fill: #9a3412; }
+      .bullet { font-size: 13px; fill: #455666; }
+      .bulletStrong { font-size: 13px; font-weight: 700; fill: #16212b; }
+      .pill { font-size: 12px; font-weight: 700; fill: #184b66; }
+    </style>
+    <marker id="arrowWarn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#c2410c" />
+    </marker>
+  </defs>
+
+  <rect width="760" height="360" rx="14" fill="#f4f7f9" stroke="#d2dde6" stroke-width="1.5" />
+
+  <!-- 왼쪽: 외부 중앙 서버 -->
+  <rect x="24" y="24" width="340" height="312" rx="12" fill="#ffffff" stroke="#d2dde6" stroke-width="1.5" />
+  <rect x="44" y="42" width="76" height="24" rx="12" fill="#9a3412" />
+  <text x="82" y="58" text-anchor="middle" class="sans badge">중앙 서버</text>
+  <text x="132" y="59" class="sans heading">외부 서버에 모아 두는 방식</text>
+
+  <!-- 기관 3개 -> 중앙 서버 -->
+  <rect x="48" y="84" width="84" height="34" rx="7" fill="#f6f8fa" stroke="#c5d3df" stroke-width="1.2" />
+  <text x="90" y="106" text-anchor="middle" class="sans box">기관 A</text>
+
+  <rect x="152" y="84" width="84" height="34" rx="7" fill="#f6f8fa" stroke="#c5d3df" stroke-width="1.2" />
+  <text x="194" y="106" text-anchor="middle" class="sans box">기관 B</text>
+
+  <rect x="256" y="84" width="84" height="34" rx="7" fill="#f6f8fa" stroke="#c5d3df" stroke-width="1.2" />
+  <text x="298" y="106" text-anchor="middle" class="sans box">기관 C</text>
+
+  <line x1="90" y1="118" x2="152" y2="148" stroke="#c2410c" stroke-width="1.8" marker-end="url(#arrowWarn)" />
+  <line x1="194" y1="118" x2="194" y2="146" stroke="#c2410c" stroke-width="1.8" marker-end="url(#arrowWarn)" />
+  <line x1="298" y1="118" x2="236" y2="148" stroke="#c2410c" stroke-width="1.8" marker-end="url(#arrowWarn)" />
+
+  <rect x="64" y="152" width="260" height="44" rx="9" fill="#fff7ed" stroke="#fdba74" stroke-width="1.5" />
+  <text x="194" y="179" text-anchor="middle" class="sans boxWarn">외부 중앙 서버 (회원 정보 집중)</text>
+
+  <rect x="48" y="214" width="292" height="102" rx="9" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2" />
+  <text x="64" y="240" class="sans bullet">• 한 번 뚫리면 여러 기관 정보가 함께 유출</text>
+  <text x="64" y="266" class="sans bullet">• 어르신 개인정보는 2차 범죄 피해 위험</text>
+  <text x="64" y="292" class="sans bullet">• 매달 월 결제 비용 · 서버 종료 시 중단</text>
+
+  <!-- 오른쪽: 배움마루 (기관 PC 보관) -->
+  <rect x="396" y="24" width="340" height="312" rx="12" fill="#ffffff" stroke="#184b66" stroke-width="1.8" />
+  <rect x="416" y="42" width="76" height="24" rx="12" fill="#184b66" />
+  <text x="454" y="58" text-anchor="middle" class="sans badge">배움마루</text>
+  <text x="504" y="59" class="sans heading">기관 PC 안에만 보관</text>
+
+  <!-- 기관 PC 박스 -->
+  <rect x="420" y="84" width="292" height="112" rx="10" fill="#ebf4f8" stroke="#184b66" stroke-width="1.5" />
+  <text x="566" y="108" text-anchor="middle" class="sans boxAccent">기관의 대표 PC</text>
+
+  <rect x="440" y="122" width="116" height="40" rx="8" fill="#ffffff" stroke="#184b66" stroke-width="1.2" />
+  <text x="498" y="147" text-anchor="middle" class="sans box">배움마루 앱</text>
+
+  <rect x="576" y="122" width="116" height="40" rx="8" fill="#ffffff" stroke="#184b66" stroke-width="1.2" />
+  <text x="634" y="147" text-anchor="middle" class="sans box">데이터 파일</text>
+
+  <text x="566" y="185" text-anchor="middle" class="sans pill">외부 서버 전송 없음 · 개발자도 볼 수 없음</text>
+
+  <rect x="420" y="214" width="292" height="102" rx="9" fill="#f8fafc" stroke="#cbdce7" stroke-width="1.2" />
+  <text x="436" y="240" class="sans bulletStrong">• 회원 정보가 기관 PC 밖으로 나가지 않음</text>
+  <text x="436" y="266" class="sans bulletStrong">• 로그인·접속 기록·자동 백업, 실수 차단</text>
+  <text x="436" y="292" class="sans bulletStrong">• 무료 공개(MIT) · 개발이 멈춰도 계속 사용 가능</text>
+</svg>
