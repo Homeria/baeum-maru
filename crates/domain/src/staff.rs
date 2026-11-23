@@ -101,6 +101,9 @@ pub enum Action {
     ManageStaff,
     /// 접속 기록 보기.
     ViewAccessLog,
+    /// 백업 목록 보기, 지금 백업, 두 번째 위치 바꾸기(ADR 0011). 두 번째 위치는 호스트 PC에서만
+    /// 바꾼다는 것은 앱이 따로 확인한다.
+    ManageBackups,
 }
 
 impl Role {
@@ -131,7 +134,8 @@ impl Role {
                 Action::CorrectWithdrawals
                 | Action::ManagePriorityReasons
                 | Action::ManageStaff
-                | Action::ViewAccessLog,
+                | Action::ViewAccessLog
+                | Action::ManageBackups,
             ) => false,
             (Role::Staff, _) => true,
             (Role::TempStaff, Action::EditMembers | Action::TakeApplications) => true,
@@ -391,6 +395,7 @@ mod tests {
             ManagePriorityReasons,
             ManageStaff,
             ViewAccessLog,
+            ManageBackups,
         ];
         let allowed = |role: Role| -> Vec<Action> {
             all.into_iter().filter(|action| role.can(*action)).collect()

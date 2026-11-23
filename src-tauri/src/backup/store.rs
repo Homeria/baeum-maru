@@ -61,7 +61,6 @@ pub async fn create(
 }
 
 /// `file`(백업 파일)을 `dir`(두 번째 위치)에 복사하고 그쪽도 보관 개수를 넘은 백업을 지운다.
-#[cfg_attr(not(test), expect(dead_code, reason = "두 번째 위치 설정을 붙이기 전"))]
 pub async fn copy_to(file: &Path, name: BackupName, dir: &Path) -> Result<(), BackupError> {
     tokio::fs::create_dir_all(dir).await?;
     let target = dir.join(name.to_string());

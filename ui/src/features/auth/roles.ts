@@ -32,7 +32,8 @@ export type Action =
   | "exportRawRoster"
   | "managePriorityReasons"
   | "manageStaff"
-  | "viewAccessLog";
+  | "viewAccessLog"
+  | "manageBackups";
 
 /**
  * BR-K3: `role`인 직원이 `action`을 할 수 있는지. 호스트의 `Role::can`과 같은 표다.
@@ -48,7 +49,8 @@ export function can(role: RoleCode, action: Action): boolean {
         action !== "correctWithdrawals" &&
         action !== "managePriorityReasons" &&
         action !== "manageStaff" &&
-        action !== "viewAccessLog"
+        action !== "viewAccessLog" &&
+        action !== "manageBackups"
       );
     case "temp_staff":
       return (

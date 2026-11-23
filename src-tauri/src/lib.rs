@@ -6,6 +6,7 @@ mod backup;
 mod clock;
 mod data_dir;
 mod db;
+mod pick_folder;
 mod roster_xlsx;
 mod save_file;
 mod secret;
@@ -33,9 +34,12 @@ pub fn run() {
     tracing_subscriber::fmt().with_env_filter(filter).init();
 
     tauri::Builder::default()
-        // ADR 0018: 저장 창은 앱(Rust)에서만 띄운다. 화면에 권한을 열지 않는다
+        // ADR 0018: 저장 창과 폴더 고르기 창은 앱(Rust)에서만 띄운다. 화면에 권한을 열지 않는다
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![save_file::save_file])
+        .invoke_handler(tauri::generate_handler![
+            save_file::save_file,
+            pick_folder::pick_folder
+        ])
         .setup(|app| {
             let host: version::Version = version::CURRENT.parse()?;
             let exe = std::env::current_exe()?;
@@ -47,7 +51,7 @@ pub fn run() {
             match tauri::async_runtime::block_on(db::open(data_dir.path())) {
                 Ok(db) => {
                     tracing::info!(portable = data_dir.is_portable(), "DB 열림");
-                    let backups = Backups::new(db.clone(), backup::dir(data_dir.path()));
+                    let backups = Backups::new(db.clone(), data_dir.path());
                     tauri::async_runtime::spawn(backups.clone().run_daily());
                     // 호스트·접속 선택이 생길 때까지는 늘 띄움
                     tauri::async_runtime::spawn(server::serve(host, db, backups.clone()));

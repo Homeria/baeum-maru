@@ -167,7 +167,7 @@ struct DetailRow {
 }
 
 /// 화면의 강좌 이름과 같다: 과목, 수준, 반을 띄어 잇는다.
-fn course_name(subject: &str, level: Option<&str>, section: Option<&str>) -> String {
+pub(super) fn course_name(subject: &str, level: Option<&str>, section: Option<&str>) -> String {
     [Some(subject), level, section]
         .into_iter()
         .flatten()

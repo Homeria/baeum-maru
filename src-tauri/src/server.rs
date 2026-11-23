@@ -5,6 +5,7 @@
 mod access_logs;
 mod applications;
 mod auth;
+mod backups;
 mod courses;
 mod error;
 mod login;
@@ -216,6 +217,14 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/staff/{id}/pin", post(staff::reset_staff_pin))
         .route("/api/access-logs", get(access_logs::list_access_logs))
+        .route(
+            "/api/backups",
+            get(backups::list_backups).post(backups::create_backup),
+        )
+        .route(
+            "/api/backups/second-location",
+            put(backups::set_second_location),
+        )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::require_session,
@@ -301,7 +310,7 @@ mod tests {
     async fn send(request: Request<Body>) -> Response<Body> {
         let dir = tempfile::tempdir().unwrap();
         let db = crate::db::open(dir.path()).await.unwrap();
-        let backups = Backups::new(db.clone(), crate::backup::dir(dir.path()));
+        let backups = Backups::new(db.clone(), dir.path());
         router(AppState::new("0.1.0".parse().unwrap(), db, backups))
             .oneshot(request)
             .await
