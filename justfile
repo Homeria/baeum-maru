@@ -27,6 +27,28 @@ seed:
 seed-clear:
     rm -rf {{seed_dir}}
 
+# 앱이 켜져 있거나, DB가 없거나, 되돌릴 백업이 없으면 아무것도 하지 않고 멈춘다.
+# 복원 화면 확인용: 더미 데이터 폴더의 DB를 망가뜨린다
+break-db:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    db="{{seed_dir}}/baeum-maru.db"
+    if pgrep -x baeum-maru > /dev/null; then
+        echo "앱이 켜져 있습니다. 끈 뒤에 다시 해 주세요" >&2
+        exit 1
+    fi
+    if [ ! -f "$db" ]; then
+        echo "$db 가 없습니다. just seed로 더미 데이터를 먼저 만드세요" >&2
+        exit 1
+    fi
+    if ! ls "{{seed_dir}}/backups/"*.db > /dev/null 2>&1; then
+        echo "되돌릴 백업이 없습니다. just dev로 한 번 켰다 끄면 하루 백업이 생깁니다" >&2
+        exit 1
+    fi
+    printf '망가진 DB 파일입니다' > "$db"
+    rm -f "$db-wal" "$db-shm"
+    echo "DB를 망가뜨렸습니다. just dev로 켜면 복원 화면이 뜹니다"
+
 # 전부 검사한다. CI도 이 명령을 쓴다
 check: check-names check-rust check-bindings check-ui check-deps
 
