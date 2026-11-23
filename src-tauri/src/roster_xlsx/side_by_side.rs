@@ -1,12 +1,12 @@
 //! 당첨자와 대기자를 나란히 두는 표(BR-P2, BR-P3). 원본 명단과 게시용 강좌별이 같이 쓴다.
 //!
 //! 왼쪽은 당첨자, 오른쪽은 대기자 묶음이고 각자 머리글 다음 줄부터 채운다. 묶음마다 바깥을
-//! 굵은 선으로 둘러 구분한다. 자리 보장으로 당첨된 사람의 당첨자 칸은 색칠한다(BR-P4).
+//! 굵은 선으로 둘러 구분하고, 상자 높이는 묶음마다 제 사람 수만큼이다. 자리 보장으로 당첨된 사람의 당첨자 칸은 색칠한다(BR-P4).
 
 use baeum_domain::{RosterColumn, RosterSpec};
 use rust_xlsxwriter::{Format, FormatBorder, Worksheet, XlsxError};
 
-use super::{Cell, TableFormats, cell, column_width, text_width};
+use super::{TableFormats, cell, column_width, text_width};
 use crate::db::rosters::{RosterCourse, RosterEntry, RosterResult};
 
 /// 당첨자 묶음이나 대기자 묶음 하나.
@@ -69,15 +69,10 @@ pub(super) fn write_side_by_side(
             entries: of(RosterResult::Waitlisted),
         },
     ];
-    // 두 묶음의 높이를 맞춰 굵은 테두리가 같은 줄에서 닫히게
-    let tallest = groups
-        .iter()
-        .map(|group| group.entries.len())
-        .max()
-        .unwrap_or(0);
-    let last_row = first_row.saturating_add(u32::try_from(tallest).unwrap_or(u32::MAX));
-
     for group in &groups {
+        // 묶음마다 제 사람 수만큼만 그린다. 당첨 20명, 대기 80명이면 상자 높이도 다르다
+        let last_row =
+            first_row.saturating_add(u32::try_from(group.entries.len()).unwrap_or(u32::MAX));
         let last = group.columns.len().saturating_sub(1);
         for (index, (col, column)) in (group.first_col..).zip(&group.columns).enumerate() {
             let label = header_label(group, *column);
@@ -95,14 +90,18 @@ pub(super) fn write_side_by_side(
                 label,
                 &with_edges(&formats.header, edges(first_row)),
             )?;
-            for (nth, row) in (first_row + 1..=last_row).enumerate() {
-                let entry = group.entries.get(nth);
-                let base = match entry {
-                    Some(entry) if entry.guaranteed => &formats.priority,
-                    _ => &formats.body,
+            for (row, entry) in (first_row + 1..).zip(&group.entries) {
+                let base = if entry.guaranteed {
+                    &formats.priority
+                } else {
+                    &formats.body
                 };
-                let value = entry.map_or(Cell::Empty, |entry| cell(spec, course, entry, *column));
-                value.write(sheet, row, col, &with_edges(base, edges(row)))?;
+                cell(spec, course, entry, *column).write(
+                    sheet,
+                    row,
+                    col,
+                    &with_edges(base, edges(row)),
+                )?;
             }
         }
     }

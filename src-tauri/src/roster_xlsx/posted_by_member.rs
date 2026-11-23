@@ -79,6 +79,8 @@ impl MemberFormats {
                 .clone()
                 .set_bold()
                 .set_align(FormatAlign::Left)
+                // 칸 왼쪽 선에 붙지 않게 한 칸 들여쓴다
+                .set_indent(1)
                 .set_text_wrap(),
             priority_line: line.clone().set_font_color(PRIORITY_TEXT),
             line,
