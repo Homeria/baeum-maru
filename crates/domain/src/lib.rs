@@ -16,6 +16,7 @@ mod personal;
 mod priority;
 mod recovery_code;
 mod room;
+mod roster;
 mod staff;
 mod subject;
 mod term;
@@ -36,6 +37,10 @@ pub use personal::Personal;
 pub use priority::{NewPriorityReason, PriorityError, PriorityMethod, PriorityReasonName};
 pub use recovery_code::RecoveryCode;
 pub use room::{BuildingName, Floor, NewRoom, RoomError, RoomInput, RoomName};
+pub use roster::{
+    MaskChar, RosterChoice, RosterColumn, RosterError, RosterKind, RosterSpec, format_phone_number,
+    mask_member_no, mask_name, mask_phone_number, masked_birth_date,
+};
 pub use staff::{
     ACCOUNT_LOCK, Action, FailedPin, MAX_FAILED_PINS, NewStaff, Pin, Role, SCREEN_LOCK, StaffError,
     StaffInput, StaffName, StaffProfile, is_account_locked, is_screen_locked, is_valid_on,
