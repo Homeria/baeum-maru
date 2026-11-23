@@ -33,10 +33,11 @@ serde = { version = "1", features = ["derive"] }
 sha2 = "0.11.1"
 sqlx = { version = "0.9.1", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "macros", "migrate", "time"] }
 tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2.8"
 thiserror = "2"
 # ADR 0015: 날짜 JSON은 "2026-11-15" 글자 (serde-human-readable), 지역 날짜는 local-offset
 time = { version = "0.3.55", features = ["local-offset", "macros", "serde", "serde-human-readable"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "fs", "sync"] }
 tower-http = { version = "0.7", features = ["cors", "set-header"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
