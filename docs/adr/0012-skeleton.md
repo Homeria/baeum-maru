@@ -1,6 +1,6 @@
 # 0012. 뼈대: 화면 구성, 검사 도구, 브랜치와 CI, 의존성 관리
 
-- 상태: 일부 대체됨 ([0013](0013-defer-dependabot.md): Dependabot 버전 업데이트는 출시 준비 때)
+- 상태: 일부 대체됨 ([0013](0013-defer-dependabot.md): Dependabot 버전 업데이트는 출시 준비 때, [0020](0020-split-ci-jobs.md): CI는 검사를 작업 셋으로 나눠 돌림)
 - 근거: [0006](0006-crate-layout.md), [0007](0007-app-only-access.md), [0008](0008-http-json-sse.md), [0009](0009-frontend.md), [0010](0010-distribution.md), [실험 06](../../spikes/06-frontend-react-svelte/)
 
 ## 상황

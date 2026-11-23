@@ -49,7 +49,7 @@ break-db:
     rm -f "$db-wal" "$db-shm"
     echo "DB를 망가뜨렸습니다. just dev로 켜면 복원 화면이 뜹니다"
 
-# 전부 검사한다. CI도 이 명령을 쓴다
+# 전부 검사한다. CI는 같은 검사를 작업 셋(화면, 의존성, Rust)으로 나눠 돌린다 (ADR 0020)
 check: check-names check-rust check-bindings check-ui check-deps
 
 # Windows는 대소문자를 가리지 않고, import는 확장자 없이 찾는다.

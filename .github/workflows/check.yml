@@ -1,4 +1,5 @@
-# [ADR 0012]: 적어 둔 경로가 바뀐 때만 just check를 돌린다. 문서만 고치면 돌지 않는다.
+# [ADR 0012]: 적어 둔 경로가 바뀐 때만 돌린다. 문서만 고치면 돌지 않는다.
+# [ADR 0020]: just check를 작업 셋(화면, 의존성, Rust)으로 나눠 함께 돌리고, 하나가 실패하면 나머지를 멈춘다.
 name: 검사
 
 on:
@@ -45,23 +46,49 @@ permissions:
   contents: read
 
 jobs:
+  # 검사 셋을 매트릭스로 묶어 함께 돌린다. 하나가 실패하면 나머지는 취소한다(fail-fast).
   check:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - kind: ui
+            name: 화면
+            tools: just
+            recipes: check-names check-ui
+          - kind: deps
+            name: 의존성
+            tools: just,cargo-deny
+            recipes: check-deps
+          - kind: rust
+            name: Rust
+            tools: just
+            recipes: check-rust check-bindings
     steps:
       - uses: actions/checkout@v7
 
+      # Tauri가 링크하는 시스템 패키지. 미러가 잠깐 어긋나거나 끊기면 다시 받는다.
       - name: Tauri 시스템 패키지
+        if: matrix.kind == 'rust'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get -o Acquire::Retries=3 update
+          sudo apt-get -o Acquire::Retries=3 install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
       # rust-toolchain.toml의 버전과 구성 요소를 명시적으로 설치
       - name: Rust
+        if: matrix.kind != 'ui'
         run: rustup toolchain install
 
-      - uses: Swatinem/rust-cache@v2
+      # 캐시는 main에서만 저장한다. PR은 읽기만 해서 PR마다 1GB씩 쌓이지 않는다.
+      - if: matrix.kind == 'rust'
+        uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - uses: actions/setup-node@v7
+      - if: matrix.kind == 'ui'
+        uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: npm
@@ -69,7 +96,9 @@ jobs:
 
       - uses: taiki-e/install-action@v2
         with:
-          tool: just,cargo-deny
+          tool: ${{ matrix.tools }}
 
-      - run: just setup
-      - run: just check
+      - if: matrix.kind == 'ui'
+        run: just setup
+
+      - run: just ${{ matrix.recipes }}
