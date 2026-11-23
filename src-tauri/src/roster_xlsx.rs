@@ -5,12 +5,13 @@
 
 #![cfg_attr(not(test), expect(dead_code, reason = "명단 내보내기 API를 붙이기 전"))]
 
-pub mod posted_by_course;
-pub mod raw;
+mod posted_by_course;
+mod posted_by_member;
+mod raw;
 
 use baeum_domain::{
-    Gender, MaskChar, RosterColumn, RosterSpec, format_phone_number, mask_member_no, mask_name,
-    mask_phone_number, masked_birth_date,
+    Gender, MaskChar, RosterColumn, RosterKind, RosterSpec, format_phone_number, mask_member_no,
+    mask_name, mask_phone_number, masked_birth_date,
 };
 use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Worksheet, XlsxError};
 
@@ -18,6 +19,19 @@ use crate::db::rosters::{RosterCourse, RosterEntry, RosterResult};
 
 #[cfg(test)]
 mod test_support;
+
+/// 명단 Excel 파일의 내용을 만든다. 종류는 `spec`을 따른다(BR-P1).
+///
+/// # Errors
+///
+/// Excel 파일을 만들지 못하면 [`XlsxError`].
+pub fn build(spec: &RosterSpec, roster: &[RosterCourse]) -> Result<Vec<u8>, XlsxError> {
+    match spec.kind() {
+        RosterKind::Raw => raw::raw_roster(spec, roster),
+        RosterKind::PostedByCourse => posted_by_course::posted_by_course(spec, roster),
+        RosterKind::PostedByMember => posted_by_member::posted_by_member(spec, roster),
+    }
+}
 
 /// 모든 칸의 글꼴. Excel 기본 글꼴(Calibri)에는 한글이 없어 프로그램에 따라 빈칸이 된다.
 /// 한국어 Windows 기본 글꼴을 직접 지정한다(실험 02).
@@ -197,4 +211,30 @@ fn print_on_a4(sheet: &mut Worksheet) {
     sheet.set_paper_size(9); // 9 = A4
     sheet.set_print_fit_to_pages(1, 0); // 가로 1쪽, 세로는 필요한 만큼
     sheet.set_print_center_horizontally(true);
+}
+
+#[cfg(test)]
+mod tests {
+    use baeum_domain::{MaskChar, RosterChoice};
+
+    use super::*;
+    use test_support::{read_sheet, sample_roster};
+
+    #[test]
+    fn br_p1_builds_each_kind() {
+        let sheet_of = |kind: RosterKind| {
+            let spec = RosterSpec::new(RosterChoice {
+                kind,
+                include: &[],
+                mask: &[],
+                mask_char: MaskChar::Circle,
+            })
+            .unwrap();
+            read_sheet(&build(&spec, &sample_roster()).unwrap(), 0).0
+        };
+
+        assert_eq!(sheet_of(RosterKind::Raw), "결과 명단");
+        assert_eq!(sheet_of(RosterKind::PostedByCourse), "요가 초급(2)");
+        assert_eq!(sheet_of(RosterKind::PostedByMember), "회원별 결과");
+    }
 }
