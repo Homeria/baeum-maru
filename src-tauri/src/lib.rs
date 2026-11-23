@@ -14,6 +14,7 @@ mod secret;
 #[cfg(feature = "dev-seed")]
 pub mod seed;
 mod server;
+mod startup;
 mod version;
 
 use tauri::Manager;
@@ -55,8 +56,8 @@ pub fn run() {
                 data_dir.path(),
                 OffsetDateTime::now_utc(),
             ));
-            // DB를 연 뒤에 서버와 백업을 시작한다. 열지 못하면 창만 뜬다
-            match tauri::async_runtime::block_on(db::open(data_dir.path())) {
+            // DB를 연 뒤에 서버와 백업을 시작한다. 쓸 수 없으면 그 까닭을 맡겨 두고 화면이 묻는다
+            match tauri::async_runtime::block_on(startup::open_checked(data_dir.path())) {
                 Ok(db) => {
                     tracing::info!(portable = data_dir.is_portable(), "DB 열림");
                     if let Some(outcome) = restored {
@@ -74,7 +75,9 @@ pub fn run() {
                     // 앱을 끌 때 백업에 쓴다
                     app.manage(backups);
                 }
-                Err(error) => tracing::error!(%error, "DB를 열지 못했습니다"),
+                Err(problem) => {
+                    app.manage(problem);
+                }
             }
             Ok(())
         })
