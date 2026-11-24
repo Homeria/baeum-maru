@@ -45,6 +45,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Tauri가 링크하는 시스템 패키지. 캐시 키도 이 목록으로 받을 파일에서 만든다 (ADR 0022)
+  TAURI_PACKAGES: libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
 jobs:
   # 검사 셋을 매트릭스로 묶어 함께 돌린다. 하나가 실패하면 나머지는 취소한다(fail-fast).
   check:
@@ -69,12 +73,54 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Tauri가 링크하는 시스템 패키지. 미러가 잠깐 어긋나거나 끊기면 다시 받는다.
-      - name: Tauri 시스템 패키지
+      # Tauri가 링크하는 시스템 패키지 (ADR 0022). 받은 .deb는 캐시에 보관해 미러에서 다시 받지 않는다.
+      # 캐시 키는 이번에 받을 파일 이름(판 포함) 목록의 해시라서, Ubuntu가 새 판을 낼 때만 바뀐다.
+      - name: Tauri 시스템 패키지 목록
+        id: apt
         if: matrix.kind == 'rust'
         run: |
           sudo apt-get -o Acquire::Retries=3 update
-          sudo apt-get -o Acquire::Retries=3 install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get install --print-uris -qq $TAURI_PACKAGES > "$RUNNER_TEMP/apt-uris.txt"
+          # 주소가 아니라 파일 이름(판 포함)으로 해시한다. 러너마다 미러가 달라도 같은 키가 된다
+          echo "hash=$(cut -d' ' -f2 "$RUNNER_TEMP/apt-uris.txt" | sort | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      # 키가 똑같지 않으면 직전 캐시를 꺼낸다. 판이 바뀐 파일만 미러에서 받는다.
+      - name: Tauri 시스템 패키지 캐시 꺼내기
+        id: apt-cache
+        if: matrix.kind == 'rust'
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/apt-debs
+          key: apt-ubuntu-24.04-${{ steps.apt.outputs.hash }}
+          restore-keys: apt-ubuntu-24.04-
+
+      # 캐시는 사용자 폴더에 풀린다. apt 보관 폴더는 root 것이라 sudo로 옮긴다. 설치가 실패하면 여기서 멈춘다.
+      - name: Tauri 시스템 패키지
+        if: matrix.kind == 'rust'
+        run: |
+          shopt -s nullglob
+          debs=(~/apt-debs/*.deb)
+          if (( ${#debs[@]} )); then
+            sudo cp "${debs[@]}" /var/cache/apt/archives/
+          fi
+          sudo apt-get -o Acquire::Retries=3 -o APT::Keep-Downloaded-Packages=true install -y $TAURI_PACKAGES
+
+      # main에서, 키가 똑같은 캐시가 없었을 때만 저장한다. 이번에 받을 목록의 파일만 담는다.
+      - name: Tauri 시스템 패키지 캐시 모으기
+        if: matrix.kind == 'rust' && github.ref == 'refs/heads/main' && steps.apt-cache.outputs.cache-hit != 'true'
+        run: |
+          rm -rf ~/apt-debs
+          mkdir -p ~/apt-debs
+          cut -d' ' -f2 "$RUNNER_TEMP/apt-uris.txt" | while read -r file; do
+            cp "/var/cache/apt/archives/$file" ~/apt-debs/
+          done
+
+      - name: Tauri 시스템 패키지 캐시 저장
+        if: matrix.kind == 'rust' && github.ref == 'refs/heads/main' && steps.apt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/apt-debs
+          key: ${{ steps.apt-cache.outputs.cache-primary-key }}
 
       # rust-toolchain.toml의 버전과 구성 요소를 명시적으로 설치
       - name: Rust
