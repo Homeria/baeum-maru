@@ -109,3 +109,19 @@ check-ui:
 
 check-deps:
     cargo deny check
+
+# 웹사이트(site/) 패키지 설치: 처음 한 번, package-lock.json이 바뀌었을 때
+site-setup:
+    npm ci --prefix site
+
+# 웹사이트 로컬 개발 서버를 띄운다
+site-dev:
+    npm --prefix site run dev
+
+# 웹사이트 빌드 결과물(site/dist/)을 로컬에서 미리 본다
+site-preview:
+    npm --prefix site run preview
+
+# 웹사이트 전체 검사 (형식, 타입, 빌드, 내부 링크). 앱 check와는 분리한다 (ADR 0019)
+site-check:
+    npm --prefix site run check
