@@ -431,7 +431,14 @@ fn cors() -> CorsLayer {
                 .map(HeaderValue::from_static)
                 .collect::<Vec<_>>(),
         )
-        .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            // 우선 사유 지정, 두 번째 위치 설정
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+        ])
         .allow_headers([
             header::CONTENT_TYPE,
             // 세션 증표 (ADR 0014)
@@ -517,7 +524,8 @@ mod tests {
 
     #[tokio::test]
     async fn cors_allows_json_writes_from_app_window() {
-        for method in ["POST", "PATCH", "DELETE"] {
+        // 화면이 쓰는 쓰기 메서드 전부 (ui/src/api/client.ts의 Method)
+        for method in ["POST", "PUT", "PATCH", "DELETE"] {
             let request = Request::options("/api/members/1")
                 .header(header::ORIGIN, APP_ORIGINS[0])
                 .header(header::ACCESS_CONTROL_REQUEST_METHOD, method)
