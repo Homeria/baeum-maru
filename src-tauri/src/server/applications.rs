@@ -108,7 +108,8 @@ pub async fn submit_applications(
         staff_id: staff.id,
         priorities: &priorities,
     };
-    let ids = applications::submit(&db, new, OffsetDateTime::now_utc()).await?;
+    let submitted = applications::submit(&db, new, OffsetDateTime::now_utc()).await?;
+    let ids: Vec<i64> = submitted.iter().map(|item| item.id).collect();
     tracing::info!(
         staff_id = staff.id,
         term_id,
@@ -223,6 +224,7 @@ impl From<SubmitError> for ApiError {
             SubmitError::MemberNotFound => ApiError::MemberNotFound,
             SubmitError::CourseNotFound(_) => ApiError::CourseNotFound,
             SubmitError::CourseDrawn(_) => ApiError::CourseDrawn,
+            SubmitError::TermEnded(_) => ApiError::TermEnded,
             // 화면은 목록에서 고른 사유만 보낸다. 그 사이 지워졌을 때만 온다
             error @ (SubmitError::PriorityForUnchosenCourse(_)
             | SubmitError::PriorityReasonNotFound(_)) => {

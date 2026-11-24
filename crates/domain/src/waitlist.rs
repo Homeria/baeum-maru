@@ -1,4 +1,4 @@
-//! 포기 뒤의 빈자리, 대기자 연락할 차례, 잘못 처리 바로잡기(BR-C3, BR-W1~W8).
+//! 포기 뒤의 빈자리, 대기자 연락할 차례, 잘못 처리 바로잡기, 추가 신청(BR-C3, BR-W1~W8, BR-X2).
 
 use crate::Capacity;
 
@@ -86,6 +86,32 @@ pub fn contact_turns(waiting: &[Waiting], open_seats: usize) -> Vec<i64> {
         .collect()
 }
 
+/// 추가 신청이 받는 결과(BR-X2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AdditionalOutcome {
+    /// 바로 당첨.
+    Selected,
+    /// 이 대기 순번으로 대기.
+    Waitlisted(usize),
+}
+
+/// 추가 신청 하나를 받았을 때의 결과.
+///
+/// BR-X2: 빈자리가 있고 남은 대기자가 없으면 바로 당첨이다. 그 밖에는 지금까지 쓴 가장 큰
+/// 대기 순번(`last_waitlist_number`, 쓴 적이 없으면 `None`) 다음 번호로 대기한다. 빈자리가
+/// 있어도 대기자가 남아 있으면 그 사람들이 먼저다(BR-W1).
+pub fn additional_outcome(
+    open_seats: usize,
+    waiting: usize,
+    last_waitlist_number: Option<usize>,
+) -> AdditionalOutcome {
+    if open_seats > 0 && waiting == 0 {
+        AdditionalOutcome::Selected
+    } else {
+        AdditionalOutcome::Waitlisted(last_waitlist_number.map_or(1, |n| n + 1))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -139,5 +165,35 @@ mod tests {
             assert_eq!(ContactResult::from_code(result.code()), Some(result));
         }
         assert_eq!(ContactResult::from_code("maybe"), None);
+    }
+
+    #[test]
+    fn br_x2_open_seat_without_waiting_is_selected_at_once() {
+        assert_eq!(
+            additional_outcome(2, 0, Some(3)),
+            AdditionalOutcome::Selected
+        );
+        assert_eq!(additional_outcome(1, 0, None), AdditionalOutcome::Selected);
+    }
+
+    #[test]
+    fn br_x2_waiting_members_go_first_even_with_open_seat() {
+        assert_eq!(
+            additional_outcome(1, 2, Some(5)),
+            AdditionalOutcome::Waitlisted(6)
+        );
+    }
+
+    #[test]
+    fn br_x2_full_course_waits_after_last_number_used() {
+        // 대기자가 모두 빠졌어도 쓴 번호는 다시 쓰지 않는다 (BR-W6)
+        assert_eq!(
+            additional_outcome(0, 0, Some(3)),
+            AdditionalOutcome::Waitlisted(4)
+        );
+        assert_eq!(
+            additional_outcome(0, 0, None),
+            AdditionalOutcome::Waitlisted(1)
+        );
     }
 }

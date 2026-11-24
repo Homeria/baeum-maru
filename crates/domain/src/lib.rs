@@ -50,4 +50,7 @@ pub use staff::{
 };
 pub use subject::{CategoryName, NewSubject, SubjectError, SubjectInput, SubjectName};
 pub use term::{NewTerm, TermError, TermInput, TermName, TermPeriod};
-pub use waitlist::{ContactResult, Waiting, WithdrawnFrom, contact_turns, open_seats};
+pub use waitlist::{
+    AdditionalOutcome, ContactResult, Waiting, WithdrawnFrom, additional_outcome, contact_turns,
+    open_seats,
+};
