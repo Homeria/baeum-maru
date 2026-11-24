@@ -20,17 +20,32 @@ pub enum AccessEvent {
     RecoveryUsed,
     /// ADR 0011: 관리자가 백업으로 되돌렸다. 되돌린 DB에 남긴다.
     Restore,
+    /// BR-K15: 관리자가 새 기기를 허락했다.
+    DeviceApproved,
+    /// BR-K15: 관리자가 새 기기를 거절했다.
+    DeviceRejected,
+    /// BR-K16: 관리자가 기기 승인을 취소했다.
+    DeviceRevoked,
+    /// BR-K15: 기기를 허락할 때 PIN이 틀렸거나 계정이 잠겼다.
+    DeviceApprovalFailed,
+    /// BR-K17: 관리자가 PIN을 넣어 어느 PC의 실행 모드 바꾸기를 허락했다.
+    RunModeChanged,
 }
 
 impl AccessEvent {
     /// 모든 값.
-    const ALL: [AccessEvent; 6] = [
+    const ALL: [AccessEvent; 11] = [
         AccessEvent::Login,
         AccessEvent::LoginFailed,
         AccessEvent::Logout,
         AccessEvent::UnlockFailed,
         AccessEvent::RecoveryUsed,
         AccessEvent::Restore,
+        AccessEvent::DeviceApproved,
+        AccessEvent::DeviceRejected,
+        AccessEvent::DeviceRevoked,
+        AccessEvent::DeviceApprovalFailed,
+        AccessEvent::RunModeChanged,
     ];
 
     /// DB `access_logs.event`에 쓰는 값.
@@ -42,6 +57,11 @@ impl AccessEvent {
             AccessEvent::UnlockFailed => "unlock_failed",
             AccessEvent::RecoveryUsed => "recovery_used",
             AccessEvent::Restore => "restore",
+            AccessEvent::DeviceApproved => "device_approved",
+            AccessEvent::DeviceRejected => "device_rejected",
+            AccessEvent::DeviceRevoked => "device_revoked",
+            AccessEvent::DeviceApprovalFailed => "device_approval_failed",
+            AccessEvent::RunModeChanged => "run_mode_changed",
         }
     }
 
@@ -59,6 +79,8 @@ pub struct AccessLogRecord {
     /// 고른 직원이 없는 실패면 `None`.
     pub staff_id: Option<i64>,
     pub staff_name: Option<String>,
+    /// 어느 기기의 일인지. 호스트 PC 자신이면 `None`.
+    pub device_name: Option<String>,
     pub event: AccessEvent,
 }
 
@@ -68,6 +90,7 @@ struct AccessLogRow {
     occurred_at: OffsetDateTime,
     staff_id: Option<i64>,
     staff_name: Option<String>,
+    device_name: Option<String>,
     event: String,
 }
 
@@ -83,6 +106,7 @@ impl TryFrom<AccessLogRow> for AccessLogRecord {
             occurred_at: row.occurred_at,
             staff_id: row.staff_id,
             staff_name: row.staff_name,
+            device_name: row.device_name,
             event,
         })
     }
@@ -103,8 +127,10 @@ pub async fn list(
 ) -> Result<AccessLogPage, sqlx::Error> {
     let offset = i64::from(page.saturating_sub(1)) * i64::from(page_size);
     let rows: Vec<AccessLogRow> = sqlx::query_as(
-        "SELECT a.id, a.occurred_at, a.staff_id, s.name AS staff_name, a.event
-         FROM access_logs a LEFT JOIN staff s ON s.id = a.staff_id
+        "SELECT a.id, a.occurred_at, a.staff_id, s.name AS staff_name, d.name AS device_name, a.event
+         FROM access_logs a
+         LEFT JOIN staff s ON s.id = a.staff_id
+         LEFT JOIN devices d ON d.id = a.device_id
          ORDER BY a.id DESC
          LIMIT ? OFFSET ?",
     )
@@ -129,8 +155,19 @@ pub async fn record(
     event: AccessEvent,
     now: OffsetDateTime,
 ) -> Result<(), sqlx::Error> {
+    record_on_device(pool, staff_id, None, event, now).await
+}
+
+/// [`record`]와 같지만 어느 기기의 일인지도 남긴다. 호스트 PC 자신이면 `device_id`는 `None`.
+pub async fn record_on_device(
+    pool: &SqlitePool,
+    staff_id: Option<i64>,
+    device_id: Option<i64>,
+    event: AccessEvent,
+    now: OffsetDateTime,
+) -> Result<(), sqlx::Error> {
     let mut conn = pool.acquire().await?;
-    insert(&mut conn, staff_id, event, &timestamp_text(now)).await
+    insert_on_device(&mut conn, staff_id, device_id, event, &timestamp_text(now)).await
 }
 
 /// 트랜잭션 안에서 다른 저장과 함께 남길 때 쓴다. `now`는 [`timestamp_text`] 모양.
@@ -140,12 +177,26 @@ pub(super) async fn insert(
     event: AccessEvent,
     now: &str,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query("INSERT INTO access_logs (occurred_at, staff_id, event) VALUES (?, ?, ?)")
-        .bind(now)
-        .bind(staff_id)
-        .bind(event.code())
-        .execute(conn)
-        .await?;
+    insert_on_device(conn, staff_id, None, event, now).await
+}
+
+/// [`insert`]와 같지만 어느 기기의 일인지도 남긴다.
+pub(super) async fn insert_on_device(
+    conn: &mut SqliteConnection,
+    staff_id: Option<i64>,
+    device_id: Option<i64>,
+    event: AccessEvent,
+    now: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO access_logs (occurred_at, staff_id, device_id, event) VALUES (?, ?, ?, ?)",
+    )
+    .bind(now)
+    .bind(staff_id)
+    .bind(device_id)
+    .bind(event.code())
+    .execute(conn)
+    .await?;
     Ok(())
 }
 
@@ -223,6 +274,7 @@ mod tests {
                 occurred_at: at(0),
                 staff_id: None,
                 staff_name: None,
+                device_name: None,
                 event: AccessEvent::LoginFailed,
             }]
         );

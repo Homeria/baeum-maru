@@ -8,11 +8,20 @@ export const ACCESS_EVENT_LABELS: Record<AccessEventCode, string> = {
   unlock_failed: "잠금 풀기 실패",
   recovery_used: "복구 코드 사용",
   restore: "복원",
+  device_approved: "기기 승인",
+  device_rejected: "기기 거절",
+  device_revoked: "기기 승인 취소",
+  device_approval_failed: "기기 승인 실패",
+  run_mode_changed: "실행 모드 바꾸기",
 };
 
 /** 실패라서 눈에 띄게 보여 줄 일. */
 export function isFailure(event: AccessEventCode): boolean {
-  return event === "login_failed" || event === "unlock_failed";
+  return (
+    event === "login_failed" ||
+    event === "unlock_failed" ||
+    event === "device_approval_failed"
+  );
 }
 
 /** 호스트의 UTC 시각을 이 PC의 시각 `YYYY-MM-DD HH:mm:ss`로. */

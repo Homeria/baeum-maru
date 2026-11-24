@@ -27,6 +27,30 @@ seed:
 seed-clear:
     rm -rf {{seed_dir}}
 
+# 실행 모드 고르기 화면부터 다시 보려고 쓴다. 두 번째 위치의 백업은 건드리지 않는다.
+# 처음 설치한 상태로: 더미 데이터 폴더와 이 PC의 앱 데이터 폴더를 지운다
+[confirm("이 PC의 배움마루 데이터(DB, 백업, 실행 모드, 접속 설정)를 모두 지웁니다. 계속할까요? (y/N)")]
+reset:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if pgrep -x baeum-maru > /dev/null; then
+        echo "앱이 켜져 있습니다. 끈 뒤에 다시 해 주세요" >&2
+        exit 1
+    fi
+    id="io.github.homeria.baeummaru"
+    case "$(uname -s)" in
+        Linux) installed="${XDG_DATA_HOME:-$HOME/.local/share}/$id" ;;
+        Darwin) installed="$HOME/Library/Application Support/$id" ;;
+        *) installed="${APPDATA:?APPDATA가 없습니다}/$id" ;;
+    esac
+    for dir in "{{seed_dir}}" "$installed"; do
+        if [ -e "$dir" ]; then
+            rm -rf "$dir"
+            echo "지웠습니다: $dir"
+        fi
+    done
+    echo "just dev로 켜면 실행 모드 고르기 화면부터 시작합니다"
+
 # 앱이 켜져 있거나, DB가 없거나, 되돌릴 백업이 없으면 아무것도 하지 않고 멈춘다.
 # 복원 화면 확인용: 더미 데이터 폴더의 DB를 망가뜨린다
 break-db:

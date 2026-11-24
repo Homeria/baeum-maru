@@ -28,6 +28,11 @@ pub enum AccessEventCode {
     UnlockFailed,
     RecoveryUsed,
     Restore,
+    DeviceApproved,
+    DeviceRejected,
+    DeviceRevoked,
+    DeviceApprovalFailed,
+    RunModeChanged,
 }
 
 impl From<AccessEvent> for AccessEventCode {
@@ -39,6 +44,11 @@ impl From<AccessEvent> for AccessEventCode {
             AccessEvent::UnlockFailed => AccessEventCode::UnlockFailed,
             AccessEvent::RecoveryUsed => AccessEventCode::RecoveryUsed,
             AccessEvent::Restore => AccessEventCode::Restore,
+            AccessEvent::DeviceApproved => AccessEventCode::DeviceApproved,
+            AccessEvent::DeviceRejected => AccessEventCode::DeviceRejected,
+            AccessEvent::DeviceRevoked => AccessEventCode::DeviceRevoked,
+            AccessEvent::DeviceApprovalFailed => AccessEventCode::DeviceApprovalFailed,
+            AccessEvent::RunModeChanged => AccessEventCode::RunModeChanged,
         }
     }
 }
@@ -56,6 +66,8 @@ pub struct AccessLogResponse {
     #[ts(type = "number | null")]
     pub staff_id: Option<i64>,
     pub staff_name: Option<String>,
+    /// 어느 기기의 일인지. 호스트 PC 자신이면 `null`.
+    pub device_name: Option<String>,
     pub event: AccessEventCode,
 }
 
@@ -66,6 +78,7 @@ impl From<AccessLogRecord> for AccessLogResponse {
             occurred_at: timestamp_text(record.occurred_at),
             staff_id: record.staff_id,
             staff_name: record.staff_name,
+            device_name: record.device_name,
             event: record.event.into(),
         }
     }

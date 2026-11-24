@@ -237,7 +237,7 @@ mod tests {
 
     use time::macros::datetime;
 
-    use super::super::test_support::{app, app_as, from_other_pc, get, json_body, post, put};
+    use super::super::test_support::{app, app_as, from_approved_pc, get, json_body, post, put};
     use crate::backup::Backups;
     use crate::backup::name::BackupKind;
     use crate::db::test_support::{insert_course, insert_subject, insert_term};
@@ -342,8 +342,8 @@ mod tests {
 
     #[tokio::test]
     async fn other_pc_sees_but_cannot_change_second_location() {
-        let (_dir, _db, router) = app().await;
-        let router = from_other_pc(router);
+        let (_dir, db, router) = app().await;
+        let router = from_approved_pc(&db, router).await;
         let second = tempfile::tempdir().unwrap();
 
         let list = json_body(get(router.clone(), "/api/backups").await).await;
@@ -486,9 +486,9 @@ mod tests {
         let staff = post(router, "/api/backups/restore", r#"{"fileName":"x"}"#).await;
         assert_eq!(staff.status(), StatusCode::FORBIDDEN);
 
-        let (_dir, _db, router) = app().await;
+        let (_dir, db, router) = app().await;
         let file_name = first_backup(router.clone()).await;
-        let router = from_other_pc(router);
+        let router = from_approved_pc(&db, router).await;
         for uri in ["/api/backups/restore-preview", "/api/backups/restore"] {
             let response = post(
                 router.clone(),

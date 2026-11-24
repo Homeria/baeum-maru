@@ -142,7 +142,7 @@ mod tests {
         insert_application, insert_course, insert_member, insert_priority_reason, insert_staff,
         insert_subject, insert_term,
     };
-    use crate::server::test_support::{app, app_as, from_other_pc, get, json_body, post, put};
+    use crate::server::test_support::{app, app_as, from_approved_pc, get, json_body, post, put};
 
     /// 정원 2명인 강좌에 접수됨 신청 셋. 강좌를 만들 수 없는 역할도 시험하려고 DB에 바로 넣는다.
     struct Setup {
@@ -278,7 +278,7 @@ mod tests {
     async fn br_l6_other_pc_can_view_but_not_draw() {
         let (_dir, db, router) = app().await;
         let s = setup(&db, 3).await;
-        let other_pc = from_other_pc(router);
+        let other_pc = from_approved_pc(&db, router).await;
 
         let (status, body) = s.draw(other_pc.clone()).await;
 

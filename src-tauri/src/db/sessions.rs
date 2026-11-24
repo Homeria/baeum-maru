@@ -94,6 +94,7 @@ pub async fn unlock(
 pub async fn start(
     pool: &SqlitePool,
     staff_id: i64,
+    device_id: Option<i64>,
     token_hash: &[u8; 32],
     now: OffsetDateTime,
 ) -> Result<(), sqlx::Error> {
@@ -120,7 +121,8 @@ pub async fn start(
     .bind(&now)
     .execute(&mut *tx)
     .await?;
-    access_logs::insert(&mut tx, Some(staff_id), AccessEvent::Login, &now).await?;
+    access_logs::insert_on_device(&mut tx, Some(staff_id), device_id, AccessEvent::Login, &now)
+        .await?;
 
     tx.commit().await
 }
@@ -190,7 +192,9 @@ mod tests {
             .await
             .unwrap();
 
-        start(&pool, staff_id, &[1; 32], at(10)).await.unwrap();
+        start(&pool, staff_id, None, &[1; 32], at(10))
+            .await
+            .unwrap();
 
         assert_eq!(session_hashes(&pool).await, [vec![1; 32]]);
         let (count, locked_until): (i64, Option<String>) =
@@ -212,11 +216,13 @@ mod tests {
         let staff_id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
         let other_id = insert_staff(&pool, "직원2", "staff", None).await.unwrap();
         // 1시 0분: 잠길 세션, 1시 5분: 아직 안 잠긴 세션, 다른 직원의 1시 0분 세션
-        start(&pool, staff_id, &[1; 32], at(0)).await.unwrap();
-        start(&pool, staff_id, &[2; 32], at(5)).await.unwrap();
-        start(&pool, other_id, &[3; 32], at(0)).await.unwrap();
+        start(&pool, staff_id, None, &[1; 32], at(0)).await.unwrap();
+        start(&pool, staff_id, None, &[2; 32], at(5)).await.unwrap();
+        start(&pool, other_id, None, &[3; 32], at(0)).await.unwrap();
 
-        start(&pool, staff_id, &[4; 32], at(10)).await.unwrap();
+        start(&pool, staff_id, None, &[4; 32], at(10))
+            .await
+            .unwrap();
 
         assert_eq!(
             session_hashes(&pool).await,
@@ -228,7 +234,7 @@ mod tests {
     async fn end_deletes_session_and_logs_logout() {
         let (_dir, pool) = open_temp().await;
         let staff_id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
-        start(&pool, staff_id, &[1; 32], at(0)).await.unwrap();
+        start(&pool, staff_id, None, &[1; 32], at(0)).await.unwrap();
 
         assert_eq!(end(&pool, &[1; 32], at(1)).await.unwrap(), Some(staff_id));
 
@@ -248,7 +254,7 @@ mod tests {
         let staff_id = insert_staff(&pool, "임시1", "temp_staff", Some("2027-02-28"))
             .await
             .unwrap();
-        start(&pool, staff_id, &[1; 32], at(0)).await.unwrap();
+        start(&pool, staff_id, None, &[1; 32], at(0)).await.unwrap();
 
         let session = find(&pool, &[1; 32]).await.unwrap().unwrap();
         assert_eq!(session.last_seen_at, at(0));
@@ -266,7 +272,7 @@ mod tests {
     async fn unlock_reopens_session_and_resets_failures() {
         let (_dir, pool) = open_temp().await;
         let staff_id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
-        start(&pool, staff_id, &[1; 32], at(0)).await.unwrap();
+        start(&pool, staff_id, None, &[1; 32], at(0)).await.unwrap();
         sqlx::query("UPDATE staff SET failed_pin_count = 2 WHERE id = ?")
             .bind(staff_id)
             .execute(&pool)

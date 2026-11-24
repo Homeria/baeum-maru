@@ -11,9 +11,11 @@ describe("formatOccurredAt", () => {
 });
 
 describe("isFailure", () => {
-  test("로그인 실패와 잠금 풀기 실패만", () => {
+  test("로그인, 잠금 풀기, 기기 승인의 PIN 실패만", () => {
     expect(isFailure("login_failed")).toBe(true);
     expect(isFailure("unlock_failed")).toBe(true);
+    expect(isFailure("device_approval_failed")).toBe(true);
+    expect(isFailure("device_rejected")).toBe(false);
     expect(isFailure("login")).toBe(false);
     expect(isFailure("recovery_used")).toBe(false);
   });

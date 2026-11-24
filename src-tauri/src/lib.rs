@@ -7,9 +7,12 @@ mod broken_db;
 mod clock;
 mod data_dir;
 mod db;
+mod host_screen;
 mod pick;
+mod remote;
 mod restart;
 mod roster_xlsx;
+mod run_mode;
 mod save_file;
 mod secret;
 #[cfg(feature = "dev-seed")]
@@ -46,7 +49,17 @@ pub fn run() {
             restart::restart_app,
             broken_db::startup_state,
             broken_db::preview_broken_db_backup,
-            broken_db::restore_broken_db
+            broken_db::restore_broken_db,
+            run_mode::run_mode_state,
+            host_screen::host_address,
+            host_screen::open_device_request_count,
+            remote::remote_settings,
+            remote::save_host_address,
+            remote::save_device_request,
+            remote::clear_device_request,
+            remote::remember_approved,
+            run_mode::choose_run_mode,
+            run_mode::change_run_mode
         ])
         .setup(|app| {
             let host: version::Version = version::CURRENT.parse()?;
@@ -55,6 +68,13 @@ pub fn run() {
                 .parent()
                 .ok_or("실행 파일이 있는 폴더를 찾지 못했습니다")?;
             let data_dir = DataDir::resolve(exe_dir, app.path().app_data_dir()?);
+            // ADR 0021: 호스트일 때만 DB를 열고 서버와 백업을 켠다. 아직 고르지 않았으면 화면이 묻는다
+            let mode = run_mode::resolve(data_dir.path());
+            app.manage(run_mode::RunModeState::new(data_dir.path(), mode));
+            if mode != Some(run_mode::RunMode::Host) {
+                tracing::info!(?mode, "호스트가 아니라서 DB를 열지 않습니다");
+                return Ok(());
+            }
             // 복원을 준비해 두고 다시 켠 것이면 DB를 열기 전에 바꾼다 (ADR 0011)
             let restored = tauri::async_runtime::block_on(backup::restore::apply_pending(
                 data_dir.path(),
@@ -74,7 +94,8 @@ pub fn run() {
                     let backups =
                         Backups::new(db.clone(), data_dir.path()).with_restore_outcome(restored);
                     tauri::async_runtime::spawn(backups.clone().run_daily());
-                    // 호스트·접속 선택이 생길 때까지는 늘 띄움
+                    // 호스트 화면의 앱 명령이 쓴다 (host_screen)
+                    app.manage(db.clone());
                     tauri::async_runtime::spawn(server::serve(host, db, backups.clone()));
                     // 앱을 끌 때 백업에 쓴다
                     app.manage(backups);

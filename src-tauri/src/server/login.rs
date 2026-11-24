@@ -10,7 +10,7 @@ use baeum_domain::is_account_locked;
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::auth::{bearer_token, is_usable};
+use super::auth::{CurrentDevice, bearer_token, is_usable};
 use super::error::ApiError;
 use crate::db::access_logs::{self, AccessEvent};
 use crate::db::staff::LoginAccount;
@@ -42,6 +42,7 @@ pub async fn list_login_staff(
 /// 실패는 모두 접속 기록에 남긴다 (BR-K13). 잠겼거나 쓸 수 없는 계정은 PIN을 확인하지 않는다.
 pub async fn login(
     State(db): State<SqlitePool>,
+    device: CurrentDevice,
     body: Result<Json<LoginRequest>, JsonRejection>,
 ) -> Result<Json<LoginResponse>, ApiError> {
     let Json(LoginRequest { staff_id, pin }) = body?;
@@ -51,15 +52,15 @@ pub async fn login(
         .await
         .map_err(ApiError::internal)?
     else {
-        access_logs::record(&db, None, AccessEvent::LoginFailed, now)
+        access_logs::record_on_device(&db, None, device.id, AccessEvent::LoginFailed, now)
             .await
             .map_err(ApiError::internal)?;
         return Err(ApiError::StaffNotFound);
     };
-    let account = check_pin(&db, account, pin, AccessEvent::LoginFailed, now).await?;
+    let account = check_pin(&db, account, pin, device, AccessEvent::LoginFailed, now).await?;
 
     let token = SessionToken::new().map_err(ApiError::internal)?;
-    sessions::start(&db, account.id, &token.hash(), now)
+    sessions::start(&db, account.id, device.id, &token.hash(), now)
         .await
         .map_err(ApiError::internal)?;
     tracing::info!(staff_id = account.id, "로그인");
@@ -79,6 +80,7 @@ pub async fn login(
 /// 잠기지 않은 세션에 보내도 PIN이 맞으면 그대로 성공한다. 틀리면 BR-K7의 횟수에 들어간다.
 pub async fn unlock(
     State(db): State<SqlitePool>,
+    device: CurrentDevice,
     headers: HeaderMap,
     body: Result<Json<UnlockRequest>, JsonRejection>,
 ) -> Result<StatusCode, ApiError> {
@@ -90,7 +92,15 @@ pub async fn unlock(
         .await
         .map_err(ApiError::internal)?
         .ok_or(ApiError::LoginRequired)?;
-    let account = check_pin(&db, session.account, pin, AccessEvent::UnlockFailed, now).await?;
+    let account = check_pin(
+        &db,
+        session.account,
+        pin,
+        device,
+        AccessEvent::UnlockFailed,
+        now,
+    )
+    .await?;
 
     sessions::unlock(&db, session.id, account.id, now)
         .await
@@ -117,14 +127,15 @@ pub async fn logout(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// 로그인과 잠금 풀기가 함께 쓰는 확인. 맞으면 계정을 그대로 돌려준다.
+/// 로그인, 잠금 풀기, 기기 허락이 함께 쓰는 확인. 맞으면 계정을 그대로 돌려준다.
 ///
 /// 계정을 쓸 수 없거나(BR-K5, BR-K6) 잠겼으면(BR-K7) PIN을 확인하지 않는다.
 /// 실패는 모두 `failed_event`로 접속 기록에 남긴다 (BR-K13).
-async fn check_pin(
+pub(super) async fn check_pin(
     db: &SqlitePool,
     account: LoginAccount,
     pin: String,
+    device: CurrentDevice,
     failed_event: AccessEvent,
     now: OffsetDateTime,
 ) -> Result<LoginAccount, ApiError> {
@@ -136,7 +147,7 @@ async fn check_pin(
         None
     };
     if let Some(refusal) = refusal {
-        access_logs::record(db, Some(account.id), failed_event, now)
+        access_logs::record_on_device(db, Some(account.id), device.id, failed_event, now)
             .await
             .map_err(ApiError::internal)?;
         return Err(refusal);
@@ -153,7 +164,7 @@ async fn check_pin(
         return Ok(account);
     }
 
-    let failed = staff::add_failed_pin(db, account.id, failed_event, now)
+    let failed = staff::add_failed_pin(db, account.id, device.id, failed_event, now)
         .await
         .map_err(ApiError::internal)?;
     Err(if failed.locked_until.is_some() {

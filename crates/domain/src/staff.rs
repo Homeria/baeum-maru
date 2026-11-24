@@ -104,6 +104,9 @@ pub enum Action {
     /// 백업 목록 보기, 지금 백업, 두 번째 위치 바꾸기(ADR 0011). 두 번째 위치는 호스트 PC에서만
     /// 바꾼다는 것은 앱이 따로 확인한다.
     ManageBackups,
+    /// 기기 승인·거절, 승인한 기기 보기와 승인 취소(BR-K15, BR-K16). 승인·거절은 호스트 PC에서만
+    /// 한다는 것은 앱이 따로 확인한다.
+    ManageDevices,
 }
 
 impl Role {
@@ -135,7 +138,8 @@ impl Role {
                 | Action::ManagePriorityReasons
                 | Action::ManageStaff
                 | Action::ViewAccessLog
-                | Action::ManageBackups,
+                | Action::ManageBackups
+                | Action::ManageDevices,
             ) => false,
             (Role::Staff, _) => true,
             (Role::TempStaff, Action::EditMembers | Action::TakeApplications) => true,

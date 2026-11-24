@@ -109,6 +109,14 @@ pub enum ApiError {
     SessionLocked,
     /// BR-K3: 이 직원의 역할로는 할 수 없는 일이다.
     NotAllowed,
+    /// BR-K14: 승인받지 않았거나 승인을 취소한 기기다.
+    DeviceNotApproved,
+    /// BR-K15: 그런 승인 요청이 없거나, 이미 허락·거절했거나, 5분이 지났다.
+    ApprovalRequestNotOpen,
+    /// 기다리는 승인 요청이 너무 많다.
+    TooManyApprovalRequests,
+    /// 주소의 id인 기기가 없거나 이미 승인을 취소했다.
+    DeviceNotFound,
     /// ADR 0012: 앱과 호스트의 버전 앞 두 자리가 다르다.
     VersionMismatch,
     /// ADR 0011: 지금 백업을 만들지 못했다. 자세한 내용은 로그에만 있다.
@@ -200,6 +208,10 @@ pub enum ErrorCode {
     LoginRequired,
     SessionLocked,
     NotAllowed,
+    DeviceNotApproved,
+    ApprovalRequestNotOpen,
+    TooManyApprovalRequests,
+    DeviceNotFound,
     VersionMismatch,
     BackupFailed,
     Internal,
@@ -556,6 +568,34 @@ impl IntoResponse for ApiError {
                 ErrorCode::NotAllowed,
                 "이 역할로는 할 수 없는 일입니다",
                 Some("BR-K3"),
+                Vec::new(),
+            ),
+            ApiError::DeviceNotApproved => (
+                StatusCode::UNAUTHORIZED,
+                ErrorCode::DeviceNotApproved,
+                "승인받지 않은 기기입니다. 호스트 PC에서 관리자의 승인을 받아 주세요",
+                Some("BR-K14"),
+                Vec::new(),
+            ),
+            ApiError::ApprovalRequestNotOpen => (
+                StatusCode::CONFLICT,
+                ErrorCode::ApprovalRequestNotOpen,
+                "승인 요청이 없거나 5분이 지났습니다. 기기에서 다시 요청해 주세요",
+                Some("BR-K15"),
+                Vec::new(),
+            ),
+            ApiError::TooManyApprovalRequests => (
+                StatusCode::TOO_MANY_REQUESTS,
+                ErrorCode::TooManyApprovalRequests,
+                "기다리는 승인 요청이 많습니다. 잠시 뒤에 다시 요청해 주세요",
+                None,
+                Vec::new(),
+            ),
+            ApiError::DeviceNotFound => (
+                StatusCode::NOT_FOUND,
+                ErrorCode::DeviceNotFound,
+                "기기를 찾지 못했습니다. 이미 승인을 취소했을 수 있습니다",
+                None,
                 Vec::new(),
             ),
             ApiError::VersionMismatch => (

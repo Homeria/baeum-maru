@@ -19,6 +19,7 @@ const ACTIONS: readonly Action[] = [
   "manageStaff",
   "viewAccessLog",
   "manageBackups",
+  "manageDevices",
 ];
 
 /** 역할마다 할 수 있는 일. 업무 규칙의 역할별 표와 같다. */
