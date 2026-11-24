@@ -42,6 +42,7 @@ export function AccessLogList() {
             <tr>
               <th scope="col">시각</th>
               <th scope="col">직원</th>
+              <th scope="col">기기</th>
               <th scope="col">일</th>
             </tr>
           </thead>
@@ -50,6 +51,7 @@ export function AccessLogList() {
               <tr key={item.id}>
                 <td>{formatOccurredAt(item.occurredAt)}</td>
                 <td>{item.staffName ?? "(고른 직원 없음)"}</td>
+                <td>{item.deviceName ?? "호스트 PC"}</td>
                 <td
                   className={isFailure(item.event) ? styles.failure : undefined}
                 >

@@ -4,12 +4,14 @@ import { ApplicationsPage } from "../features/applications/ApplicationsPage";
 import { CoursesPage } from "../features/courses/CoursesPage";
 import type { Session } from "../api/session";
 import { SignedInStaff } from "../features/auth/SignedInStaff";
+import { DeviceRequestNotice } from "../features/devices/DeviceRequestNotice";
 import { HostStatus } from "../features/host/HostStatus";
 import { MembersPage } from "../features/members/MembersPage";
 import { ReferenceDataPage } from "../features/reference-data/ReferenceDataPage";
 import { SelectionPage } from "../features/selection/SelectionPage";
 import { SelectionResultsPage } from "../features/selection-results/SelectionResultsPage";
 import { can } from "../features/auth/roles";
+import { useIsHostPc } from "../features/run-mode/useRunMode";
 import { StaffAdminPage } from "../features/staff/StaffAdminPage";
 import styles from "./App.module.css";
 
@@ -46,6 +48,10 @@ export interface MainScreenProps {
 export function MainScreen({ session }: MainScreenProps) {
   const [menu, setMenu] = useState<MenuKey>("members");
   const manageStaff = can(session.staff.role, "manageStaff");
+  const host = useIsHostPc();
+  // BR-K15: 새 기기 승인은 관리자가 호스트 PC에서 한다
+  const approvesDevices =
+    host && can(session.staff.role, "manageDevices") && !session.locked;
 
   return (
     // 잠긴 동안에는 눌리거나 읽히지 않게 (잠금 화면이 위를 덮는다)
@@ -57,6 +63,7 @@ export function MainScreen({ session }: MainScreenProps) {
           <SignedInStaff session={session} />
         </div>
       </header>
+      <DeviceRequestNotice active={approvesDevices} />
       <nav className={styles.nav}>
         <Tabs
           items={manageStaff ? ADMIN_MENU : MENU}

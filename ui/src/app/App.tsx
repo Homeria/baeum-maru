@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchSetupStatus } from "../api/setup";
-import { runModeState } from "../api/runMode";
 import { startupState } from "../api/startup";
 import { LockScreen } from "../features/auth/LockScreen";
 import { LoginPage } from "../features/auth/LoginPage";
@@ -14,6 +13,7 @@ import { BrokenDbPage } from "../features/broken-db/BrokenDbPage";
 import { StartupProblemPage } from "../features/broken-db/StartupProblemPage";
 import { ChooseRunModePage } from "../features/run-mode/ChooseRunModePage";
 import { RemotePage } from "../features/run-mode/RemotePage";
+import { useRunMode } from "../features/run-mode/useRunMode";
 import formStyles from "../components/form/form.module.css";
 import { MainScreen } from "./MainScreen";
 
@@ -24,12 +24,7 @@ import { MainScreen } from "./MainScreen";
  * 처음 설정을 마치거나 복구 코드로 PIN을 다시 정하면 새 복구 코드 안내를 먼저 보여 준다.
  */
 export function App() {
-  const runMode = useQuery({
-    queryKey: ["runModeState"],
-    queryFn: runModeState,
-    // 켤 때 한 번 정해지고 바뀌지 않는다
-    staleTime: Infinity,
-  });
+  const runMode = useRunMode();
   // 앱에 묻지 못했으면(예: 앱 밖 브라우저) 호스트로 본다
   const host = runMode.data?.mode === "host" || runMode.isError;
   const startup = useQuery({

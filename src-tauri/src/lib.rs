@@ -7,6 +7,7 @@ mod broken_db;
 mod clock;
 mod data_dir;
 mod db;
+mod host_screen;
 mod pick;
 mod restart;
 mod roster_xlsx;
@@ -49,6 +50,8 @@ pub fn run() {
             broken_db::preview_broken_db_backup,
             broken_db::restore_broken_db,
             run_mode::run_mode_state,
+            host_screen::host_address,
+            host_screen::open_device_request_count,
             run_mode::choose_run_mode
         ])
         .setup(|app| {
@@ -84,6 +87,8 @@ pub fn run() {
                     let backups =
                         Backups::new(db.clone(), data_dir.path()).with_restore_outcome(restored);
                     tauri::async_runtime::spawn(backups.clone().run_daily());
+                    // 호스트 화면의 앱 명령이 쓴다 (host_screen)
+                    app.manage(db.clone());
                     tauri::async_runtime::spawn(server::serve(host, db, backups.clone()));
                     // 앱을 끌 때 백업에 쓴다
                     app.manage(backups);
