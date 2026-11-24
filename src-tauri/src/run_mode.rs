@@ -68,6 +68,15 @@ impl RunModeState {
             mode,
         }
     }
+
+    /// 켤 때 정한 실행 모드. 아직 고르지 않았으면 `None`.
+    pub fn mode(&self) -> Option<RunMode> {
+        self.mode
+    }
+
+    pub fn data_dir(&self) -> &Path {
+        &self.data_dir
+    }
 }
 
 /// `run_mode_state` 명령의 응답.

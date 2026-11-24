@@ -8,9 +8,34 @@ export const APP_VERSION = __APP_VERSION__;
 
 const VERSION_HEADER = "x-baeum-version";
 
-// 개발 중에는 Vite가 /api를 넘겨줌
-// 호스트·접속 선택이 생길 때까지는 이 PC의 서버
-const HOST_URL = import.meta.env.DEV ? "" : "http://127.0.0.1:47800";
+/** 기기 증표를 싣는 머리글 (BR-K14). */
+const DEVICE_HEADER = "x-baeum-device";
+
+/** ADR 0004: 호스트의 포트는 47800으로 고정이다. */
+const HOST_PORT = 47800;
+
+// 이 PC의 서버. 개발 중에는 Vite가 /api를 넘겨줌
+const THIS_PC_URL = import.meta.env.DEV ? "" : `http://127.0.0.1:${HOST_PORT}`;
+
+let hostUrl = THIS_PC_URL;
+let deviceToken: string | null = null;
+let onDeviceNotApproved: (() => void) | null = null;
+
+/**
+ * 접속 모드(ADR 0021)에서 다른 PC의 호스트로 요청을 보내게 한다.
+ *
+ * `token`은 승인을 요청하며 받은 기기 증표다. 요청마다 싣는다. 호스트가 승인받지 않은 기기라고
+ * 답하면 `onRejected`를 부른다(예: 승인을 취소당함).
+ */
+export function connectToHost(
+  address: string,
+  token: string | null,
+  onRejected: () => void,
+): void {
+  hostUrl = `http://${address}:${HOST_PORT}`;
+  deviceToken = token;
+  onDeviceNotApproved = onRejected;
+}
 
 /**
  * 호스트 요청이 실패했다.
@@ -103,6 +128,7 @@ const SESSION_ENDED: readonly ErrorCode[] = [
  * 호스트에 요청을 보낸다. 실패하면 {@link HostError}를 던진다.
  *
  * ADR 0012: 모든 요청에 앱 버전을 싣는다.
+ * BR-K14: 접속 모드면 기기 증표를 싣는다.
  * ADR 0014: 로그인했으면 세션 증표를 싣는다. 호스트가 세션을 끝냈다고 답하면 세션을 비우고,
  * 잠겼다고 답하면 화면을 잠근다.
  */
@@ -112,6 +138,9 @@ async function send(
   body?: unknown,
 ): Promise<Response> {
   const headers: Record<string, string> = { [VERSION_HEADER]: APP_VERSION };
+  if (deviceToken !== null) {
+    headers[DEVICE_HEADER] = deviceToken;
+  }
   const session = getSession();
   if (session !== null) {
     headers.authorization = `Bearer ${session.token}`;
@@ -122,7 +151,7 @@ async function send(
 
   let response: Response;
   try {
-    response = await fetch(HOST_URL + path, {
+    response = await fetch(hostUrl + path, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -150,6 +179,10 @@ async function send(
       } else if (error.code === "SESSION_LOCKED") {
         lockSession();
       }
+    }
+    if (error.code === "DEVICE_NOT_APPROVED" && onDeviceNotApproved !== null) {
+      clearSession();
+      onDeviceNotApproved();
     }
     throw error;
   }

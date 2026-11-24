@@ -56,6 +56,14 @@ const APP_ORIGINS: [&str; 2] = [
     "tauri://localhost",
 ];
 
+/// 개발 모드(`just dev`)의 창 주소. 이 PC의 서버로는 Vite가 넘겨줘서 필요 없고, 다른 PC의
+/// 호스트에 접속해 볼 때만 쓰인다. 출시 빌드에는 들어가지 않는다.
+const DEV_ORIGIN: Option<&str> = if cfg!(debug_assertions) {
+    Some("http://localhost:5173")
+} else {
+    None
+};
+
 /// 요청 처리 함수들이 함께 쓰는 것.
 #[derive(Debug, Clone)]
 pub struct AppState {
@@ -294,7 +302,13 @@ fn no_store() -> SetResponseHeaderLayer<HeaderValue> {
 /// 창의 화면은 주소가 달라서(CORS) 서버가 허락해야 응답을 읽는다.
 fn cors() -> CorsLayer {
     CorsLayer::new()
-        .allow_origin(APP_ORIGINS.map(HeaderValue::from_static))
+        .allow_origin(
+            APP_ORIGINS
+                .into_iter()
+                .chain(DEV_ORIGIN)
+                .map(HeaderValue::from_static)
+                .collect::<Vec<_>>(),
+        )
         .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
         .allow_headers([
             header::CONTENT_TYPE,

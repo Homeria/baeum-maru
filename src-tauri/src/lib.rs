@@ -9,6 +9,7 @@ mod data_dir;
 mod db;
 mod host_screen;
 mod pick;
+mod remote;
 mod restart;
 mod roster_xlsx;
 mod run_mode;
@@ -52,6 +53,10 @@ pub fn run() {
             run_mode::run_mode_state,
             host_screen::host_address,
             host_screen::open_device_request_count,
+            remote::remote_settings,
+            remote::save_host_address,
+            remote::save_device_request,
+            remote::clear_device_request,
             run_mode::choose_run_mode
         ])
         .setup(|app| {
