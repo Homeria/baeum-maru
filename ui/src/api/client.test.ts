@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { getJson, hostErrorFrom, postForFile } from "./client";
-import { clearSession, getSession, setSession } from "./session";
+import {
+  QUIET_AFTER_MS,
+  clearSession,
+  getSession,
+  isIdleTooLong,
+  noteStaffInput,
+  setSession,
+} from "./session";
 
 describe("hostErrorFrom", () => {
   test("호스트 오류 모양이면 내용을 그대로 담는다", () => {
@@ -150,6 +157,54 @@ describe("세션 증표", () => {
 
     await expect(getJson("/api/rooms")).rejects.toThrow();
     expect(getSession()?.locked).toBe(true);
+  });
+});
+
+describe("조용한 요청 (BR-K8)", () => {
+  afterEach(() => {
+    clearSession();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  function stubOk() {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(new Response("{}", { status: 200 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  function quietHeader(fetchMock: ReturnType<typeof stubOk>) {
+    const init = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    return (init[1].headers as Record<string, string>)["x-baeum-quiet"];
+  }
+
+  test("직원이 방금 화면을 만졌으면 보통 요청이다", async () => {
+    const fetchMock = stubOk();
+    noteStaffInput();
+
+    await getJson("/api/rooms");
+
+    expect(quietHeader(fetchMock)).toBeUndefined();
+  });
+
+  test("한동안 만지지 않았으면 조용한 요청이고, 잠금 시간을 늘리지 않는다", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    noteStaffInput();
+    setSession({
+      token: "c".repeat(64),
+      staff: { id: 1, name: "관리자", role: "admin" },
+    });
+    const fetchMock = stubOk();
+    vi.setSystemTime(QUIET_AFTER_MS + 9 * 60 * 1000);
+
+    await getJson("/api/rooms");
+
+    expect(quietHeader(fetchMock)).toBe("1");
+    // 로그인한 때(0)부터 10분이 지나면 잠긴다. 조용한 요청이 미루지 않았다
+    expect(isIdleTooLong(10 * 60 * 1000)).toBe(true);
   });
 });
 

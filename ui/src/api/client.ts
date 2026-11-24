@@ -1,7 +1,13 @@
 import type { ErrorCode } from "./generated/ErrorCode";
 import type { FieldError } from "./generated/FieldError";
 import type { RuleViolationResponse } from "./generated/RuleViolationResponse";
-import { clearSession, getSession, lockSession, noteRequest } from "./session";
+import {
+  clearSession,
+  getSession,
+  isStaffActive,
+  lockSession,
+  noteRequest,
+} from "./session";
 
 /** 이 앱의 버전. 요청마다 호스트에 알린다. */
 export const APP_VERSION = __APP_VERSION__;
@@ -10,6 +16,9 @@ const VERSION_HEADER = "x-baeum-version";
 
 /** 기기 증표를 싣는 머리글 (BR-K14). */
 const DEVICE_HEADER = "x-baeum-device";
+
+/** 화면이 스스로 한 요청에 싣는 머리글. 자동 잠금 시간을 늘리지 않는다 (BR-K8). */
+const QUIET_HEADER = "x-baeum-quiet";
 
 /** ADR 0004: 호스트의 포트는 47800으로 고정이다. */
 const HOST_PORT = 47800;
@@ -118,6 +127,14 @@ function isErrorBody(body: unknown): body is ErrorBody {
 
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
+/** {@link send}에 더 줄 것. */
+interface SendOptions {
+  /** 요청을 그만둘 때 쓴다. */
+  signal?: AbortSignal;
+  /** 화면이 스스로 한 요청인지. 주지 않으면 직원이 방금 화면을 만졌는지로 정한다. */
+  quiet?: boolean;
+}
+
 /** 이 오류를 받으면 세션이 더는 쓸 수 없다. 로그인 화면으로 돌아간다. */
 const SESSION_ENDED: readonly ErrorCode[] = [
   "LOGIN_REQUIRED",
@@ -131,15 +148,21 @@ const SESSION_ENDED: readonly ErrorCode[] = [
  * BR-K14: 접속 모드면 기기 증표를 싣는다.
  * ADR 0014: 로그인했으면 세션 증표를 싣는다. 호스트가 세션을 끝냈다고 답하면 세션을 비우고,
  * 잠겼다고 답하면 화면을 잠근다.
+ * BR-K8: 직원이 화면을 만지지 않는 동안의 요청은 조용한 요청으로 보내 잠금 시간을 늘리지 않는다.
  */
 async function send(
   method: Method,
   path: string,
   body?: unknown,
+  options: SendOptions = {},
 ): Promise<Response> {
+  const quiet = options.quiet ?? !isStaffActive(Date.now());
   const headers: Record<string, string> = { [VERSION_HEADER]: APP_VERSION };
   if (deviceToken !== null) {
     headers[DEVICE_HEADER] = deviceToken;
+  }
+  if (quiet) {
+    headers[QUIET_HEADER] = "1";
   }
   const session = getSession();
   if (session !== null) {
@@ -155,6 +178,7 @@ async function send(
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: options.signal,
     });
   } catch {
     // Wi-Fi가 끊기거나 호스트가 꺼져 있음
@@ -164,8 +188,9 @@ async function send(
     );
   }
 
-  // 401(로그인 필요, 화면 잠김, PIN 틀림)이 아니면 호스트가 세션을 받아 준 것
-  if (session !== null && response.status !== 401) {
+  // 401(로그인 필요, 화면 잠김, PIN 틀림)이 아니면 호스트가 세션을 받아 준 것.
+  // 조용한 요청은 호스트도 시각을 늘리지 않으니 화면도 늘리지 않는다
+  if (session !== null && response.status !== 401 && !quiet) {
     noteRequest();
   }
 
@@ -187,6 +212,18 @@ async function send(
     throw error;
   }
   return response;
+}
+
+/**
+ * 오래 열어 두는 GET 요청(SSE)을 연다. 응답 본문은 부른 쪽이 읽는다.
+ *
+ * 조용한 요청으로 보낸다. 알림 연결을 열거나 다시 여는 것은 직원이 한 요청이 아니다 (BR-K8).
+ */
+export function openStream(
+  path: string,
+  signal: AbortSignal,
+): Promise<Response> {
+  return send("GET", path, undefined, { signal, quiet: true });
 }
 
 /** GET 요청을 보내고 JSON을 받는다. */
