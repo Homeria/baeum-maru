@@ -148,7 +148,13 @@ pub fn device_token(headers: &HeaderMap) -> Option<DeviceToken> {
     DeviceToken::parse(headers.get(DEVICE_HEADER)?.to_str().ok()?)
 }
 
+/// 화면이 스스로 한 요청에 붙이는 머리글. 직원이 화면을 만지지 않는 동안의 요청이다(BR-K8).
+pub const QUIET_HEADER: &str = "x-baeum-quiet";
+
 /// 로그인한 요청만 다음으로 넘기고, 세션의 마지막 요청 시각을 새로 적는다.
+///
+/// [`QUIET_HEADER`]가 붙은 요청은 시각을 새로 적지 않는다. 변경 알림 때문에 다시 받는 요청이
+/// 자동 잠금(BR-K8)을 미루지 않게.
 ///
 /// # Errors
 ///
@@ -173,9 +179,11 @@ pub async fn require_session(
         return Err(ApiError::SessionLocked);
     }
 
-    sessions::touch(&db, session.id, now)
-        .await
-        .map_err(ApiError::internal)?;
+    if !request.headers().contains_key(QUIET_HEADER) {
+        sessions::touch(&db, session.id, now)
+            .await
+            .map_err(ApiError::internal)?;
+    }
     request.extensions_mut().insert(CurrentStaff {
         id: session.account.id,
         role: session.account.role,
@@ -292,6 +300,23 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         assert!(last_seen(&db).await > before);
+    }
+
+    #[tokio::test]
+    async fn br_k8_quiet_request_does_not_keep_session_open() {
+        let (_dir, db, router) = app().await;
+        set_last_seen(&db, 9).await;
+        let before = last_seen(&db).await;
+        let request = Request::get("/api/rooms")
+            .header(VERSION_HEADER, crate::version::CURRENT)
+            .header(QUIET_HEADER, "1")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = router.oneshot(request).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(last_seen(&db).await, before);
     }
 
     #[tokio::test]
