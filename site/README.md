@@ -7,19 +7,19 @@
 Node.js 22(`.node-version`)가 필요하다. 처음 한 번과 `package-lock.json`이 바뀌었을 때 패키지를 설치한다.
 
 ```sh
-npm --prefix site ci
+just site-setup                # 또는 npm ci --prefix site
 ```
 
 자주 쓰는 명령:
 
 ```sh
-npm --prefix site run dev      # 로컬 개발 서버
+just site-dev                  # 로컬 개발 서버 (npm --prefix site run dev)
+just site-preview              # 빌드 결과물 로컬 미리보기 (npm --prefix site run preview)
+just site-check                # 전체 검사, 커밋·PR 전에 실행 (npm --prefix site run check)
 npm --prefix site run build    # 정적 사이트 빌드 (site/dist/)
-npm --prefix site run preview  # 빌드 결과물 로컬 미리보기
-npm --prefix site run check    # 전체 검사 (커밋·PR 전에 실행)
 ```
 
-`npm --prefix site run check`가 검사하는 것:
+`just site-check`(`npm --prefix site run check`)가 검사하는 것:
 
 1. Prettier 형식 확인 (`format:check`)
 2. Astro·TypeScript 타입 검사 (`astro check`)

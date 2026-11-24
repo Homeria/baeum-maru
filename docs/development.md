@@ -32,7 +32,7 @@ just break-db    # 복원 화면 확인용: 더미 데이터의 DB 망가뜨리�
 just reset       # 처음 설치한 상태로: 더미 데이터와 앱 데이터 폴더를 모두 지움 (아래 참고)
 ```
 
-`just`만 치면 전체 목록이 나온다.
+`just`만 치면 전체 목록이 나온다. 웹사이트(`site/`) 명령(`just site-setup`, `site-dev`, `site-preview`, `site-check`)은 [site/README.md](../site/README.md)에 정리되어 있다.
 
 `just check`가 하는 일:
 
