@@ -12,7 +12,7 @@ use axum::body::Body;
 use axum::extract::ConnectInfo;
 use axum::extract::connect_info::MockConnectInfo;
 use axum::http::request::Builder;
-use axum::http::{HeaderValue, Request, Response, StatusCode, header};
+use axum::http::{HeaderName, HeaderValue, Request, Response, StatusCode, header};
 use axum::{Extension, Router};
 
 use serde_json::{Value, json};
@@ -21,11 +21,12 @@ use time::OffsetDateTime;
 use tower::ServiceExt;
 use tower_http::set_header::SetRequestHeaderLayer;
 
+use super::auth::DEVICE_HEADER;
 use super::version::VERSION_HEADER;
 use super::{AppState, router};
 use crate::db::sessions;
 use crate::db::test_support::insert_staff;
-use crate::secret::SessionToken;
+use crate::secret::{DeviceToken, SessionToken};
 
 /// 임시 DB로 라우터를 만들고 관리자로 로그인해 둔다. `TempDir`가 살아 있는 동안 DB가 남는다.
 pub async fn app() -> (tempfile::TempDir, SqlitePool, Router) {
@@ -42,9 +43,15 @@ pub async fn app_as(role: &str) -> (tempfile::TempDir, SqlitePool, Router) {
         .await
         .unwrap();
     let token = SessionToken::new().unwrap();
-    sessions::start(&db, staff_id, &token.hash(), OffsetDateTime::now_utc())
-        .await
-        .unwrap();
+    sessions::start(
+        &db,
+        staff_id,
+        None,
+        &token.hash(),
+        OffsetDateTime::now_utc(),
+    )
+    .await
+    .unwrap();
     let bearer = HeaderValue::from_str(&format!("Bearer {}", token.to_hex())).unwrap();
     let router = router.layer(SetRequestHeaderLayer::if_not_present(
         header::AUTHORIZATION,
@@ -71,12 +78,32 @@ pub async fn app_without_staff() -> (tempfile::TempDir, SqlitePool, Router) {
     (dir, db, router)
 }
 
-/// 요청이 같은 네트워크의 다른 PC에서 온 것으로 바꾼다.
+/// 요청이 같은 네트워크의 다른 PC에서 온 것으로 바꾼다. 기기 증표는 싣지 않는다.
 ///
 /// 진짜 연결 주소(`ConnectInfo`)를 넣으면 [`MockConnectInfo`]보다 먼저 쓰인다.
 pub fn from_other_pc(router: Router) -> Router {
     let other_pc = SocketAddr::from((Ipv4Addr::new(192, 168, 0, 20), 50000));
     router.layer(Extension(ConnectInfo(other_pc)))
+}
+
+/// [`from_other_pc`]에 더해, 승인한 기기의 증표를 요청마다 싣는다 (BR-K14).
+///
+/// 기기는 DB에 바로 넣는다. 허락한 직원으로 DB의 첫 직원을 쓰므로 직원이 하나는 있어야 한다.
+pub async fn from_approved_pc(db: &SqlitePool, router: Router) -> Router {
+    let token = DeviceToken::new().unwrap();
+    sqlx::query(
+        "INSERT INTO devices (name, token_hash, approved_at, approved_by)
+         VALUES ('시험 PC', ?, '2026-11-24T00:00:00.000Z', (SELECT MIN(id) FROM staff))",
+    )
+    .bind(token.hash().as_slice())
+    .execute(db)
+    .await
+    .unwrap();
+    let value = HeaderValue::from_str(&token.to_hex()).unwrap();
+    from_other_pc(router).layer(SetRequestHeaderLayer::if_not_present(
+        HeaderName::from_static(DEVICE_HEADER),
+        value,
+    ))
 }
 
 pub async fn get(router: Router, uri: &str) -> Response<Body> {

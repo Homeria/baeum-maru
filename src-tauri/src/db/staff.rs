@@ -181,6 +181,7 @@ pub async fn get_login_account(
 pub async fn add_failed_pin(
     pool: &SqlitePool,
     staff_id: i64,
+    device_id: Option<i64>,
     event: AccessEvent,
     now: OffsetDateTime,
 ) -> Result<FailedPin, sqlx::Error> {
@@ -198,7 +199,14 @@ pub async fn add_failed_pin(
         .bind(staff_id)
         .execute(&mut *tx)
         .await?;
-    access_logs::insert(&mut tx, Some(staff_id), event, &timestamp_text(now)).await?;
+    access_logs::insert_on_device(
+        &mut tx,
+        Some(staff_id),
+        device_id,
+        event,
+        &timestamp_text(now),
+    )
+    .await?;
 
     tx.commit().await?;
     Ok(failed)
@@ -539,13 +547,13 @@ mod tests {
         let id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
 
         for expected in 1..=4 {
-            let failed = add_failed_pin(&pool, id, AccessEvent::LoginFailed, now())
+            let failed = add_failed_pin(&pool, id, None, AccessEvent::LoginFailed, now())
                 .await
                 .unwrap();
             assert_eq!(failed.failed_count, expected);
             assert_eq!(failed.locked_until, None);
         }
-        let failed = add_failed_pin(&pool, id, AccessEvent::UnlockFailed, now())
+        let failed = add_failed_pin(&pool, id, None, AccessEvent::UnlockFailed, now())
             .await
             .unwrap();
 
@@ -704,7 +712,7 @@ mod tests {
         let (_dir, pool) = open_temp().await;
         let id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
         for _ in 0..5 {
-            add_failed_pin(&pool, id, AccessEvent::LoginFailed, now())
+            add_failed_pin(&pool, id, None, AccessEvent::LoginFailed, now())
                 .await
                 .unwrap();
         }

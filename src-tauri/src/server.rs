@@ -7,6 +7,7 @@ mod applications;
 mod auth;
 pub(crate) mod backups;
 mod courses;
+mod devices;
 mod error;
 mod login;
 mod lotteries;
@@ -41,12 +42,11 @@ use crate::version::Version;
 /// ADR 0004: 포트 47800 고정.
 pub const PORT: u16 = 47800;
 
-/// 요청을 받는 주소. 지금은 이 PC 안(127.0.0.1)에서만 받는다.
+/// 요청을 받는 주소. 같은 네트워크의 다른 PC도 붙도록 모든 주소에서 받는다(ADR 0001).
 ///
-/// ADR 0001은 다른 PC도 접속하게 하지만, 아직 다른 PC의 앱이 붙는 기능(ADR 0004)과
-/// 로그인·기기 승인(ADR 0003)이 없다. 그 전에 모든 주소에서 받으면 같은 네트워크의
-/// 누구든 요청할 수 있어서, 기기 승인을 만들 때 모든 주소(`Ipv4Addr::UNSPECIFIED`)로 연다.
-const LISTEN_ADDR: Ipv4Addr = Ipv4Addr::LOCALHOST;
+/// 같은 Wi-Fi의 누구든 요청할 수 있으므로, 승인한 기기가 아니면 승인 요청과 버전 확인 말고는
+/// 받지 않는다(BR-K14, [`auth::require_device`]).
+const LISTEN_ADDR: Ipv4Addr = Ipv4Addr::UNSPECIFIED;
 
 /// 응답을 읽어도 되는 Tauri 창의 주소.
 const APP_ORIGINS: [&str; 2] = [
@@ -230,13 +230,25 @@ pub fn router(state: AppState) -> Router {
             post(backups::preview_restore),
         )
         .route("/api/backups/restore", post(backups::restore))
+        .route("/api/device-requests", get(devices::list_device_requests))
+        .route(
+            "/api/device-requests/{id}/approve",
+            post(devices::approve_device),
+        )
+        .route(
+            "/api/device-requests/{id}/reject",
+            post(devices::reject_device),
+        )
+        .route("/api/devices", get(devices::list_devices))
+        .route("/api/devices/{id}", delete(devices::revoke_device))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::require_session,
         ));
 
-    // 버전 확인은 로그인 확인보다 먼저 한다 (route_layer는 나중에 붙인 것이 바깥)
-    let checked = Router::new()
+    // BR-K14: 승인한 기기만 받는다. 기기 확인은 로그인 확인보다 먼저 한다
+    // (route_layer는 나중에 붙인 것이 바깥)
+    let approved = Router::new()
         // 처음 설정은 직원이 없을 때 하므로 로그인 없이 받는다
         .route(
             "/api/setup",
@@ -250,6 +262,17 @@ pub fn router(state: AppState) -> Router {
         // PIN을 잊은 관리자는 로그인하지 못하므로 그대로 받는다
         .route("/api/recovery", post(recovery::recover))
         .merge(signed_in)
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth::require_device,
+        ));
+
+    // 버전 확인은 기기 확인보다 먼저 한다
+    let checked = Router::new()
+        // BR-K15: 승인받지 않은 기기가 요청하고 결과를 본다
+        .route("/api/approval/request", post(devices::request_approval))
+        .route("/api/approval/status", get(devices::approval_status))
+        .merge(approved)
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             version::require_compatible,
@@ -278,6 +301,8 @@ fn cors() -> CorsLayer {
             // 세션 증표 (ADR 0014)
             header::AUTHORIZATION,
             HeaderName::from_static(version::VERSION_HEADER),
+            // 기기 증표 (BR-K14)
+            HeaderName::from_static(auth::DEVICE_HEADER),
         ])
 }
 
@@ -302,21 +327,27 @@ async fn listen(host: Version, db: SqlitePool, backups: Backups) -> Result<(), s
 #[cfg(test)]
 mod tests {
     use axum::body::Body;
+    use axum::extract::connect_info::MockConnectInfo;
     use axum::http::{Request, Response, StatusCode};
     use tower::ServiceExt;
 
     use super::*;
 
     #[test]
-    fn listens_only_inside_this_pc_until_device_approval() {
-        assert!(LISTEN_ADDR.is_loopback());
+    fn listens_for_other_pcs() {
+        assert!(LISTEN_ADDR.is_unspecified());
     }
 
     async fn send(request: Request<Body>) -> Response<Body> {
         let dir = tempfile::tempdir().unwrap();
         let db = crate::db::open(dir.path()).await.unwrap();
         let backups = Backups::new(db.clone(), dir.path());
+        // 호스트 PC 자신의 창에서 보낸 것으로 본다
         router(AppState::new("0.1.0".parse().unwrap(), db, backups))
+            .layer(MockConnectInfo(SocketAddr::from((
+                Ipv4Addr::LOCALHOST,
+                50000,
+            ))))
             .oneshot(request)
             .await
             .unwrap()

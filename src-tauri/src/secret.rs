@@ -1,11 +1,11 @@
-//! 비밀과 난수 다루기: PIN과 복구 코드의 해시, 새 복구 코드, 세션 증표, 추첨 시드.
+//! 비밀과 난수 다루기: PIN과 복구 코드의 해시, 새 복구 코드, 세션·기기 증표, 승인 번호, 추첨 시드.
 //!
 //! ADR 0014: PIN과 복구 코드는 argon2id(설정값은 crate 기본값). 해시는 일부러 느리게
 //! 만들어져서 요청 처리에서는 [`tokio::task::spawn_blocking`]으로 따로 돌린다.
 //! 세션 증표는 길고 무작위라 빠른 SHA-256으로 충분하다.
 
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
-use baeum_domain::{LotterySeed, Pin, RecoveryCode};
+use baeum_domain::{ApprovalCode, LotterySeed, Pin, RecoveryCode};
 use sha2::{Digest, Sha256};
 
 /// 해시나 난수를 만들지 못했다. 오류 문장에 비밀 글자는 들어가지 않는다.
@@ -50,6 +50,13 @@ pub fn new_lottery_seed() -> Result<LotterySeed, SecretError> {
     Ok(LotterySeed::new(u64::from_le_bytes(bytes)))
 }
 
+/// 운영체제의 난수로 새 승인 번호를 만든다(BR-K15).
+pub fn new_approval_code() -> Result<ApprovalCode, SecretError> {
+    let mut bytes = [0; 4];
+    getrandom::fill(&mut bytes).map_err(SecretError::Random)?;
+    Ok(ApprovalCode::from_random(u32::from_le_bytes(bytes)))
+}
+
 /// 관리자의 새 PIN 해시와 새 복구 코드. 처음 설정(BR-K11)과 복구 코드 사용(BR-K12)에서 만든다.
 ///
 /// 복구 코드 글자는 응답에 한 번 싣고 버린다. DB에는 두 해시만 둔다.
@@ -71,14 +78,20 @@ impl AdminSecrets {
     }
 }
 
-/// 로그인하면 앱에 주는 세션 증표. 운영체제의 난수 32바이트다.
+/// 앱에 주는 증표. 운영체제의 난수 32바이트다.
 ///
-/// 앱과는 16진수 64자로 주고받고, DB에는 [`SessionToken::hash`]만 둔다.
+/// 앱과는 16진수 64자로 주고받고, DB에는 [`Token::hash`]만 둔다.
 /// 비밀이라 `Debug`로 찍어도 보이지 않는다.
 #[derive(PartialEq, Eq)]
-pub struct SessionToken([u8; SessionToken::LEN]);
+pub struct Token([u8; Token::LEN]);
 
-impl SessionToken {
+/// 로그인하면 주는 세션 증표(ADR 0014).
+pub type SessionToken = Token;
+
+/// 승인을 요청한 기기에 주는 기기 증표(BR-K16). 허락받은 뒤에만 쓸 수 있다.
+pub type DeviceToken = Token;
+
+impl Token {
     /// 바이트 수.
     const LEN: usize = 32;
 
@@ -86,7 +99,7 @@ impl SessionToken {
     pub fn new() -> Result<Self, SecretError> {
         let mut bytes = [0; Self::LEN];
         getrandom::fill(&mut bytes).map_err(SecretError::Random)?;
-        Ok(SessionToken(bytes))
+        Ok(Token(bytes))
     }
 
     /// 앱이 보낸 16진수 64자를 읽는다. 모양이 틀리면 `None`.
@@ -101,7 +114,7 @@ impl SessionToken {
         for (byte, &[high, low]) in bytes.iter_mut().zip(pairs) {
             *byte = (hex_value(high)? << 4) | hex_value(low)?;
         }
-        Some(SessionToken(bytes))
+        Some(Token(bytes))
     }
 
     /// DB에 두는 SHA-256 해시 32바이트.
@@ -115,9 +128,9 @@ impl SessionToken {
     }
 }
 
-impl std::fmt::Debug for SessionToken {
+impl std::fmt::Debug for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("SessionToken(***)")
+        f.write_str("Token(***)")
     }
 }
 

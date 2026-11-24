@@ -12,4 +12,8 @@ occurredAt: string,
 /**
  * 고른 직원이 없는 실패면 `null`.
  */
-staffId: number | null, staffName: string | null, event: AccessEventCode, };
+staffId: number | null, staffName: string | null, 
+/**
+ * 어느 기기의 일인지. 호스트 PC 자신이면 `null`.
+ */
+deviceName: string | null, event: AccessEventCode, };

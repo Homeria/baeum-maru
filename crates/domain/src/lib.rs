@@ -10,6 +10,7 @@
 
 mod application;
 mod course;
+mod device;
 mod lottery;
 mod member;
 mod personal;
@@ -29,6 +30,7 @@ pub use course::{
     Capacity, ClassTime, CourseError, CourseInput, LevelName, NewCourse, Schedule, ScheduleInput,
     SectionName, weekday_from_number,
 };
+pub use device::{APPROVAL_WINDOW, ApprovalCode, DeviceError, DeviceName, is_approval_open};
 pub use lottery::{
     Allocation, LotteryDraw, LotterySeed, LotteryVersion, OverCapacity, allocate, draw_lottery,
 };
