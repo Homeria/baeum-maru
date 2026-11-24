@@ -27,6 +27,9 @@ struct Stored {
     device_token: Option<String>,
     /// 그 요청의 승인 번호. 기다리는 동안 다시 보여 주려고 둔다.
     approval_code: Option<String>,
+    /// 한 번이라도 승인받아 호스트에 이어졌는지. 그 전이면 PIN 없이 호스트로 되돌릴 수 있다(BR-K17).
+    #[serde(default)]
+    approved_once: bool,
 }
 
 fn read(data_dir: &Path) -> Stored {
@@ -98,6 +101,8 @@ pub struct RemoteSettingsResponse {
     pub approval_code: Option<String>,
     /// 승인 요청에 미리 채울 이 PC의 이름. 찾지 못하면 `null`.
     pub computer_name: Option<String>,
+    /// 한 번이라도 승인받아 호스트에 이어졌는지. 그 전이면 PIN 없이 호스트로 되돌린다(BR-K17).
+    pub approved_once: bool,
 }
 
 /// 접속 모드일 때만 데이터 폴더를 준다.
@@ -127,6 +132,7 @@ pub fn remote_settings(state: State<'_, RunModeState>) -> Result<RemoteSettingsR
         device_token: stored.device_token,
         approval_code: stored.approval_code,
         computer_name: computer_name(),
+        approved_once: stored.approved_once,
     })
 }
 
@@ -182,6 +188,25 @@ pub fn clear_device_request(state: State<'_, RunModeState>) -> Result<(), String
         device_token: None,
         approval_code: None,
         ..read(data_dir)
+    };
+    write(data_dir, &stored).map_err(save_failed)
+}
+
+/// 승인받아 호스트에 이어졌다고 기억한다. 이 뒤로는 호스트로 바꿀 때 관리자 PIN이 필요하다.
+///
+/// # Errors
+///
+/// 저장하지 못하면 화면에 보여 줄 문장.
+#[tauri::command]
+pub fn remember_approved(state: State<'_, RunModeState>) -> Result<(), String> {
+    let data_dir = remote_data_dir(&state)?;
+    let stored = read(data_dir);
+    if stored.approved_once {
+        return Ok(());
+    }
+    let stored = Stored {
+        approved_once: true,
+        ..stored
     };
     write(data_dir, &stored).map_err(save_failed)
 }
@@ -247,6 +272,17 @@ mod tests {
         let read_back = read(dir.path());
         assert_eq!(read_back.host_address.as_deref(), Some("192.168.0.12"));
         assert_eq!(read_back.device_token.as_deref(), Some("증표"));
+    }
+
+    #[test]
+    fn older_file_without_approved_once_reads_as_not_yet() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join(FILE), r#"{"hostAddress":"192.168.0.12"}"#).unwrap();
+
+        let stored = read(dir.path());
+
+        assert_eq!(stored.host_address.as_deref(), Some("192.168.0.12"));
+        assert!(!stored.approved_once);
     }
 
     #[test]

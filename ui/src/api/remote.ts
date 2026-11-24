@@ -21,6 +21,11 @@ export function clearDeviceRequest(): Promise<void> {
   return call<void>("clear_device_request");
 }
 
+/** 승인받아 호스트에 이어졌다고 기억한다. 이 뒤로는 호스트로 바꿀 때 관리자 PIN이 필요하다. */
+export function rememberApproved(): Promise<void> {
+  return call<void>("remember_approved");
+}
+
 /** 앱 명령을 부른다. 앱이 보낸 실패 문장은 그대로 `Error`로 던진다. */
 async function call<T>(
   command: string,

@@ -57,7 +57,9 @@ pub fn run() {
             remote::save_host_address,
             remote::save_device_request,
             remote::clear_device_request,
-            run_mode::choose_run_mode
+            remote::remember_approved,
+            run_mode::choose_run_mode,
+            run_mode::change_run_mode
         ])
         .setup(|app| {
             let host: version::Version = version::CURRENT.parse()?;

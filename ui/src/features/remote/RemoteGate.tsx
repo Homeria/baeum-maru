@@ -1,8 +1,13 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { clearDeviceRequest, remoteSettings } from "../../api/remote";
+import {
+  clearDeviceRequest,
+  rememberApproved,
+  remoteSettings,
+} from "../../api/remote";
 import formStyles from "../../components/form/form.module.css";
 import authStyles from "../auth/auth.module.css";
+import { RunModeSwitch } from "../run-mode/RunModeSwitch";
 import { AddressForm } from "./AddressForm";
 import { checkConnection } from "./connection";
 import { RequestApproval } from "./RequestApproval";
@@ -50,6 +55,17 @@ export function RemoteGate({ leftoverData, children }: RemoteGateProps) {
     staleTime: Infinity,
   });
 
+  const ready = connection.data?.kind === "ready";
+  const approvedOnce = settings.data?.approvedOnce ?? true;
+  useEffect(() => {
+    // BR-K17: 한 번 승인받은 뒤로는 호스트로 바꿀 때 관리자 PIN이 필요하다
+    if (ready && !approvedOnce) {
+      void rememberApproved().then(() =>
+        queryClient.invalidateQueries({ queryKey: ["remoteSettings"] }),
+      );
+    }
+  }, [ready, approvedOnce, queryClient]);
+
   const page = (body: ReactNode) => (
     <div className={authStyles.page}>
       <section className={`${formStyles.form} ${authStyles.card}`}>
@@ -67,6 +83,8 @@ export function RemoteGate({ leftoverData, children }: RemoteGateProps) {
           </p>
         )}
       </section>
+      {/* 승인받기 전이면 아직 쓴 데이터가 없어 PIN 없이 되돌린다 */}
+      <RunModeSwitch current="remote" needsPin={approvedOnce} />
     </div>
   );
 

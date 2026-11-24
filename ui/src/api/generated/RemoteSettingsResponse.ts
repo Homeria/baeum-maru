@@ -19,4 +19,8 @@ approvalCode: string | null,
 /**
  * 승인 요청에 미리 채울 이 PC의 이름. 찾지 못하면 `null`.
  */
-computerName: string | null, };
+computerName: string | null, 
+/**
+ * 한 번이라도 승인받아 호스트에 이어졌는지. 그 전이면 PIN 없이 호스트로 되돌린다(BR-K17).
+ */
+approvedOnce: boolean, };

@@ -8,6 +8,8 @@ import { RecoveryPage } from "../features/auth/RecoveryPage";
 import { SetupPage } from "../features/auth/SetupPage";
 import { useIdleLock } from "../features/auth/useIdleLock";
 import { useSession } from "../features/auth/useSession";
+import { RunModeSwitch } from "../features/run-mode/RunModeSwitch";
+import { useRunMode } from "../features/run-mode/useRunMode";
 import formStyles from "../components/form/form.module.css";
 import { MainScreen } from "./MainScreen";
 
@@ -27,6 +29,8 @@ export function StaffFlow() {
   const [recovering, setRecovering] = useState(false);
   const session = useSession();
   useIdleLock(session !== null && !session.locked);
+  const runMode = useRunMode();
+  const mode = runMode.data?.mode ?? null;
 
   if (recoveryCode !== null) {
     return (
@@ -55,8 +59,17 @@ export function StaffFlow() {
       </div>
     );
   }
+  // 로그인 전 화면 구석의 실행 모드 바꾸기(ADR 0021). 직원이 없으면 지킬 데이터가 없다
+  const modeSwitch = mode !== null && (
+    <RunModeSwitch current={mode} needsPin={!status.data.needed} />
+  );
   if (status.data.needed) {
-    return <SetupPage onDone={setRecoveryCode} />;
+    return (
+      <>
+        <SetupPage onDone={setRecoveryCode} />
+        {modeSwitch}
+      </>
+    );
   }
   if (session === null) {
     if (recovering) {
@@ -70,7 +83,12 @@ export function StaffFlow() {
         />
       );
     }
-    return <LoginPage onForgotPin={() => setRecovering(true)} />;
+    return (
+      <>
+        <LoginPage onForgotPin={() => setRecovering(true)} />
+        {modeSwitch}
+      </>
+    );
   }
   return (
     <>

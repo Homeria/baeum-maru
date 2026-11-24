@@ -12,6 +12,7 @@ export const ACCESS_EVENT_LABELS: Record<AccessEventCode, string> = {
   device_rejected: "기기 거절",
   device_revoked: "기기 승인 취소",
   device_approval_failed: "기기 승인 실패",
+  run_mode_changed: "실행 모드 바꾸기",
 };
 
 /** 실패라서 눈에 띄게 보여 줄 일. */

@@ -28,11 +28,13 @@ pub enum AccessEvent {
     DeviceRevoked,
     /// BR-K15: 기기를 허락할 때 PIN이 틀렸거나 계정이 잠겼다.
     DeviceApprovalFailed,
+    /// BR-K17: 관리자가 PIN을 넣어 어느 PC의 실행 모드 바꾸기를 허락했다.
+    RunModeChanged,
 }
 
 impl AccessEvent {
     /// 모든 값.
-    const ALL: [AccessEvent; 10] = [
+    const ALL: [AccessEvent; 11] = [
         AccessEvent::Login,
         AccessEvent::LoginFailed,
         AccessEvent::Logout,
@@ -43,6 +45,7 @@ impl AccessEvent {
         AccessEvent::DeviceRejected,
         AccessEvent::DeviceRevoked,
         AccessEvent::DeviceApprovalFailed,
+        AccessEvent::RunModeChanged,
     ];
 
     /// DB `access_logs.event`에 쓰는 값.
@@ -58,6 +61,7 @@ impl AccessEvent {
             AccessEvent::DeviceRejected => "device_rejected",
             AccessEvent::DeviceRevoked => "device_revoked",
             AccessEvent::DeviceApprovalFailed => "device_approval_failed",
+            AccessEvent::RunModeChanged => "run_mode_changed",
         }
     }
 

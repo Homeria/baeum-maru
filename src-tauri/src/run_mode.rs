@@ -122,6 +122,35 @@ pub fn choose_run_mode(
     app.restart();
 }
 
+/// 실행 모드를 바꾸고 앱을 다시 켠다. 성공하면 돌아오지 않는다(BR-K17).
+///
+/// 관리자 PIN 확인은 화면이 먼저 호스트에 받아 둔다(`/api/run-mode/permit`). 직원의 실수를
+/// 막는 장치이고, 이 PC를 마음대로 다루는 사람까지 막지는 않는다. 이 PC의 DB는 지우지 않는다.
+///
+/// # Errors
+///
+/// 아직 고르지 않았거나, 같은 모드거나, 기억하지 못하면 화면에 보여 줄 문장.
+#[tauri::command]
+pub fn change_run_mode(
+    app: AppHandle,
+    state: State<'_, RunModeState>,
+    mode: RunMode,
+) -> Result<(), String> {
+    match state.mode {
+        None => return Err("아직 실행 모드를 고르지 않았습니다".to_owned()),
+        Some(current) if current == mode => {
+            return Err("이미 그 모드입니다".to_owned());
+        }
+        Some(_) => {}
+    }
+    save(&state.data_dir, mode).map_err(|error| {
+        tracing::error!(%error, "실행 모드를 기억하지 못했습니다");
+        "실행 모드를 기억하지 못했습니다. 데이터 폴더를 쓸 수 있는지 확인해 주세요".to_owned()
+    })?;
+    tracing::info!(?mode, "실행 모드를 바꿨습니다");
+    app.restart();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

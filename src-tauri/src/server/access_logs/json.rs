@@ -32,6 +32,7 @@ pub enum AccessEventCode {
     DeviceRejected,
     DeviceRevoked,
     DeviceApprovalFailed,
+    RunModeChanged,
 }
 
 impl From<AccessEvent> for AccessEventCode {
@@ -47,6 +48,7 @@ impl From<AccessEvent> for AccessEventCode {
             AccessEvent::DeviceRejected => AccessEventCode::DeviceRejected,
             AccessEvent::DeviceRevoked => AccessEventCode::DeviceRevoked,
             AccessEvent::DeviceApprovalFailed => AccessEventCode::DeviceApprovalFailed,
+            AccessEvent::RunModeChanged => AccessEventCode::RunModeChanged,
         }
     }
 }

@@ -17,6 +17,7 @@ mod priority_reasons;
 mod recovery;
 mod rooms;
 mod rosters;
+mod run_mode;
 mod selection_results;
 mod setup;
 mod staff;
@@ -269,6 +270,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/logout", post(login::logout))
         // PIN을 잊은 관리자는 로그인하지 못하므로 그대로 받는다
         .route("/api/recovery", post(recovery::recover))
+        // BR-K17: 로그인 전 화면에서 실행 모드를 바꿀 때 관리자 PIN을 확인한다
+        .route("/api/run-mode/permit", post(run_mode::permit))
         .merge(signed_in)
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
