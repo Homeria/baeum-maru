@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 350" role="img" aria-labelledby="title desc">
+  <title id="title">배움마루가 맡는 한 학기 수강 사무 흐름과 안전망</title>
+  <desc id="desc">모집 준비, 창구 접수, 추첨과 선발 마감, 포기와 대기자 승격, 결과 명단 내보내기 순서로 이어지고, 아래에서 직원 로그인과 기록, 자동 백업 안전망이 받쳐 줍니다.</desc>
+  <defs>
+    <style>
+      .sans { font-family: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+      .header { font-size: 16px; font-weight: 700; fill: #16212b; }
+      .stepTitle { font-size: 15px; font-weight: 700; fill: #184b66; }
+      .stepSub { font-size: 12px; fill: #455666; }
+      .baseTitle { font-size: 14px; font-weight: 700; fill: #ffffff; }
+      .baseItem { font-size: 13px; font-weight: 600; fill: #16212b; }
+      .baseSub { font-size: 12px; fill: #455666; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#184b66" />
+    </marker>
+  </defs>
+
+  <rect width="760" height="350" rx="14" fill="#f4f7f9" stroke="#d2dde6" stroke-width="1.5" />
+
+  <text x="380" y="42" text-anchor="middle" class="sans header">배움마루가 맡는 한 학기 수강 사무</text>
+
+  <!-- 1줄 -->
+  <rect x="24" y="62" width="218" height="72" rx="10" fill="#ffffff" stroke="#184b66" stroke-width="1.5" />
+  <text x="133" y="90" text-anchor="middle" class="sans stepTitle">모집 준비</text>
+  <text x="133" y="114" text-anchor="middle" class="sans stepSub">과목·강의실·강좌 · 직원 역할·기기 승인</text>
+
+  <line x1="242" y1="98" x2="263" y2="98" stroke="#184b66" stroke-width="2" marker-end="url(#arrow)" />
+
+  <rect x="271" y="62" width="218" height="72" rx="10" fill="#ffffff" stroke="#184b66" stroke-width="1.5" />
+  <text x="380" y="90" text-anchor="middle" class="sans stepTitle">창구 접수</text>
+  <text x="380" y="114" text-anchor="middle" class="sans stepSub">여러 PC 동시 입력 · 중복·겹침 자동 확인</text>
+
+  <line x1="489" y1="98" x2="510" y2="98" stroke="#184b66" stroke-width="2" marker-end="url(#arrow)" />
+
+  <rect x="518" y="62" width="218" height="72" rx="10" fill="#ffffff" stroke="#184b66" stroke-width="1.5" />
+  <text x="627" y="90" text-anchor="middle" class="sans stepTitle">추첨 · 선발 마감</text>
+  <text x="627" y="114" text-anchor="middle" class="sans stepSub">자리 보장 반영 · 추첨 기록 · 마감 전 재추첨</text>
+
+  <!-- 2줄 (가운데 정렬) -->
+  <rect x="128" y="150" width="236" height="72" rx="10" fill="#ffffff" stroke="#184b66" stroke-width="1.5" />
+  <text x="246" y="178" text-anchor="middle" class="sans stepTitle">포기 · 대기자 승격</text>
+  <text x="246" y="202" text-anchor="middle" class="sans stepSub">연락할 차례 안내 · 연락 결과 기록 · 바로잡기</text>
+
+  <line x1="364" y1="186" x2="388" y2="186" stroke="#184b66" stroke-width="2" marker-end="url(#arrow)" />
+
+  <rect x="396" y="150" width="236" height="72" rx="10" fill="#ffffff" stroke="#184b66" stroke-width="1.5" />
+  <text x="514" y="178" text-anchor="middle" class="sans stepTitle">결과 명단 내보내기</text>
+  <text x="514" y="202" text-anchor="middle" class="sans stepSub">원본 · 게시용(강좌별·회원별) Excel · 개인정보 가림</text>
+
+  <!-- 아래 받침대: 보이지 않는 안전망 -->
+  <rect x="24" y="240" width="712" height="90" rx="12" fill="#184b66" />
+  <text x="380" y="264" text-anchor="middle" class="sans baseTitle">뒤에서 늘 받쳐 주는 안전망</text>
+
+  <rect x="40" y="276" width="218" height="42" rx="8" fill="#ebf4f8" />
+  <text x="149" y="295" text-anchor="middle" class="sans baseItem">직원 로그인 · 역할 · 자동 잠금</text>
+  <text x="149" y="311" text-anchor="middle" class="sans baseSub">4가지 역할 권한 · 10분 미사용 잠금</text>
+
+  <rect x="271" y="276" width="218" height="42" rx="8" fill="#ebf4f8" />
+  <text x="380" y="295" text-anchor="middle" class="sans baseItem">지워지지 않는 업무·접속 기록</text>
+  <text x="380" y="311" text-anchor="middle" class="sans baseSub">삭제·예외·연락·내보내기·접속 이력</text>
+
+  <rect x="502" y="276" width="218" height="42" rx="8" fill="#ebf4f8" />
+  <text x="611" y="295" text-anchor="middle" class="sans baseItem">자동 백업 · 외장 디스크 · 복원</text>
+  <text x="611" y="311" text-anchor="middle" class="sans baseSub">하루·종료·작업 직전 백업 · 비상 복원</text>
+</svg>
