@@ -1,0 +1,15 @@
+/* 머리 아래의 알림 줄. 연결이 끊긴 것을 알린다 */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-6);
+  background: var(--color-bad);
+  color: var(--color-bg);
+  font-weight: 700;
+}
+
+.hint {
+  font-weight: 400;
+}

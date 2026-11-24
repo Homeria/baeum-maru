@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import {
+  QUIET_AFTER_MS,
   SCREEN_LOCK_MS,
   clearSession,
   getSession,
   isIdleTooLong,
+  isStaffActive,
   lockSession,
   noteRequest,
+  noteStaffInput,
   setSession,
   subscribeSession,
   unlockSession,
@@ -76,5 +79,15 @@ describe("session", () => {
 
     expect(isIdleTooLong(5 * 60 * 1000 + SCREEN_LOCK_MS - 1)).toBe(false);
     expect(isIdleTooLong(5 * 60 * 1000 + SCREEN_LOCK_MS)).toBe(true);
+  });
+
+  test("누르거나 입력한 뒤 10초 동안만 직원이 화면을 만지는 중이다", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+
+    noteStaffInput();
+
+    expect(isStaffActive(1000 + QUIET_AFTER_MS - 1)).toBe(true);
+    expect(isStaffActive(1000 + QUIET_AFTER_MS)).toBe(false);
   });
 });

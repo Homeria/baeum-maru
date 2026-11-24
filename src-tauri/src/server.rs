@@ -1,11 +1,12 @@
 //! 이 PC와 다른 PC의 화면이 붙는 HTTP 서버.
 //!
-//! ADR 0008: 요청은 HTTP + JSON.
+//! ADR 0008: 요청은 HTTP + JSON, 변경 알림은 SSE.
 
 mod access_logs;
 mod applications;
 mod auth;
 pub(crate) mod backups;
+mod changes;
 mod courses;
 mod devices;
 mod error;
@@ -37,6 +38,7 @@ use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 
+use self::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::backup::Backups;
 use crate::version::Version;
 
@@ -72,11 +74,24 @@ pub struct AppState {
     host: Version,
     db: SqlitePool,
     backups: Backups,
+    changes: ChangeNotices,
 }
 
 impl AppState {
     pub fn new(host: Version, db: SqlitePool, backups: Backups) -> Self {
-        AppState { host, db, backups }
+        AppState {
+            host,
+            db,
+            backups,
+            changes: ChangeNotices::new(),
+        }
+    }
+}
+
+impl FromRef<AppState> for ChangeNotices {
+    fn from_ref(state: &AppState) -> Self {
+        // 같은 방송 채널을 함께 가리키는 손잡이만 복사됨
+        state.changes.clone()
     }
 }
 
@@ -102,65 +117,115 @@ impl FromRef<AppState> for SqlitePool {
 
 /// 모든 요청 주소를 묶은 라우터.
 pub fn router(state: AppState) -> Router {
-    // BR-K1: 로그인한 요청만 받는다
+    let notices = state.changes.clone();
+    // BR-K1: 로그인한 요청만 받는다. 데이터를 바꾸는 주소에는 변경 알림을 붙인다 (ADR 0008)
     let signed_in = Router::new()
+        .route("/api/changes", get(changes::stream_changes))
         .route(
             "/api/members",
-            get(members::search_members).post(members::create_member),
+            notifies(
+                get(members::search_members).post(members::create_member),
+                &notices,
+                ChangeKind::Member,
+            ),
         )
         .route(
             "/api/members/{id}",
-            get(members::get_member)
-                .patch(members::update_member)
-                .delete(members::delete_member),
+            notifies(
+                get(members::get_member)
+                    .patch(members::update_member)
+                    .delete(members::delete_member),
+                &notices,
+                ChangeKind::Member,
+            ),
         )
         .route(
             "/api/rooms",
-            get(rooms::list_rooms).post(rooms::create_room),
+            notifies(
+                get(rooms::list_rooms).post(rooms::create_room),
+                &notices,
+                ChangeKind::Room,
+            ),
         )
         .route(
             "/api/rooms/{id}",
-            get(rooms::get_room)
-                .patch(rooms::update_room)
-                .delete(rooms::delete_room),
+            notifies(
+                get(rooms::get_room)
+                    .patch(rooms::update_room)
+                    .delete(rooms::delete_room),
+                &notices,
+                ChangeKind::Room,
+            ),
         )
         .route(
             "/api/priority-reasons",
-            get(priority_reasons::list_priority_reasons)
-                .post(priority_reasons::create_priority_reason),
+            notifies(
+                get(priority_reasons::list_priority_reasons)
+                    .post(priority_reasons::create_priority_reason),
+                &notices,
+                ChangeKind::PriorityReason,
+            ),
         )
         .route(
             "/api/priority-reasons/{id}",
-            patch(priority_reasons::update_priority_reason)
-                .delete(priority_reasons::delete_priority_reason),
+            notifies(
+                patch(priority_reasons::update_priority_reason)
+                    .delete(priority_reasons::delete_priority_reason),
+                &notices,
+                ChangeKind::PriorityReason,
+            ),
         )
         .route(
             "/api/subjects",
-            get(subjects::list_subjects).post(subjects::create_subject),
+            notifies(
+                get(subjects::list_subjects).post(subjects::create_subject),
+                &notices,
+                ChangeKind::Subject,
+            ),
         )
         .route(
             "/api/subjects/{id}",
-            get(subjects::get_subject)
-                .patch(subjects::update_subject)
-                .delete(subjects::delete_subject),
+            notifies(
+                get(subjects::get_subject)
+                    .patch(subjects::update_subject)
+                    .delete(subjects::delete_subject),
+                &notices,
+                ChangeKind::Subject,
+            ),
         )
         .route(
             "/api/terms",
-            get(terms::list_terms).post(terms::create_term),
+            notifies(
+                get(terms::list_terms).post(terms::create_term),
+                &notices,
+                ChangeKind::Term,
+            ),
         )
         .route(
             "/api/terms/{id}",
-            get(terms::get_term)
-                .patch(terms::update_term)
-                .delete(terms::delete_term),
+            notifies(
+                get(terms::get_term)
+                    .patch(terms::update_term)
+                    .delete(terms::delete_term),
+                &notices,
+                ChangeKind::Term,
+            ),
         )
         .route(
             "/api/terms/{term_id}/courses",
-            get(courses::list_courses).post(courses::create_course),
+            notifies(
+                get(courses::list_courses).post(courses::create_course),
+                &notices,
+                ChangeKind::Course,
+            ),
         )
         .route(
             "/api/terms/{term_id}/applications",
-            get(applications::list_applications).post(applications::submit_applications),
+            notifies(
+                get(applications::list_applications).post(applications::submit_applications),
+                &notices,
+                ChangeKind::Application,
+            ),
         )
         .route(
             "/api/terms/{term_id}/application-counts",
@@ -172,11 +237,19 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/api/courses/{id}/lottery",
-            get(lotteries::get_lottery).post(lotteries::run_lottery),
+            notifies(
+                get(lotteries::get_lottery).post(lotteries::run_lottery),
+                &notices,
+                ChangeKind::Selection,
+            ),
         )
         .route(
             "/api/courses/{id}/selection-closure",
-            post(lotteries::close_selection),
+            notifies(
+                post(lotteries::close_selection),
+                &notices,
+                ChangeKind::Selection,
+            ),
         )
         .route(
             "/api/terms/{term_id}/roster-exports",
@@ -192,47 +265,90 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/api/applications/{id}/withdrawal",
-            post(selection_results::withdraw),
+            notifies(
+                post(selection_results::withdraw),
+                &notices,
+                ChangeKind::Selection,
+            ),
         )
         .route(
             "/api/applications/{id}/contacts",
-            post(selection_results::record_contact),
+            notifies(
+                post(selection_results::record_contact),
+                &notices,
+                ChangeKind::Selection,
+            ),
         )
         .route(
             "/api/applications/{id}/withdrawal-correction",
-            post(selection_results::correct_withdrawal),
+            notifies(
+                post(selection_results::correct_withdrawal),
+                &notices,
+                ChangeKind::Selection,
+            ),
         )
         .route(
             "/api/applications/{id}",
-            delete(applications::delete_application),
+            notifies(
+                delete(applications::delete_application),
+                &notices,
+                ChangeKind::Application,
+            ),
         )
         .route(
             "/api/applications/{id}/priority-reasons",
-            put(applications::set_priority_reasons),
+            notifies(
+                put(applications::set_priority_reasons),
+                &notices,
+                ChangeKind::Application,
+            ),
         )
         .route(
             "/api/courses/{id}",
-            get(courses::get_course)
-                .patch(courses::update_course)
-                .delete(courses::delete_course),
+            notifies(
+                get(courses::get_course)
+                    .patch(courses::update_course)
+                    .delete(courses::delete_course),
+                &notices,
+                ChangeKind::Course,
+            ),
         )
         .route(
             "/api/staff",
-            get(staff::list_staff).post(staff::create_staff),
+            notifies(
+                get(staff::list_staff).post(staff::create_staff),
+                &notices,
+                ChangeKind::Staff,
+            ),
         )
         .route(
             "/api/staff/{id}",
-            get(staff::get_staff).patch(staff::update_staff),
+            notifies(
+                get(staff::get_staff).patch(staff::update_staff),
+                &notices,
+                ChangeKind::Staff,
+            ),
         )
-        .route("/api/staff/{id}/pin", post(staff::reset_staff_pin))
+        .route(
+            "/api/staff/{id}/pin",
+            notifies(post(staff::reset_staff_pin), &notices, ChangeKind::Staff),
+        )
         .route("/api/access-logs", get(access_logs::list_access_logs))
         .route(
             "/api/backups",
-            get(backups::list_backups).post(backups::create_backup),
+            notifies(
+                get(backups::list_backups).post(backups::create_backup),
+                &notices,
+                ChangeKind::Backup,
+            ),
         )
         .route(
             "/api/backups/second-location",
-            put(backups::set_second_location),
+            notifies(
+                put(backups::set_second_location),
+                &notices,
+                ChangeKind::Backup,
+            ),
         )
         .route(
             "/api/backups/restore-preview",
@@ -242,14 +358,17 @@ pub fn router(state: AppState) -> Router {
         .route("/api/device-requests", get(devices::list_device_requests))
         .route(
             "/api/device-requests/{id}/approve",
-            post(devices::approve_device),
+            notifies(post(devices::approve_device), &notices, ChangeKind::Device),
         )
         .route(
             "/api/device-requests/{id}/reject",
-            post(devices::reject_device),
+            notifies(post(devices::reject_device), &notices, ChangeKind::Device),
         )
         .route("/api/devices", get(devices::list_devices))
-        .route("/api/devices/{id}", delete(devices::revoke_device))
+        .route(
+            "/api/devices/{id}",
+            notifies(delete(devices::revoke_device), &notices, ChangeKind::Device),
+        )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::require_session,
@@ -320,6 +439,8 @@ fn cors() -> CorsLayer {
             HeaderName::from_static(version::VERSION_HEADER),
             // 기기 증표 (BR-K14)
             HeaderName::from_static(auth::DEVICE_HEADER),
+            // 화면이 스스로 한 요청 (BR-K8)
+            HeaderName::from_static(auth::QUIET_HEADER),
         ])
 }
 

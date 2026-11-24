@@ -63,6 +63,25 @@ export function noteRequest(): void {
   lastRequestAt = Date.now();
 }
 
+/**
+ * BR-K8: 직원이 마지막으로 누르거나 입력한 뒤 이만큼 지나면, 그때 나가는 요청은 화면이 스스로 한
+ * 요청으로 본다(예: 변경 알림 때문에 다시 받기).
+ */
+export const QUIET_AFTER_MS = 10 * 1000;
+
+// 직원이 마지막으로 누르거나 입력한 시각(밀리초)
+let lastInputAt = 0;
+
+/** 직원이 화면을 누르거나 입력했다. */
+export function noteStaffInput(): void {
+  lastInputAt = Date.now();
+}
+
+/** 직원이 방금 화면을 만졌는지. 아니면 요청을 조용한 요청으로 보낸다. */
+export function isStaffActive(now: number): boolean {
+  return now - lastInputAt < QUIET_AFTER_MS;
+}
+
 /** 마지막 요청에서 10분이 지났는지. 화면이 스스로 잠글지 정할 때 쓴다. */
 export function isIdleTooLong(now: number): boolean {
   return now - lastRequestAt >= SCREEN_LOCK_MS;

@@ -39,7 +39,9 @@ tauri-plugin-dialog = "2.8"
 thiserror = "2"
 # ADR 0015: 날짜 JSON은 "2026-11-15" 글자 (serde-human-readable), 지역 날짜는 local-offset
 time = { version = "0.3.55", features = ["local-offset", "macros", "serde", "serde-human-readable"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "fs", "sync"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "fs", "sync", "time"] }
+# 변경 알림을 SSE 흐름으로 내보낸다 (ADR 0008)
+tokio-stream = "0.1.19"
 tower-http = { version = "0.7", features = ["cors", "set-header"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

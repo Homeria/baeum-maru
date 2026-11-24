@@ -4,6 +4,8 @@ import { ApplicationsPage } from "../features/applications/ApplicationsPage";
 import { CoursesPage } from "../features/courses/CoursesPage";
 import type { Session } from "../api/session";
 import { SignedInStaff } from "../features/auth/SignedInStaff";
+import { ConnectionLostBar } from "../features/changes/ConnectionLostBar";
+import { useChangeNotices } from "../features/changes/useChangeNotices";
 import { DeviceRequestNotice } from "../features/devices/DeviceRequestNotice";
 import { HostStatus } from "../features/host/HostStatus";
 import { MembersPage } from "../features/members/MembersPage";
@@ -52,6 +54,8 @@ export function MainScreen({ session }: MainScreenProps) {
   // BR-K15: 새 기기 승인은 관리자가 호스트 PC에서 한다
   const approvesDevices =
     host && can(session.staff.role, "manageDevices") && !session.locked;
+  // ADR 0008: 다른 PC가 바꾼 내용을 바로 다시 받는다. 잠긴 동안에는 받지 않는다
+  const connection = useChangeNotices(!session.locked);
 
   return (
     // 잠긴 동안에는 눌리거나 읽히지 않게 (잠금 화면이 위를 덮는다)
@@ -63,6 +67,7 @@ export function MainScreen({ session }: MainScreenProps) {
           <SignedInStaff session={session} />
         </div>
       </header>
+      <ConnectionLostBar lost={connection === "lost"} />
       <DeviceRequestNotice active={approvesDevices} />
       <nav className={styles.nav}>
         <Tabs
