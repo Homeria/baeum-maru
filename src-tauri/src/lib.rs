@@ -10,14 +10,9 @@ mod commands;
 mod data_dir;
 mod db;
 mod handover;
-mod host_screen;
-mod pick;
 mod pin_check;
-mod remote;
-mod restart;
 mod roster_xlsx;
 mod run_mode;
-mod save_file;
 mod secret;
 #[cfg(feature = "dev-seed")]
 pub mod seed;
@@ -48,25 +43,25 @@ pub fn run() {
         // ADR 0018: 저장 창과 폴더 고르기 창은 앱(Rust)에서만 띄운다. 화면에 권한을 열지 않는다
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            save_file::save_file,
-            pick::pick_folder,
-            pick::pick_backup_file,
-            pick::pick_handover_file,
-            restart::restart_app,
+            commands::save_file::save_file,
+            commands::pick::pick_folder,
+            commands::pick::pick_backup_file,
+            commands::pick::pick_handover_file,
+            commands::restart::restart_app,
             commands::broken_db::startup_state,
             commands::broken_db::preview_broken_db_backup,
             commands::broken_db::restore_broken_db,
             commands::run_mode::run_mode_state,
-            host_screen::host_address,
-            host_screen::open_device_request_count,
-            remote::remote_settings,
-            remote::save_host_address,
-            remote::save_device_request,
-            remote::clear_device_request,
-            remote::remember_approved,
-            remote::check_host_identity,
-            remote::remember_host_identity,
-            remote::forget_host,
+            commands::host_screen::host_address,
+            commands::host_screen::open_device_request_count,
+            commands::remote::remote_settings,
+            commands::remote::save_host_address,
+            commands::remote::save_device_request,
+            commands::remote::clear_device_request,
+            commands::remote::remember_approved,
+            commands::remote::check_host_identity,
+            commands::remote::remember_host_identity,
+            commands::remote::forget_host,
             commands::run_mode::choose_run_mode,
             commands::run_mode::change_run_mode,
             commands::handover::handover_file,

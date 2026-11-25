@@ -5,5 +5,10 @@
 
 pub mod broken_db;
 pub mod handover;
+pub mod host_screen;
+pub mod pick;
+pub mod remote;
+pub mod restart;
 pub mod run_mode;
+pub mod save_file;
 pub mod take_over;
