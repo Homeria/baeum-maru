@@ -6,13 +6,15 @@
 //!    데이터 폴더에 `restore-pending.db`로 받아 둔다. 그 뒤 앱을 다시 켠다.
 //! 2. 바꾸기([`apply_pending`]): 다음 시작 때 DB를 열기 전에 받아 둔 파일로 바꾼다.
 //!    실패하면 지금 DB를 그대로 둔다.
-//! 3. 기록([`record`]): DB를 연 뒤 되돌린 DB의 접속 기록에 남긴다.
+//! 3. 기록([`record`]): DB를 연 뒤 되돌리기 전의 묶음 ID와 세대 번호를 다시 써 넣고(BR-H4),
+//!    되돌린 DB의 접속 기록에 남긴다.
 //!
 //! DB가 깨졌을 때([`restore_broken`])는 DB를 쥔 곳이 없어서 그 자리에서 바꾼다. 깨진 DB는
 //! 복원 직전 백업을 만들 수 없으니 데이터 폴더에 `baeum-maru.broken.db` 하나로 남긴다.
 
 use std::path::{Path, PathBuf};
 
+use baeum_domain::{DataBundleId, HostIdentity};
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use time::{OffsetDateTime, PrimitiveDateTime};
@@ -22,6 +24,7 @@ use super::name::{BackupKind, BackupName};
 use super::store::{self, BackupError, StoredBackup};
 use crate::clock;
 use crate::db::access_logs::{self, AccessEvent};
+use crate::db::data_bundle;
 use crate::db::{self, DbError};
 
 /// 받아 둔 백업 파일. 이 파일이 있으면 다음 시작 때 바꾼다.
@@ -64,6 +67,9 @@ pub enum RestoreOutcome {
     /// 되돌렸다. `staff_id`는 복원한 관리자.
     Restored {
         staff_id: Option<i64>,
+        /// 되돌리기 전의 묶음 ID와 세대 번호. 되돌린 DB에 다시 써 넣는다(BR-H4).
+        /// 읽지 못했으면 `None`이고, 백업에 있던 값을 그대로 쓴다.
+        identity: Option<HostIdentity>,
         /// 이 PC의 지역 시각.
         at: PrimitiveDateTime,
     },
@@ -75,6 +81,36 @@ pub enum RestoreOutcome {
 #[serde(rename_all = "camelCase")]
 struct PendingInfo {
     staff_id: i64,
+    /// 이 칸이 생기기 전에 받아 둔 복원이면 없다.
+    #[serde(default)]
+    identity: Option<StoredIdentity>,
+}
+
+/// 파일에 적는 묶음 ID와 세대 번호.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StoredIdentity {
+    bundle_id: String,
+    generation: u32,
+}
+
+impl From<HostIdentity> for StoredIdentity {
+    fn from(identity: HostIdentity) -> Self {
+        StoredIdentity {
+            bundle_id: identity.bundle_id.to_string(),
+            generation: identity.generation,
+        }
+    }
+}
+
+impl StoredIdentity {
+    /// 묶음 ID 형식이 틀리면 `None`.
+    fn parse(&self) -> Option<HostIdentity> {
+        Some(HostIdentity {
+            bundle_id: DataBundleId::parse(&self.bundle_id).ok()?,
+            generation: self.generation,
+        })
+    }
 }
 
 /// 복원을 준비한다. 만든 복원 직전 백업 이름을 돌려준다. 그 뒤 앱을 다시 켜면 바뀐다.
@@ -96,7 +132,14 @@ pub async fn prepare(
     )
     .await
     .map_err(PrepareError::Backup)?;
-    let info = serde_json::to_vec(&PendingInfo { staff_id }).map_err(std::io::Error::other)?;
+    // 묶음 ID와 세대 번호가 백업 때로 돌아가지 않게 지금 값을 적어 둔다(BR-H4)
+    let identity = data_bundle::read(pool)
+        .await
+        .inspect_err(|error| tracing::warn!(%error, "데이터 묶음 정보를 읽지 못했습니다"))
+        .ok()
+        .map(StoredIdentity::from);
+    let info =
+        serde_json::to_vec(&PendingInfo { staff_id, identity }).map_err(std::io::Error::other)?;
     write_then_rename(&data_dir.join(PENDING_INFO), Content::Bytes(&info)).await?;
     // 받아 둔 파일이 마지막에 생겨야 반쯤 준비된 복원이 일어나지 않는다
     write_then_rename(&data_dir.join(PENDING_DB), Content::CopyOf(source)).await?;
@@ -110,17 +153,24 @@ pub async fn apply_pending(data_dir: &Path, now: OffsetDateTime) -> Option<Resto
         return None;
     }
     let info_file = data_dir.join(PENDING_INFO);
-    let staff_id = match tokio::fs::read(&info_file).await {
-        Ok(bytes) => serde_json::from_slice::<PendingInfo>(&bytes)
-            .ok()
-            .map(|info| info.staff_id),
+    let info = match tokio::fs::read(&info_file).await {
+        Ok(bytes) => serde_json::from_slice::<PendingInfo>(&bytes).ok(),
         Err(_) => None,
     };
+    let staff_id = info.as_ref().map(|info| info.staff_id);
+    let identity = info
+        .as_ref()
+        .and_then(|info| info.identity.as_ref())
+        .and_then(StoredIdentity::parse);
     let at = clock::local_datetime(now);
     let outcome = match swap(data_dir, &pending).await {
         Ok(()) => {
             tracing::info!(?staff_id, "백업으로 되돌림");
-            RestoreOutcome::Restored { staff_id, at }
+            RestoreOutcome::Restored {
+                staff_id,
+                identity,
+                at,
+            }
         }
         Err(error) => {
             tracing::error!(%error, "백업으로 되돌리지 못해 지금 DB를 그대로 씀");
@@ -136,11 +186,21 @@ pub async fn apply_pending(data_dir: &Path, now: OffsetDateTime) -> Option<Resto
     Some(outcome)
 }
 
-/// 되돌렸으면 접속 기록에 남긴다. 복원한 관리자가 되돌린 DB에 없으면 직원 칸을 비운다.
+/// 되돌렸으면 되돌리기 전의 묶음 ID와 세대 번호를 다시 써 넣고(BR-H4) 접속 기록에 남긴다.
+/// 복원한 관리자가 되돌린 DB에 없으면 직원 칸을 비운다. DB를 열어 구조 변경을 적용한 뒤 부른다.
 pub async fn record(pool: &SqlitePool, outcome: RestoreOutcome, now: OffsetDateTime) {
-    let RestoreOutcome::Restored { staff_id, .. } = outcome else {
+    let RestoreOutcome::Restored {
+        staff_id, identity, ..
+    } = outcome
+    else {
         return;
     };
+    if let Some(identity) = identity
+        && let Err(error) = data_bundle::write(pool, identity).await
+    {
+        // 앱을 멈추지는 않는다. 접속 PC가 옛 세대로 보고 막으면 관리자가 알아챈다
+        tracing::error!(%error, "되돌리기 전 데이터 묶음 정보를 다시 쓰지 못했습니다");
+    }
     let result = async {
         let known = match staff_id {
             Some(id) => {
@@ -193,6 +253,8 @@ pub async fn restore_broken(
 ) -> Result<(), BrokenRestoreError> {
     inspect(source).await?;
     let db_file = db::file(data_dir);
+    // 깨진 DB라도 이 표는 읽힐 수 있다. 못 읽으면 백업에 있던 값을 쓴다(BR-H4)
+    let identity = data_bundle::read_file(&db_file).await;
     let broken = data_dir.join(BROKEN_DB);
     // 지난번에 남긴 깨진 DB는 지운다. 회원 정보 사본이 쌓이지 않게 하나만 둔다
     for old in db_family(&broken) {
@@ -209,6 +271,7 @@ pub async fn restore_broken(
                 &pool,
                 RestoreOutcome::Restored {
                     staff_id: None,
+                    identity,
                     at: clock::local_datetime(now),
                 },
                 now,
@@ -394,6 +457,78 @@ mod tests {
                 .await
                 .unwrap();
         assert_eq!(logged, [(Some(admin), "restore".to_owned())]);
+    }
+
+    #[tokio::test]
+    async fn br_h4_restore_keeps_bundle_id_and_generation() {
+        let (dir, pool) = open_temp().await;
+        let admin = insert_staff(&pool, "관리자", "admin", None).await.unwrap();
+        let backups = super::super::dir(dir.path());
+        // 세대 1일 때 만든 백업
+        let old = store::create(
+            &pool,
+            &backups,
+            BackupKind::Daily,
+            datetime!(2026-11-22 09:00),
+        )
+        .await
+        .unwrap();
+        let now = HostIdentity {
+            bundle_id: data_bundle::read(&pool).await.unwrap().bundle_id,
+            generation: 3,
+        };
+        data_bundle::write(&pool, now).await.unwrap();
+
+        prepare(
+            &pool,
+            dir.path(),
+            &backups.join(old.to_string()),
+            admin,
+            NOW,
+        )
+        .await
+        .unwrap();
+        pool.close().await;
+        let outcome = apply_pending(dir.path(), NOW).await.unwrap();
+        let pool = db::open(dir.path()).await.unwrap();
+        record(&pool, outcome, NOW).await;
+
+        assert_eq!(data_bundle::read(&pool).await.unwrap(), now);
+    }
+
+    #[tokio::test]
+    async fn pending_info_from_before_identity_still_restores() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = db::open(dir.path()).await.unwrap();
+        let backup = store::create(
+            &pool,
+            &super::super::dir(dir.path()),
+            BackupKind::Daily,
+            datetime!(2026-11-22 09:00),
+        )
+        .await
+        .unwrap();
+        pool.close().await;
+        tokio::fs::write(dir.path().join(PENDING_INFO), br#"{"staffId":1}"#)
+            .await
+            .unwrap();
+        tokio::fs::copy(
+            super::super::dir(dir.path()).join(backup.to_string()),
+            dir.path().join(PENDING_DB),
+        )
+        .await
+        .unwrap();
+
+        let outcome = apply_pending(dir.path(), NOW).await;
+
+        assert!(matches!(
+            outcome,
+            Some(RestoreOutcome::Restored {
+                staff_id: Some(1),
+                identity: None,
+                ..
+            })
+        ));
     }
 
     #[tokio::test]

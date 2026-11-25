@@ -6,6 +6,7 @@ pub mod access_logs;
 pub mod application_priorities;
 pub mod applications;
 pub mod courses;
+pub mod data_bundle;
 pub mod devices;
 pub mod lotteries;
 pub mod members;
