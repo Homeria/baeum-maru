@@ -4,8 +4,8 @@ import type { SelectionStageCode } from "../../api/generated/SelectionStageCode"
 import listStyles from "../../components/layout/listPage.module.css";
 import tableStyles from "../../components/table/table.module.css";
 import { courseName, scheduleSummary } from "../courses/courseFormData";
-import { STAGE_LABELS } from "../selection/selectionData";
-import { additionalLabel, countLabel } from "./applicationsData";
+import { STAGE_LABELS, countLabel } from "../courses/courseStatusData";
+import { additionalLabel } from "./applicationsData";
 import styles from "./ApplicationsPage.module.css";
 
 /** {@link CourseChoiceList}의 속성. */

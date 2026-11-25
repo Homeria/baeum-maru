@@ -5,12 +5,16 @@ import { listCourses } from "../../api/courses";
 import { listSelections } from "../../api/lotteries";
 import { listTerms } from "../../api/terms";
 import formStyles from "../../components/form/form.module.css";
-import { countLabel, countsByCourse } from "../applications/applicationsData";
+import {
+  STAGE_LABELS,
+  countLabel,
+  countsByCourse,
+  stagesByCourse,
+} from "../courses/courseStatusData";
 import { courseName } from "../courses/courseFormData";
 import { TermBar } from "../terms/TermBar";
 import { currentTerm } from "../terms/termFormData";
 import { LotteryBoard } from "./LotteryBoard";
-import { STAGE_LABELS, stagesByCourse } from "./selectionData";
 import styles from "./SelectionPage.module.css";
 
 /**
