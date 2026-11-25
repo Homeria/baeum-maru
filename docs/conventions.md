@@ -304,7 +304,8 @@ tracing::info!(application_id = %id, "신청 저장");
 - 기능은 모두 `features/`에 있다. 옛 자리 `server/`와 `db/`에는 여러 기능이 함께 쓰는 테스트 도우미만 남았다. 어디로 옮길지는 흐름 테스트 PR에서 정한다.
 - service가 있는 기능은 service만 트랜잭션을 연다(`pool.begin_with("BEGIN IMMEDIATE")`). 트랜잭션 안에서 쓰는 repository 함수는 `conn: &mut SqliteConnection`을 받고, 읽기만 하는 함수는 `&SqlitePool`을 받는다. service 함수는 `pool: &SqlitePool`을 받는다.
 - repository의 SQL 도우미는 같은 기능의 service만 쓰도록 `pub(super)`(하위 파일이면 `pub(in crate::features::<기능>)`)로 연다. 다른 기능이 트랜잭션 안에서 부르는 것(진행 중인 추첨 취소, 선발 결과 읽기)만 `pub(crate)`로 둔다. 기능끼리 service를 부르지 않는다.
-- 지금 service가 있는 기능은 신청, 추첨, 선발 결과다. auth·직원·처음 설정은 아직 repository가 트랜잭션을 열고, 다음 PR에서 옮긴다. 강좌, 기기 승인, 명단은 단순한 기능이라 repository가 연다(ADR 0023 구현 메모).
+- 지금 service가 있는 기능은 신청, 추첨, 선발 결과, auth, 직원, 처음 설정이다. 강좌, 기기 승인, 명단은 단순한 기능이라 repository가 연다(ADR 0023 구현 메모).
+- auth의 service(PIN 확인 `check_pin`)는 다른 기능(기기 승인, 넘기기)도 부른다. 기능끼리 service를 부르지 않는다는 규칙의 예외다(ADR 0023).
 - 앱 명령(Tauri 명령)은 `app/launcher/src/commands/`에 둔다. 창, 대화상자, 다시 켜기, 켤 때 맡긴 상태 꺼내기만 하고 나머지는 server의 본체(`handover`, `take_over`, `broken_db`, `run_mode` 등)를 부른다. 이 이름들은 `features/backups/`, `features/handover/` 안에 있고 `lib.rs`가 같은 이름으로 내보낸다.
 - server는 `lib.rs`에서 앱이 부르는 것만 공개한다. DB 함수와 HTTP 요청 처리는 공개하지 않는다. 앱이 새로 필요한 것이 생기면 안쪽 모듈을 열지 말고 함수 하나를 `pub use`로 내보낸다.
 
