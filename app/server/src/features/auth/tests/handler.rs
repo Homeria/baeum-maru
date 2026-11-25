@@ -12,7 +12,7 @@ use tower::ServiceExt;
 use crate::db::test_support::insert_staff;
 use crate::features::access_logs::repository::list_for_test;
 use crate::features::auth::handler::Watch;
-use crate::features::auth::repository as sessions;
+use crate::features::auth::service as sessions;
 use crate::http::version::VERSION_HEADER;
 use crate::infra::secret::SessionToken;
 use crate::server::test_support::{app, app_without_staff, get, json_body, post};

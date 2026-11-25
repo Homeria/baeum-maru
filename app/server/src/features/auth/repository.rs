@@ -1,12 +1,11 @@
-//! 로그인 계정, PIN 실패 기록, 세션, 복구 코드 저장 (BR-K5~K8, BR-K11~K13).
+//! 로그인 계정, PIN 실패 기록, 세션, 복구 코드의 SQL (BR-K5~K8, BR-K11~K13). 트랜잭션은 `service`가 연다.
 //!
 //! ADR 0014: 세션 증표 자체는 두지 않고 SHA-256 해시만 둔다. 복구 코드도 해시만 둔다.
 
-use baeum_domain::{FailedPin, Role, SCREEN_LOCK, is_valid_on, record_failed_pin};
-use sqlx::SqlitePool;
+use baeum_domain::{FailedPin, Role, is_valid_on};
+use sqlx::{SqliteConnection, SqlitePool};
 use time::{Date, OffsetDateTime};
 
-use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
 use crate::infra::clock::local_today;
 use crate::infra::db::timestamp_text;
 
@@ -124,42 +123,42 @@ pub async fn get_login_account(
     row.map(LoginAccount::try_from).transpose()
 }
 
-/// BR-K7: `staff_id`인 직원이 PIN을 틀렸다. 틀린 횟수를 세고(5번째면 잠그고)
-/// 접속 기록에 `event`(로그인 실패나 잠금 풀기 실패)를 남긴 뒤, 바뀐 상태를 돌려준다.
-///
-/// 동시에 틀려도 횟수를 빠뜨리지 않게 읽기와 쓰기를 `BEGIN IMMEDIATE` 하나에서 한다.
-pub async fn add_failed_pin(
-    pool: &SqlitePool,
+/// 직원의 PIN 틀린 횟수.
+pub(super) async fn failed_pin_count(
+    conn: &mut SqliteConnection,
     staff_id: i64,
-    device_id: Option<i64>,
-    event: AccessEvent,
-    now: OffsetDateTime,
-) -> Result<FailedPin, sqlx::Error> {
-    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
-
-    let failed_count: u32 = sqlx::query_scalar("SELECT failed_pin_count FROM staff WHERE id = ?")
+) -> Result<u32, sqlx::Error> {
+    sqlx::query_scalar("SELECT failed_pin_count FROM staff WHERE id = ?")
         .bind(staff_id)
-        .fetch_one(&mut *tx)
-        .await?;
-    let failed = record_failed_pin(failed_count, now);
+        .fetch_one(conn)
+        .await
+}
 
+/// 틀린 횟수와 잠금을 `failed`로 바꾼다(BR-K7).
+pub(super) async fn set_failed_pin(
+    conn: &mut SqliteConnection,
+    staff_id: i64,
+    failed: &FailedPin,
+) -> Result<(), sqlx::Error> {
     sqlx::query("UPDATE staff SET failed_pin_count = ?, locked_until = ? WHERE id = ?")
         .bind(failed.failed_count)
         .bind(failed.locked_until.map(timestamp_text))
         .bind(staff_id)
-        .execute(&mut *tx)
+        .execute(conn)
         .await?;
-    access_logs::insert_on_device(
-        &mut tx,
-        Some(staff_id),
-        device_id,
-        event,
-        &timestamp_text(now),
-    )
-    .await?;
+    Ok(())
+}
 
-    tx.commit().await?;
-    Ok(failed)
+/// 틀린 횟수와 잠금을 푼다(BR-K7).
+pub(super) async fn clear_failed_pin(
+    conn: &mut SqliteConnection,
+    staff_id: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE staff SET failed_pin_count = 0, locked_until = NULL WHERE id = ?")
+        .bind(staff_id)
+        .execute(conn)
+        .await?;
+    Ok(())
 }
 
 /// DB의 역할 글자를 [`Role`]로 읽는다. 마이그레이션의 CHECK가 막아서 틀릴 일은 없다.
@@ -217,106 +216,67 @@ pub async fn touch(
     session_id: i64,
     now: OffsetDateTime,
 ) -> Result<(), sqlx::Error> {
+    let mut conn = pool.acquire().await?;
+    set_last_seen(&mut conn, session_id, now).await
+}
+
+/// 세션의 마지막 요청 시각을 `now`로 바꾼다.
+pub(super) async fn set_last_seen(
+    conn: &mut SqliteConnection,
+    session_id: i64,
+    now: OffsetDateTime,
+) -> Result<(), sqlx::Error> {
     sqlx::query("UPDATE sessions SET last_seen_at = ? WHERE id = ?")
         .bind(timestamp_text(now))
         .bind(session_id)
-        .execute(pool)
+        .execute(conn)
         .await?;
     Ok(())
 }
 
-/// BR-K8: PIN을 맞게 넣어 잠긴 세션을 연다.
-/// BR-K7: 틀린 횟수도 0으로 돌린다 (로그인에서 맞게 넣은 것과 같다).
-pub async fn unlock(
-    pool: &SqlitePool,
-    session_id: i64,
+/// 세션을 하나 저장한다. `now`는 [`timestamp_text`] 글자.
+pub(super) async fn insert_session(
+    conn: &mut SqliteConnection,
     staff_id: i64,
-    now: OffsetDateTime,
-) -> Result<(), sqlx::Error> {
-    let mut tx = pool.begin().await?;
-    sqlx::query("UPDATE staff SET failed_pin_count = 0, locked_until = NULL WHERE id = ?")
-        .bind(staff_id)
-        .execute(&mut *tx)
-        .await?;
-    sqlx::query("UPDATE sessions SET last_seen_at = ? WHERE id = ?")
-        .bind(timestamp_text(now))
-        .bind(session_id)
-        .execute(&mut *tx)
-        .await?;
-    tx.commit().await
-}
-
-/// `staff_id`인 직원의 로그인을 기록한다.
-///
-/// 한 트랜잭션에서 다음을 함께 한다.
-/// - BR-K7: 틀린 횟수와 잠금을 푼다.
-/// - ADR 0014: 그 직원의 잠긴(마지막 요청에서 10분 지난) 세션을 지워 정리한다.
-/// - 새 세션을 저장하고 접속 기록에 로그인을 남긴다.
-pub async fn start(
-    pool: &SqlitePool,
-    staff_id: i64,
-    device_id: Option<i64>,
     token_hash: &[u8; 32],
-    now: OffsetDateTime,
+    now: &str,
 ) -> Result<(), sqlx::Error> {
-    let locked_before = timestamp_text(now - SCREEN_LOCK);
-    let now = timestamp_text(now);
-    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
-
-    sqlx::query("UPDATE staff SET failed_pin_count = 0, locked_until = NULL WHERE id = ?")
-        .bind(staff_id)
-        .execute(&mut *tx)
-        .await?;
-    sqlx::query("DELETE FROM sessions WHERE staff_id = ? AND last_seen_at <= ?")
-        .bind(staff_id)
-        .bind(&locked_before)
-        .execute(&mut *tx)
-        .await?;
     sqlx::query(
         "INSERT INTO sessions (staff_id, token_hash, started_at, last_seen_at)
          VALUES (?, ?, ?, ?)",
     )
     .bind(staff_id)
     .bind(token_hash.as_slice())
-    .bind(&now)
-    .bind(&now)
-    .execute(&mut *tx)
+    .bind(now)
+    .bind(now)
+    .execute(conn)
     .await?;
-    access_logs::insert_on_device(&mut tx, Some(staff_id), device_id, AccessEvent::Login, &now)
-        .await?;
-
-    tx.commit().await
+    Ok(())
 }
 
-/// 증표 해시가 `token_hash`인 세션을 지우고 접속 기록에 로그아웃을 남긴 뒤
-/// 그 세션의 직원 id를 돌려준다. 그런 세션이 없으면 아무것도 하지 않고 `None`.
-///
-/// 잠긴 세션도 지운다. BR-K8: 다른 직원은 로그아웃한 뒤 로그인한다.
-pub async fn end(
-    pool: &SqlitePool,
+/// 직원의 세션 가운데 마지막 요청이 `locked_before` 이전인(잠긴) 것을 지운다.
+pub(super) async fn delete_locked_sessions(
+    conn: &mut SqliteConnection,
+    staff_id: i64,
+    locked_before: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM sessions WHERE staff_id = ? AND last_seen_at <= ?")
+        .bind(staff_id)
+        .bind(locked_before)
+        .execute(conn)
+        .await?;
+    Ok(())
+}
+
+/// 증표 해시가 `token_hash`인 세션을 지우고 그 직원 id를 돌려준다. 없으면 `None`.
+pub(super) async fn delete_session(
+    conn: &mut SqliteConnection,
     token_hash: &[u8; 32],
-    now: OffsetDateTime,
 ) -> Result<Option<i64>, sqlx::Error> {
-    let mut tx = pool.begin().await?;
-
-    let staff_id: Option<i64> =
-        sqlx::query_scalar("DELETE FROM sessions WHERE token_hash = ? RETURNING staff_id")
-            .bind(token_hash.as_slice())
-            .fetch_optional(&mut *tx)
-            .await?;
-    let Some(staff_id) = staff_id else {
-        return Ok(None);
-    };
-    access_logs::insert(
-        &mut tx,
-        Some(staff_id),
-        AccessEvent::Logout,
-        &timestamp_text(now),
-    )
-    .await?;
-
-    tx.commit().await?;
-    Ok(Some(staff_id))
+    sqlx::query_scalar("DELETE FROM sessions WHERE token_hash = ? RETURNING staff_id")
+        .bind(token_hash.as_slice())
+        .fetch_optional(conn)
+        .await
 }
 
 // 복구 코드
@@ -328,49 +288,42 @@ pub async fn code_hash(pool: &SqlitePool) -> Result<Option<String>, sqlx::Error>
         .await
 }
 
-/// BR-K12: 복구 코드를 써서 `staff_id`인 관리자의 PIN을 다시 정하고 코드를 새것으로 바꾼다.
-///
-/// 한 트랜잭션에서 다음을 함께 한다.
-/// - 복구 코드 해시를 `used_code_hash`에서 `new_code_hash`로 바꾼다. 그사이 다른 요청이
-///   먼저 썼으면 바뀌는 줄이 없어서 아무것도 하지 않고 `false`를 돌려준다.
-/// - 관리자 PIN을 바꾸고 틀린 횟수와 잠금(BR-K7)을 푼다.
-/// - 접속 기록에 복구 코드 사용을 남긴다 (BR-K13).
-pub async fn use_code(
-    pool: &SqlitePool,
-    staff_id: i64,
+/// 복구 코드 해시를 `used_code_hash`에서 `new_code_hash`로 바꾼다. 그사이 다른 요청이 먼저
+/// 바꿨으면 바뀌는 줄이 없어 `false`. `now`는 [`timestamp_text`] 글자.
+pub(super) async fn replace_code(
+    conn: &mut SqliteConnection,
     used_code_hash: &str,
     new_code_hash: &str,
-    new_pin_hash: &str,
-    now: OffsetDateTime,
+    now: &str,
 ) -> Result<bool, sqlx::Error> {
-    let now = timestamp_text(now);
-    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
-
     let replaced = sqlx::query(
         "UPDATE recovery_code SET code_hash = ?, created_at = ? WHERE id = 1 AND code_hash = ?",
     )
     .bind(new_code_hash)
-    .bind(&now)
+    .bind(now)
     .bind(used_code_hash)
-    .execute(&mut *tx)
+    .execute(conn)
     .await?;
-    if replaced.rows_affected() == 0 {
-        return Ok(false);
-    }
+    Ok(replaced.rows_affected() > 0)
+}
 
+/// 관리자 PIN을 바꾸고 틀린 횟수와 잠금(BR-K7)을 푼다. `now`는 [`timestamp_text`] 글자.
+pub(super) async fn set_admin_pin(
+    conn: &mut SqliteConnection,
+    staff_id: i64,
+    new_pin_hash: &str,
+    now: &str,
+) -> Result<(), sqlx::Error> {
     sqlx::query(
         "UPDATE staff SET pin_hash = ?, failed_pin_count = 0, locked_until = NULL, updated_at = ?
          WHERE id = ?",
     )
     .bind(new_pin_hash)
-    .bind(&now)
+    .bind(now)
     .bind(staff_id)
-    .execute(&mut *tx)
+    .execute(conn)
     .await?;
-    access_logs::insert(&mut tx, Some(staff_id), AccessEvent::RecoveryUsed, &now).await?;
-
-    tx.commit().await?;
-    Ok(true)
+    Ok(())
 }
 
 // 기기 증표

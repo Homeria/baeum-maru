@@ -104,6 +104,7 @@ mod repository {
 
     use crate::db::test_support::insert_staff;
     use crate::features::setup::repository::*;
+    use crate::features::setup::service::*;
     use crate::infra::db::open_temp;
 
     fn now() -> OffsetDateTime {

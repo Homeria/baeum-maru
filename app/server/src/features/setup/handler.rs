@@ -12,7 +12,8 @@ use baeum_domain::NewStaff;
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::repository::{self, SetupError};
+use super::repository;
+use super::service::{self, SetupError};
 use crate::features::staff::handler::field_name;
 use crate::http::error::ApiError;
 use crate::infra::secret::AdminSecrets;
@@ -59,7 +60,7 @@ async fn setup(
     .map_err(ApiError::internal)?;
     let secrets = secrets.map_err(ApiError::internal)?;
 
-    let admin_id = repository::setup(
+    let admin_id = service::setup(
         &db,
         admin.profile().name(),
         &secrets.pin_hash,

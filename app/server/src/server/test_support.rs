@@ -23,7 +23,7 @@ use tower_http::set_header::SetRequestHeaderLayer;
 
 use crate::db::test_support::insert_staff;
 use crate::features::auth::middleware::DEVICE_HEADER;
-use crate::features::auth::repository as sessions;
+use crate::features::auth::service as sessions;
 use crate::http::version::VERSION_HEADER;
 use crate::infra::secret::{DeviceToken, SessionToken};
 use crate::router::{AppState, router};

@@ -6,8 +6,10 @@ use time::{Date, OffsetDateTime};
 
 use crate::db::test_support::insert_staff;
 use crate::features::access_logs::repository::AccessEvent;
-use crate::features::auth::repository::{add_failed_pin, get_login_account};
-use crate::features::staff::repository::*;
+use crate::features::auth::repository::get_login_account;
+use crate::features::auth::service::add_failed_pin;
+use crate::features::staff::repository::{StaffRecord, get, list, reset_pin};
+use crate::features::staff::service::*;
 use crate::infra::db::open_temp;
 
 fn now() -> OffsetDateTime {
