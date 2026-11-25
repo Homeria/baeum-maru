@@ -79,6 +79,11 @@ pub(crate) fn is_foreign_key_violation(error: &sqlx::Error) -> bool {
         .is_some_and(|db_error| db_error.is_foreign_key_violation())
 }
 
+/// 테이블 CHECK가 막는 값을 만났다. DB가 망가진 것이다.
+pub(crate) fn decode_error(message: &str) -> sqlx::Error {
+    sqlx::Error::Decode(message.into())
+}
+
 /// 지우지 못했다.
 #[derive(Debug, thiserror::Error)]
 pub enum DeleteError {

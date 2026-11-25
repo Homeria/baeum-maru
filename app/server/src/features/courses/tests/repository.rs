@@ -287,3 +287,13 @@ async fn deletes_course() {
     assert!(!delete(&f.pool, id).await.unwrap());
     assert!(get(&f.pool, id).await.unwrap().is_none());
 }
+
+#[test]
+fn course_name_skips_missing_parts() {
+    assert_eq!(
+        course_name("요가", Some("초급"), Some("1반")),
+        "요가 초급 1반"
+    );
+    assert_eq!(course_name("서예", None, Some("A")), "서예 A");
+    assert_eq!(course_name("탁구", None, None), "탁구");
+}

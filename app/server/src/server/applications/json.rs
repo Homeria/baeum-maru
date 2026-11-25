@@ -1,10 +1,11 @@
 //! 신청 API의 요청·응답 JSON 모양과 DB·업무 규칙 타입 사이의 변환.
 
-use baeum_domain::{AdditionalOutcome, ApplicationRule, RuleViolation};
+use baeum_domain::AdditionalOutcome;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::db::applications::{ApplicationRecord, CourseCount, Submitted};
+use crate::http::error::ApplicationRuleCode;
 use crate::infra::db::timestamp_text;
 
 /// `GET /api/terms/{termId}/applications`의 `?` 뒤.
@@ -122,59 +123,6 @@ impl From<AdditionalOutcome> for AdditionalOutcomeResponse {
             AdditionalOutcome::Waitlisted(waitlist_number) => {
                 AdditionalOutcomeResponse::Waitlisted { waitlist_number }
             }
-        }
-    }
-}
-
-/// 신청 규칙. DB와 같은 이름.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(export)]
-#[expect(
-    clippy::enum_variant_names,
-    reason = "규칙 이름이 모두 '하지 않기'(no_…)라서 같은 앞말이 뜻을 가진다"
-)]
-pub enum ApplicationRuleCode {
-    /// BR-A4
-    NoDuplicate,
-    /// BR-A1
-    NoTimeOverlap,
-    /// BR-A2
-    NoSameSubject,
-}
-
-impl From<ApplicationRule> for ApplicationRuleCode {
-    fn from(rule: ApplicationRule) -> Self {
-        match rule {
-            ApplicationRule::NoDuplicate => ApplicationRuleCode::NoDuplicate,
-            ApplicationRule::NoTimeOverlap => ApplicationRuleCode::NoTimeOverlap,
-            ApplicationRule::NoSameSubject => ApplicationRuleCode::NoSameSubject,
-        }
-    }
-}
-
-/// 신청하려는 강좌가 어긴 규칙 하나. 오류 응답의 `violations`에 담긴다.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct RuleViolationResponse {
-    #[ts(type = "number")]
-    pub course_id: i64,
-    pub rule: ApplicationRuleCode,
-    /// 부딪힌 강좌. 이미 신청한 강좌이거나 함께 고른 강좌.
-    #[ts(type = "number")]
-    pub other_course_id: i64,
-    /// 사유를 적으면 받을 수 있는지(BR-A6, BR-A7).
-    pub can_override: bool,
-}
-
-impl From<RuleViolation> for RuleViolationResponse {
-    fn from(violation: RuleViolation) -> Self {
-        RuleViolationResponse {
-            course_id: violation.course_id,
-            rule: violation.rule.into(),
-            other_course_id: violation.other_course_id,
-            can_override: violation.rule.can_override(),
         }
     }
 }

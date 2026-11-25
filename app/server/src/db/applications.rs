@@ -10,9 +10,9 @@ use sqlx::{SqliteConnection, SqlitePool};
 use time::{Date, OffsetDateTime};
 
 use super::application_priorities::{self, ChangeTarget};
-use super::lotteries::decode_error;
 use super::selection_results::{CourseResultError, course_result_in, next_additional};
 use crate::infra::clock;
+use crate::infra::db::decode_error;
 use crate::infra::db::timestamp_text;
 
 /// 유효한 신청의 상태(BR-A 머리말). 탈락·포기는 규칙 계산과 인원에서 빠진다.

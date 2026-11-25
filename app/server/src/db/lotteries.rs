@@ -8,7 +8,7 @@ use baeum_domain::{Capacity, LotterySeed, LotteryVersion, Personal, allocate};
 use sqlx::{SqliteConnection, SqlitePool};
 use time::OffsetDateTime;
 
-use crate::infra::db::timestamp_text;
+use crate::infra::db::{decode_error, timestamp_text};
 
 /// 강좌 한 줄에서 선발 단계를 읽는 SELECT 칸. 강좌 테이블은 `c`.
 macro_rules! stage_columns {
@@ -448,11 +448,6 @@ impl From<EntrantRow> for Entrant {
             guaranteed: row.guaranteed,
         }
     }
-}
-
-/// 테이블 CHECK가 막는 값을 만났다. DB가 망가진 것이다.
-pub(super) fn decode_error(message: &str) -> sqlx::Error {
-    sqlx::Error::Decode(message.into())
 }
 
 #[cfg(test)]

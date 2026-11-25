@@ -10,10 +10,10 @@ use baeum_domain::{Capacity, Gender, Personal, RosterColumn, RosterSpec};
 use sqlx::SqlitePool;
 use time::{Date, OffsetDateTime};
 
-use super::lotteries::decode_error;
 use super::selection_results::{CourseResultError, ResultMember, course_result_in};
+use crate::features::courses::repository::course_name;
 use crate::features::members::repository::gender_from_text;
-use crate::infra::db::timestamp_text;
+use crate::infra::db::{decode_error, timestamp_text};
 
 /// 선발 결과(BR-P2). 게시용은 포기를 넣지 않는다(BR-P3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -164,15 +164,6 @@ struct DetailRow {
     phone_number: String,
     birth_date: Option<Date>,
     gender: Option<String>,
-}
-
-/// 화면의 강좌 이름과 같다: 과목, 수준, 반을 띄어 잇는다.
-pub(crate) fn course_name(subject: &str, level: Option<&str>, section: Option<&str>) -> String {
-    [Some(subject), level, section]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .join(" ")
 }
 
 /// 내보내기 기록을 남긴다(BR-P11). 새 기록의 id를 돌려준다.
@@ -337,15 +328,5 @@ mod tests {
                 1
             )
         );
-    }
-
-    #[test]
-    fn course_name_skips_missing_parts() {
-        assert_eq!(
-            course_name("요가", Some("초급"), Some("1반")),
-            "요가 초급 1반"
-        );
-        assert_eq!(course_name("서예", None, Some("A")), "서예 A");
-        assert_eq!(course_name("탁구", None, None), "탁구");
     }
 }

@@ -15,11 +15,12 @@ use baeum_domain::{Action, ContactResult, Reason};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::applications::{field_error, require_term};
 use crate::db::selection_changes::{self, ChangeSelectionError};
 use crate::db::selection_results::{self, CourseResultError};
 use crate::features::auth::middleware::CurrentStaff;
+use crate::features::terms::handler::require_term;
 use crate::http::error::ApiError;
+use crate::http::error::field_error;
 
 use json::{
     ClosedCourseListResponse, ClosedCourseResponse, ContactRequest, CorrectWithdrawalRequest,

@@ -14,11 +14,11 @@ use baeum_domain::{Action, RosterChoice, RosterColumn, RosterError, RosterKind, 
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::applications::field_error;
 use crate::db::rosters;
 use crate::features::auth::middleware::CurrentStaff;
 use crate::features::terms::repository as terms;
 use crate::http::error::ApiError;
+use crate::http::error::field_error;
 use crate::roster_xlsx;
 
 use json::RosterExportRequest;

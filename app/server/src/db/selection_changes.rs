@@ -7,7 +7,7 @@ use baeum_domain::{Capacity, ContactResult, WithdrawnFrom, open_seats};
 use sqlx::{SqliteConnection, SqlitePool};
 use time::OffsetDateTime;
 
-use super::lotteries::decode_error;
+use crate::infra::db::decode_error;
 use crate::infra::db::timestamp_text;
 
 /// 선발 결과를 바꾸지 못했다.

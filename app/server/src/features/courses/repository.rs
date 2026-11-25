@@ -391,9 +391,17 @@ pub async fn names(pool: &SqlitePool) -> Result<HashMap<i64, String>, sqlx::Erro
     Ok(rows
         .into_iter()
         .map(|(id, subject, level, section)| {
-            let name =
-                crate::db::rosters::course_name(&subject, level.as_deref(), section.as_deref());
+            let name = course_name(&subject, level.as_deref(), section.as_deref());
             (id, name)
         })
         .collect())
+}
+
+/// 화면의 강좌 이름과 같다: 과목, 수준, 반을 띄어 잇는다.
+pub(crate) fn course_name(subject: &str, level: Option<&str>, section: Option<&str>) -> String {
+    [Some(subject), level, section]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join(" ")
 }

@@ -18,10 +18,10 @@ use crate::db::applications::{
     self, CoursePriorities, DeleteApplicationError, NewApplications, SubmitError,
 };
 use crate::features::auth::middleware::CurrentStaff;
-use crate::features::terms::repository as terms;
-use crate::http::error::{ApiError, FieldError};
+use crate::features::terms::handler::require_term;
+use crate::http::error::{ApiError, RuleViolationResponse, field_error};
 
-pub use json::{AdditionalOutcomeResponse, RuleViolationResponse};
+pub use json::AdditionalOutcomeResponse;
 use json::{
     ApplicationCountListResponse, ApplicationCountResponse, ApplicationListResponse,
     ApplicationResponse, DeleteApplicationRequest, ListApplicationsParams,
@@ -201,26 +201,9 @@ pub async fn set_priority_reasons(
     }))
 }
 
-/// 학기가 있어야 한다.
-pub(super) async fn require_term(db: &SqlitePool, term_id: i64) -> Result<(), ApiError> {
-    terms::get(db, term_id)
-        .await
-        .map_err(ApiError::internal)?
-        .ok_or(ApiError::TermNotFound)
-        .map(|_| ())
-}
-
 /// 사유 칸을 확인한다. 비었으면 `None`, 너무 길면 `field` 칸의 422.
 fn parse_reason(input: Option<&str>, field: &'static str) -> Result<Option<Reason>, ApiError> {
     Reason::parse(input.unwrap_or("")).map_err(|error| field_error(field, error.to_string()))
-}
-
-/// 칸 하나가 틀렸다는 422.
-pub(super) fn field_error(field: &str, message: String) -> ApiError {
-    ApiError::InvalidInput(vec![FieldError {
-        field: field.to_owned(),
-        message,
-    }])
 }
 
 impl From<SubmitError> for ApiError {
