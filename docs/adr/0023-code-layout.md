@@ -209,3 +209,9 @@ auth와 직원을 옮기기 전에(#90, 2026-11-25) 이렇게 정했다.
 - 변경 알림 스트림(`/api/changes`)은 열려 있는 동안 세션과 기기를 다시 확인하므로 auth에 둔다. `http/changes.rs`에는 알림 보내기만 남는다.
 - 직원 역할의 JSON 타입(`RoleCode`)은 로그인 응답과 직원 응답이 같이 쓴다. `auth`와 `staff`가 서로 부르지 않게 auth에 둔다.
 - 의존 방향 표의 "`staff`의 PIN 확인"은 "`auth`(로그인한 직원, PIN 확인)"로 읽고, "`setup` → `staff`(입력 확인)"를 더한다.
+
+신청·추첨·선발 결과·명단을 옮기기 전에(#92, 2026-11-25) 이렇게 정했다.
+
+- 위의 "`lotteries` → `applications`"는 실제 코드와 반대였다. 추첨은 우선 배정 사유를 SQL로 읽을 뿐 신청 코드를 부르지 않고, 신청이 추첨을 부른다(우선 배정 사유를 바꾸면 진행 중인 추첨을 취소한다). 의존 방향 표는 이렇게 읽는다: `applications` → `lotteries`, `selection_results`. `selection_results` → `lotteries`. `rosters` → `selection_results`, `members`, `courses`, `terms`. `lotteries` → `terms`.
+- 우선 배정 사유 붙이기(`db/application_priorities.rs`)는 `features/applications/repository/priorities.rs`에, 포기·연락 기록(`db/selection_changes.rs`)은 `features/selection_results/repository/changes.rs`에 둔다. 따로 요청 주소가 없고 그 기능의 요청이 처리한다.
+- 이번까지는 repository 함수가 트랜잭션을 연다. service 층(트랜잭션을 service로 옮기기)은 신청, 추첨, 선발 결과, auth, 처음 설정을 묶어 따로 PR로 만든다. 옮기기와 로직 나누기를 한 PR에 섞지 않으려는 것이다.
