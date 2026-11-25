@@ -2,8 +2,6 @@
 //!
 //! DB 열기와 공통 도구는 [`crate::infra::db`]에 있다.
 
-pub mod application_priorities;
-pub mod applications;
 pub mod rosters;
 #[cfg(test)]
 pub(crate) mod test_support;

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::db::applications::{ApplicationRecord, CourseCount, Submitted};
+use super::repository::{ApplicationRecord, CourseCount, Submitted};
 use crate::features::selection_results::dto::AdditionalOutcomeResponse;
 use crate::http::error::ApplicationRuleCode;
 use crate::infra::db::timestamp_text;

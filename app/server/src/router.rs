@@ -6,7 +6,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use axum::extract::FromRef;
 use axum::http::{HeaderName, HeaderValue, Method, header};
-use axum::routing::{delete, get, post, put};
+use axum::routing::{get, post, put};
 use axum::{Router, middleware};
 use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
@@ -14,13 +14,13 @@ use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::backup::Backups;
 use crate::features::{
-    access_logs, auth, courses, devices, lotteries, members, priority_reasons, rooms,
+    access_logs, applications, auth, courses, devices, lotteries, members, priority_reasons, rooms,
     selection_results, setup, staff, subjects, terms,
 };
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::version;
 use crate::infra::version::Version;
-use crate::server::{applications, backups, handover, rosters, run_mode};
+use crate::server::{backups, handover, rosters, run_mode};
 
 /// ADR 0004: 포트 47800 고정.
 pub const PORT: u16 = 47800;
@@ -107,40 +107,13 @@ pub fn router(state: AppState) -> Router {
         .merge(subjects::handler::routes(&notices))
         .merge(terms::handler::routes(&notices))
         .merge(courses::handler::routes(&notices))
-        .route(
-            "/api/terms/{term_id}/applications",
-            notifies(
-                get(applications::list_applications).post(applications::submit_applications),
-                &notices,
-                ChangeKind::Application,
-            ),
-        )
-        .route(
-            "/api/terms/{term_id}/application-counts",
-            get(applications::list_application_counts),
-        )
+        .merge(applications::handler::routes(&notices))
         .merge(lotteries::handler::routes(&notices))
         .route(
             "/api/terms/{term_id}/roster-exports",
             post(rosters::export_roster),
         )
         .merge(selection_results::handler::routes(&notices))
-        .route(
-            "/api/applications/{id}",
-            notifies(
-                delete(applications::delete_application),
-                &notices,
-                ChangeKind::Application,
-            ),
-        )
-        .route(
-            "/api/applications/{id}/priority-reasons",
-            notifies(
-                put(applications::set_priority_reasons),
-                &notices,
-                ChangeKind::Application,
-            ),
-        )
         .merge(staff::handler::routes(&notices))
         .merge(access_logs::handler::routes(&notices))
         .route(
