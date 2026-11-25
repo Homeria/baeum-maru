@@ -22,7 +22,7 @@ use super::dto::{
 };
 use super::middleware::{CurrentDevice, bearer_token, device_token};
 use super::repository;
-use super::service::check_pin;
+use super::service::{self, check_pin};
 use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
 use crate::http::changes::{BACKLOG, ChangeKind, ChangeNotices};
 use crate::http::error::{ApiError, FieldError};
@@ -105,7 +105,7 @@ async fn login(
     let account = check_pin(&db, account, pin, device.id, AccessEvent::LoginFailed, now).await?;
 
     let token = SessionToken::new().map_err(ApiError::internal)?;
-    repository::start(&db, account.id, device.id, &token.hash(), now)
+    service::start(&db, account.id, device.id, &token.hash(), now)
         .await
         .map_err(ApiError::internal)?;
     tracing::info!(staff_id = account.id, "로그인");
@@ -147,7 +147,7 @@ async fn unlock(
     )
     .await?;
 
-    repository::unlock(&db, session.id, account.id, now)
+    service::unlock(&db, session.id, account.id, now)
         .await
         .map_err(ApiError::internal)?;
     tracing::info!(staff_id = account.id, "화면 잠금 풀기");
@@ -159,7 +159,7 @@ async fn unlock(
 /// 세션이 이미 없어도(지워졌거나 증표가 없어도) 성공으로 본다. 앱은 어차피 증표를 버린다.
 async fn logout(State(db): State<SqlitePool>, headers: HeaderMap) -> Result<StatusCode, ApiError> {
     if let Some(token) = bearer_token(&headers) {
-        let ended = repository::end(&db, &token.hash(), OffsetDateTime::now_utc())
+        let ended = service::end(&db, &token.hash(), OffsetDateTime::now_utc())
             .await
             .map_err(ApiError::internal)?;
         if let Some(staff_id) = ended {
@@ -216,7 +216,7 @@ async fn recover(
         .map_err(ApiError::internal)?
         .ok_or(ApiError::WrongRecoveryCode)?;
 
-    let used = repository::use_code(
+    let used = service::use_code(
         &db,
         account.id,
         &stored,
