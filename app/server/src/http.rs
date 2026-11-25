@@ -2,7 +2,6 @@
 //!
 //! 기능(`features`)을 모른다. 기능의 요청 처리 함수가 이것을 쓴다.
 
-pub mod auth;
 pub mod changes;
 pub mod error;
 pub mod paging;

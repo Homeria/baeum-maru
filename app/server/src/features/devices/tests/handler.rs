@@ -8,8 +8,8 @@ use sqlx::SqlitePool;
 use tower_http::set_header::SetRequestHeaderLayer;
 
 use crate::features::access_logs::repository::list_for_test;
+use crate::features::auth::middleware::DEVICE_HEADER;
 use crate::features::devices::repository::{self};
-use crate::http::auth::DEVICE_HEADER;
 use crate::server::test_support::{
     app_as, app_without_staff, delete, from_other_pc, get, json_body, post,
 };

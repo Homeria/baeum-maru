@@ -280,9 +280,11 @@ tracing::info!(application_id = %id, "신청 저장");
 | 곳 | 하는 일 |
 |---|---|
 | `infra/` | DB 열기와 구조 변경, 공통 DB 도구, 시계, 암호화, 데이터 묶음, 백업 파일, 버전. HTTP와 기능을 모른다 |
-| `http/` | 오류 응답, 인증, 쪽 나누기, 변경 알림(SSE), 버전 확인 |
+| `http/` | 오류 응답, 쪽 나누기, 변경 알림 보내기, 버전 확인. 기능을 모른다 |
 | `features/<기능>/` | 기능 하나의 요청 처리, SQL, 요청·응답 모양, 테스트 |
 | `router.rs` | 기능마다 `routes()`를 모으고 인증을 씌운다. 서버를 띄운다 |
+
+- 로그인 확인·기기 확인 미들웨어와 `CurrentStaff` 같은 추출기는 `features/auth/middleware.rs`에 있다. 세션과 기기 증표를 DB에서 찾아야 해서 공통층이 아니라 auth에 둔다. 다른 기능은 로그인한 직원과 PIN 확인을 auth에서 가져온다.
 
 - 기능 폴더 안은 이렇게 둔다.
 
@@ -294,10 +296,10 @@ tracing::info!(application_id = %id, "신청 저장");
 | `service.rs` | 한 요청이 여러 테이블을 한 트랜잭션으로 다룰 때만 둔다. 단순한 기능은 두지 않는다 |
 | `tests.rs` 또는 `tests/` | 아래 "테스트" 참고 |
 
-- `routes()`는 상태 타입을 `S`로 받고 `SqlitePool: FromRef<S>`만 요구한다. 기능 폴더는 `router.rs`의 `AppState`를 모른다. 인증 단계가 다른 주소는 함수를 나눈다(예: `devices::handler::approval_routes()`).
+- `routes()`는 상태 타입을 `S`로 받고 `SqlitePool: FromRef<S>`만 요구한다. 기능 폴더는 `router.rs`의 `AppState`를 모른다. 변경 알림처럼 다른 상태도 꺼내야 하면 그 조건을 더한다. 인증 단계가 다른 주소는 함수를 나눈다(예: `devices::handler::approval_routes()`, `auth::handler::login_routes()`).
 - 요청 처리 함수는 `routes()`만 부르므로 공개하지 않는다. 요청 주소 표의 순서(찾기, 보기, 만들기, 고치기, 지우기)로 둔다.
 - 다른 기능의 SQL을 부를 때는 `use crate::features::terms::repository as terms;`처럼 기능 이름으로 들여온다. 기능끼리 부르는 방향은 ADR 0023의 의존 방향 표에 있는 것만 쓴다.
-- 아직 옮기지 않은 기능(직원, 로그인, 신청, 추첨, 선발 결과, 명단, 백업, 넘기기 등)은 옛 자리인 `db/`(SQL)와 `server/`(요청 처리)에 있다. 기능별로 옮기는 중이다(ADR 0023 구현 메모).
+- 아직 옮기지 않은 기능(신청, 추첨, 선발 결과, 명단, 백업, 넘기기, 실행 모드)은 옛 자리인 `db/`(SQL)와 `server/`(요청 처리)에 있다. 기능별로 옮기는 중이다(ADR 0023 구현 메모).
 - 앱 명령(Tauri 명령)은 `app/launcher/src/commands/`에 둔다. 창, 대화상자, 다시 켜기, 켤 때 맡긴 상태 꺼내기만 하고 나머지는 server의 본체(`handover`, `take_over`, `broken_db`, `run_mode` 등)를 부른다.
 - server는 `lib.rs`에서 앱이 부르는 것만 공개한다. DB 함수와 HTTP 요청 처리는 공개하지 않는다. 앱이 새로 필요한 것이 생기면 안쪽 모듈을 열지 말고 함수 하나를 `pub use`로 내보낸다.
 
@@ -312,7 +314,7 @@ app/server/src/
 ├─ http.rs
 ├─ http/
 │  ├─ error.rs
-│  └─ auth.rs …
+│  └─ changes.rs …
 ├─ features.rs
 └─ features/
    ├─ members.rs

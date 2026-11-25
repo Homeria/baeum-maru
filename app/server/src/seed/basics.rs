@@ -11,9 +11,9 @@ use time::Weekday::{Friday, Monday, Thursday, Tuesday, Wednesday};
 use time::{Date, Duration, OffsetDateTime, Weekday};
 
 use super::{SeedError, fail};
-use crate::db::staff;
 use crate::features::courses::repository as courses;
 use crate::features::rooms::repository as rooms;
+use crate::features::staff::repository as staff;
 use crate::features::subjects::repository as subjects;
 use crate::features::terms::repository as terms;
 use crate::infra::secret::{self, AdminSecrets};
@@ -228,7 +228,7 @@ async fn insert_staff(
     )
     .map_err(fail("관리자"))?;
     let secrets = AdminSecrets::new(admin.pin()).map_err(fail("관리자 PIN"))?;
-    let admin_id = staff::setup(
+    let admin_id = crate::features::setup::repository::setup(
         pool,
         admin.profile().name(),
         &secrets.pin_hash,

@@ -15,11 +15,11 @@ use time::OffsetDateTime;
 use ts_rs::TS;
 
 use crate::backup::Backups;
-use crate::db::staff;
 use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
-use crate::http::auth::{Client, CurrentStaff};
+use crate::features::auth::middleware::{Client, CurrentStaff};
+use crate::features::auth::repository as auth;
+use crate::features::auth::service::check_pin;
 use crate::http::error::ApiError;
-use crate::pin_check::check_pin;
 use crate::run_mode::{self, RunMode};
 
 /// `POST /api/handover` 본문. PIN이 들어 있어 `Debug`를 만들지 않는다.
@@ -46,7 +46,7 @@ pub async fn start_handover(
     let Json(HandoverRequest { pin }) = body?;
     let now = OffsetDateTime::now_utc();
 
-    let account = staff::get_login_account(&db, staff.id)
+    let account = auth::get_login_account(&db, staff.id)
         .await
         .map_err(ApiError::internal)?
         .ok_or(ApiError::StaffNotFound)?;

@@ -1,89 +1,10 @@
-//! `/api/setup`: 처음 설정. 첫 관리자와 복구 코드를 만든다 (BR-K11).
+//! 처음 설정 테스트.
 
-mod json;
-
-use axum::Json;
-use axum::extract::State;
-use axum::extract::rejection::JsonRejection;
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
-use baeum_domain::NewStaff;
-
-use sqlx::SqlitePool;
-use time::OffsetDateTime;
-
-use super::staff::field_name;
-use crate::db::staff::{self, SetupError};
-use crate::http::error::ApiError;
-use crate::infra::secret::AdminSecrets;
-
-use json::{SetupRequest, SetupResponse, SetupStatusResponse};
-
-/// 처음 설정이 필요한지 알려 준다. 화면이 처음 설정과 로그인 중 무엇을 띄울지 정한다.
-pub async fn get_setup_status(
-    State(db): State<SqlitePool>,
-) -> Result<Json<SetupStatusResponse>, ApiError> {
-    let needed = staff::is_setup_needed(&db)
-        .await
-        .map_err(ApiError::internal)?;
-    Ok(Json(SetupStatusResponse { needed }))
-}
-
-/// 첫 관리자와 복구 코드를 만든다. 성공하면 201과 복구 코드를 돌려준다.
-///
-/// 이미 직원이 있으면 409. 복구 코드는 이 응답에서만 보이고 DB에는 해시만 남는다.
-pub async fn setup(
-    State(db): State<SqlitePool>,
-    body: Result<Json<SetupRequest>, JsonRejection>,
-) -> Result<impl IntoResponse, ApiError> {
-    let Json(request) = body?;
-    let admin = NewStaff::parse(request.as_input(), &request.pin)
-        .map_err(|errors| ApiError::invalid_input(errors, field_name))?;
-
-    // 해시는 일부러 느려서, 요청을 받는 스레드를 막지 않게 따로 돌린다.
-    // 다른 스레드로 넘어가므로 admin을 통째로 넘겼다가 돌려받는다
-    let (admin, secrets) = tokio::task::spawn_blocking(move || {
-        let secrets = AdminSecrets::new(admin.pin());
-        (admin, secrets)
-    })
-    .await
-    .map_err(ApiError::internal)?;
-    let secrets = secrets.map_err(ApiError::internal)?;
-
-    let admin_id = staff::setup(
-        &db,
-        admin.profile().name(),
-        &secrets.pin_hash,
-        &secrets.recovery_code_hash,
-        OffsetDateTime::now_utc(),
-    )
-    .await?;
-    tracing::info!(staff_id = admin_id, "처음 설정: 관리자와 복구 코드 만듦");
-
-    Ok((
-        StatusCode::CREATED,
-        Json(SetupResponse {
-            recovery_code: secrets.recovery_code.to_string(),
-        }),
-    ))
-}
-
-impl From<SetupError> for ApiError {
-    fn from(error: SetupError) -> Self {
-        match error {
-            SetupError::AlreadyDone => ApiError::SetupAlreadyDone,
-            SetupError::Db(error) => ApiError::internal(error),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
+mod handler {
+    use axum::http::StatusCode;
+    use baeum_domain::RecoveryCode;
     use serde_json::json;
 
-    use baeum_domain::RecoveryCode;
-
-    use super::*;
     use crate::infra::secret;
     use crate::server::test_support::{app_without_staff, get, json_body, post};
 
@@ -173,5 +94,90 @@ mod tests {
         let response = post(router, "/api/setup", r#"{"name":"관리자"}"#).await;
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+}
+
+mod repository {
+    use baeum_domain::StaffName;
+    use time::OffsetDateTime;
+    use time::macros::datetime;
+
+    use crate::db::test_support::insert_staff;
+    use crate::features::setup::repository::*;
+    use crate::infra::db::open_temp;
+
+    fn now() -> OffsetDateTime {
+        datetime!(2026-11-15 01:02:03 UTC)
+    }
+
+    fn name(input: &str) -> StaffName {
+        StaffName::parse(input).unwrap()
+    }
+
+    #[tokio::test]
+    async fn setup_is_needed_only_until_first_staff() {
+        let (_dir, pool) = open_temp().await;
+        assert!(is_setup_needed(&pool).await.unwrap());
+
+        insert_staff(&pool, "직원1", "staff", None).await.unwrap();
+
+        assert!(!is_setup_needed(&pool).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn setup_saves_admin_and_recovery_code() {
+        let (_dir, pool) = open_temp().await;
+
+        let id = setup(&pool, &name(" 관리 자 "), "pin-hash", "code-hash", now())
+            .await
+            .unwrap();
+
+        let (staff_name, name_key, pin_hash, role, valid_until): (
+            String,
+            String,
+            String,
+            String,
+            Option<String>,
+        ) = sqlx::query_as(
+            "SELECT name, name_key, pin_hash, role, valid_until FROM staff WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(staff_name, "관리 자");
+        assert_eq!(name_key, "관리자");
+        assert_eq!(pin_hash, "pin-hash");
+        assert_eq!(role, "admin");
+        assert_eq!(valid_until, None);
+
+        let code_hash: String = sqlx::query_scalar("SELECT code_hash FROM recovery_code")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(code_hash, "code-hash");
+        assert!(!is_setup_needed(&pool).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn setup_runs_only_once() {
+        let (_dir, pool) = open_temp().await;
+        setup(&pool, &name("관리자"), "pin-hash", "code-hash", now())
+            .await
+            .unwrap();
+
+        let result = setup(&pool, &name("다른관리자"), "pin-2", "code-2", now()).await;
+
+        assert!(matches!(result, Err(SetupError::AlreadyDone)), "{result:?}");
+        let staff_count: i64 = sqlx::query_scalar("SELECT count(*) FROM staff")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(staff_count, 1);
+        let code_hash: String = sqlx::query_scalar("SELECT code_hash FROM recovery_code")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(code_hash, "code-hash");
     }
 }

@@ -14,8 +14,8 @@ use time::OffsetDateTime;
 
 use super::dto::{CourseListResponse, CourseRequest, CourseResponse, CreateCourseResponse};
 use super::repository::{self, MissingReference, SaveCourseError};
+use crate::features::auth::middleware::CurrentStaff;
 use crate::features::terms::repository as terms;
-use crate::http::auth::CurrentStaff;
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::error::ApiError;
 

@@ -13,11 +13,11 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 use ts_rs::TS;
 
-use crate::db::staff;
 use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
-use crate::http::auth::CurrentDevice;
+use crate::features::auth::middleware::CurrentDevice;
+use crate::features::auth::repository as auth;
+use crate::features::auth::service::check_pin;
 use crate::http::error::ApiError;
-use crate::pin_check::check_pin;
 
 /// `POST /api/run-mode/permit` 본문. PIN이 들어 있어 `Debug`를 만들지 않는다.
 #[derive(Deserialize, TS)]
@@ -41,7 +41,7 @@ pub async fn permit(
     let Json(RunModePermitRequest { staff_id, pin }) = body?;
     let now = OffsetDateTime::now_utc();
 
-    let account = staff::get_login_account(&db, staff_id)
+    let account = auth::get_login_account(&db, staff_id)
         .await
         .map_err(ApiError::internal)?
         .ok_or(ApiError::StaffNotFound)?;

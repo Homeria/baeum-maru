@@ -18,14 +18,14 @@ use time::OffsetDateTime;
 use ts_rs::TS;
 
 use crate::backup::inspect::inspect;
-use crate::db::staff;
 use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
+use crate::features::auth::repository as auth;
+use crate::features::auth::service::check_pin;
 use crate::infra::backup_file::name::BackupKind;
 use crate::infra::backup_file::{self, store};
 use crate::infra::clock;
 use crate::infra::db;
 use crate::infra::startup;
-use crate::pin_check::check_pin;
 use crate::run_mode::{self, RunMode, RunModeState};
 
 /// 넘기는 중일 때 켜면서 만든 넘기기 파일. 앱에 맡겨 두고 명령이 꺼내 쓴다.
@@ -179,7 +179,7 @@ pub struct HandedOverAdmin {
 /// 넘긴 PC가 아니거나 DB를 열지 못하면 화면에 보여 줄 문장.
 pub async fn admins(run_mode: &RunModeState) -> Result<Vec<HandedOverAdmin>, String> {
     let pool = open_handed_over(run_mode).await?;
-    let listed = staff::list_for_login(&pool, clock::local_today()).await;
+    let listed = auth::list_for_login(&pool, clock::local_today()).await;
     pool.close().await;
     let choices = listed.map_err(|error| {
         tracing::error!(%error, "관리자 목록을 읽지 못했습니다");
@@ -234,7 +234,7 @@ async fn check_admin_pin(
     pin: String,
     now: OffsetDateTime,
 ) -> Result<i64, String> {
-    let account = staff::get_login_account(pool, staff_id)
+    let account = auth::get_login_account(pool, staff_id)
         .await
         .map_err(|error| {
             tracing::error!(%error, "관리자 계정을 읽지 못했습니다");

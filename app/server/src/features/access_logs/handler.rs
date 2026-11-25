@@ -11,7 +11,7 @@ use sqlx::SqlitePool;
 
 use super::dto::{AccessLogListResponse, AccessLogParams, AccessLogResponse};
 use super::repository;
-use crate::http::auth::CurrentStaff;
+use crate::features::auth::middleware::CurrentStaff;
 use crate::http::changes::ChangeNotices;
 use crate::http::error::ApiError;
 use crate::http::paging::Paging;

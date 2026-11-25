@@ -14,7 +14,7 @@ use time::OffsetDateTime;
 
 use super::dto::{CreateSubjectResponse, SubjectListResponse, SubjectRequest, SubjectResponse};
 use super::repository::{self, SaveSubjectError};
-use crate::http::auth::CurrentStaff;
+use crate::features::auth::middleware::CurrentStaff;
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::error::ApiError;
 

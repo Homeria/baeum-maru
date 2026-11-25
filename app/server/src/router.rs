@@ -14,14 +14,14 @@ use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::backup::Backups;
 use crate::features::{
-    access_logs, courses, devices, members, priority_reasons, rooms, subjects, terms,
+    access_logs, auth, courses, devices, members, priority_reasons, rooms, setup, staff, subjects,
+    terms,
 };
-use crate::http::changes::{self, ChangeKind, ChangeNotices, notifies};
-use crate::http::{auth, version};
+use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
+use crate::http::version;
 use crate::infra::version::Version;
 use crate::server::{
-    applications, backups, handover, login, lotteries, recovery, rosters, run_mode,
-    selection_results, setup, staff,
+    applications, backups, handover, lotteries, rosters, run_mode, selection_results,
 };
 
 /// ADR 0004: 포트 47800 고정.
@@ -30,7 +30,7 @@ pub const PORT: u16 = 47800;
 /// 요청을 받는 주소. 같은 네트워크의 다른 PC도 붙도록 모든 주소에서 받는다(ADR 0001).
 ///
 /// 같은 Wi-Fi의 누구든 요청할 수 있으므로, 승인한 기기가 아니면 승인 요청과 버전 확인 말고는
-/// 받지 않는다(BR-K14, [`auth::require_device`]).
+/// 받지 않는다(BR-K14, [`auth::middleware::require_device`]).
 const LISTEN_ADDR: Ipv4Addr = Ipv4Addr::UNSPECIFIED;
 
 /// 응답을 읽어도 되는 Tauri 창의 주소.
@@ -102,7 +102,7 @@ pub fn router(state: AppState) -> Router {
     let notices = state.changes.clone();
     // BR-K1: 로그인한 요청만 받는다. 데이터를 바꾸는 주소에는 변경 알림을 붙인다 (ADR 0008)
     let signed_in = Router::new()
-        .route("/api/changes", get(changes::stream_changes))
+        .merge(auth::handler::routes())
         .merge(members::handler::routes(&notices))
         .merge(rooms::handler::routes(&notices))
         .merge(priority_reasons::handler::routes(&notices))
@@ -193,26 +193,7 @@ pub fn router(state: AppState) -> Router {
                 ChangeKind::Application,
             ),
         )
-        .route(
-            "/api/staff",
-            notifies(
-                get(staff::list_staff).post(staff::create_staff),
-                &notices,
-                ChangeKind::Staff,
-            ),
-        )
-        .route(
-            "/api/staff/{id}",
-            notifies(
-                get(staff::get_staff).patch(staff::update_staff),
-                &notices,
-                ChangeKind::Staff,
-            ),
-        )
-        .route(
-            "/api/staff/{id}/pin",
-            notifies(post(staff::reset_staff_pin), &notices, ChangeKind::Staff),
-        )
+        .merge(staff::handler::routes(&notices))
         .merge(access_logs::handler::routes(&notices))
         .route(
             "/api/backups",
@@ -239,30 +220,22 @@ pub fn router(state: AppState) -> Router {
         .merge(devices::handler::routes(&notices))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
-            auth::require_session,
+            auth::middleware::require_session,
         ));
 
     // BR-K14: 승인한 기기만 받는다. 기기 확인은 로그인 확인보다 먼저 한다
     // (route_layer는 나중에 붙인 것이 바깥)
     let approved = Router::new()
         // 처음 설정은 직원이 없을 때 하므로 로그인 없이 받는다
-        .route(
-            "/api/setup",
-            get(setup::get_setup_status).post(setup::setup),
-        )
-        // 로그인 화면과 잠긴 화면은 로그인 확인을 거치지 않고 스스로 세션을 본다
-        .route("/api/login/staff", get(login::list_login_staff))
-        .route("/api/login", post(login::login))
-        .route("/api/unlock", post(login::unlock))
-        .route("/api/logout", post(login::logout))
-        // PIN을 잊은 관리자는 로그인하지 못하므로 그대로 받는다
-        .route("/api/recovery", post(recovery::recover))
+        .merge(setup::handler::routes())
+        // 로그인, 잠금 풀기, 로그아웃, 복구는 로그인 확인을 거치지 않는다
+        .merge(auth::handler::login_routes())
         // BR-K17: 로그인 전 화면에서 실행 모드를 바꿀 때 관리자 PIN을 확인한다
         .route("/api/run-mode/permit", post(run_mode::permit))
         .merge(signed_in)
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
-            auth::require_device,
+            auth::middleware::require_device,
         ));
 
     // 버전 확인은 기기 확인보다 먼저 한다
@@ -312,9 +285,9 @@ fn cors() -> CorsLayer {
             header::AUTHORIZATION,
             HeaderName::from_static(version::VERSION_HEADER),
             // 기기 증표 (BR-K14)
-            HeaderName::from_static(auth::DEVICE_HEADER),
+            HeaderName::from_static(auth::middleware::DEVICE_HEADER),
             // 화면이 스스로 한 요청 (BR-K8)
-            HeaderName::from_static(auth::QUIET_HEADER),
+            HeaderName::from_static(auth::middleware::QUIET_HEADER),
         ])
 }
 
@@ -329,7 +302,7 @@ async fn listen(host: Version, db: SqlitePool, backups: Backups) -> Result<(), s
     let addr = SocketAddr::from((LISTEN_ADDR, PORT));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!(%addr, version = crate::infra::version::CURRENT, "서버 시작");
-    // 처리 함수가 요청을 보낸 PC의 주소를 알게 한다 (BR-L6, auth::Client)
+    // 처리 함수가 요청을 보낸 PC의 주소를 알게 한다 (BR-L6, auth::middleware::Client)
     let app = router(AppState::new(host, db, backups))
         .into_make_service_with_connect_info::<SocketAddr>();
     axum::serve(listener, app).await?;
