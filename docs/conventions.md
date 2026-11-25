@@ -39,7 +39,7 @@ Rust는 rustdoc 관례, 화면은 TSDoc 관례를 따른다.
 |---|---|
 | `app/domain`의 공개 항목(`pub`) | 모두 단다. 검사 도구가 강제한다 |
 | `app/server`의 `lib.rs`가 앱에 내놓는 것 | 단다 |
-| `app/ui/src/components/`, `app/ui/src/api/`에서 내보내는 것 | 단다 |
+| `app/ui/src/components/`, `app/ui/src/api/`, `app/ui/src/lib/`에서 내보내는 것 | 단다 |
 | 그 밖의 `app/server`, `app/launcher`, `app/ui/src/features/` | 이해하기 어려운 곳에만 단다 |
 
 ```rust
@@ -346,6 +346,19 @@ app/server/src/
 | 훅, 그 밖의 파일 | `camelCase` | `useHostVersion.ts`, `client.ts` |
 | 폴더 | 소문자 | `components/`, `features/host/` |
 | CSS 클래스 | `camelCase` | `.rowSelected` → `styles.rowSelected` |
+
+- 화면 코드(`app/ui/src/`)의 폴더는 이렇게 나눈다.
+
+| 폴더 | 하는 일 |
+|---|---|
+| `app/` | 첫 화면, 화면 흐름, 전체 CSS |
+| `features/<기능>/` | 기능 하나의 화면 부품과 계산 |
+| `components/` | 여러 기능이 쓰는 화면 부품과 그 CSS |
+| `api/` | 서버와 앱 명령 부르기. `api/generated/`는 ts-rs가 만든다 |
+| `lib/` | 화면도 서버도 모르는 도구(날짜 등). 다른 폴더를 부르지 않는다 |
+
+- 기능 폴더끼리 import가 돌지 않게 한다. 두 기능이 같은 것을 쓰면 둘 다 이미 부르는 쪽(예: 강좌별 인원·단계는 `features/courses/`)이나 `lib/`, `components/`로 옮긴다.
+- 앱 명령은 `api/appCommands.ts`의 `invokeCommand()`로 부른다. 앱이 보낸 실패 문장을 그대로 `Error`로 던진다.
 
 - 이름 붙은 export만 쓴다. `export default`는 쓰지 않는다. ESLint가 막는다.
   - 도구가 default를 요구하는 설정 파일(`vite.config.ts`, `eslint.config.js`)만 예외다.

@@ -1,8 +1,8 @@
-import { invoke } from "@tauri-apps/api/core";
 import { postNoContent } from "./client";
 import type { HandedOverAdmin } from "./generated/HandedOverAdmin";
 import type { HandoverFileResponse } from "./generated/HandoverFileResponse";
 import type { TakeOverPreviewResponse } from "./generated/TakeOverPreviewResponse";
+import { invokeCommand } from "./appCommands";
 
 /**
  * BR-H1: 로그인한 관리자의 PIN으로 호스트 넘기기를 시작한다. 호스트 PC에서만.
@@ -14,7 +14,7 @@ export function startHandover(pin: string): Promise<void> {
 
 /** 넘기는 중에 켜면서 만든 넘기기 파일의 미리보기. 앱에 묻는다. */
 export function handoverFile(): Promise<HandoverFileResponse> {
-  return call<HandoverFileResponse>("handover_file");
+  return invokeCommand<HandoverFileResponse>("handover_file");
 }
 
 /**
@@ -22,34 +22,34 @@ export function handoverFile(): Promise<HandoverFileResponse> {
  * 돌아오지 않는다. 저장 창을 닫으면 `false`.
  */
 export function saveHandoverFile(): Promise<boolean> {
-  return call<boolean>("save_handover_file");
+  return invokeCommand<boolean>("save_handover_file");
 }
 
 /** 넘기지 않고 다시 호스트로 켠다. 성공하면 돌아오지 않는다. */
 export function abortHandover(): Promise<void> {
-  return call<void>("abort_handover");
+  return invokeCommand<void>("abort_handover");
 }
 
 /** 넘긴 PC에서 넘기기를 취소할 수 있는 관리자들(BR-H2). */
 export function handedOverAdmins(): Promise<HandedOverAdmin[]> {
-  return call<HandedOverAdmin[]>("handed_over_admins");
+  return invokeCommand<HandedOverAdmin[]>("handed_over_admins");
 }
 
 /** BR-H2: 관리자 PIN으로 넘기기를 취소하고 다시 호스트로 켠다. 성공하면 돌아오지 않는다. */
 export function cancelHandover(staffId: number, pin: string): Promise<void> {
-  return call<void>("cancel_handover", { staffId, pin });
+  return invokeCommand<void>("cancel_handover", { staffId, pin });
 }
 
 /** 파일 고르기 창으로 넘겨받을 넘기기 파일(`.db`)을 고른다(BR-H3). 창을 닫으면 `null`. */
 export function pickHandoverFile(): Promise<string | null> {
-  return call<string | null>("pick_handover_file");
+  return invokeCommand<string | null>("pick_handover_file");
 }
 
 /** 고른 넘기기 파일의 미리보기와 확인에 쓸 파일 안 관리자들. */
 export function previewTakeOver(
   path: string,
 ): Promise<TakeOverPreviewResponse> {
-  return call<TakeOverPreviewResponse>("preview_take_over", { path });
+  return invokeCommand<TakeOverPreviewResponse>("preview_take_over", { path });
 }
 
 /**
@@ -61,20 +61,5 @@ export function takeOver(
   staffId: number,
   pin: string,
 ): Promise<void> {
-  return call<void>("take_over", { path, staffId, pin });
-}
-
-/** 앱 명령을 부른다. 앱이 보낸 실패 문장은 그대로 `Error`로 던진다. */
-async function call<T>(
-  command: string,
-  args?: Record<string, unknown>,
-): Promise<T> {
-  try {
-    return await invoke<T>(command, args);
-  } catch (failure) {
-    throw new Error(
-      typeof failure === "string" ? failure : "처리하지 못했습니다",
-      { cause: failure },
-    );
-  }
+  return invokeCommand<void>("take_over", { path, staffId, pin });
 }

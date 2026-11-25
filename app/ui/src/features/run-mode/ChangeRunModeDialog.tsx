@@ -5,6 +5,7 @@ import type { RunMode } from "../../api/generated/RunMode";
 import { changeRunMode, permitRunModeChange } from "../../api/runMode";
 import { ConfirmDialog } from "../../components/dialog/ConfirmDialog";
 import formStyles from "../../components/form/form.module.css";
+import { AdminPinFields } from "../auth/AdminPinFields";
 import authStyles from "../auth/auth.module.css";
 
 /** 직원이 고를 수 있는 실행 모드. 넘기기 상태는 넘기기 기능으로만 들어간다(BR-H1). */
@@ -92,48 +93,21 @@ export function ChangeRunModeDialog({
               {admins.error.message}
             </p>
           ) : (
-            <fieldset className={formStyles.field}>
-              <legend className={formStyles.label}>관리자</legend>
-              <div className={authStyles.names}>
-                {admins.data.map((admin) => (
-                  <label key={admin.id} className={authStyles.name}>
-                    <input
-                      type="radio"
-                      name="run-mode-admin"
-                      checked={staffId === admin.id}
-                      onChange={() => {
-                        setStaffId(admin.id);
-                        setMissing(false);
-                      }}
-                    />
-                    {admin.name}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          )}
-          <div className={formStyles.field}>
-            <label htmlFor="run-mode-pin" className={formStyles.label}>
-              PIN
-            </label>
-            <input
-              id="run-mode-pin"
-              className={formStyles.input}
-              type="password"
-              inputMode="numeric"
-              autoComplete="off"
-              maxLength={8}
-              value={pin}
-              onChange={(event) => {
-                setPin(event.target.value);
+            <AdminPinFields
+              idPrefix="run-mode"
+              admins={admins.data}
+              staffId={staffId}
+              onStaffId={(id) => {
+                setStaffId(id);
                 setMissing(false);
               }}
+              pin={pin}
+              onPin={(value) => {
+                setPin(value);
+                setMissing(false);
+              }}
+              missing={missing}
             />
-          </div>
-          {missing && (
-            <p className={formStyles.fieldError}>
-              관리자를 고르고 PIN을 넣어 주세요
-            </p>
           )}
         </div>
       )}

@@ -1,7 +1,5 @@
 import type { CourseLotteryResponse } from "../../api/generated/CourseLotteryResponse";
-import type { CourseStageResponse } from "../../api/generated/CourseStageResponse";
 import type { EntrantResponse } from "../../api/generated/EntrantResponse";
-import type { SelectionStageCode } from "../../api/generated/SelectionStageCode";
 
 /**
  * 추첨 화면에서 신청자 목록을 섞어 보여 주는 간격(밀리초).
@@ -9,13 +7,6 @@ import type { SelectionStageCode } from "../../api/generated/SelectionStageCode"
  * 보여 주기만 할 뿐 결과와 상관없다(ADR 0016). 설정 기능이 생기면 옮긴다.
  */
 export const SHUFFLE_INTERVAL_MS = 250;
-
-/** 선발 단계의 화면 이름. */
-export const STAGE_LABELS: Record<SelectionStageCode, string> = {
-  not_drawn: "추첨 전",
-  drawn: "추첨함",
-  closed: "마감",
-};
 
 /**
  * 추첨 화면의 한 줄. 예: `회원1(12-12345)`
@@ -26,13 +17,6 @@ export function entrantLabel(
   entrant: Pick<EntrantResponse, "memberName" | "memberNo">,
 ): string {
   return `${entrant.memberName}(${entrant.memberNo})`;
-}
-
-/** 강좌 id로 선발 단계를 찾는 표. 목록에 없는 강좌는 찾지 못한다. */
-export function stagesByCourse(
-  stages: readonly CourseStageResponse[],
-): ReadonlyMap<number, SelectionStageCode> {
-  return new Map(stages.map((stage) => [stage.courseId, stage.stage]));
 }
 
 /** 자리 보장 신청(BR-S4). 호스트가 늘 맨 앞에 둔다. */

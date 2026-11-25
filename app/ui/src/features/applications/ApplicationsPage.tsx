@@ -16,12 +16,11 @@ import { MemberList } from "../members/MemberList";
 import { hasSeveralBuildings } from "../rooms/roomFormData";
 import { TermBar } from "../terms/TermBar";
 import { currentTerm } from "../terms/termFormData";
-import { todayText } from "../staff/staffFormData";
+import { todayText } from "../../lib/dates";
 import { useCan } from "../auth/useCan";
-import { stagesByCourse } from "../selection/selectionData";
+import { countsByCourse, stagesByCourse } from "../courses/courseStatusData";
 import {
   additionalByCourse,
-  countsByCourse,
   isTermEnded,
   toggleChoice,
   togglePriority,

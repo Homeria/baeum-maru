@@ -1,6 +1,25 @@
 import { invoke } from "@tauri-apps/api/core";
 
 /**
+ * 앱 명령을 부른다. 앱이 보낸 실패 문장은 그대로 `Error`로 던진다.
+ *
+ * 앱이 문장을 보내지 않으면 "처리하지 못했습니다".
+ */
+export async function invokeCommand<T>(
+  command: string,
+  args?: Record<string, unknown>,
+): Promise<T> {
+  try {
+    return await invoke<T>(command, args);
+  } catch (failure) {
+    throw new Error(
+      typeof failure === "string" ? failure : "처리하지 못했습니다",
+      { cause: failure },
+    );
+  }
+}
+
+/**
  * 파일 고르기 창을 띄워 복원할 백업 파일(`.db`) 경로를 받는다(ADR 0011). 창은 앱이 띄운다.
  *
  * 창을 닫으면 `null`. 실패하면 직원에게 보여 줄 문장을 담은 `Error`를 던진다.

@@ -11,7 +11,6 @@ import {
   resultColumns,
   shuffled,
   splitResult,
-  stagesByCourse,
 } from "./selectionData";
 
 /** 지어낸 신청자 `count`명. */
@@ -50,19 +49,6 @@ describe("entrantLabel", () => {
     expect(entrantLabel({ memberName: "회원1", memberNo: "12-12345" })).toBe(
       "회원1(12-12345)",
     );
-  });
-});
-
-describe("stagesByCourse", () => {
-  test("강좌 id로 단계를 찾는다", () => {
-    const stages = stagesByCourse([
-      { courseId: 1, stage: "drawn" },
-      { courseId: 2, stage: "closed" },
-    ]);
-
-    expect(stages.get(1)).toBe("drawn");
-    expect(stages.get(2)).toBe("closed");
-    expect(stages.get(3)).toBeUndefined();
   });
 });
 

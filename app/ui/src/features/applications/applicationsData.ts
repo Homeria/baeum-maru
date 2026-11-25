@@ -1,5 +1,4 @@
 import type { AdditionalOutcomeResponse } from "../../api/generated/AdditionalOutcomeResponse";
-import type { ApplicationCountResponse } from "../../api/generated/ApplicationCountResponse";
 import type { ClosedCourseResponse } from "../../api/generated/ClosedCourseResponse";
 import type { ApplicationRuleCode } from "../../api/generated/ApplicationRuleCode";
 import type { CoursePrioritiesRequest } from "../../api/generated/CoursePrioritiesRequest";
@@ -15,18 +14,6 @@ export const RULE_LABELS: Record<ApplicationRuleCode, string> = {
   no_time_overlap: "시간 겹침",
   no_same_subject: "같은 과목 중복",
 };
-
-/** 강좌 id로 신청 인원을 찾는 표. 목록에 없는 강좌는 0명이다. */
-export function countsByCourse(
-  counts: readonly ApplicationCountResponse[],
-): ReadonlyMap<number, number> {
-  return new Map(counts.map((count) => [count.courseId, count.count]));
-}
-
-/** 신청 인원과 정원. 예: `12/20` */
-export function countLabel(count: number, capacity: number): string {
-  return `${count}/${capacity}`;
-}
 
 /** 고른 강좌 목록에서 `id`를 넣거나 뺀다. 고른 순서를 지킨다. */
 export function toggleChoice(

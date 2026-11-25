@@ -5,9 +5,9 @@ import type { CourseLotteryResponse } from "../../api/generated/CourseLotteryRes
 import type { EntrantResponse } from "../../api/generated/EntrantResponse";
 import { ConfirmDialog } from "../../components/dialog/ConfirmDialog";
 import formStyles from "../../components/form/form.module.css";
+import { STAGE_LABELS } from "../courses/courseStatusData";
 import {
   SHUFFLE_INTERVAL_MS,
-  STAGE_LABELS,
   drawPool,
   entrantLabel,
   guaranteedOf,
