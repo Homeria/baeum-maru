@@ -3,6 +3,7 @@
 //! 창(Tauri)을 띄우고, 같은 프로세스에서 HTTP 서버를 돌린다.
 
 mod backup;
+mod backup_file;
 mod broken_db;
 mod clock;
 mod data_dir;
@@ -29,7 +30,7 @@ use tracing_subscriber::EnvFilter;
 use time::OffsetDateTime;
 
 use crate::backup::Backups;
-use crate::backup::name::BackupKind;
+use crate::backup_file::name::BackupKind;
 use crate::data_dir::DataDir;
 
 /// 앱을 시작한다. 창을 닫으면 돌아온다.

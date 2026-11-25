@@ -10,10 +10,11 @@ use tauri::{AppHandle, Manager};
 use time::OffsetDateTime;
 use ts_rs::TS;
 
+use crate::backup::inspect::BackupPreview;
 use crate::backup::inspect::inspect;
 use crate::backup::restore::{self, BrokenRestoreError};
 use crate::backup::source::RestoreSource;
-use crate::backup::{self, inspect::BackupPreview, name::BackupName};
+use crate::backup_file::{self, name::BackupName};
 use crate::server::backups::json::{
     BackupKindCode, RestorePreviewResponse, RestoreRequest, local_text,
 };
@@ -104,7 +105,7 @@ pub async fn startup_state(app: AppHandle) -> StartupStateResponse {
             suggestion: None,
         };
     }
-    let (backups, suggestion) = restore::suggest(&backup::dir(&broken.data_dir)).await;
+    let (backups, suggestion) = restore::suggest(&backup_file::dir(&broken.data_dir)).await;
     StartupStateResponse {
         state,
         backups: backups
@@ -175,7 +176,7 @@ fn broken_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 async fn resolve(data_dir: &Path, request: RestoreRequest) -> Result<RestoreSource, String> {
-    RestoreSource::resolve(&backup::dir(data_dir), request.file_name, request.path)
+    RestoreSource::resolve(&backup_file::dir(data_dir), request.file_name, request.path)
         .await
         .map_err(|error| error.to_string())
 }

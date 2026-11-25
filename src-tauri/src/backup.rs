@@ -7,12 +7,9 @@
 //! 기억해 백업 탭에 보여 준다.
 
 pub mod inspect;
-pub mod name;
 pub mod restore;
-pub mod retention;
 pub mod settings;
 pub mod source;
-pub mod store;
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -21,11 +18,12 @@ use std::time::Duration;
 use sqlx::SqlitePool;
 use time::{OffsetDateTime, PrimitiveDateTime};
 
+use crate::backup_file;
+use crate::backup_file::name::{BackupKind, BackupName};
+use crate::backup_file::store::{self, BackupError, StoredBackup};
 use crate::clock;
-use name::{BackupKind, BackupName};
 use restore::{PrepareError, RestoreOutcome};
 use settings::BackupSettings;
-use store::{BackupError, StoredBackup};
 
 /// 두 번째 위치를 바꾸지 못했다.
 #[derive(Debug, thiserror::Error)]
@@ -61,15 +59,8 @@ pub struct SecondLocationStatus {
     pub last_copied_at: Option<PrimitiveDateTime>,
 }
 
-/// 데이터 폴더 안의 백업 폴더 이름(첫 번째 위치).
-const DIR_NAME: &str = "backups";
 /// 켜 둔 채 날이 바뀌었는지 보는 간격.
 const DAILY_CHECK: Duration = Duration::from_secs(10 * 60);
-
-/// 데이터 폴더 `data_dir` 안의 백업 폴더.
-pub fn dir(data_dir: &Path) -> PathBuf {
-    data_dir.join(DIR_NAME)
-}
 
 /// 이 앱의 백업. 요청 처리 함수와 앱 종료 때 함께 쓴다.
 #[derive(Debug, Clone)]
@@ -91,7 +82,7 @@ impl Backups {
         Backups {
             pool,
             data_dir: data_dir.to_owned(),
-            dir: dir(data_dir),
+            dir: backup_file::dir(data_dir),
             settings_file: settings::file(data_dir),
             restore_outcome: None,
             last_failure: Arc::new(Mutex::new(None)),
@@ -371,7 +362,7 @@ mod tests {
         let (dir, pool) = open_temp().await;
         let backups = Backups::new(pool, dir.path());
         // 백업 폴더 자리에 파일이 있어 폴더를 만들 수 없다
-        tokio::fs::write(super::dir(dir.path()), b"not a folder")
+        tokio::fs::write(backup_file::dir(dir.path()), b"not a folder")
             .await
             .unwrap();
         let at = datetime!(2026-11-23 01:00 UTC);
@@ -380,7 +371,7 @@ mod tests {
         let failure = backups.last_failure().unwrap();
         assert_eq!(failure.kind, BackupKind::Exit);
 
-        tokio::fs::remove_file(super::dir(dir.path()))
+        tokio::fs::remove_file(backup_file::dir(dir.path()))
             .await
             .unwrap();
         backups.make(BackupKind::Exit, at).await.unwrap();
@@ -398,11 +389,11 @@ mod tests {
         let missing = backups
             .set_second_location(Some(dir.path().join("없는 폴더")))
             .await;
-        tokio::fs::create_dir_all(super::dir(dir.path()))
+        tokio::fs::create_dir_all(backup_file::dir(dir.path()))
             .await
             .unwrap();
         let same = backups
-            .set_second_location(Some(super::dir(dir.path())))
+            .set_second_location(Some(backup_file::dir(dir.path())))
             .await;
 
         assert!(matches!(relative, Err(SecondLocationError::NotAbsolute)));

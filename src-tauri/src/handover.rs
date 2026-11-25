@@ -19,8 +19,8 @@ use time::OffsetDateTime;
 use ts_rs::TS;
 
 use crate::backup::inspect::inspect;
-use crate::backup::name::BackupKind;
-use crate::backup::{self, store};
+use crate::backup_file::name::BackupKind;
+use crate::backup_file::{self, store};
 use crate::clock;
 use crate::db::access_logs::{self, AccessEvent};
 use crate::db::{self, staff};
@@ -49,7 +49,7 @@ async fn make_file(data_dir: &Path, now: OffsetDateTime) -> Result<PathBuf, Stri
         tracing::error!(?problem, "넘기려는 DB를 열지 못했습니다");
         "DB를 열지 못해 넘기기 파일을 만들지 못했습니다. 넘기지 않고 돌아가 주세요".to_owned()
     })?;
-    let dir = backup::dir(data_dir);
+    let dir = backup_file::dir(data_dir);
     let made = store::create(
         &pool,
         &dir,
@@ -344,9 +344,9 @@ mod tests {
         let handing_over = prepare(dir.path(), NOW).await;
 
         let file = handing_over.file.unwrap();
-        assert!(file.starts_with(backup::dir(dir.path())));
+        assert!(file.starts_with(backup_file::dir(dir.path())));
         assert!(inspect(&file).await.is_ok());
-        let listed = store::list(&backup::dir(dir.path())).await.unwrap();
+        let listed = store::list(&backup_file::dir(dir.path())).await.unwrap();
         assert_eq!(listed[0].name.kind, BackupKind::BeforeHandover);
     }
 

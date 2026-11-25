@@ -31,7 +31,7 @@ use time::{OffsetDateTime, UtcOffset};
 use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
 
-use crate::backup::{self, name::BackupKind, name::BackupName, store::BackupError};
+use crate::backup_file::{self, name::BackupKind, name::BackupName, store::BackupError};
 use crate::clock;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 
@@ -175,9 +175,9 @@ async fn backup_before_migration(
     if !pending {
         return Ok(None);
     }
-    let name = backup::store::create(
+    let name = backup_file::store::create(
         pool,
-        &backup::dir(dir),
+        &backup_file::dir(dir),
         BackupKind::BeforeMigration,
         clock::local_datetime(now),
     )
@@ -267,7 +267,9 @@ mod tests {
         open(dir.path()).await.unwrap();
 
         // 적용할 구조 변경이 없으면 백업하지 않는다. 새 DB도 마찬가지
-        let backups = backup::store::list(&backup::dir(dir.path())).await.unwrap();
+        let backups = backup_file::store::list(&backup_file::dir(dir.path()))
+            .await
+            .unwrap();
         assert!(backups.is_empty());
     }
 
@@ -290,7 +292,9 @@ mod tests {
             name.map(|name| name.kind),
             Some(BackupKind::BeforeMigration)
         );
-        let backups = backup::store::list(&backup::dir(dir.path())).await.unwrap();
+        let backups = backup_file::store::list(&backup_file::dir(dir.path()))
+            .await
+            .unwrap();
         assert_eq!(backups.len(), 1);
     }
 

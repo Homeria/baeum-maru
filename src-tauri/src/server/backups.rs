@@ -239,7 +239,7 @@ mod tests {
 
     use super::super::test_support::{app, app_as, from_approved_pc, get, json_body, post, put};
     use crate::backup::Backups;
-    use crate::backup::name::BackupKind;
+    use crate::backup_file::name::BackupKind;
     use crate::db::test_support::{insert_course, insert_subject, insert_term};
 
     #[tokio::test]
@@ -373,9 +373,12 @@ mod tests {
         let file_name = first_backup(router.clone()).await;
         let elsewhere = tempfile::tempdir().unwrap();
         let copied = elsewhere.path().join("옛 백업.db");
-        tokio::fs::copy(crate::backup::dir(dir.path()).join(&file_name), &copied)
-            .await
-            .unwrap();
+        tokio::fs::copy(
+            crate::backup_file::dir(dir.path()).join(&file_name),
+            &copied,
+        )
+        .await
+        .unwrap();
 
         let from_list = post(
             router.clone(),

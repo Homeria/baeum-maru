@@ -19,8 +19,9 @@ use time::OffsetDateTime;
 use ts_rs::TS;
 
 use crate::backup::inspect::inspect;
-use crate::backup::name::BackupKind;
-use crate::backup::{self, restore, store};
+use crate::backup::{self, restore};
+use crate::backup_file::name::BackupKind;
+use crate::backup_file::{self, store};
 use crate::clock;
 use crate::db::access_logs::{self, AccessEvent};
 use crate::db::{self, data_bundle};
@@ -257,7 +258,7 @@ async fn keep_leftover(data_dir: &Path, now: OffsetDateTime) -> std::io::Result<
     if let Ok(pool) = startup::open_checked(data_dir).await {
         let made = store::create(
             &pool,
-            &backup::dir(data_dir),
+            &backup_file::dir(data_dir),
             BackupKind::BeforeTakeOver,
             clock::local_datetime(now),
         )
@@ -302,14 +303,14 @@ mod tests {
         insert_member(&pool, "00001").await.unwrap();
         let name = store::create(
             &pool,
-            &backup::dir(&old_host),
+            &backup_file::dir(&old_host),
             BackupKind::BeforeHandover,
             datetime!(2026-11-25 09:00),
         )
         .await
         .unwrap();
         pool.close().await;
-        (backup::dir(&old_host).join(name.to_string()), admin)
+        (backup_file::dir(&old_host).join(name.to_string()), admin)
     }
 
     #[tokio::test]
@@ -381,9 +382,9 @@ mod tests {
             .await
             .unwrap();
 
-        let backups = store::list(&backup::dir(&new_pc)).await.unwrap();
+        let backups = store::list(&backup_file::dir(&new_pc)).await.unwrap();
         assert_eq!(backups[0].name.kind, BackupKind::BeforeTakeOver);
-        let kept = inspect(&backup::dir(&new_pc).join(backups[0].name.to_string()))
+        let kept = inspect(&backup_file::dir(&new_pc).join(backups[0].name.to_string()))
             .await
             .unwrap();
         assert_eq!(kept.member_count, 2);

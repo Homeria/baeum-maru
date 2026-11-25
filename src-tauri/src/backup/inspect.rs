@@ -91,8 +91,8 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::backup::name::BackupKind;
-    use crate::backup::store;
+    use crate::backup_file::name::BackupKind;
+    use crate::backup_file::store;
     use crate::db::open_temp;
     use crate::db::test_support::{insert_member, insert_term};
 
