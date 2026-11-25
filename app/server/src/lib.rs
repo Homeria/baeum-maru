@@ -5,18 +5,16 @@
 
 mod db;
 mod features;
-pub mod handover;
 mod http;
 mod infra;
 mod router;
-pub mod run_mode;
 #[cfg(feature = "dev-seed")]
 pub mod seed;
 mod server;
-pub mod take_over;
 
 pub use features::backups::{backup, broken_db};
 pub use features::devices::repository::open_request_count;
+pub use features::handover::{hand_over as handover, run_mode, take_over};
 pub use infra::backup_file::name::BackupKind;
 pub use infra::{startup, version};
 pub use router::serve;

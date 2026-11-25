@@ -6,7 +6,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use axum::extract::FromRef;
 use axum::http::{HeaderName, HeaderValue, Method, header};
-use axum::routing::{get, post};
+use axum::routing::get;
 use axum::{Router, middleware};
 use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
@@ -14,13 +14,12 @@ use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::features::backups::backup::Backups;
 use crate::features::{
-    access_logs, applications, auth, backups, courses, devices, lotteries, members,
+    access_logs, applications, auth, backups, courses, devices, handover, lotteries, members,
     priority_reasons, rooms, rosters, selection_results, setup, staff, subjects, terms,
 };
 use crate::http::changes::ChangeNotices;
 use crate::http::version;
 use crate::infra::version::Version;
-use crate::server::{handover, run_mode};
 
 /// ADR 0004: 포트 47800 고정.
 pub const PORT: u16 = 47800;
@@ -114,7 +113,7 @@ pub fn router(state: AppState) -> Router {
         .merge(staff::handler::routes(&notices))
         .merge(access_logs::handler::routes(&notices))
         .merge(backups::handler::routes(&notices))
-        .route("/api/handover", post(handover::start_handover))
+        .merge(handover::handler::routes())
         .merge(devices::handler::routes(&notices))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
@@ -129,7 +128,7 @@ pub fn router(state: AppState) -> Router {
         // 로그인, 잠금 풀기, 로그아웃, 복구는 로그인 확인을 거치지 않는다
         .merge(auth::handler::login_routes())
         // BR-K17: 로그인 전 화면에서 실행 모드를 바꿀 때 관리자 PIN을 확인한다
-        .route("/api/run-mode/permit", post(run_mode::permit))
+        .merge(handover::handler::permit_routes())
         .merge(signed_in)
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

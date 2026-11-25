@@ -9,6 +9,7 @@ pub(crate) mod auth;
 pub(crate) mod backups;
 pub(crate) mod courses;
 pub(crate) mod devices;
+pub(crate) mod handover;
 pub(crate) mod lotteries;
 pub(crate) mod members;
 pub(crate) mod priority_reasons;
