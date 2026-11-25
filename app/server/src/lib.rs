@@ -10,7 +10,6 @@ mod features;
 pub mod handover;
 mod http;
 mod infra;
-mod pin_check;
 mod roster_xlsx;
 mod router;
 pub mod run_mode;

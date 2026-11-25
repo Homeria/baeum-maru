@@ -2,45 +2,13 @@
 //!
 //! PIN이 들어 있는 요청은 `Debug`를 직접 써서 글자를 가린다.
 
-use baeum_domain::{Role, StaffInput, is_account_locked};
+use baeum_domain::{StaffInput, is_account_locked};
 use serde::{Deserialize, Serialize};
 use time::{Date, OffsetDateTime};
 use ts_rs::TS;
 
 use crate::db::staff::StaffRecord;
-
-/// 역할. BR-K3
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(export)]
-pub enum RoleCode {
-    Admin,
-    Staff,
-    TempStaff,
-    ReadOnly,
-}
-
-impl From<Role> for RoleCode {
-    fn from(role: Role) -> Self {
-        match role {
-            Role::Admin => RoleCode::Admin,
-            Role::Staff => RoleCode::Staff,
-            Role::TempStaff => RoleCode::TempStaff,
-            Role::ReadOnly => RoleCode::ReadOnly,
-        }
-    }
-}
-
-impl From<RoleCode> for Role {
-    fn from(code: RoleCode) -> Self {
-        match code {
-            RoleCode::Admin => Role::Admin,
-            RoleCode::Staff => Role::Staff,
-            RoleCode::TempStaff => Role::TempStaff,
-            RoleCode::ReadOnly => Role::ReadOnly,
-        }
-    }
-}
+use crate::features::auth::dto::RoleCode;
 
 /// `POST /api/staff` 본문. 확인 전이라 글자 그대로다.
 #[derive(Deserialize, TS)]

@@ -46,9 +46,9 @@ pub use roster::{
     mask_member_no, mask_name, mask_phone_number, masked_birth_date,
 };
 pub use staff::{
-    ACCOUNT_LOCK, Action, FailedPin, MAX_FAILED_PINS, NewStaff, Pin, Role, SCREEN_LOCK, StaffError,
-    StaffInput, StaffName, StaffProfile, is_account_locked, is_screen_locked, is_valid_on,
-    record_failed_pin,
+    ACCOUNT_LOCK, Action, FailedPin, MAX_FAILED_PINS, NewStaff, Pin, PinRefusal, Role, SCREEN_LOCK,
+    StaffError, StaffInput, StaffName, StaffProfile, is_account_locked, is_screen_locked,
+    is_valid_on, record_failed_pin,
 };
 pub use subject::{CategoryName, NewSubject, SubjectError, SubjectInput, SubjectName};
 pub use term::{NewTerm, TermError, TermInput, TermName, TermPeriod};

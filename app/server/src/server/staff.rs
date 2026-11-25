@@ -20,7 +20,6 @@ use crate::http::error::ApiError;
 use crate::infra::secret;
 
 use crate::infra::clock::local_today;
-pub use json::RoleCode;
 use json::{
     CreateStaffRequest, CreateStaffResponse, ResetPinRequest, StaffListResponse, StaffResponse,
     UpdateStaffRequest,

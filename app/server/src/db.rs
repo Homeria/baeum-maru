@@ -5,11 +5,9 @@
 pub mod application_priorities;
 pub mod applications;
 pub mod lotteries;
-pub mod recovery;
 pub mod rosters;
 pub mod selection_changes;
 pub mod selection_results;
-pub mod sessions;
 pub mod staff;
 #[cfg(test)]
 pub(crate) mod test_support;

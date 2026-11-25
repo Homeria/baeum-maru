@@ -20,8 +20,7 @@ use crate::http::changes::{self, ChangeKind, ChangeNotices, notifies};
 use crate::http::{auth, version};
 use crate::infra::version::Version;
 use crate::server::{
-    applications, backups, handover, login, lotteries, recovery, rosters, run_mode,
-    selection_results, setup, staff,
+    applications, backups, handover, lotteries, rosters, run_mode, selection_results, setup, staff,
 };
 
 /// ADR 0004: 포트 47800 고정.
@@ -250,13 +249,8 @@ pub fn router(state: AppState) -> Router {
             "/api/setup",
             get(setup::get_setup_status).post(setup::setup),
         )
-        // 로그인 화면과 잠긴 화면은 로그인 확인을 거치지 않고 스스로 세션을 본다
-        .route("/api/login/staff", get(login::list_login_staff))
-        .route("/api/login", post(login::login))
-        .route("/api/unlock", post(login::unlock))
-        .route("/api/logout", post(login::logout))
-        // PIN을 잊은 관리자는 로그인하지 못하므로 그대로 받는다
-        .route("/api/recovery", post(recovery::recover))
+        // 로그인, 잠금 풀기, 로그아웃, 복구는 로그인 확인을 거치지 않는다
+        .merge(crate::features::auth::handler::routes())
         // BR-K17: 로그인 전 화면에서 실행 모드를 바꿀 때 관리자 PIN을 확인한다
         .route("/api/run-mode/permit", post(run_mode::permit))
         .merge(signed_in)

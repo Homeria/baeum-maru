@@ -13,8 +13,8 @@ use ts_rs::TS;
 
 // TODO(#88): 신청 기능을 옮길 때 이 의존(http → 신청)을 없앤다. 지금은 공통층이 신청 응답 타입을 안다
 use crate::infra::db::DeleteError;
-use crate::pin_check::PinRefusal;
 use crate::server::applications::RuleViolationResponse;
+use baeum_domain::PinRefusal;
 
 /// 요청을 처리하지 못했다.
 #[derive(Debug)]
@@ -127,18 +127,6 @@ pub enum ApiError {
     BackupFailed,
     /// DB 같은 내부 문제. 자세한 내용은 로그에만 있다.
     Internal,
-}
-
-/// PIN 확인 거절을 같은 문장의 응답으로 바꾼다.
-impl From<PinRefusal> for ApiError {
-    fn from(refusal: PinRefusal) -> Self {
-        match refusal {
-            PinRefusal::WrongPin => ApiError::WrongPin,
-            PinRefusal::AccountLocked => ApiError::AccountLocked,
-            PinRefusal::AccountUnavailable => ApiError::AccountUnavailable,
-            PinRefusal::Internal => ApiError::Internal,
-        }
-    }
 }
 
 impl ApiError {

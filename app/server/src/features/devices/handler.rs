@@ -19,13 +19,13 @@ use super::dto::{
     DeviceListResponse, DeviceRequestListResponse, DeviceRequestResponse, DeviceResponse,
 };
 use super::repository::{self, DecideError, RequestError};
-use crate::db::staff;
 use crate::features::access_logs::repository::AccessEvent;
+use crate::features::auth::repository as auth;
+use crate::features::auth::service::check_pin;
 use crate::http::auth::{Client, CurrentDevice, CurrentStaff, device_token};
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::error::{ApiError, FieldError};
 use crate::infra::secret::{self, DeviceToken};
-use crate::pin_check::check_pin;
 
 /// 승인받지 않은 기기가 승인을 요청하고 결과를 보는 주소 (BR-K15). 기기 확인과 로그인 확인 바깥에 들어간다.
 pub(crate) fn approval_routes<S>() -> Router<S>
@@ -147,7 +147,7 @@ async fn approve_device(
     let Json(ApproveDeviceRequest { pin }) = body?;
     let now = OffsetDateTime::now_utc();
 
-    let account = staff::get_login_account(&db, current.id)
+    let account = auth::get_login_account(&db, current.id)
         .await
         .map_err(ApiError::internal)?
         .ok_or(ApiError::LoginRequired)?;

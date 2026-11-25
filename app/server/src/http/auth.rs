@@ -17,7 +17,7 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use super::error::ApiError;
-use crate::db::sessions;
+use crate::features::auth::repository as sessions;
 use crate::features::devices::repository as devices;
 use crate::infra::secret::{DeviceToken, SessionToken};
 

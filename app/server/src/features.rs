@@ -4,6 +4,7 @@
 //! 기능끼리 부르는 방향은 ADR 0023의 의존 방향 표에 있는 것만 쓴다.
 
 pub(crate) mod access_logs;
+pub(crate) mod auth;
 pub(crate) mod courses;
 pub(crate) mod devices;
 pub(crate) mod members;
