@@ -9,6 +9,7 @@ use time::macros::datetime;
 use crate::db::test_support::insert_staff;
 use crate::features::access_logs::repository::list_for_test;
 use crate::features::auth::repository::find_approved;
+use crate::features::devices::error::*;
 use crate::features::devices::repository::*;
 use crate::infra::db::open_temp;
 

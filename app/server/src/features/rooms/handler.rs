@@ -13,7 +13,8 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use super::dto::{CreateRoomResponse, RoomListResponse, RoomRequest, RoomResponse};
-use super::repository::{self, SaveRoomError};
+use super::error::SaveRoomError;
+use super::repository;
 use crate::features::auth::middleware::CurrentStaff;
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::error::ApiError;

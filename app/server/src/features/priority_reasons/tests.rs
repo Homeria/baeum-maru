@@ -136,6 +136,7 @@ mod repository {
         NOW, insert_application, insert_course, insert_member, insert_staff, insert_subject,
         insert_term,
     };
+    use crate::features::priority_reasons::error::*;
     use crate::features::priority_reasons::repository::*;
     use crate::infra::db::{DeleteError, open_temp};
 

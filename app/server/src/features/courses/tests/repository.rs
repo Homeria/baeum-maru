@@ -7,6 +7,7 @@ use time::macros::datetime;
 use time::{OffsetDateTime, Weekday};
 
 use crate::db::test_support::{insert_room, insert_subject, insert_term};
+use crate::features::courses::error::*;
 use crate::features::courses::repository::*;
 use crate::infra::db::open_temp;
 

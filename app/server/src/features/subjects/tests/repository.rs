@@ -6,6 +6,7 @@ use time::OffsetDateTime;
 use time::macros::datetime;
 
 use crate::db::test_support::{insert_course, insert_term};
+use crate::features::subjects::error::*;
 use crate::features::subjects::repository::*;
 use crate::infra::db::{DeleteError, open_temp};
 

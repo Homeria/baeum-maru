@@ -13,7 +13,8 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use super::dto::{CourseListResponse, CourseRequest, CourseResponse, CreateCourseResponse};
-use super::repository::{self, MissingReference, SaveCourseError};
+use super::error::{MissingReference, SaveCourseError};
+use super::repository;
 use crate::features::auth::middleware::CurrentStaff;
 use crate::features::terms::repository as terms;
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};

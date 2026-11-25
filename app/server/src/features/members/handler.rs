@@ -16,7 +16,8 @@ use super::dto::{
     CreateMemberResponse, MemberListItem, MemberListResponse, MemberRequest, MemberResponse,
     SearchMembersParams,
 };
-use super::repository::{self, SaveMemberError};
+use super::error::SaveMemberError;
+use super::repository;
 use crate::features::auth::middleware::CurrentStaff;
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::error::ApiError;
