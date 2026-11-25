@@ -4,13 +4,14 @@
 
 mod access_logs;
 mod applications;
-mod auth;
+pub(crate) mod auth;
 pub(crate) mod backups;
 mod changes;
 mod courses;
 mod devices;
-mod error;
-mod login;
+pub(crate) mod error;
+mod handover;
+pub(crate) mod login;
 mod lotteries;
 mod members;
 mod paging;
@@ -355,6 +356,7 @@ pub fn router(state: AppState) -> Router {
             post(backups::preview_restore),
         )
         .route("/api/backups/restore", post(backups::restore))
+        .route("/api/handover", post(handover::start_handover))
         .route("/api/device-requests", get(devices::list_device_requests))
         .route(
             "/api/device-requests/{id}/approve",

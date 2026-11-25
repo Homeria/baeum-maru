@@ -131,7 +131,7 @@ pub async fn logout(
 ///
 /// 계정을 쓸 수 없거나(BR-K5, BR-K6) 잠겼으면(BR-K7) PIN을 확인하지 않는다.
 /// 실패는 모두 `failed_event`로 접속 기록에 남긴다 (BR-K13).
-pub(super) async fn check_pin(
+pub(crate) async fn check_pin(
     db: &SqlitePool,
     account: LoginAccount,
     pin: String,

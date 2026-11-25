@@ -1,12 +1,14 @@
 import { useState } from "react";
-import type { RunMode } from "../../api/generated/RunMode";
-import { ChangeRunModeDialog } from "./ChangeRunModeDialog";
+import {
+  ChangeRunModeDialog,
+  type ChoosableRunMode,
+} from "./ChangeRunModeDialog";
 import styles from "./runMode.module.css";
 
 /** {@link RunModeSwitch}의 속성. */
 export interface RunModeSwitchProps {
   /** 지금 모드. 다른 쪽으로 바꾸는 버튼을 보여 준다. */
-  current: RunMode;
+  current: ChoosableRunMode;
   /** 관리자 PIN을 확인해야 하는지(BR-K17). */
   needsPin: boolean;
 }

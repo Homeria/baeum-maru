@@ -7,8 +7,11 @@ import { ConfirmDialog } from "../../components/dialog/ConfirmDialog";
 import formStyles from "../../components/form/form.module.css";
 import authStyles from "../auth/auth.module.css";
 
+/** 직원이 고를 수 있는 실행 모드. 넘기기 상태는 넘기기 기능으로만 들어간다(BR-H1). */
+export type ChoosableRunMode = Extract<RunMode, "host" | "remote">;
+
 /** 바꿀 모드마다 묻는 말과 경고. */
-const TEXTS: Record<RunMode, { title: string; warning: string }> = {
+const TEXTS: Record<ChoosableRunMode, { title: string; warning: string }> = {
   host: {
     title: "이 PC를 호스트로 바꿀까요?",
     warning:
@@ -24,7 +27,7 @@ const TEXTS: Record<RunMode, { title: string; warning: string }> = {
 /** {@link ChangeRunModeDialog}의 속성. */
 export interface ChangeRunModeDialogProps {
   /** 바꿀 모드. */
-  target: RunMode;
+  target: ChoosableRunMode;
   /** 관리자 PIN을 확인해야 하는지(BR-K17). 지킬 데이터가 아직 없으면 `false`. */
   needsPin: boolean;
   onCancel: () => void;

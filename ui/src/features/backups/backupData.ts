@@ -13,6 +13,7 @@ export const BACKUP_KIND_LABELS: Record<BackupKindCode, string> = {
   before_close: "선발 마감 직전",
   before_migration: "구조 변경 직전",
   before_restore: "복원 직전",
+  before_handover: "데이터 넘기기 직전",
 };
 
 /**

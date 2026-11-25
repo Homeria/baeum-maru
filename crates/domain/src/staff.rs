@@ -107,6 +107,8 @@ pub enum Action {
     /// 기기 승인·거절, 승인한 기기 보기와 승인 취소(BR-K15, BR-K16). 승인·거절은 호스트 PC에서만
     /// 한다는 것은 앱이 따로 확인한다.
     ManageDevices,
+    /// 호스트 넘기기(BR-H1). 호스트 PC에서만 한다는 것은 앱이 따로 확인한다.
+    HandOverHost,
 }
 
 impl Role {
@@ -139,7 +141,8 @@ impl Role {
                 | Action::ManageStaff
                 | Action::ViewAccessLog
                 | Action::ManageBackups
-                | Action::ManageDevices,
+                | Action::ManageDevices
+                | Action::HandOverHost,
             ) => false,
             (Role::Staff, _) => true,
             (Role::TempStaff, Action::EditMembers | Action::TakeApplications) => true,

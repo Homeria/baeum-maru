@@ -23,6 +23,17 @@ pub enum RunMode {
     Host,
     /// 다른 PC의 호스트에 접속한다. 이 PC의 DB는 열지 않는다.
     Remote,
+    /// 호스트를 넘기는 중이다(BR-H1). 서버 없이 DB만 열어 넘기기 파일을 만든다.
+    HandingOver,
+    /// 호스트를 넘겼다(BR-H1). DB를 열지 않고, 넘기기 취소나 접속 모드로 바꾸기만 한다.
+    HandedOver,
+}
+
+impl RunMode {
+    /// 직원이 처음 고르기와 모드 바꾸기로 고를 수 있는 모드. 넘기기 상태는 넘기기 기능으로만 들어간다.
+    pub fn is_choosable(self) -> bool {
+        matches!(self, RunMode::Host | RunMode::Remote)
+    }
 }
 
 /// 파일에 적는 모양. 나중에 칸이 늘어도 읽을 수 있게 객체로 둔다.
@@ -110,6 +121,9 @@ pub fn choose_run_mode(
     state: State<'_, RunModeState>,
     mode: RunMode,
 ) -> Result<(), String> {
+    if !mode.is_choosable() {
+        return Err("고를 수 없는 실행 모드입니다".to_owned());
+    }
     if state.mode.is_some() {
         // 바꾸기는 관리자 PIN을 확인하는 다른 길로만 한다 (BR-K17)
         return Err("실행 모드가 이미 정해져 있습니다. 앱을 다시 켜 주세요".to_owned());
@@ -138,8 +152,8 @@ pub fn change_run_mode(
 ) -> Result<(), String> {
     match state.mode {
         None => return Err("아직 실행 모드를 고르지 않았습니다".to_owned()),
-        Some(current) if current == mode => {
-            return Err("이미 그 모드입니다".to_owned());
+        Some(current) if !can_change(current, mode) => {
+            return Err("그 모드로 바꿀 수 없습니다".to_owned());
         }
         Some(_) => {}
     }
@@ -151,9 +165,47 @@ pub fn change_run_mode(
     app.restart();
 }
 
+/// `from`에서 `to`로 바꾸기 명령으로 바꿀 수 있는지.
+///
+/// 넘긴 PC를 다시 호스트로 쓰려면 PIN을 넣는 넘기기 취소(BR-H2)로만 한다. 넘기는 중인 PC는
+/// 그 화면에서 넘기지 않고 돌아가기로만 나온다.
+fn can_change(from: RunMode, to: RunMode) -> bool {
+    matches!(
+        (from, to),
+        (RunMode::Host, RunMode::Remote)
+            | (RunMode::Remote, RunMode::Host)
+            | (RunMode::HandedOver, RunMode::Remote)
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn br_h1_handover_states_are_not_chosen_by_hand() {
+        assert!(!RunMode::HandingOver.is_choosable());
+        assert!(!RunMode::HandedOver.is_choosable());
+        assert!(!can_change(RunMode::Host, RunMode::HandedOver));
+        assert!(!can_change(RunMode::Remote, RunMode::HandingOver));
+    }
+
+    #[test]
+    fn br_h2_handed_over_pc_goes_back_to_host_only_by_cancel() {
+        assert!(can_change(RunMode::HandedOver, RunMode::Remote));
+        assert!(!can_change(RunMode::HandedOver, RunMode::Host));
+        assert!(!can_change(RunMode::HandingOver, RunMode::Host));
+    }
+
+    #[test]
+    fn remembers_handed_over() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(db::file(dir.path()), "").unwrap();
+
+        save(dir.path(), RunMode::HandedOver).unwrap();
+
+        assert_eq!(resolve(dir.path()), Some(RunMode::HandedOver));
+    }
 
     #[test]
     fn undecided_on_fresh_pc() {
