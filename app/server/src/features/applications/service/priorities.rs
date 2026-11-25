@@ -7,27 +7,10 @@ use std::collections::BTreeSet;
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
+use crate::features::applications::error::SetPrioritiesError;
 use crate::features::applications::repository::priorities as repository;
 use crate::features::lotteries::repository::cancel_active_run;
 use crate::infra::db::timestamp_text;
-
-/// 사유를 바꾸지 못했다.
-#[derive(Debug, thiserror::Error)]
-pub enum SetPrioritiesError {
-    #[error("신청을 찾지 못했습니다")]
-    NotFound,
-    /// 유효한 신청(접수됨, 당첨, 대기)이 아니다. 확정은 마감 뒤라 여기 오지 않는다.
-    #[error("우선 배정을 바꿀 수 없는 신청입니다")]
-    NotChangeable,
-    /// BR-S13: 선발 마감 뒤에는 바꿀 수 없다.
-    #[error("선발을 마감한 강좌입니다")]
-    Closed,
-    /// 목록에 없는 사유. 그 사이 지워졌을 수 있다.
-    #[error("목록에 없는 사유를 골랐습니다")]
-    ReasonNotFound(Vec<i64>),
-    #[error("우선 배정을 바꾸지 못했습니다: {0}")]
-    Db(#[from] sqlx::Error),
-}
 
 /// 사유를 바꾼 결과.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

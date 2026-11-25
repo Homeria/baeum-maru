@@ -8,6 +8,7 @@ use sqlx::{ConnectOptions, Connection};
 use time::macros::datetime;
 
 use crate::db::test_support::{insert_member, insert_term};
+use crate::features::backups::error::InspectError;
 use crate::features::backups::service::inspect::*;
 use crate::infra::backup_file::name::BackupKind;
 use crate::infra::backup_file::store;

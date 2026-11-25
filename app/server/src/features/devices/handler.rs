@@ -18,7 +18,8 @@ use super::dto::{
     ApprovalRequest, ApprovalRequestResponse, ApprovalStatusResponse, ApproveDeviceRequest,
     DeviceListResponse, DeviceRequestListResponse, DeviceRequestResponse, DeviceResponse,
 };
-use super::repository::{self, DecideError, RequestError};
+use super::error::{DecideError, RequestError};
+use super::repository;
 use crate::features::access_logs::repository::AccessEvent;
 use crate::features::auth::middleware::{Client, CurrentDevice, CurrentStaff, device_token};
 use crate::features::auth::repository as auth;

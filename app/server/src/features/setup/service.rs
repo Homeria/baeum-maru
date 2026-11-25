@@ -4,18 +4,9 @@ use baeum_domain::StaffName;
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
+use super::error::SetupError;
 use super::repository;
 use crate::infra::db::timestamp_text;
-
-/// 처음 설정을 하지 못했다.
-#[derive(Debug, thiserror::Error)]
-pub enum SetupError {
-    /// BR-K11: 처음 설정은 직원이 하나도 없을 때 한 번만 한다.
-    #[error("이미 처음 설정을 마쳤습니다")]
-    AlreadyDone,
-    #[error("처음 설정을 저장하지 못했습니다: {0}")]
-    Db(#[from] sqlx::Error),
-}
 
 /// BR-K11: 첫 관리자와 복구 코드를 함께 저장하고 관리자의 `id`를 돌려준다.
 ///

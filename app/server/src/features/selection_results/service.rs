@@ -4,7 +4,8 @@ pub(crate) mod changes;
 
 use sqlx::SqlitePool;
 
-use super::repository::{self, ClosedCourse, CourseResultError};
+use super::error::CourseResultError;
+use super::repository::{self, ClosedCourse};
 use crate::infra::db::decode_error;
 
 /// 학기에서 선발을 마감한 강좌들의 인원. 강좌 id 순서.

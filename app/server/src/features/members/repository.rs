@@ -4,28 +4,8 @@ use baeum_domain::{Gender, NewMember, Personal};
 use sqlx::SqlitePool;
 use time::{Date, OffsetDateTime};
 
-use crate::infra::db::{DeleteError, is_unique_violation, timestamp_text};
-
-/// 회원을 저장하거나 고치지 못했다.
-#[derive(Debug, thiserror::Error)]
-pub enum SaveMemberError {
-    /// BR-M2: 회원번호는 겹치지 않는다.
-    #[error("이미 있는 회원번호입니다")]
-    DuplicateMemberNo,
-    #[error("회원을 저장하지 못했습니다: {0}")]
-    Db(sqlx::Error),
-}
-
-impl From<sqlx::Error> for SaveMemberError {
-    fn from(error: sqlx::Error) -> Self {
-        // members에서 UNIQUE는 member_no 하나뿐이다
-        if is_unique_violation(&error) {
-            SaveMemberError::DuplicateMemberNo
-        } else {
-            SaveMemberError::Db(error)
-        }
-    }
-}
+use super::error::SaveMemberError;
+use crate::infra::db::{DeleteError, timestamp_text};
 
 /// 확인을 통과한 새 회원을 저장하고 새 `id`를 돌려준다.
 ///

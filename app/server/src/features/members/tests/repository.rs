@@ -6,6 +6,7 @@ use sqlx::SqlitePool;
 use time::macros::{date, datetime};
 use time::{Date, OffsetDateTime};
 
+use crate::features::members::error::*;
 use crate::features::members::repository::*;
 use crate::infra::db::open_temp;
 

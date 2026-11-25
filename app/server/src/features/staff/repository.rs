@@ -5,6 +5,7 @@ use baeum_domain::{NewStaff, Role, StaffProfile};
 use sqlx::{SqliteConnection, SqlitePool};
 use time::{Date, OffsetDateTime};
 
+use super::error::SaveStaffError;
 use crate::features::auth::repository::decode_role;
 use crate::infra::db::timestamp_text;
 
@@ -67,12 +68,13 @@ pub async fn get(pool: &SqlitePool, id: i64) -> Result<Option<StaffRecord>, sqlx
 }
 
 /// 확인을 통과한 새 직원을 저장하고 새 `id`를 돌려준다. PIN 해시는 부르는 쪽이 만든다.
+/// 이름이 겹치면 [`SaveStaffError::DuplicateName`] (BR-K2).
 pub async fn insert(
     pool: &SqlitePool,
     staff: &NewStaff,
     pin_hash: &str,
     now: OffsetDateTime,
-) -> Result<i64, sqlx::Error> {
+) -> Result<i64, SaveStaffError> {
     let profile = staff.profile();
     let now = timestamp_text(now);
     let result = sqlx::query(

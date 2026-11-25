@@ -20,9 +20,10 @@ use super::dto::{
     ClosedCourseListResponse, ClosedCourseResponse, ContactRequest, CorrectWithdrawalRequest,
     CourseResultResponse, SelectedResponse, WaitingResponse, WithdrawRequest, WithdrawnResponse,
 };
-use super::repository::{self, CourseResultError};
+use super::error::{ChangeSelectionError, CourseResultError};
+use super::repository;
 use super::service;
-use super::service::changes::{self as selection_changes, ChangeSelectionError};
+use super::service::changes as selection_changes;
 use crate::features::auth::middleware::CurrentStaff;
 use crate::features::terms::handler::require_term;
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};

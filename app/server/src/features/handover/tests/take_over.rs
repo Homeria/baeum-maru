@@ -14,6 +14,7 @@ use crate::infra::{data_bundle, db};
 
 use crate::db::test_support::{insert_member, insert_staff};
 use crate::features::access_logs::repository::list_for_test;
+use crate::features::handover::error::TakeOverError;
 use crate::features::handover::service::take_over::*;
 
 const NOW: OffsetDateTime = datetime!(2026-11-25 01:00 UTC);

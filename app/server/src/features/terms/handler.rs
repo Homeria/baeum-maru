@@ -13,7 +13,8 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use super::dto::{CreateTermResponse, TermListResponse, TermRequest, TermResponse};
-use super::repository::{self, SaveTermError};
+use super::error::SaveTermError;
+use super::repository;
 use crate::features::auth::middleware::CurrentStaff;
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::error::ApiError;

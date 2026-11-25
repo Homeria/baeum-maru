@@ -18,8 +18,9 @@ use super::dto::{
     CreateStaffRequest, CreateStaffResponse, ResetPinRequest, StaffListResponse, StaffResponse,
     UpdateStaffRequest,
 };
+use super::error::SaveStaffError;
 use super::repository;
-use super::service::{self, SaveStaffError};
+use super::service;
 use crate::features::auth::middleware::CurrentStaff;
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::error::ApiError;
@@ -106,7 +107,7 @@ async fn create_staff(
     .map_err(ApiError::internal)?;
     let pin_hash = pin_hash.map_err(ApiError::internal)?;
 
-    let id = service::insert(&db, &new_staff, &pin_hash, OffsetDateTime::now_utc()).await?;
+    let id = repository::insert(&db, &new_staff, &pin_hash, OffsetDateTime::now_utc()).await?;
     tracing::info!(staff_id = current.id, target_staff_id = id, "직원 저장");
 
     let location = format!("/api/staff/{id}");

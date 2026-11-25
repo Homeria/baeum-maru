@@ -4,22 +4,13 @@ use baeum_domain::{APPROVAL_WINDOW, ApprovalCode, DeviceName, is_approval_open};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
+use super::error::{DecideError, RequestError};
 use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
 use crate::infra::db::timestamp_text;
 
 /// 한 번에 기다릴 수 있는 승인 요청 수. 같은 Wi-Fi의 누군가가 요청을 쏟아내도 호스트 화면이
 /// 요청으로 덮이지 않게 한다.
 pub const MAX_OPEN_REQUESTS: i64 = 5;
-
-/// 승인 요청을 받지 못했다.
-#[derive(Debug, thiserror::Error)]
-pub enum RequestError {
-    /// 기다리는 요청이 이미 [`MAX_OPEN_REQUESTS`]개다.
-    #[error("기다리는 승인 요청이 너무 많습니다")]
-    TooMany,
-    #[error(transparent)]
-    Db(#[from] sqlx::Error),
-}
 
 /// 승인 요청을 받는다. 요청한 기기는 증표를 이미 받았고, 허락되어야 쓸 수 있다.
 pub async fn request(
@@ -119,16 +110,6 @@ pub async fn open_requests(
     .bind(timestamp_text(now - APPROVAL_WINDOW))
     .fetch_all(pool)
     .await
-}
-
-/// 승인 요청을 허락하거나 거절하지 못했다.
-#[derive(Debug, thiserror::Error)]
-pub enum DecideError {
-    /// 그런 요청이 없거나, 이미 허락·거절했거나, 5분이 지났다.
-    #[error("기다리는 승인 요청이 없습니다")]
-    NotOpen,
-    #[error(transparent)]
-    Db(#[from] sqlx::Error),
 }
 
 /// 기다리는 요청을 허락해 기기를 만들고 접속 기록을 남긴다. 만든 기기의 id를 돌려준다.

@@ -20,11 +20,10 @@ use super::dto::{
     SetPriorityReasonsRequest, SetPriorityReasonsResponse, SubmitApplicationsRequest,
     SubmitApplicationsResponse, SubmittedResponse,
 };
+use super::error::{DeleteApplicationError, SetPrioritiesError, SubmitError};
 use super::repository;
-use super::service::priorities::{self as application_priorities, SetPrioritiesError};
-use super::service::{
-    self, CoursePriorities, DeleteApplicationError, NewApplications, SubmitError,
-};
+use super::service::priorities as application_priorities;
+use super::service::{self, CoursePriorities, NewApplications};
 use crate::features::auth::middleware::CurrentStaff;
 use crate::features::terms::handler::require_term;
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};

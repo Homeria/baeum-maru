@@ -15,6 +15,7 @@ use crate::infra::db::{self};
 use time::macros::datetime;
 
 use crate::db::test_support::{insert_member, insert_staff};
+use crate::features::backups::error::{BrokenRestoreError, PrepareError};
 use crate::features::backups::service::restore::*;
 use crate::infra::db::open_temp;
 

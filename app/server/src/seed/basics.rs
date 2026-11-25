@@ -13,7 +13,7 @@ use time::{Date, Duration, OffsetDateTime, Weekday};
 use super::{SeedError, fail};
 use crate::features::courses::repository as courses;
 use crate::features::rooms::repository as rooms;
-use crate::features::staff::service as staff;
+use crate::features::staff::repository as staff;
 use crate::features::subjects::repository as subjects;
 use crate::features::terms::repository as terms;
 use crate::infra::secret::{self, AdminSecrets};

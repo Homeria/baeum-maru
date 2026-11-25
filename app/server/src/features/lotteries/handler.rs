@@ -15,8 +15,9 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use super::dto::{CourseLotteryResponse, CourseStageResponse, SelectionListResponse};
+use super::error::{CloseSelectionError, RunLotteryError};
 use super::repository;
-use super::service::{self, CloseSelectionError, RunLotteryError};
+use super::service;
 use crate::features::auth::middleware::{Client, CurrentStaff};
 use crate::features::backups::service::Backups;
 use crate::features::terms::handler::require_term;

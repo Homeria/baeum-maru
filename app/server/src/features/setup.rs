@@ -2,6 +2,7 @@
 //! 입력 확인 오류의 칸 이름은 직원 기능에서 가져온다 (ADR 0023).
 
 mod dto;
+pub(crate) mod error;
 pub(crate) mod handler;
 pub(crate) mod repository;
 pub(crate) mod service;

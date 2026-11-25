@@ -175,6 +175,7 @@ mod tests {
 
 - 업무 규칙 crate: 오류 종류를 enum으로 정의하고 `thiserror`로 만든다.
 - 앱 crate: 요청 처리의 오류는 `ApiError` enum으로 모으고, axum `IntoResponse`로 JSON 응답을 만든다.
+- 기능의 오류는 그 기능의 `error.rs`에 둔다. repository도 기능 오류를 바로 돌려줄 수 있다(`?`가 `From<sqlx::Error>`로 바꾼다). 기능 오류를 `ApiError`로 바꾸는 `From`은 handler에 둔다.
 - 앱 시작 코드는 `Box<dyn Error>`로 돌려준다. `anyhow`는 쓰지 않는다.
 - 내부 오류(DB, 파일)는 로그에만 남기고, 화면에는 일반 문구만 보낸다.
 
@@ -295,7 +296,8 @@ tracing::info!(application_id = %id, "신청 저장");
 | `handler.rs` | 요청 처리 함수와 요청 주소(`routes()`). 권한을 보고 service나 repository를 부른다. service가 없는 기능은 여기서 확인 → 저장 순서를 엮는다 |
 | `repository.rs` | SQL. 한 기능 안의 작은 하위 일(우선 배정 사유 붙이기, 포기·연락 기록)은 `repository/` 아래 파일로 둔다. DB에 적는 상태 글자는 되도록 여기 안에 둔다 |
 | `dto.rs` | 요청·응답 JSON 타입과 변환 |
-| `service.rs` | 한 요청이 여러 테이블을 한 트랜잭션으로 다룰 때만 둔다. 트랜잭션을 열고 규칙 확인과 repository를 엮는다. 오류 enum도 여기 둔다. 하위 일은 `service/` 아래 파일로 둔다. 단순한 기능은 두지 않는다 |
+| `error.rs` | 그 기능의 오류 enum과 DB 오류를 기능 오류로 바꾸는 `From<sqlx::Error>`. 같은 기능의 모든 층이 쓴다. 오류 enum이 없는 기능은 두지 않는다 |
+| `service.rs` | 한 요청이 여러 테이블을 한 트랜잭션으로 다룰 때만 둔다. 트랜잭션을 열고 규칙 확인과 repository를 엮는다. 하위 일은 `service/` 아래 파일로 둔다. 단순한 기능은 두지 않는다 |
 | `tests.rs` 또는 `tests/` | 아래 "테스트" 참고 |
 
 - `routes()`는 상태 타입을 `S`로 받고 `SqlitePool: FromRef<S>`만 요구한다. 기능 폴더는 `router.rs`의 `AppState`를 모른다. 변경 알림처럼 다른 상태도 꺼내야 하면 그 조건을 더한다. 인증 단계가 다른 주소는 함수를 나눈다(예: `devices::handler::approval_routes()`, `auth::handler::login_routes()`).
@@ -329,6 +331,7 @@ app/server/src/
       ├─ handler.rs
       ├─ repository.rs
       ├─ dto.rs
+      ├─ error.rs
       ├─ tests.rs
       └─ tests/
          ├─ handler.rs

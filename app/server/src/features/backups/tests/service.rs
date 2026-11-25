@@ -8,6 +8,7 @@ use crate::infra::backup_file::store::{self};
 
 use time::macros::datetime;
 
+use crate::features::backups::error::SecondLocationError;
 use crate::features::backups::service::*;
 use crate::infra::db::open_temp;
 

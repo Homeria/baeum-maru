@@ -12,8 +12,9 @@ use baeum_domain::NewStaff;
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
+use super::error::SetupError;
 use super::repository;
-use super::service::{self, SetupError};
+use super::service;
 use crate::features::staff::handler::field_name;
 use crate::http::error::ApiError;
 use crate::infra::secret::AdminSecrets;

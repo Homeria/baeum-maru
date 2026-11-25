@@ -10,7 +10,7 @@ use time::OffsetDateTime;
 
 use super::inspect::BackupPreview;
 use super::inspect::inspect;
-use super::restore::{self, BrokenRestoreError};
+use super::restore;
 use super::source::RestoreSource;
 use crate::features::backups::dto::{BackupKindCode, local_text};
 /// 화면이 받는 모양. launcher가 이 모듈 이름으로 찾는다.
@@ -19,6 +19,7 @@ pub use crate::features::backups::dto::{
 };
 /// 미리보기와 복원 요청은 로그인한 뒤 백업 탭의 복원과 같은 모양이다.
 pub use crate::features::backups::dto::{RestorePreviewResponse, RestoreRequest};
+use crate::features::backups::error::BrokenRestoreError;
 use crate::infra::backup_file::{self, name::BackupName};
 use crate::infra::startup::DbProblem;
 

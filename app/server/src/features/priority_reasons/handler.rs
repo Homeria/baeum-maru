@@ -18,7 +18,8 @@ use super::dto::{
     CreatePriorityReasonResponse, PriorityReasonListResponse, PriorityReasonRequest,
     PriorityReasonResponse,
 };
-use super::repository::{self, SavePriorityReasonError};
+use super::error::SavePriorityReasonError;
+use super::repository;
 use crate::features::auth::middleware::CurrentStaff;
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::error::ApiError;

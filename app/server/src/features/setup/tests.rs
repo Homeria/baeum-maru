@@ -103,6 +103,7 @@ mod repository {
     use time::macros::datetime;
 
     use crate::db::test_support::insert_staff;
+    use crate::features::setup::error::SetupError;
     use crate::features::setup::repository::*;
     use crate::features::setup::service::*;
     use crate::infra::db::open_temp;
