@@ -1,175 +1,27 @@
-//! 선발 마감 뒤 포기(BR-C3), 대기자 연락 결과(BR-W2~W5), 잘못 처리 바로잡기(BR-W8).
-//!
-//! 바꿀 때마다 선발 결과 변경 기록을 남긴다(BR-W7). 누가 할 수 있는지는 서버가 확인한다.
-//! 읽고 확인한 뒤 쓰므로 모두 `BEGIN IMMEDIATE`로 한다 (ADR 0005).
+//! 선발 마감 뒤 포기, 대기자 연락 결과, 잘못 처리 바로잡기의 SQL. 순서와 규칙 확인은
+//! `service::changes`가 한다.
 
-use baeum_domain::{Capacity, ContactResult, WithdrawnFrom, open_seats};
-use sqlx::{SqliteConnection, SqlitePool};
+use sqlx::SqliteConnection;
 use time::OffsetDateTime;
 
-use crate::infra::db::decode_error;
-use crate::infra::db::timestamp_text;
-
-/// 선발 결과를 바꾸지 못했다.
-#[derive(Debug, thiserror::Error)]
-pub enum ChangeSelectionError {
-    #[error("신청을 찾지 못했습니다")]
-    ApplicationNotFound,
-    /// 포기와 승격은 선발 마감 뒤에만 한다(BR-C3).
-    #[error("선발을 마감하지 않은 강좌입니다")]
-    NotClosed,
-    /// 이 일을 할 수 없는 상태다. 예: 대기자가 아닌 신청에 연락 결과
-    #[error("지금 상태에서는 할 수 없습니다")]
-    WrongStatus,
-    /// 빈자리가 없어 당첨으로 바꿀 수 없다(BR-W3, BR-W8).
-    #[error("빈자리가 없습니다")]
-    NoOpenSeat,
-    #[error("선발 결과를 바꾸지 못했습니다: {0}")]
-    Db(#[from] sqlx::Error),
-}
-
-/// 당첨이나 대기인 신청을 포기로 바꾼다. 사유는 선택이다(BR-C3).
-pub async fn withdraw(
-    pool: &SqlitePool,
-    application_id: i64,
-    reason: Option<&str>,
-    staff_id: i64,
-    now: OffsetDateTime,
-) -> Result<(), ChangeSelectionError> {
-    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
-    let target = target(&mut tx, application_id).await?;
-    let from = match target.status.as_str() {
-        "selected" => "selected",
-        "waitlisted" => "waitlisted",
-        _ => return Err(ChangeSelectionError::WrongStatus),
-    };
-    let change = Change {
-        application_id,
-        kind: "withdrawn",
-        from,
-        to: "withdrawn",
-        reason,
-    };
-    apply(&mut tx, &change, staff_id, now).await?;
-    tx.commit().await?;
-    Ok(())
-}
-
-/// 대기자에게 연락한 결과를 남긴다(BR-W2).
-///
-/// 수락은 빈자리가 있을 때만 당첨으로 바꾼다(BR-W3). 거절은 포기(BR-W4), 연락 안 됨은
-/// 대기 그대로다(BR-W5). 연락할 차례가 아닌 대기자도 받는다.
-pub async fn record_contact(
-    pool: &SqlitePool,
-    application_id: i64,
-    result: ContactResult,
-    staff_id: i64,
-    now: OffsetDateTime,
-) -> Result<(), ChangeSelectionError> {
-    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
-    let target = target(&mut tx, application_id).await?;
-    if target.status != "waitlisted" {
-        return Err(ChangeSelectionError::WrongStatus);
-    }
-    let to = match result {
-        ContactResult::Accepted => {
-            if target.open_seats(&mut tx).await? == 0 {
-                return Err(ChangeSelectionError::NoOpenSeat);
-            }
-            "selected"
-        }
-        ContactResult::Declined => "withdrawn",
-        ContactResult::Unreachable => "waitlisted",
-    };
-    let change = Change {
-        application_id,
-        kind: result.code(),
-        from: "waitlisted",
-        to,
-        reason: None,
-    };
-    apply(&mut tx, &change, staff_id, now).await?;
-    tx.commit().await?;
-    Ok(())
-}
-
-/// 잘못 처리한 포기를 포기 전 상태로 되돌린다(BR-W8). 사유는 필수다.
-///
-/// 당첨이었으면 빈자리가 있을 때만 되돌린다. 대기였으면 원래 대기 순번으로 돌아간다
-/// (대기 순번은 추첨 기록에서 나오므로 따로 할 일이 없다).
-pub async fn correct_withdrawal(
-    pool: &SqlitePool,
-    application_id: i64,
-    reason: &str,
-    staff_id: i64,
-    now: OffsetDateTime,
-) -> Result<(), ChangeSelectionError> {
-    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
-    let target = target(&mut tx, application_id).await?;
-    if target.status != "withdrawn" {
-        return Err(ChangeSelectionError::WrongStatus);
-    }
-    let from: Option<String> = sqlx::query_scalar(
-        "SELECT from_status FROM selection_changes
-         WHERE application_id = ? AND to_status = 'withdrawn'
-         ORDER BY id DESC LIMIT 1",
-    )
-    .bind(application_id)
-    .fetch_optional(&mut *tx)
-    .await?;
-    let withdrawn_from = match from.as_deref() {
-        Some("selected") => WithdrawnFrom::Selected,
-        Some("waitlisted") => WithdrawnFrom::Waitlisted,
-        _ => return Err(decode_error("포기 기록이 없습니다").into()),
-    };
-    if !withdrawn_from.can_restore(target.open_seats(&mut tx).await?) {
-        return Err(ChangeSelectionError::NoOpenSeat);
-    }
-    let change = Change {
-        application_id,
-        kind: "corrected",
-        from: "withdrawn",
-        to: match withdrawn_from {
-            WithdrawnFrom::Selected => "selected",
-            WithdrawnFrom::Waitlisted => "waitlisted",
-        },
-        reason: Some(reason),
-    };
-    apply(&mut tx, &change, staff_id, now).await?;
-    tx.commit().await?;
-    Ok(())
-}
+use crate::infra::db::{decode_error, timestamp_text};
 
 /// 바꿀 신청과 그 강좌.
-struct Target {
-    course_id: i64,
-    capacity: i64,
-    status: String,
+pub(in crate::features::selection_results) struct Target {
+    pub(in crate::features::selection_results) course_id: i64,
+    /// 정원. DB 값 그대로이고 빈자리를 셀 때 확인한다.
+    pub(in crate::features::selection_results) capacity: i64,
+    /// 신청 상태. DB 글자다.
+    pub(in crate::features::selection_results) status: String,
+    /// 선발을 마감한 강좌인지.
+    pub(in crate::features::selection_results) closed: bool,
 }
 
-impl Target {
-    /// 강좌의 지금 빈자리(BR-W1).
-    async fn open_seats(&self, conn: &mut SqliteConnection) -> Result<usize, sqlx::Error> {
-        let selected: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM applications
-             WHERE course_id = ? AND status IN ('selected', 'confirmed')",
-        )
-        .bind(self.course_id)
-        .fetch_one(conn)
-        .await?;
-        let capacity =
-            Capacity::new(self.capacity).map_err(|_| decode_error("정원이 범위 밖입니다"))?;
-        let selected =
-            usize::try_from(selected).map_err(|_| decode_error("인원이 범위 밖입니다"))?;
-        Ok(open_seats(capacity, selected))
-    }
-}
-
-/// 신청을 찾고 선발을 마감한 강좌인지 확인한다.
-async fn target(
+/// 신청과 그 강좌를 읽는다. 없으면 `None`.
+pub(in crate::features::selection_results) async fn target(
     conn: &mut SqliteConnection,
     application_id: i64,
-) -> Result<Target, ChangeSelectionError> {
+) -> Result<Option<Target>, sqlx::Error> {
     let row: Option<(i64, i64, String, bool)> = sqlx::query_as(
         "SELECT c.id, c.capacity, a.status,
                 EXISTS (SELECT 1 FROM selection_closures s WHERE s.course_id = c.id)
@@ -180,29 +32,57 @@ async fn target(
     .fetch_optional(conn)
     .await?;
     let Some((course_id, capacity, status, closed)) = row else {
-        return Err(ChangeSelectionError::ApplicationNotFound);
+        return Ok(None);
     };
-    if !closed {
-        return Err(ChangeSelectionError::NotClosed);
-    }
-    Ok(Target {
+    Ok(Some(Target {
         course_id,
         capacity,
         status,
-    })
+        closed,
+    }))
+}
+
+/// 강좌의 당첨(확정 포함) 인원.
+pub(in crate::features::selection_results) async fn selected_count(
+    conn: &mut SqliteConnection,
+    course_id: i64,
+) -> Result<usize, sqlx::Error> {
+    let selected: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM applications
+         WHERE course_id = ? AND status IN ('selected', 'confirmed')",
+    )
+    .bind(course_id)
+    .fetch_one(conn)
+    .await?;
+    usize::try_from(selected).map_err(|_| decode_error("인원이 범위 밖입니다"))
+}
+
+/// 마지막 포기 기록의 포기 전 상태(DB 글자). 기록이 없으면 `None`.
+pub(in crate::features::selection_results) async fn withdrawn_from_status(
+    conn: &mut SqliteConnection,
+    application_id: i64,
+) -> Result<Option<String>, sqlx::Error> {
+    sqlx::query_scalar(
+        "SELECT from_status FROM selection_changes
+         WHERE application_id = ? AND to_status = 'withdrawn'
+         ORDER BY id DESC LIMIT 1",
+    )
+    .bind(application_id)
+    .fetch_optional(conn)
+    .await
 }
 
 /// 신청 상태 하나의 바뀜. 모두 DB 글자다.
-struct Change<'a> {
-    application_id: i64,
-    kind: &'a str,
-    from: &'a str,
-    to: &'a str,
-    reason: Option<&'a str>,
+pub(in crate::features::selection_results) struct Change<'a> {
+    pub(in crate::features::selection_results) application_id: i64,
+    pub(in crate::features::selection_results) kind: &'a str,
+    pub(in crate::features::selection_results) from: &'a str,
+    pub(in crate::features::selection_results) to: &'a str,
+    pub(in crate::features::selection_results) reason: Option<&'a str>,
 }
 
 /// 신청 상태를 바꾸고 기록을 남긴다(BR-W7).
-async fn apply(
+pub(in crate::features::selection_results) async fn apply(
     conn: &mut SqliteConnection,
     change: &Change<'_>,
     staff_id: i64,
