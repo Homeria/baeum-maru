@@ -202,3 +202,10 @@ ui/src/
 - 기능별 폴더로 옮기는 일은 PR 넷으로 나눈다: 공통층(`infra/`, `http/`, `router.rs`)과 단순한 기능, auth와 직원, 신청·추첨·선발 결과·명단, 백업·넘기기. 다 옮기기 전까지는 옛 자리(`db/`, `server/`)와 새 자리가 함께 있다.
 - 기능 폴더의 테스트는 요청 처리와 SQL을 합쳐 300줄을 넘으면 `tests/handler.rs`, `tests/repository.rs`(service가 있으면 `tests/service.rs`)로 나누고, 그보다 작으면 `tests.rs` 하나에 둔다.
 - 강좌는 학기가 있는지 확인하려고 학기 SQL을 읽는다. 의존 방향 표에 "`courses` → `terms`"를 더한다.
+
+auth와 직원을 옮기기 전에(#90, 2026-11-25) 이렇게 정했다.
+
+- 로그인 확인·기기 확인 미들웨어와 `CurrentStaff`, `CurrentDevice`, `Client`는 `http/`가 아니라 `features/auth/`에 둔다. 세션과 기기 증표를 DB에서 찾아야 해서, `http/`에 두면 공통층이 기능을 부른다. 기기 증표 확인 SQL도 auth가 갖는다.
+- 변경 알림 스트림(`/api/changes`)은 열려 있는 동안 세션과 기기를 다시 확인하므로 auth에 둔다. `http/changes.rs`에는 알림 보내기만 남는다.
+- 직원 역할의 JSON 타입(`RoleCode`)은 로그인 응답과 직원 응답이 같이 쓴다. `auth`와 `staff`가 서로 부르지 않게 auth에 둔다.
+- 의존 방향 표의 "`staff`의 PIN 확인"은 "`auth`(로그인한 직원, PIN 확인)"로 읽고, "`setup` → `staff`(입력 확인)"를 더한다.
