@@ -14,13 +14,14 @@ use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::backup::Backups;
 use crate::features::{
-    access_logs, auth, courses, devices, members, priority_reasons, rooms, staff, subjects, terms,
+    access_logs, auth, courses, devices, members, priority_reasons, rooms, setup, staff, subjects,
+    terms,
 };
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::version;
 use crate::infra::version::Version;
 use crate::server::{
-    applications, backups, handover, lotteries, rosters, run_mode, selection_results, setup,
+    applications, backups, handover, lotteries, rosters, run_mode, selection_results,
 };
 
 /// ADR 0004: 포트 47800 고정.
@@ -226,10 +227,7 @@ pub fn router(state: AppState) -> Router {
     // (route_layer는 나중에 붙인 것이 바깥)
     let approved = Router::new()
         // 처음 설정은 직원이 없을 때 하므로 로그인 없이 받는다
-        .route(
-            "/api/setup",
-            get(setup::get_setup_status).post(setup::setup),
-        )
+        .merge(setup::handler::routes())
         // 로그인, 잠금 풀기, 로그아웃, 복구는 로그인 확인을 거치지 않는다
         .merge(auth::handler::login_routes())
         // BR-K17: 로그인 전 화면에서 실행 모드를 바꿀 때 관리자 PIN을 확인한다

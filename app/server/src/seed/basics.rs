@@ -228,7 +228,7 @@ async fn insert_staff(
     )
     .map_err(fail("관리자"))?;
     let secrets = AdminSecrets::new(admin.pin()).map_err(fail("관리자 PIN"))?;
-    let admin_id = staff::setup(
+    let admin_id = crate::features::setup::repository::setup(
         pool,
         admin.profile().name(),
         &secrets.pin_hash,

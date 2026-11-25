@@ -1,6 +1,6 @@
 //! 직원 SQL 테스트.
 
-use baeum_domain::{NewStaff, Role, StaffName, StaffProfile};
+use baeum_domain::{NewStaff, Role, StaffProfile};
 use time::macros::{date, datetime};
 use time::{Date, OffsetDateTime};
 
@@ -12,77 +12,6 @@ use crate::infra::db::open_temp;
 
 fn now() -> OffsetDateTime {
     datetime!(2026-11-15 01:02:03 UTC)
-}
-
-fn name(input: &str) -> StaffName {
-    StaffName::parse(input).unwrap()
-}
-
-#[tokio::test]
-async fn setup_is_needed_only_until_first_staff() {
-    let (_dir, pool) = open_temp().await;
-    assert!(is_setup_needed(&pool).await.unwrap());
-
-    insert_staff(&pool, "직원1", "staff", None).await.unwrap();
-
-    assert!(!is_setup_needed(&pool).await.unwrap());
-}
-
-#[tokio::test]
-async fn setup_saves_admin_and_recovery_code() {
-    let (_dir, pool) = open_temp().await;
-
-    let id = setup(&pool, &name(" 관리 자 "), "pin-hash", "code-hash", now())
-        .await
-        .unwrap();
-
-    let (staff_name, name_key, pin_hash, role, valid_until): (
-        String,
-        String,
-        String,
-        String,
-        Option<String>,
-    ) = sqlx::query_as(
-        "SELECT name, name_key, pin_hash, role, valid_until FROM staff WHERE id = ?",
-    )
-    .bind(id)
-    .fetch_one(&pool)
-    .await
-    .unwrap();
-    assert_eq!(staff_name, "관리 자");
-    assert_eq!(name_key, "관리자");
-    assert_eq!(pin_hash, "pin-hash");
-    assert_eq!(role, "admin");
-    assert_eq!(valid_until, None);
-
-    let code_hash: String = sqlx::query_scalar("SELECT code_hash FROM recovery_code")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-    assert_eq!(code_hash, "code-hash");
-    assert!(!is_setup_needed(&pool).await.unwrap());
-}
-
-#[tokio::test]
-async fn setup_runs_only_once() {
-    let (_dir, pool) = open_temp().await;
-    setup(&pool, &name("관리자"), "pin-hash", "code-hash", now())
-        .await
-        .unwrap();
-
-    let result = setup(&pool, &name("다른관리자"), "pin-2", "code-2", now()).await;
-
-    assert!(matches!(result, Err(SetupError::AlreadyDone)), "{result:?}");
-    let staff_count: i64 = sqlx::query_scalar("SELECT count(*) FROM staff")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-    assert_eq!(staff_count, 1);
-    let code_hash: String = sqlx::query_scalar("SELECT code_hash FROM recovery_code")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-    assert_eq!(code_hash, "code-hash");
 }
 
 fn profile(name: &str, role: Role, valid_until: Option<Date>) -> StaffProfile {

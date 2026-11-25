@@ -8,7 +8,7 @@ use time::macros::{date, datetime};
 use crate::db::test_support::insert_staff;
 use crate::features::access_logs::repository::{AccessEvent, list_for_test};
 use crate::features::auth::repository::*;
-use crate::features::staff::repository::setup;
+use crate::features::setup::repository::setup;
 use crate::infra::db::{open_temp, timestamp_text};
 
 fn now() -> OffsetDateTime {

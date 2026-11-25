@@ -9,6 +9,5 @@ pub(crate) mod lotteries;
 pub(crate) mod rosters;
 pub(crate) mod run_mode;
 pub(crate) mod selection_results;
-pub(crate) mod setup;
 #[cfg(test)]
 pub(crate) mod test_support;
