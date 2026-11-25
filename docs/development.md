@@ -6,9 +6,9 @@
 
 | 도구 | 버전 | 설치 |
 |---|---|---|
-| Rust | `rust-toolchain.toml`이 정함 | [rustup](https://rustup.rs/). 레포에서 처음 `cargo`를 실행하면 맞는 버전이 깔린다 |
+| Rust | `app/rust-toolchain.toml`이 정함 | [rustup](https://rustup.rs/). `app/`에서 처음 `cargo`를 실행하면 맞는 버전이 깔린다 |
 | Node.js | 22 (`.node-version`) | [nodejs.org](https://nodejs.org/) 또는 버전 관리 도구 |
-| just | 최신 | `cargo install --locked just` |
+| just | 1.38 이상 (레시피의 작업 폴더 지정) | `cargo install --locked just` |
 | cargo-deny | 최신 | `cargo install --locked cargo-deny` |
 
 Linux에서는 Tauri가 쓰는 시스템 라이브러리도 필요하다. Ubuntu/Debian:
@@ -18,6 +18,10 @@ sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev
 ```
 
 다른 운영체제는 [Tauri 문서](https://v2.tauri.app/start/prerequisites/)를 따른다.
+
+## 폴더
+
+앱 코드는 `app/` 아래에 있다(ADR 0023). `app/launcher`(창, 앱 명령), `app/server`(DB, HTTP 서버, 백업), `app/domain`(업무 규칙), `app/ui`(화면). Rust 작업 공간과 빌드 결과(`app/target/`)도 `app/`에 있다. 명령은 저장소 맨 위에서 `just`로 친다.
 
 ## 명령
 
@@ -38,7 +42,7 @@ just reset       # 처음 설치한 상태로: 더미 데이터와 앱 데이터
 
 1. 파일 이름: 대소문자와 확장자(`.ts`, `.tsx`)만 다른 파일이 같은 폴더에 있으면 실패 (Windows에서 같은 파일로 보임)
 2. Rust: 형식(rustfmt), clippy(경고도 실패), 테스트
-3. ts-rs 생성 파일(`ui/src/api/generated/`)을 지우고 다시 만들어 레포에 올린 것과 비교
+3. ts-rs 생성 파일(`app/ui/src/api/generated/`)을 지우고 다시 만들어 레포에 올린 것과 비교
 4. 화면: 형식(Prettier), ESLint, 타입 검사, 테스트(Vitest)
 5. 의존성: cargo-deny (보안 취약점, 라이선스, 출처)
 
@@ -46,7 +50,7 @@ just reset       # 처음 설치한 상태로: 더미 데이터와 앱 데이터
 
 빈 DB에서 화면을 확인하려면 `just seed`로 더미 데이터를 넣는다. 모두 지어낸 데이터다.
 
-- `target/debug/data/`에 새 DB를 만든다. 개발 모드 실행 파일 옆 `data` 폴더라서 `just dev`가 포터블판으로 보고 이 폴더를 쓴다.
+- `app/target/debug/data/`에 새 DB를 만든다. 개발 모드 실행 파일 옆 `data` 폴더라서 `just dev`가 포터블판으로 보고 이 폴더를 쓴다.
 - 원래 데이터 폴더로 돌아가려면 `just seed-clear`로 지운다.
 - 폴더가 비어 있지 않으면 아무것도 넣지 않고 멈춘다. 다시 넣으려면 먼저 지운다.
 - 개발용 `dev-seed` 기능을 켜야 빌드되므로 출시 빌드에는 들어가지 않는다.
@@ -65,7 +69,7 @@ just reset       # 처음 설치한 상태로: 더미 데이터와 앱 데이터
 | 신청 | 강좌마다 신청 없음, 정원 미만, 같음, 조금 넘음, 두 배 가까이. 규칙 예외 3건, 삭제 기록 5건 |
 | 우선 배정 | 사유 "반장", "국가유공자"(둘 다 자리 보장). 강좌마다 첫 신청자가 반장, 요가 초급 1반은 사유 두 개 붙은 신청 포함. 스마트폰 활용 심화는 자리 보장 6명이 정원 5명보다 많아 추첨할 수 없다 |
 
-추첨은 하지 않은 상태다. 데이터를 바꾸려면 `src-tauri/src/seed/`를 고친다.
+추첨은 하지 않은 상태다. 데이터를 바꾸려면 `app/server/src/seed/`를 고친다.
 
 ## 자주 걸리는 것
 

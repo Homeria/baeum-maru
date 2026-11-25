@@ -186,3 +186,11 @@ ui/src/
   5. 화면 폴더 정리
 - `docs/conventions.md`의 "모듈 파일 배치"와 테스트 위치, `justfile`, CI 경로, `docs/development.md`, `AGENTS.md`의 경로를 각 PR에서 함께 고친다.
 - 0006의 "앱 crate 하나에 나머지 전부"는 이 기록으로 대체한다. 업무 규칙 crate의 원칙은 그대로다.
+
+## 구현 메모
+
+#85 뒤에 다시 살펴보고(2026-11-25) 이렇게 정했다.
+
+- `launcher`로 이름을 바꿨을 때 Tauri 도구(`tauri dev`, `tauri build`)가 설정 파일을 찾지 못하거나 Windows 빌드가 깨지면 `app/src-tauri`로 둔다. 구조는 같고 이름만 다르다.
+- 화면 기능 폴더는 파일이 적으면 하위 폴더 없이 평평하게 둔다. 커지면 `components/`, `hooks/`, `data/`로 나눈다. 기준은 화면 폴더를 정리하는 PR에서 실제 파일 수를 보고 정한다. 서버에서 단순한 기능에 service를 두지 않는 것과 같은 생각이다.
+- 로그인, 세션, PIN 확인, 복구 코드는 기능 폴더 하나(`features/auth/`)로 모은다. 다른 기능은 PIN 확인과 세션 확인을 이 폴더의 service로만 부른다. 의존 방향 표의 "`staff`의 PIN 확인"은 "`auth`"로 읽는다. 따로 crate로 떼지 않는 것은 auth가 DB 층을 써야 해서, 떼면 DB 층까지 crate로 나눠야 하기 때문이다.

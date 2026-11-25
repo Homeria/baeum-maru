@@ -1,10 +1,11 @@
 //! 깨진 DB 복원 명령(ADR 0011 DB 손상 시 복원): 켤 때 맡겨 둔 상태 꺼내기와 다시 켜기.
-//! 본체는 [`crate::broken_db`].
+//! 본체는 [`baeum_server::broken_db`].
 
 use tauri::{AppHandle, Manager, State};
 
-use crate::broken_db::{self, BrokenDb, StartupStateResponse};
-use crate::server::backups::{RestorePreviewResponse, RestoreRequest};
+use baeum_server::broken_db::{
+    self, BrokenDb, RestorePreviewResponse, RestoreRequest, StartupStateResponse,
+};
 
 /// 켤 때 DB 상태. 깨졌으면 백업 목록과 권하는 백업도 준다.
 #[tauri::command]

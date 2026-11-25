@@ -1,11 +1,11 @@
-//! 넘겨받기 명령(BR-H3): 다시 켜기. 본체는 [`crate::take_over`].
+//! 넘겨받기 명령(BR-H3): 다시 켜기. 본체는 [`baeum_server::take_over`].
 
 use std::path::Path;
 
 use tauri::{AppHandle, State};
 
-use crate::run_mode::RunModeState;
-use crate::take_over::{self, TakeOverPreviewResponse};
+use baeum_server::run_mode::RunModeState;
+use baeum_server::take_over::{self, TakeOverPreviewResponse};
 
 /// 고른 넘기기 파일을 살펴보고 미리보기와 관리자 목록을 돌려준다.
 ///

@@ -4,7 +4,7 @@ use serde::Serialize;
 use tauri::{AppHandle, State};
 use ts_rs::TS;
 
-use crate::run_mode::{self, RunMode, RunModeState};
+use baeum_server::run_mode::{self, RunMode, RunModeState};
 
 /// `run_mode_state` 명령의 응답.
 #[derive(Debug, Serialize, TS)]

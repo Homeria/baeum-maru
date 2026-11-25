@@ -1,27 +1,30 @@
 # 배움마루 개발 명령. 목록 보기: just
 
-generated := "ui/src/api/generated"
-seed_dir := "target/debug/data"
+# 앱 코드는 app/ 아래에 있다(ADR 0023). cargo는 app/에서 돌고, 경로는 저장소 맨 위 기준이다
+generated := "app/ui/src/api/generated"
+seed_dir := "app/target/debug/data"
 
 default:
     @just --list
 
 # 처음 한 번, 그리고 package-lock.json이 바뀌었을 때
 setup:
-    npm ci --prefix ui
+    npm ci --prefix app/ui
 
 # 개발 모드: Vite와 앱 창을 함께 띄운다
+[working-directory: 'app/launcher']
 dev:
-    ui/node_modules/.bin/tauri dev
+    ../ui/node_modules/.bin/tauri dev
 
 # 실제 앱 빌드 (설치 파일 없이)
+[working-directory: 'app/launcher']
 build:
-    ui/node_modules/.bin/tauri build --no-bundle
+    ../ui/node_modules/.bin/tauri build --no-bundle
 
 # 화면 확인용 더미 데이터를 넣는다. 개발 exe 옆 data 폴더라서 just dev가 포터블판으로 이 폴더를 쓴다.
 # 폴더가 비어 있지 않으면 아무것도 넣지 않고 멈춘다
 seed:
-    cargo run -p baeum-maru --features dev-seed --bin seed -- {{seed_dir}}
+    cargo run --manifest-path app/Cargo.toml -p baeum-server --features dev-seed --bin seed -- {{seed_dir}}
 
 # 더미 데이터 폴더를 지운다. just dev가 다시 원래 데이터 폴더를 쓴다
 seed-clear:
@@ -89,6 +92,7 @@ check-names:
         exit 1
     fi
 
+[working-directory: 'app']
 check-rust:
     cargo fmt --all --check
     cargo clippy --workspace --all-targets --all-features -- -D warnings
@@ -97,16 +101,17 @@ check-rust:
 # [ADR 0012]: ts-rs 생성 파일이 Rust와 다르면 실패
 check-bindings:
     rm -rf {{generated}}
-    cargo test --workspace --quiet export_bindings
+    cd app && cargo test --workspace --quiet export_bindings
     git diff --exit-code -- {{generated}}
     test -z "$(git ls-files --others --exclude-standard -- {{generated}})"
 
 check-ui:
-    npm --prefix ui run --silent format:check
-    npm --prefix ui run --silent lint
-    npm --prefix ui run --silent typecheck
-    npm --prefix ui run --silent test
+    npm --prefix app/ui run --silent format:check
+    npm --prefix app/ui run --silent lint
+    npm --prefix app/ui run --silent typecheck
+    npm --prefix app/ui run --silent test
 
+[working-directory: 'app']
 check-deps:
     cargo deny check
 

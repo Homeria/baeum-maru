@@ -1,11 +1,11 @@
-//! 호스트 넘기기 명령(BR-H1, BR-H2): 저장 창과 다시 켜기. 본체는 [`crate::handover`].
+//! 호스트 넘기기 명령(BR-H1, BR-H2): 저장 창과 다시 켜기. 본체는 [`baeum_server::handover`].
 
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 use time::OffsetDateTime;
 
-use crate::handover::{self, HandedOverAdmin, HandingOver, HandoverFileResponse};
-use crate::run_mode::RunModeState;
+use baeum_server::handover::{self, HandedOverAdmin, HandingOver, HandoverFileResponse};
+use baeum_server::run_mode::RunModeState;
 
 /// 켤 때 만든 넘기기 파일의 미리보기.
 ///

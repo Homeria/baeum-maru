@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 use ts_rs::TS;
 
-use crate::run_mode::{RunMode, RunModeState};
+use baeum_server::run_mode::{RunMode, RunModeState};
 
 /// 기억하는 파일. 데이터 폴더 안에 둔다.
 const FILE: &str = "remote.json";

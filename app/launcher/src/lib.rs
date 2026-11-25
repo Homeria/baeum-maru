@@ -1,33 +1,18 @@
 //! 배움마루 앱.
 //!
-//! 창(Tauri)을 띄우고, 같은 프로세스에서 HTTP 서버를 돌린다.
+//! 창(Tauri)을 띄우고, 같은 프로세스에서 HTTP 서버(`baeum-server`)를 돌린다.
 
-mod backup;
-mod backup_file;
-mod broken_db;
-mod clock;
 mod commands;
 mod data_dir;
-mod db;
-mod handover;
-mod pin_check;
-mod roster_xlsx;
-mod run_mode;
-mod secret;
-#[cfg(feature = "dev-seed")]
-pub mod seed;
-mod server;
-mod startup;
-mod take_over;
-mod version;
 
 use tauri::Manager;
 use tracing_subscriber::EnvFilter;
 
 use time::OffsetDateTime;
 
-use crate::backup::Backups;
-use crate::backup_file::name::BackupKind;
+use baeum_server::backup::Backups;
+use baeum_server::{BackupKind, backup, broken_db, handover, run_mode, startup, version};
+
 use crate::data_dir::DataDir;
 
 /// 앱을 시작한다. 창을 닫으면 돌아온다.
@@ -115,7 +100,7 @@ pub fn run() {
                     tauri::async_runtime::spawn(backups.clone().run_daily());
                     // 호스트 화면의 앱 명령이 쓴다 (host_screen)
                     app.manage(db.clone());
-                    tauri::async_runtime::spawn(server::serve(host, db, backups.clone()));
+                    tauri::async_runtime::spawn(baeum_server::serve(host, db, backups.clone()));
                     // 앱을 끌 때 백업에 쓴다
                     app.manage(backups);
                 }

@@ -37,9 +37,10 @@ Rust는 rustdoc 관례, 화면은 TSDoc 관례를 따른다.
 
 | 위치 | 규칙 |
 |---|---|
-| `crates/domain`의 공개 항목(`pub`) | 모두 단다. 검사 도구가 강제한다 |
-| `ui/src/components/`, `ui/src/api/`에서 내보내는 것 | 단다 |
-| 앱 crate(`src-tauri`), `ui/src/features/` | 이해하기 어려운 곳에만 단다 |
+| `app/domain`의 공개 항목(`pub`) | 모두 단다. 검사 도구가 강제한다 |
+| `app/server`의 `lib.rs`가 앱에 내놓는 것 | 단다 |
+| `app/ui/src/components/`, `app/ui/src/api/`에서 내보내는 것 | 단다 |
+| 그 밖의 `app/server`, `app/launcher`, `app/ui/src/features/` | 이해하기 어려운 곳에만 단다 |
 
 ```rust
 /// 회원이 이 강좌에 신청할 수 있는지 확인한다.
@@ -264,23 +265,31 @@ tracing::info!(application_id = %id, "신청 저장");
 
 - `server.rs` + `server/` 폴더 방식을 쓴다. `mod.rs`는 쓰지 않는다. clippy `mod_module_files`가 막는다.
 - 줄 수가 아니라 하는 일 단위로 나눈다. 같은 파일의 테스트는 길이에 세지 않는다.
-- 기능 하나(회원, 강좌, 신청…)는 세 곳에 나뉜다.
+- Rust 코드는 crate 셋이다(ADR 0023). 의존은 `launcher → server → domain` 한 방향이다.
+
+| crate | 하는 일 |
+|---|---|
+| `app/domain` | 업무 규칙과 확인. DB와 HTTP를 모른다 |
+| `app/server` | DB, HTTP 서버, 백업, 실행 모드 파일, 호스트 넘기기. Tauri를 모른다 |
+| `app/launcher` | 창, 대화상자, 다시 켜기, 켤 때 갈라지기, 앱 명령 |
+
+- 기능 하나(회원, 강좌, 신청…)는 지금 세 곳에 나뉜다. 기능별 폴더로 모으는 일은 다음 PR에서 한다(ADR 0023).
 
 | 곳 | 하는 일 |
 |---|---|
-| `crates/domain/src/member.rs` | 업무 규칙과 확인. DB와 HTTP를 모른다 |
-| `src-tauri/src/db/members.rs` | SQL |
-| `src-tauri/src/server/members.rs` | 요청 처리 함수. 확인 → 저장 순서를 엮는다 |
-| `src-tauri/src/server/members/json.rs` | 요청·응답 JSON 타입과 변환 |
+| `app/domain/src/member.rs` | 업무 규칙과 확인 |
+| `app/server/src/db/members.rs` | SQL |
+| `app/server/src/server/members.rs` | 요청 처리 함수. 확인 → 저장 순서를 엮는다 |
+| `app/server/src/server/members/json.rs` | 요청·응답 JSON 타입과 변환 |
 
 - 요청 처리 함수는 요청 주소 표의 순서(찾기, 보기, 만들기, 고치기, 지우기)로 둔다.
 - 한 요청이 여러 테이블을 한 트랜잭션으로 다루게 되면(접수 등) 그때 순서를 엮는 층을 따로 둘지 정한다.
-- 앱 명령(Tauri 명령)은 `src-tauri/src/commands/`에 둔다. 창, 대화상자, 다시 켜기, 켤 때 맡긴 상태 꺼내기만 하고 나머지는 Tauri를 모르는 모듈(`handover`, `take_over`, `broken_db`, `run_mode` 등)을 부른다.
-- Tauri를 쓰는 곳은 `lib.rs`, `main.rs`, `commands/`뿐이다. 나머지 모듈은 `commands`와 `data_dir`을 부르지 않는다. 다음에 서버 쪽을 따로 crate로 떼기 위한 경계다(ADR 0023).
+- 앱 명령(Tauri 명령)은 `app/launcher/src/commands/`에 둔다. 창, 대화상자, 다시 켜기, 켤 때 맡긴 상태 꺼내기만 하고 나머지는 server의 본체(`handover`, `take_over`, `broken_db`, `run_mode` 등)를 부른다.
+- server는 `lib.rs`에서 앱이 부르는 것만 공개한다. DB 함수와 HTTP 요청 처리는 공개하지 않는다. 앱이 새로 필요한 것이 생기면 안쪽 모듈을 열지 말고 함수 하나를 `pub use`로 내보낸다.
 
 ```text
-src-tauri/src/
-├─ main.rs
+app/server/src/
+├─ lib.rs
 ├─ db.rs
 ├─ db/
 │  └─ members.rs
