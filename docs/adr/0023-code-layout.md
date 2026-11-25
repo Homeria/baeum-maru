@@ -224,3 +224,8 @@ auth와 직원을 옮기기 전에(#90, 2026-11-25) 이렇게 정했다.
 - 호스트 넘기기의 본체 파일은 `features/handover/hand_over.rs`로 한다. `handover/handover.rs`면 같은 이름이 겹치고(clippy `module_inception`), 넘겨받기 `take_over.rs`와 짝이 맞는다. launcher가 부르는 이름 `baeum_server::handover`는 `lib.rs`에서 그대로 내보낸다.
 - 깨진 DB 복원(`broken_db`)은 백업 복원을 쓰므로 `features/backups/`에, 실행 모드 파일(`run_mode`)은 넘기기가 쓰므로 `features/handover/`에 둔다.
 - 백업과 넘기기의 본체(백업 만들기, 복원, 넘기기, 넘겨받기)는 HTTP를 모르고 앱 명령도 부르는 service에 해당한다. 이번에는 파일 이름과 파일 안 테스트를 그대로 옮기고, `service`로 정리하는 일은 service 층 PR에서 한다.
+- 옮긴 뒤 백업·넘기기가 부르는 곳은 이렇다. 위 표보다 넓거나 이름이 다른 것을 적어 둔다.
+  - `handover` → `auth`(PIN 확인, 로그인 확인), `access_logs`, `backups`. 표의 "`staff`의 PIN 확인"은 #91에서 `auth`로 옮겼다.
+  - `backups` → `access_logs`, `auth`(로그인 확인), `courses`(백업 목록에 "추첨 직전" 백업의 강좌 이름을 붙인다).
+  - `lotteries` → `backups`(추첨 직전, 선발 마감 직전 백업. 마감 주소도 추첨 요청 처리에 있다).
+  - 순환은 없다. `backups`는 `handover`와 `lotteries`를 부르지 않는다.

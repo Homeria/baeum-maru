@@ -142,7 +142,9 @@ let count = members.len(); // 회원 수
 - 데이터는 지어낸 것만 쓴다. 가짜인 게 바로 보이는 값을 쓴다. 예: `회원1`, `010-0000-0001`
 - 기능 폴더의 테스트는 그 기능 폴더의 `tests`에 둔다. 요청 처리와 SQL 테스트를 합쳐 300줄을 넘으면 `tests/handler.rs`, `tests/repository.rs`(service가 있으면 `tests/service.rs`)로 나누고, 그보다 작으면 `tests.rs` 하나에 `mod handler { … }`, `mod repository { … }`로 둔다. `repository/` 아래 하위 파일의 테스트는 같은 이름으로 둔다(`repository/changes.rs` → `tests/changes.rs`).
   - 테스트 파일은 시험할 파일 밖에 있으므로 필요한 `use`를 직접 적는다. 비공개 함수를 시험해야 하면 그 함수만 `pub(super)`로 연다.
-- 기능 폴더가 아닌 곳(`infra/`, `http/`, 옛 자리 `server/`)의 테스트는 같은 파일의 `#[cfg(test)] mod tests`에 둔다. 명단의 Excel 만들기(`features/rosters/xlsx/`)도 시트 종류마다 파일이 나뉘고 전용 도우미가 있어 파일 안에 둔다.
+- 기능 폴더가 아닌 곳(`infra/`, `http/`)의 테스트는 같은 파일의 `#[cfg(test)] mod tests`에 둔다. 명단의 Excel 만들기(`features/rosters/xlsx/`)도 시트 종류마다 파일이 나뉘고 전용 도우미가 있어 파일 안에 둔다.
+- 백업과 넘기기의 본체(`backups/backup.rs`·`backup/`, `broken_db.rs`, `handover/hand_over.rs`, `take_over.rs`, `run_mode.rs`)의 테스트는 지금 파일 안에 있다. service 층 PR에서 정리할 때 옮긴다(ADR 0023 구현 메모).
+- domain의 테스트는 개념마다 `<개념>/tests.rs`에 둔다(예: `course.rs`의 `#[cfg(test)] mod tests;` → `course/tests.rs`). 그 파일의 자식 모듈이라 `use super::*;`로 비공개 항목도 시험한다.
 - 요청 주소부터 DB까지 거치는 테스트는 그 기능의 `tests/handler.rs`(또는 `tests.rs`의 `mod handler`)에 둔다. 라우터에 요청을 직접 보내므로(`oneshot`) 요청 처리 함수를 공개하지 않아도 된다.
 - 여러 기능의 테스트가 함께 쓰는 도우미는 `#[cfg(test)]`로 묶어 한곳에 둔다. 요청 보내기와 임시 DB 라우터는 `server/test_support.rs`, 더미 데이터 넣기는 `db/test_support.rs`, 임시 DB 열기는 `infra::db::open_temp`. 두 기능에서 같은 도우미가 생기면 옮긴다.
 - crate의 `tests/` 폴더는 공개 API만으로 시험할 수 있을 때 쓴다.
@@ -299,9 +301,9 @@ tracing::info!(application_id = %id, "신청 저장");
 - `routes()`는 상태 타입을 `S`로 받고 `SqlitePool: FromRef<S>`만 요구한다. 기능 폴더는 `router.rs`의 `AppState`를 모른다. 변경 알림처럼 다른 상태도 꺼내야 하면 그 조건을 더한다. 인증 단계가 다른 주소는 함수를 나눈다(예: `devices::handler::approval_routes()`, `auth::handler::login_routes()`).
 - 요청 처리 함수는 `routes()`만 부르므로 공개하지 않는다. 요청 주소 표의 순서(찾기, 보기, 만들기, 고치기, 지우기)로 둔다.
 - 다른 기능의 SQL을 부를 때는 `use crate::features::terms::repository as terms;`처럼 기능 이름으로 들여온다. 기능끼리 부르는 방향은 ADR 0023의 의존 방향 표에 있는 것만 쓴다.
-- 아직 옮기지 않은 기능(백업, 넘기기, 실행 모드)은 옛 자리인 `server/`에 있다. 기능별로 옮기는 중이다(ADR 0023 구현 메모).
+- 기능은 모두 `features/`에 있다. 옛 자리 `server/`와 `db/`에는 여러 기능이 함께 쓰는 테스트 도우미만 남았다. 어디로 옮길지는 흐름 테스트 PR에서 정한다.
 - 지금은 repository 함수가 트랜잭션을 연다. service 층은 따로 PR로 만든다(ADR 0023 구현 메모).
-- 앱 명령(Tauri 명령)은 `app/launcher/src/commands/`에 둔다. 창, 대화상자, 다시 켜기, 켤 때 맡긴 상태 꺼내기만 하고 나머지는 server의 본체(`handover`, `take_over`, `broken_db`, `run_mode` 등)를 부른다.
+- 앱 명령(Tauri 명령)은 `app/launcher/src/commands/`에 둔다. 창, 대화상자, 다시 켜기, 켤 때 맡긴 상태 꺼내기만 하고 나머지는 server의 본체(`handover`, `take_over`, `broken_db`, `run_mode` 등)를 부른다. 이 이름들은 `features/backups/`, `features/handover/` 안에 있고 `lib.rs`가 같은 이름으로 내보낸다.
 - server는 `lib.rs`에서 앱이 부르는 것만 공개한다. DB 함수와 HTTP 요청 처리는 공개하지 않는다. 앱이 새로 필요한 것이 생기면 안쪽 모듈을 열지 말고 함수 하나를 `pub use`로 내보낸다.
 
 ```text
