@@ -218,3 +218,9 @@ auth와 직원을 옮기기 전에(#90, 2026-11-25) 이렇게 정했다.
 - 명단의 Excel 만들기(`roster_xlsx`)는 그림처럼 맨 위에 두지 않고 `features/rosters/xlsx/`에 둔다. 명단 SQL의 타입을 받아 파일을 만들고 명단 요청 처리가 이것을 불러서, 맨 위에 두면 명단과 서로 부르는 순환이 된다.
 - 추가 신청 결과 응답(`AdditionalOutcomeResponse`)은 선발 결과가 계산하는 값이라 선발 결과의 `dto`에 두고 신청이 가져다 쓴다.
 - 접속 기록과 auth는 기능 단위로 보면 서로 부른다: 접속 기록의 요청 처리는 다른 기능처럼 auth의 로그인 확인을 쓰고, auth의 SQL은 로그인 기록을 남기려고 접속 기록의 SQL을 부른다. 층 단위로는 순환이 없다(`access_logs::handler` → `auth::middleware` → `auth::repository` → `access_logs::repository`, 접속 기록의 repository는 아무것도 부르지 않는다). 그래서 "접속 기록은 다른 기능을 부르지 않는다"는 repository에 대한 말로 읽는다.
+
+백업·넘기기를 옮기기 전에(#94, 2026-11-25) 이렇게 정했다.
+
+- 호스트 넘기기의 본체 파일은 `features/handover/hand_over.rs`로 한다. `handover/handover.rs`면 같은 이름이 겹치고(clippy `module_inception`), 넘겨받기 `take_over.rs`와 짝이 맞는다. launcher가 부르는 이름 `baeum_server::handover`는 `lib.rs`에서 그대로 내보낸다.
+- 깨진 DB 복원(`broken_db`)은 백업 복원을 쓰므로 `features/backups/`에, 실행 모드 파일(`run_mode`)은 넘기기가 쓰므로 `features/handover/`에 둔다.
+- 백업과 넘기기의 본체(백업 만들기, 복원, 넘기기, 넘겨받기)는 HTTP를 모르고 앱 명령도 부르는 service에 해당한다. 이번에는 파일 이름과 파일 안 테스트를 그대로 옮기고, `service`로 정리하는 일은 service 층 PR에서 한다.
