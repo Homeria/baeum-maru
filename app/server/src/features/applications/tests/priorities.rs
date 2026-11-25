@@ -8,9 +8,10 @@ use time::macros::datetime;
 use crate::db::test_support::{
     insert_course, insert_member, insert_priority_reason, insert_staff, insert_subject, insert_term,
 };
-use crate::features::applications::repository::priorities::*;
-use crate::features::applications::repository::{
-    CoursePriorities, NewApplications, SubmitError, list_for_member, submit,
+use crate::features::applications::repository::list_for_member;
+use crate::features::applications::service::priorities::*;
+use crate::features::applications::service::{
+    CoursePriorities, NewApplications, SubmitError, submit,
 };
 use crate::features::lotteries::repository::{SelectionStage, course_lottery};
 use crate::features::lotteries::service as lotteries;

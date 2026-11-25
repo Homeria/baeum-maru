@@ -10,6 +10,7 @@ use crate::db::test_support::{
     insert_staff, insert_subject, insert_term,
 };
 use crate::features::applications::repository::*;
+use crate::features::applications::service::*;
 use crate::infra::db::open_temp;
 
 fn now() -> OffsetDateTime {

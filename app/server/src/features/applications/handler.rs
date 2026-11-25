@@ -20,8 +20,9 @@ use super::dto::{
     SetPriorityReasonsRequest, SetPriorityReasonsResponse, SubmitApplicationsRequest,
     SubmitApplicationsResponse, SubmittedResponse,
 };
-use super::repository::priorities::{self as application_priorities, SetPrioritiesError};
-use super::repository::{
+use super::repository;
+use super::service::priorities::{self as application_priorities, SetPrioritiesError};
+use super::service::{
     self, CoursePriorities, DeleteApplicationError, NewApplications, SubmitError,
 };
 use crate::features::auth::middleware::CurrentStaff;
@@ -137,7 +138,7 @@ async fn submit_applications(
         staff_id: staff.id,
         priorities: &priorities,
     };
-    let submitted = repository::submit(&db, new, OffsetDateTime::now_utc()).await?;
+    let submitted = service::submit(&db, new, OffsetDateTime::now_utc()).await?;
     tracing::info!(
         staff_id = staff.id,
         term_id,
@@ -171,7 +172,7 @@ async fn delete_application(
     let Path(id) = id?;
     let Json(request) = body?;
     let reason = parse_reason(request.reason.as_deref(), "reason")?;
-    repository::delete(
+    service::delete(
         &db,
         id,
         staff.id,
