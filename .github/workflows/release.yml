@@ -27,6 +27,7 @@ jobs:
 
       - name: 버전 읽기
         id: version
+        working-directory: app
         run: |
           $version = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages |
             Where-Object name -eq "baeum-maru" | Select-Object -ExpandProperty version
@@ -40,32 +41,36 @@ jobs:
           }
 
       - name: Rust
+        working-directory: app
         run: rustup toolchain install
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app
 
       - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: npm
-          cache-dependency-path: ui/package-lock.json
+          cache-dependency-path: app/ui/package-lock.json
 
-      - run: npm ci --prefix ui
+      - run: npm ci --prefix app/ui
 
       - name: 빌드
-        run: ui/node_modules/.bin/tauri build --bundles nsis
+        working-directory: app/launcher
+        run: ../ui/node_modules/.bin/tauri build --bundles nsis
 
       # 파일 이름의 한글은 릴리스 첨부에서 깨질 수 있어 영어로 바꾼다
       - name: 설치판과 포터블판 정리
         run: |
           $v = "${{ steps.version.outputs.version }}"
           New-Item -ItemType Directory -Force out | Out-Null
-          Copy-Item target/release/bundle/nsis/*-setup.exe "out/baeum-maru_${v}_x64-setup.exe"
+          Copy-Item app/target/release/bundle/nsis/*-setup.exe "out/baeum-maru_${v}_x64-setup.exe"
 
           # [ADR 0012]: exe 옆에 data 폴더가 있으면 포터블판
           $portable = "portable/baeum-maru"
           New-Item -ItemType Directory -Force "$portable/data" | Out-Null
-          Copy-Item target/release/baeum-maru.exe "$portable/baeum-maru.exe"
+          Copy-Item app/target/release/baeum-maru.exe "$portable/baeum-maru.exe"
           Compress-Archive -Path $portable -DestinationPath "out/baeum-maru_${v}_x64-portable.zip"
           Get-ChildItem out
 

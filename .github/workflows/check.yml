@@ -6,34 +6,18 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "crates/**"
-      - "src-tauri/**"
-      - "ui/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "rust-toolchain.toml"
-      - "clippy.toml"
-      - ".cargo/**"
+      - "app/**"
       - ".node-version"
       - "justfile"
-      - "deny.toml"
       - ".github/workflows/**"
       - "!.github/workflows/site-*.yml"
       - "!**/*.md"
   push:
     branches: [main]
     paths:
-      - "crates/**"
-      - "src-tauri/**"
-      - "ui/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "rust-toolchain.toml"
-      - "clippy.toml"
-      - ".cargo/**"
+      - "app/**"
       - ".node-version"
       - "justfile"
-      - "deny.toml"
       - ".github/workflows/**"
       - "!.github/workflows/site-*.yml"
       - "!**/*.md"
@@ -125,12 +109,14 @@ jobs:
       # rust-toolchain.toml의 버전과 구성 요소를 명시적으로 설치
       - name: Rust
         if: matrix.kind != 'ui'
+        working-directory: app
         run: rustup toolchain install
 
       # 캐시는 main에서만 저장한다. PR은 읽기만 해서 PR마다 1GB씩 쌓이지 않는다.
       - if: matrix.kind == 'rust'
         uses: Swatinem/rust-cache@v2
         with:
+          workspaces: app
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - if: matrix.kind == 'ui'
@@ -138,7 +124,7 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
-          cache-dependency-path: ui/package-lock.json
+          cache-dependency-path: app/ui/package-lock.json
 
       - uses: taiki-e/install-action@v2
         with:
