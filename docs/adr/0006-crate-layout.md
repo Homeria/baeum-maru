@@ -1,6 +1,6 @@
 # 0006. 코드 나누기: 업무 규칙 crate + 앱 crate
 
-- 상태: 채택 (2026-11-14)
+- 상태: 일부 대체됨 ([0023](0023-code-layout.md): 앱 crate를 launcher·server로 나누기)
 - 근거: [업무 규칙](../domain/BUSINESS_RULES.md), [0001](0001-app-form.md), [0005](0005-storage.md)
 
 ## 상황

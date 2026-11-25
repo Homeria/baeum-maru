@@ -15,10 +15,10 @@ use time::OffsetDateTime;
 
 use super::auth::{Client, CurrentDevice, CurrentStaff, device_token};
 use super::error::{ApiError, FieldError};
-use super::login::check_pin;
 use crate::db::access_logs::AccessEvent;
 use crate::db::devices::{self, DecideError, RequestError};
 use crate::db::staff;
+use crate::pin_check::check_pin;
 use crate::secret::{self, DeviceToken};
 
 use json::{
@@ -120,7 +120,7 @@ pub async fn approve_device(
         &db,
         account,
         pin,
-        device,
+        device.id,
         AccessEvent::DeviceApprovalFailed,
         now,
     )

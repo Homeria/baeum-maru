@@ -13,6 +13,7 @@ use ts_rs::TS;
 
 use super::applications::RuleViolationResponse;
 use crate::db::DeleteError;
+use crate::pin_check::PinRefusal;
 
 /// 요청을 처리하지 못했다.
 #[derive(Debug)]
@@ -125,6 +126,18 @@ pub enum ApiError {
     BackupFailed,
     /// DB 같은 내부 문제. 자세한 내용은 로그에만 있다.
     Internal,
+}
+
+/// PIN 확인 거절을 같은 문장의 응답으로 바꾼다.
+impl From<PinRefusal> for ApiError {
+    fn from(refusal: PinRefusal) -> Self {
+        match refusal {
+            PinRefusal::WrongPin => ApiError::WrongPin,
+            PinRefusal::AccountLocked => ApiError::AccountLocked,
+            PinRefusal::AccountUnavailable => ApiError::AccountUnavailable,
+            PinRefusal::Internal => ApiError::Internal,
+        }
+    }
 }
 
 impl ApiError {
@@ -527,21 +540,21 @@ impl IntoResponse for ApiError {
             ApiError::WrongPin => (
                 StatusCode::UNAUTHORIZED,
                 ErrorCode::WrongPin,
-                "PIN이 맞지 않습니다. 5번 연속 틀리면 5분 동안 잠깁니다",
+                PinRefusal::WrongPin.message(),
                 None,
                 Vec::new(),
             ),
             ApiError::AccountLocked => (
                 StatusCode::FORBIDDEN,
                 ErrorCode::AccountLocked,
-                "PIN을 5번 연속 틀려 잠겼습니다. 5분이 지나면 다시 할 수 있습니다",
+                PinRefusal::AccountLocked.message(),
                 Some("BR-K7"),
                 Vec::new(),
             ),
             ApiError::AccountUnavailable => (
                 StatusCode::FORBIDDEN,
                 ErrorCode::AccountUnavailable,
-                "사용 중지했거나 유효기간이 지난 계정입니다. 관리자에게 물어 주세요",
+                PinRefusal::AccountUnavailable.message(),
                 None,
                 Vec::new(),
             ),

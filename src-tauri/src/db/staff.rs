@@ -1,11 +1,14 @@
 //! 직원 계정과 복구 코드 저장.
 
-use baeum_domain::{FailedPin, NewStaff, Role, StaffName, StaffProfile, record_failed_pin};
+use baeum_domain::{
+    FailedPin, NewStaff, Role, StaffName, StaffProfile, is_valid_on, record_failed_pin,
+};
 use sqlx::SqlitePool;
 use time::{Date, OffsetDateTime};
 
 use super::access_logs::{self, AccessEvent};
 use super::{is_unique_violation, timestamp_text};
+use crate::clock::local_today;
 
 /// 처음 설정을 하지 못했다.
 #[derive(Debug, thiserror::Error)]
@@ -128,6 +131,14 @@ pub struct LoginAccount {
     pub disabled: bool,
     /// 잠갔으면 풀리는 시각. 지난 시각이면 이미 풀렸다.
     pub locked_until: Option<OffsetDateTime>,
+}
+
+impl LoginAccount {
+    /// BR-K5, BR-K6: 사용 중지하지 않았고 유효기간이 남은 계정인지.
+    /// 유효기간은 기관의 달력 날짜라 이 PC의 날짜로 본다.
+    pub fn is_usable(&self) -> bool {
+        !self.disabled && is_valid_on(self.valid_until, local_today())
+    }
 }
 
 /// DB에서 읽은 그대로의 한 줄. 역할은 글자다.

@@ -17,7 +17,7 @@ use super::applications::require_term;
 use super::auth::{Client, CurrentStaff};
 use super::error::ApiError;
 use crate::backup::Backups;
-use crate::backup::name::BackupKind;
+use crate::backup_file::name::BackupKind;
 use crate::db::lotteries::{self, CloseSelectionError, RunLotteryError};
 use crate::secret;
 
@@ -254,12 +254,13 @@ mod tests {
         assert_eq!(again, StatusCode::OK);
         assert_eq!(closed, StatusCode::NO_CONTENT);
         // ADR 0011: 추첨과 마감 직전마다 백업이 남는다
-        let kinds: Vec<BackupKind> = crate::backup::store::list(&crate::backup::dir(dir.path()))
-            .await
-            .unwrap()
-            .into_iter()
-            .map(|backup| backup.name.kind)
-            .collect();
+        let kinds: Vec<BackupKind> =
+            crate::backup_file::store::list(&crate::backup_file::dir(dir.path()))
+                .await
+                .unwrap()
+                .into_iter()
+                .map(|backup| backup.name.kind)
+                .collect();
         assert!(kinds.contains(&BackupKind::BeforeLottery {
             course_id: s.course_id
         }));

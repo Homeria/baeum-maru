@@ -7,20 +7,20 @@
 //! 2. 파일 안 관리자의 PIN을 확인한다.
 //! 3. 이 PC에 예전 DB가 남아 있으면 "넘겨받기 직전" 백업으로 남긴다. 지우지 않는다(ADR 0021).
 //! 4. 파일을 이 PC의 DB로 들이고, 세대 번호를 하나 올리고(BR-H4), 접속 기록에 남긴다.
-//! 5. 실행 모드를 호스트로 바꾸고 다시 켠다.
+//! 5. 실행 모드를 호스트로 바꾼다. 다시 켜기는 `commands::take_over`가 한다.
 
 use std::path::Path;
 
 use serde::Serialize;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{ConnectOptions, Connection, SqliteConnection};
-use tauri::{AppHandle, State};
 use time::OffsetDateTime;
 use ts_rs::TS;
 
 use crate::backup::inspect::inspect;
-use crate::backup::name::BackupKind;
-use crate::backup::{self, restore, store};
+use crate::backup::{self, restore};
+use crate::backup_file::name::BackupKind;
+use crate::backup_file::{self, store};
 use crate::clock;
 use crate::db::access_logs::{self, AccessEvent};
 use crate::db::{self, data_bundle};
@@ -86,17 +86,14 @@ fn can_take_over(mode: Option<RunMode>) -> bool {
 /// # Errors
 ///
 /// 넘겨받을 수 없는 PC거나 파일이면 화면에 보여 줄 문장.
-#[tauri::command]
-pub async fn preview_take_over(
-    run_mode: State<'_, RunModeState>,
-    path: String,
+pub async fn preview_for(
+    run_mode: &RunModeState,
+    file: &Path,
 ) -> Result<TakeOverPreviewResponse, String> {
     if !can_take_over(run_mode.mode()) {
         return Err(TakeOverError::NotAllowedHere.to_string());
     }
-    preview(Path::new(&path))
-        .await
-        .map_err(|error| error.to_string())
+    preview(file).await.map_err(|error| error.to_string())
 }
 
 async fn preview(file: &Path) -> Result<TakeOverPreviewResponse, TakeOverError> {
@@ -161,17 +158,15 @@ async fn admin_pin_hash(
     .await
 }
 
-/// 파일 안 관리자의 PIN으로 확인하고 이 PC를 새 호스트로 바꿔 다시 켠다(BR-H3).
+/// 파일 안 관리자의 PIN으로 확인하고 이 PC를 새 호스트로 기억한다(BR-H3). 다시 켜기는 부르는 쪽이 한다.
 ///
 /// # Errors
 ///
 /// 넘겨받을 수 없는 PC나 파일이거나, PIN이 틀렸거나, 옮기지 못하면 화면에 보여 줄 문장.
 /// 이 PC는 그대로다.
-#[tauri::command]
 pub async fn take_over(
-    app: AppHandle,
-    run_mode: State<'_, RunModeState>,
-    path: String,
+    run_mode: &RunModeState,
+    file: &Path,
     staff_id: i64,
     pin: String,
 ) -> Result<(), String> {
@@ -180,7 +175,7 @@ pub async fn take_over(
     }
     let generation = take_over_file(
         run_mode.data_dir(),
-        Path::new(&path),
+        file,
         staff_id,
         pin,
         OffsetDateTime::now_utc(),
@@ -200,7 +195,7 @@ pub async fn take_over(
             .to_owned()
     })?;
     tracing::info!(staff_id, generation, "넘겨받아 새 호스트로 시작합니다");
-    app.restart();
+    Ok(())
 }
 
 /// 넘겨받기의 본체. 바뀐 세대 번호를 돌려준다. 실행 모드는 부르는 쪽이 바꾼다.
@@ -257,7 +252,7 @@ async fn keep_leftover(data_dir: &Path, now: OffsetDateTime) -> std::io::Result<
     if let Ok(pool) = startup::open_checked(data_dir).await {
         let made = store::create(
             &pool,
-            &backup::dir(data_dir),
+            &backup_file::dir(data_dir),
             BackupKind::BeforeTakeOver,
             clock::local_datetime(now),
         )
@@ -302,14 +297,14 @@ mod tests {
         insert_member(&pool, "00001").await.unwrap();
         let name = store::create(
             &pool,
-            &backup::dir(&old_host),
+            &backup_file::dir(&old_host),
             BackupKind::BeforeHandover,
             datetime!(2026-11-25 09:00),
         )
         .await
         .unwrap();
         pool.close().await;
-        (backup::dir(&old_host).join(name.to_string()), admin)
+        (backup_file::dir(&old_host).join(name.to_string()), admin)
     }
 
     #[tokio::test]
@@ -381,9 +376,9 @@ mod tests {
             .await
             .unwrap();
 
-        let backups = store::list(&backup::dir(&new_pc)).await.unwrap();
+        let backups = store::list(&backup_file::dir(&new_pc)).await.unwrap();
         assert_eq!(backups[0].name.kind, BackupKind::BeforeTakeOver);
-        let kept = inspect(&backup::dir(&new_pc).join(backups[0].name.to_string()))
+        let kept = inspect(&backup_file::dir(&new_pc).join(backups[0].name.to_string()))
             .await
             .unwrap();
         assert_eq!(kept.member_count, 2);

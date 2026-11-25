@@ -14,12 +14,12 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 use ts_rs::TS;
 
-use super::auth::{Client, CurrentDevice, CurrentStaff};
+use super::auth::{Client, CurrentStaff};
 use super::error::ApiError;
-use super::login::check_pin;
 use crate::backup::Backups;
 use crate::db::access_logs::{self, AccessEvent};
 use crate::db::staff;
+use crate::pin_check::check_pin;
 use crate::run_mode::{self, RunMode};
 
 /// `POST /api/handover` 본문. PIN이 들어 있어 `Debug`를 만들지 않는다.
@@ -50,8 +50,8 @@ pub async fn start_handover(
         .await
         .map_err(ApiError::internal)?
         .ok_or(ApiError::StaffNotFound)?;
-    let host_pc = CurrentDevice { id: None };
-    let account = check_pin(&db, account, pin, host_pc, AccessEvent::LoginFailed, now).await?;
+    // 호스트 PC에서만 하므로 기기는 늘 호스트 자신이다
+    let account = check_pin(&db, account, pin, None, AccessEvent::LoginFailed, now).await?;
 
     // 남기지 못하면 넘기지 않는다
     access_logs::record(&db, Some(account.id), AccessEvent::Handover, now)

@@ -1,11 +1,12 @@
-//! 호스트 넘기기의 앱 쪽(BR-H1, BR-H2). 서버를 띄우지 않은 상태에서 일한다.
+//! 호스트 넘기기의 앱 쪽(BR-H1, BR-H2). 서버를 띄우지 않은 상태에서 일한다. Tauri를 모르고,
+//! 저장 창과 다시 켜기는 `commands::handover`가 한다.
 //!
 //! 1. 관리자가 호스트 화면에서 PIN을 넣으면 서버가 실행 모드를 "넘기는 중"으로 바꾸고(`/api/handover`)
 //!    화면이 앱을 다시 켠다.
 //! 2. 넘기는 중이면 켤 때 서버 없이 DB만 열어 "데이터 넘기기 직전" 백업을 만든다([`prepare`]).
 //! 3. 관리자가 저장 창에서 고른 곳에 그 백업을 넘기기 파일로 복사하면 "넘김"이 된다
-//!    ([`save_handover_file`]). 고르지 않고 돌아가면 다시 호스트로 켠다([`abort_handover`]).
-//! 4. 넘긴 PC는 관리자 PIN으로 넘기기를 취소하고 다시 호스트로 쓸 수 있다([`cancel_handover`]).
+//!    ([`save_file`]). 고르지 않고 돌아가면 다시 호스트로 켠다([`abort`]).
+//! 4. 넘긴 PC는 관리자 PIN으로 넘기기를 취소하고 다시 호스트로 쓸 수 있다([`cancel`]).
 //!    세대 번호는 올리지 않는다(ADR 0002 구현 메모).
 
 use std::path::{Path, PathBuf};
@@ -13,21 +14,17 @@ use std::path::{Path, PathBuf};
 use baeum_domain::Role;
 use serde::Serialize;
 use sqlx::SqlitePool;
-use tauri::{AppHandle, State};
-use tauri_plugin_dialog::DialogExt;
 use time::OffsetDateTime;
 use ts_rs::TS;
 
 use crate::backup::inspect::inspect;
-use crate::backup::name::BackupKind;
-use crate::backup::{self, store};
+use crate::backup_file::name::BackupKind;
+use crate::backup_file::{self, store};
 use crate::clock;
 use crate::db::access_logs::{self, AccessEvent};
 use crate::db::{self, staff};
+use crate::pin_check::check_pin;
 use crate::run_mode::{self, RunMode, RunModeState};
-use crate::server::auth::CurrentDevice;
-use crate::server::error::ApiError;
-use crate::server::login::check_pin;
 use crate::startup;
 
 /// 넘기는 중일 때 켜면서 만든 넘기기 파일. 앱에 맡겨 두고 명령이 꺼내 쓴다.
@@ -49,7 +46,7 @@ async fn make_file(data_dir: &Path, now: OffsetDateTime) -> Result<PathBuf, Stri
         tracing::error!(?problem, "넘기려는 DB를 열지 못했습니다");
         "DB를 열지 못해 넘기기 파일을 만들지 못했습니다. 넘기지 않고 돌아가 주세요".to_owned()
     })?;
-    let dir = backup::dir(data_dir);
+    let dir = backup_file::dir(data_dir);
     let made = store::create(
         &pool,
         &dir,
@@ -83,11 +80,8 @@ pub struct HandoverFileResponse {
 /// # Errors
 ///
 /// 넘기는 중이 아니거나 파일을 만들지 못했으면 화면에 보여 줄 문장.
-#[tauri::command]
-pub async fn handover_file(
-    state: State<'_, Option<HandingOver>>,
-) -> Result<HandoverFileResponse, String> {
-    let file = handing_over_file(&state)?;
+pub async fn preview(state: &Option<HandingOver>) -> Result<HandoverFileResponse, String> {
+    let file = handing_over_file(state)?;
     let preview = inspect(file).await.map_err(|error| error.to_string())?;
     Ok(HandoverFileResponse {
         term_names: preview.term_names,
@@ -96,7 +90,12 @@ pub async fn handover_file(
     })
 }
 
-fn handing_over_file(state: &Option<HandingOver>) -> Result<&Path, String> {
+/// 켤 때 만든 넘기기 파일. 넘기는 중이 아니거나 만들지 못했으면 화면에 보여 줄 문장.
+///
+/// # Errors
+///
+/// 넘기는 중이 아니거나 파일을 만들지 못했으면 그 문장.
+pub fn handing_over_file(state: &Option<HandingOver>) -> Result<&Path, String> {
     let Some(handing_over) = state else {
         return Err("호스트를 넘기는 중이 아닙니다".to_owned());
     };
@@ -106,47 +105,28 @@ fn handing_over_file(state: &Option<HandingOver>) -> Result<&Path, String> {
         .map_err(|message| message.clone())
 }
 
-/// 저장 창에서 고른 곳에 넘기기 파일을 저장하고, 이 PC를 "넘김"으로 바꿔 다시 켠다(BR-H1).
-/// 저장 창을 닫으면 `false`를 돌려주고 아무것도 바꾸지 않는다.
+/// 넘기기 파일을 `target`에 저장하고 이 PC를 "넘김"으로 기억한다(BR-H1). 다시 켜기는 부르는 쪽이 한다.
 ///
 /// # Errors
 ///
 /// 넘기는 중이 아니거나, 저장하지 못했거나, 저장한 파일을 읽을 수 없으면 화면에 보여 줄 문장.
-#[tauri::command]
-pub async fn save_handover_file(
-    app: AppHandle,
-    state: State<'_, Option<HandingOver>>,
-    run_mode: State<'_, RunModeState>,
-) -> Result<bool, String> {
-    let source = handing_over_file(&state)?;
-    let (picked, chosen) = tokio::sync::oneshot::channel();
-    app.dialog()
-        .file()
-        .set_file_name(file_name(OffsetDateTime::now_utc()))
-        .add_filter("배움마루 데이터", &["db"])
-        .save_file(move |path| {
-            let _ = picked.send(path);
-        });
-    let Some(path) = chosen
-        .await
-        .map_err(|_| "저장 창이 닫혔습니다".to_owned())?
-    else {
-        return Ok(false);
-    };
-    let target = path
-        .into_path()
-        .map_err(|_| "저장할 곳을 알 수 없습니다".to_owned())?;
-    copy_checked(source, &target).await?;
+pub async fn save_file(
+    state: &Option<HandingOver>,
+    run_mode: &RunModeState,
+    target: &Path,
+) -> Result<(), String> {
+    let source = handing_over_file(state)?;
+    copy_checked(source, target).await?;
     run_mode::save(run_mode.data_dir(), RunMode::HandedOver).map_err(|error| {
         tracing::error!(%error, "실행 모드를 기억하지 못했습니다");
         "넘기기 파일은 저장했지만 이 PC를 넘김 상태로 바꾸지 못했습니다. 데이터 폴더를 쓸 수 있는지 확인해 주세요".to_owned()
     })?;
     tracing::info!("호스트를 넘겼습니다");
-    app.restart();
+    Ok(())
 }
 
 /// 저장 창에 미리 채울 이름. 예: `배움마루 넘기기 2026-11-25.db`
-fn file_name(now: OffsetDateTime) -> String {
+pub fn file_name(now: OffsetDateTime) -> String {
     format!("배움마루 넘기기 {}.db", clock::local_date(now))
 }
 
@@ -167,22 +147,18 @@ async fn copy_checked(source: &Path, target: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// 넘기지 않고 다시 호스트로 켠다. 넘기는 중일 때만. 아직 아무 데도 넘기지 않아 PIN을 묻지 않는다.
+/// 넘기지 않고 다시 호스트로 기억한다. 넘기는 중일 때만. 아직 아무 데도 넘기지 않아 PIN을 묻지 않는다.
 ///
 /// # Errors
 ///
 /// 넘기는 중이 아니거나 기억하지 못하면 화면에 보여 줄 문장.
-#[tauri::command]
-pub async fn abort_handover(
-    app: AppHandle,
-    run_mode: State<'_, RunModeState>,
-) -> Result<(), String> {
+pub async fn abort(run_mode: &RunModeState) -> Result<(), String> {
     if run_mode.mode() != Some(RunMode::HandingOver) {
         return Err("호스트를 넘기는 중이 아닙니다".to_owned());
     }
     back_to_host(run_mode.data_dir(), None, OffsetDateTime::now_utc()).await?;
     tracing::info!("넘기지 않고 호스트로 돌아갑니다");
-    app.restart();
+    Ok(())
 }
 
 /// 넘김 화면의 관리자 목록 한 줄.
@@ -200,11 +176,8 @@ pub struct HandedOverAdmin {
 /// # Errors
 ///
 /// 넘긴 PC가 아니거나 DB를 열지 못하면 화면에 보여 줄 문장.
-#[tauri::command]
-pub async fn handed_over_admins(
-    run_mode: State<'_, RunModeState>,
-) -> Result<Vec<HandedOverAdmin>, String> {
-    let pool = open_handed_over(&run_mode).await?;
+pub async fn admins(run_mode: &RunModeState) -> Result<Vec<HandedOverAdmin>, String> {
+    let pool = open_handed_over(run_mode).await?;
     let listed = staff::list_for_login(&pool, clock::local_today()).await;
     pool.close().await;
     let choices = listed.map_err(|error| {
@@ -221,28 +194,23 @@ pub async fn handed_over_admins(
         .collect())
 }
 
-/// 관리자 PIN을 확인하고 넘기기를 취소해 다시 호스트로 켠다(BR-H2). 세대 번호는 그대로다.
+/// 관리자 PIN을 확인하고 넘기기를 취소해 다시 호스트로 기억한다(BR-H2). 세대 번호는 그대로다.
+/// 확인한 관리자 id를 돌려준다. 다시 켜기는 부르는 쪽이 한다.
 ///
 /// 틀린 PIN은 로그인과 같이 BR-K7의 횟수에 들어간다.
 ///
 /// # Errors
 ///
 /// 넘긴 PC가 아니거나, 관리자가 아니거나, PIN이 틀렸거나, 기억하지 못하면 화면에 보여 줄 문장.
-#[tauri::command]
-pub async fn cancel_handover(
-    app: AppHandle,
-    run_mode: State<'_, RunModeState>,
-    staff_id: i64,
-    pin: String,
-) -> Result<(), String> {
-    let pool = open_handed_over(&run_mode).await?;
+pub async fn cancel(run_mode: &RunModeState, staff_id: i64, pin: String) -> Result<i64, String> {
+    let pool = open_handed_over(run_mode).await?;
     let now = OffsetDateTime::now_utc();
     let checked = check_admin_pin(&pool, staff_id, pin, now).await;
     pool.close().await;
     let staff_id = checked?;
     back_to_host(run_mode.data_dir(), Some(staff_id), now).await?;
     tracing::info!(staff_id, "넘기기를 취소하고 호스트로 돌아갑니다");
-    app.restart();
+    Ok(staff_id)
 }
 
 /// 넘긴 PC의 DB를 연다. 서버는 띄우지 않는다.
@@ -275,26 +243,11 @@ async fn check_admin_pin(
     if account.role != Role::Admin {
         return Err("관리자만 넘기기를 취소할 수 있습니다".to_owned());
     }
-    let host_pc = CurrentDevice { id: None };
-    let account = check_pin(pool, account, pin, host_pc, AccessEvent::LoginFailed, now)
+    // 넘긴 PC 자신에서 하므로 기기는 늘 호스트 자신이다
+    let account = check_pin(pool, account, pin, None, AccessEvent::LoginFailed, now)
         .await
-        .map_err(pin_refusal)?;
+        .map_err(|refusal| refusal.to_string())?;
     Ok(account.id)
-}
-
-/// PIN 확인 실패를 화면 문장으로. 서버 응답(`ApiError`)의 문장과 같게 둔다.
-fn pin_refusal(error: ApiError) -> String {
-    match error {
-        ApiError::WrongPin => "PIN이 맞지 않습니다. 5번 연속 틀리면 5분 동안 잠깁니다",
-        ApiError::AccountLocked => {
-            "PIN을 5번 연속 틀려 잠겼습니다. 5분이 지나면 다시 할 수 있습니다"
-        }
-        ApiError::AccountUnavailable => {
-            "사용 중지했거나 유효기간이 지난 계정입니다. 관리자에게 물어 주세요"
-        }
-        _ => "PIN을 확인하지 못했습니다",
-    }
-    .to_owned()
 }
 
 /// 넘기기 취소를 접속 기록에 남기고 실행 모드를 호스트로 바꾼다.
@@ -344,9 +297,9 @@ mod tests {
         let handing_over = prepare(dir.path(), NOW).await;
 
         let file = handing_over.file.unwrap();
-        assert!(file.starts_with(backup::dir(dir.path())));
+        assert!(file.starts_with(backup_file::dir(dir.path())));
         assert!(inspect(&file).await.is_ok());
-        let listed = store::list(&backup::dir(dir.path())).await.unwrap();
+        let listed = store::list(&backup_file::dir(dir.path())).await.unwrap();
         assert_eq!(listed[0].name.kind, BackupKind::BeforeHandover);
     }
 

@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use super::name::BackupName;
+use crate::backup_file::name::BackupName;
 
 /// 복원할 백업 파일.
 #[derive(Debug, Clone, PartialEq, Eq)]

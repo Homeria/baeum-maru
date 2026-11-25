@@ -275,6 +275,8 @@ tracing::info!(application_id = %id, "신청 저장");
 
 - 요청 처리 함수는 요청 주소 표의 순서(찾기, 보기, 만들기, 고치기, 지우기)로 둔다.
 - 한 요청이 여러 테이블을 한 트랜잭션으로 다루게 되면(접수 등) 그때 순서를 엮는 층을 따로 둘지 정한다.
+- 앱 명령(Tauri 명령)은 `src-tauri/src/commands/`에 둔다. 창, 대화상자, 다시 켜기, 켤 때 맡긴 상태 꺼내기만 하고 나머지는 Tauri를 모르는 모듈(`handover`, `take_over`, `broken_db`, `run_mode` 등)을 부른다.
+- Tauri를 쓰는 곳은 `lib.rs`, `main.rs`, `commands/`뿐이다. 나머지 모듈은 `commands`와 `data_dir`을 부르지 않는다. 다음에 서버 쪽을 따로 crate로 떼기 위한 경계다(ADR 0023).
 
 ```text
 src-tauri/src/

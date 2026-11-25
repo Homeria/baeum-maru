@@ -6,16 +6,15 @@ use axum::Json;
 use axum::extract::State;
 use axum::extract::rejection::JsonRejection;
 use axum::http::{HeaderMap, StatusCode};
-use baeum_domain::is_account_locked;
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::auth::{CurrentDevice, bearer_token, is_usable};
+use super::auth::{CurrentDevice, bearer_token};
 use super::error::ApiError;
 use crate::db::access_logs::{self, AccessEvent};
-use crate::db::staff::LoginAccount;
 use crate::db::{sessions, staff};
-use crate::secret::{self, SessionToken};
+use crate::pin_check::check_pin;
+use crate::secret::SessionToken;
 
 use crate::clock::local_today;
 use json::{
@@ -57,7 +56,7 @@ pub async fn login(
             .map_err(ApiError::internal)?;
         return Err(ApiError::StaffNotFound);
     };
-    let account = check_pin(&db, account, pin, device, AccessEvent::LoginFailed, now).await?;
+    let account = check_pin(&db, account, pin, device.id, AccessEvent::LoginFailed, now).await?;
 
     let token = SessionToken::new().map_err(ApiError::internal)?;
     sessions::start(&db, account.id, device.id, &token.hash(), now)
@@ -96,7 +95,7 @@ pub async fn unlock(
         &db,
         session.account,
         pin,
-        device,
+        device.id,
         AccessEvent::UnlockFailed,
         now,
     )
@@ -125,53 +124,6 @@ pub async fn logout(
         }
     }
     Ok(StatusCode::NO_CONTENT)
-}
-
-/// 로그인, 잠금 풀기, 기기 허락이 함께 쓰는 확인. 맞으면 계정을 그대로 돌려준다.
-///
-/// 계정을 쓸 수 없거나(BR-K5, BR-K6) 잠겼으면(BR-K7) PIN을 확인하지 않는다.
-/// 실패는 모두 `failed_event`로 접속 기록에 남긴다 (BR-K13).
-pub(crate) async fn check_pin(
-    db: &SqlitePool,
-    account: LoginAccount,
-    pin: String,
-    device: CurrentDevice,
-    failed_event: AccessEvent,
-    now: OffsetDateTime,
-) -> Result<LoginAccount, ApiError> {
-    let refusal = if !is_usable(&account) {
-        Some(ApiError::AccountUnavailable)
-    } else if is_account_locked(account.locked_until, now) {
-        Some(ApiError::AccountLocked)
-    } else {
-        None
-    };
-    if let Some(refusal) = refusal {
-        access_logs::record_on_device(db, Some(account.id), device.id, failed_event, now)
-            .await
-            .map_err(ApiError::internal)?;
-        return Err(refusal);
-    }
-
-    // 해시 확인은 일부러 느려서 따로 돌린다. 계정을 넘겼다가 돌려받는다
-    let (account, pin_matches) = tokio::task::spawn_blocking(move || {
-        let pin_matches = secret::verify(&pin, &account.pin_hash);
-        (account, pin_matches)
-    })
-    .await
-    .map_err(ApiError::internal)?;
-    if pin_matches {
-        return Ok(account);
-    }
-
-    let failed = staff::add_failed_pin(db, account.id, device.id, failed_event, now)
-        .await
-        .map_err(ApiError::internal)?;
-    Err(if failed.locked_until.is_some() {
-        ApiError::AccountLocked
-    } else {
-        ApiError::WrongPin
-    })
 }
 
 #[cfg(test)]

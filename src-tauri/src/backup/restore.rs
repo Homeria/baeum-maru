@@ -20,8 +20,8 @@ use sqlx::SqlitePool;
 use time::{OffsetDateTime, PrimitiveDateTime};
 
 use super::inspect::{BackupPreview, InspectError, inspect};
-use super::name::{BackupKind, BackupName};
-use super::store::{self, BackupError, StoredBackup};
+use crate::backup_file::name::{BackupKind, BackupName};
+use crate::backup_file::store::{self, BackupError, StoredBackup};
 use crate::clock;
 use crate::db::access_logs::{self, AccessEvent};
 use crate::db::data_bundle;
@@ -128,7 +128,7 @@ pub async fn prepare(
     inspect(source).await?;
     let before = store::create(
         pool,
-        &super::dir(data_dir),
+        &crate::backup_file::dir(data_dir),
         BackupKind::BeforeRestore,
         clock::local_datetime(now),
     )
@@ -428,7 +428,7 @@ mod tests {
         let (dir, pool) = open_temp().await;
         let admin = insert_staff(&pool, "관리자", "admin", None).await.unwrap();
         insert_member(&pool, "00001").await.unwrap();
-        let backups = super::super::dir(dir.path());
+        let backups = crate::backup_file::dir(dir.path());
         let one_member = store::create(
             &pool,
             &backups,
@@ -479,7 +479,7 @@ mod tests {
     async fn br_h4_restore_keeps_bundle_id_and_generation() {
         let (dir, pool) = open_temp().await;
         let admin = insert_staff(&pool, "관리자", "admin", None).await.unwrap();
-        let backups = super::super::dir(dir.path());
+        let backups = crate::backup_file::dir(dir.path());
         // 세대 1일 때 만든 백업
         let old = store::create(
             &pool,
@@ -518,7 +518,7 @@ mod tests {
         let pool = db::open(dir.path()).await.unwrap();
         let backup = store::create(
             &pool,
-            &super::super::dir(dir.path()),
+            &crate::backup_file::dir(dir.path()),
             BackupKind::Daily,
             datetime!(2026-11-22 09:00),
         )
@@ -529,7 +529,7 @@ mod tests {
             .await
             .unwrap();
         tokio::fs::copy(
-            super::super::dir(dir.path()).join(backup.to_string()),
+            crate::backup_file::dir(dir.path()).join(backup.to_string()),
             dir.path().join(PENDING_DB),
         )
         .await
@@ -551,7 +551,7 @@ mod tests {
     async fn before_restore_backup_keeps_current_state() {
         let (dir, pool) = open_temp().await;
         insert_member(&pool, "00001").await.unwrap();
-        let backups = super::super::dir(dir.path());
+        let backups = crate::backup_file::dir(dir.path());
         let empty = store::create(
             &pool,
             &backups,
@@ -573,7 +573,7 @@ mod tests {
     #[tokio::test]
     async fn admin_missing_in_restored_db_is_logged_without_staff() {
         let (dir, pool) = open_temp().await;
-        let backups = super::super::dir(dir.path());
+        let backups = crate::backup_file::dir(dir.path());
         let no_staff = store::create(
             &pool,
             &backups,
@@ -617,7 +617,7 @@ mod tests {
 
         assert!(matches!(result, Err(PrepareError::Inspect(_))));
         assert!(
-            store::list(&super::super::dir(dir.path()))
+            store::list(&crate::backup_file::dir(dir.path()))
                 .await
                 .unwrap()
                 .is_empty()
@@ -659,7 +659,7 @@ mod tests {
         insert_member(&pool, "00001").await.unwrap();
         let name = store::create(
             &pool,
-            &super::super::dir(dir),
+            &crate::backup_file::dir(dir),
             BackupKind::Daily,
             datetime!(2026-11-22 09:00),
         )
@@ -670,7 +670,7 @@ mod tests {
         tokio::fs::write(with_suffix(&db::file(dir), "-wal"), b"old wal")
             .await
             .unwrap();
-        super::super::dir(dir).join(name.to_string())
+        crate::backup_file::dir(dir).join(name.to_string())
     }
 
     #[tokio::test]
@@ -730,7 +730,7 @@ mod tests {
     async fn suggests_newest_usable_backup() {
         let dir = tempfile::tempdir().unwrap();
         let usable = broken_with_backup(dir.path()).await;
-        let backups = super::super::dir(dir.path());
+        let backups = crate::backup_file::dir(dir.path());
         // 더 새것이지만 깨진 백업
         let newer = BackupName {
             taken_at: datetime!(2026-11-23 09:00),
@@ -752,7 +752,7 @@ mod tests {
     async fn no_backups_means_no_suggestion() {
         let dir = tempfile::tempdir().unwrap();
 
-        let (listed, suggestion) = suggest(&super::super::dir(dir.path())).await;
+        let (listed, suggestion) = suggest(&crate::backup_file::dir(dir.path())).await;
 
         assert!(listed.is_empty());
         assert!(suggestion.is_none());

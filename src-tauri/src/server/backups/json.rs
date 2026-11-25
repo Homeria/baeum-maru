@@ -5,7 +5,7 @@ use time::PrimitiveDateTime;
 use time::macros::format_description;
 use ts_rs::TS;
 
-use crate::backup::name::BackupKind;
+use crate::backup_file::name::BackupKind;
 
 /// 백업을 만든 까닭.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]

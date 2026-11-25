@@ -13,7 +13,7 @@
 | [0003](0003-login-access.md) | 로그인: 기기 승인(요청형) + 직원 PIN | 채택 |
 | [0004](0004-host-discovery.md) | 호스트 찾기: 주소 입력 + 기억, 포트 47800 고정, 자동 찾기는 나중 | 채택 |
 | [0005](0005-storage.md) | 저장소: SQLite + sqlx, 구조 변경은 자동 적용 + 사전 백업 | 채택 |
-| [0006](0006-crate-layout.md) | 코드 나누기: 업무 규칙 crate(`crates/domain`) + 앱 crate(`src-tauri`) | 채택 |
+| [0006](0006-crate-layout.md) | 코드 나누기: 업무 규칙 crate(`crates/domain`) + 앱 crate(`src-tauri`) | 일부 대체됨 (0023) |
 | [0007](0007-app-only-access.md) | 앱으로만 접속 (0001의 웹 예비 대체) | 채택 |
 | [0008](0008-http-json-sse.md) | 화면과 서버의 대화: HTTP + JSON 요청, SSE 변경 알림 | 채택 |
 | [0009](0009-frontend.md) | 화면 기술: React + Vite, 한 번에 그리는 줄 수 제한 | 채택 |
@@ -30,3 +30,4 @@
 | [0020](0020-split-ci-jobs.md) | 앱 검사는 작업 셋(화면, 의존성, Rust)으로 나눠 함께 돌리고, 하나가 실패하면 나머지를 멈춘다 (0012의 일부 대체) | 일부 대체됨 (0022) |
 | [0021](0021-run-mode.md) | 실행 모드(호스트/접속)는 처음 한 번 고르고 기억, 관리자 PIN으로 바꾸고, 남은 DB는 두고, 호스트에 닿지 않아도 대신 호스트가 되지 않는다 | 채택 |
 | [0022](0022-apt-deb-cache.md) | CI의 Tauri 시스템 패키지는 받은 .deb를 공식 캐시에 보관, 키는 받을 파일 이름(판 포함)의 해시, main에서만 저장 (0020의 일부 대체) | 채택 |
+| [0023](0023-code-layout.md) | 코드 나누기: `app/`(launcher·server·domain·ui)와 `site/`, server 안은 기능별 폴더와 handler·service·repository, 의존은 한 방향 (0006의 일부 대체) | 채택 |

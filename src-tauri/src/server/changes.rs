@@ -20,7 +20,7 @@ use tokio::sync::{broadcast, mpsc};
 use tokio_stream::wrappers::ReceiverStream;
 use ts_rs::TS;
 
-use super::auth::{CurrentDevice, bearer_token, device_token, is_usable};
+use super::auth::{CurrentDevice, bearer_token, device_token};
 use super::error::ApiError;
 use crate::db::{devices, sessions};
 
@@ -170,7 +170,7 @@ impl Watch {
         let Some(session) = sessions::find(db, &self.session).await? else {
             return Ok(false);
         };
-        if !is_usable(&session.account) || baeum_domain::is_screen_locked(session.last_seen_at, now)
+        if !session.account.is_usable() || baeum_domain::is_screen_locked(session.last_seen_at, now)
         {
             return Ok(false);
         }

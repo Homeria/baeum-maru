@@ -15,9 +15,9 @@ use ts_rs::TS;
 
 use super::auth::CurrentDevice;
 use super::error::ApiError;
-use super::login::check_pin;
 use crate::db::access_logs::{self, AccessEvent};
 use crate::db::staff;
+use crate::pin_check::check_pin;
 
 /// `POST /api/run-mode/permit` 본문. PIN이 들어 있어 `Debug`를 만들지 않는다.
 #[derive(Deserialize, TS)]
@@ -48,7 +48,7 @@ pub async fn permit(
     if account.role != Role::Admin {
         return Err(ApiError::NotAllowed);
     }
-    let account = check_pin(&db, account, pin, device, AccessEvent::LoginFailed, now).await?;
+    let account = check_pin(&db, account, pin, device.id, AccessEvent::LoginFailed, now).await?;
 
     access_logs::record_on_device(
         &db,
