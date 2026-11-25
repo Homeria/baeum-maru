@@ -1,4 +1,5 @@
-//! 접속 모드(ADR 0021)에서 기억하는 것: 호스트 주소(ADR 0004)와 기기 증표(BR-K16).
+//! 접속 모드(ADR 0021)에서 기억하는 것: 호스트 주소(ADR 0004), 기기 증표(BR-K16),
+//! 승인받아 이어진 호스트의 데이터 묶음 ID와 세대 번호(BR-H5).
 //!
 //! 데이터 폴더의 파일 하나에 둔다. 화면은 앱 명령으로 읽고 바꾼다. 기기 증표는 비밀이라
 //! 로그에 남기지 않는다.
@@ -6,6 +7,7 @@
 use std::io;
 use std::path::Path;
 
+use baeum_domain::{DataBundleId, HostCheck, HostIdentity, check_host};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use ts_rs::TS;
@@ -30,6 +32,27 @@ struct Stored {
     /// 한 번이라도 승인받아 호스트에 이어졌는지. 그 전이면 PIN 없이 호스트로 되돌릴 수 있다(BR-K17).
     #[serde(default)]
     approved_once: bool,
+    /// 승인받아 이어진 호스트. 이 칸이 생기기 전 파일이면 없고, 다음에 이어질 때 채운다.
+    #[serde(default)]
+    host: Option<StoredHost>,
+}
+
+/// 파일에 적는 호스트 묶음 ID와 세대 번호.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StoredHost {
+    bundle_id: String,
+    generation: u32,
+}
+
+impl StoredHost {
+    /// 형식이 틀리면 `None`. 처음 이어지는 것처럼 다룬다.
+    fn identity(&self) -> Option<HostIdentity> {
+        Some(HostIdentity {
+            bundle_id: DataBundleId::parse(&self.bundle_id).ok()?,
+            generation: self.generation,
+        })
+    }
 }
 
 fn read(data_dir: &Path) -> Stored {
@@ -211,6 +234,125 @@ pub fn remember_approved(state: State<'_, RunModeState>) -> Result<(), String> {
     write(data_dir, &stored).map_err(save_failed)
 }
 
+/// 기억한 호스트와 만난 호스트를 견준 결과(BR-H5).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum HostCheckResponse {
+    /// 아직 이어진 호스트가 없다.
+    First,
+    Same,
+    /// 넘겨받은 새 호스트다.
+    Newer,
+    /// 넘기기 전 옛 호스트다. 붙지 않는다.
+    Older,
+    /// 다른 데이터의 호스트다. 붙지 않는다.
+    OtherBundle,
+}
+
+impl From<HostCheck> for HostCheckResponse {
+    fn from(check: HostCheck) -> Self {
+        match check {
+            HostCheck::First => HostCheckResponse::First,
+            HostCheck::Same => HostCheckResponse::Same,
+            HostCheck::Newer => HostCheckResponse::Newer,
+            HostCheck::Older => HostCheckResponse::Older,
+            HostCheck::OtherBundle => HostCheckResponse::OtherBundle,
+        }
+    }
+}
+
+/// 기억한 호스트와 기기 증표를 버린다. 다른 데이터의 호스트에 새로 승인받아 붙을 때 쓴다(BR-H5).
+///
+/// 호스트 PC를 백업 없이 새로 설치하면 묶음 ID가 바뀐다. 그 호스트의 관리자가 다시 승인해야
+/// 붙으니 엉뚱한 호스트에 실수로 붙지는 않는다.
+///
+/// # Errors
+///
+/// 접속 모드가 아니거나 저장하지 못하면 화면에 보여 줄 문장.
+#[tauri::command]
+pub fn forget_host(state: State<'_, RunModeState>) -> Result<(), String> {
+    let data_dir = remote_data_dir(&state)?;
+    write(data_dir, &forgotten(read(data_dir))).map_err(save_failed)
+}
+
+/// 호스트와 기기 증표만 비운다. 주소와 승인받은 적 있다는 것은 둔다.
+fn forgotten(stored: Stored) -> Stored {
+    Stored {
+        host: None,
+        device_token: None,
+        approval_code: None,
+        ..stored
+    }
+}
+
+/// 호스트가 `/api/version`으로 알려 준 값을 읽는다.
+fn seen_host(bundle_id: &str, generation: u32) -> Result<HostIdentity, String> {
+    let bundle_id = DataBundleId::parse(bundle_id)
+        .map_err(|_| "호스트가 알려 준 데이터 묶음 ID가 올바르지 않습니다".to_owned())?;
+    Ok(HostIdentity {
+        bundle_id,
+        generation,
+    })
+}
+
+/// 기억한 호스트와 견준다.
+fn compare(stored: &Stored, seen: HostIdentity) -> HostCheck {
+    let remembered = stored.host.as_ref().and_then(StoredHost::identity);
+    check_host(remembered, seen)
+}
+
+/// 만난 호스트를 기억한 호스트와 견준다(BR-H5). 기억하지는 않는다.
+///
+/// 승인받기 전에는 기억하지 않는다. 처음 넣은 주소가 엉뚱한 호스트였다면 맞는 호스트까지
+/// 막게 되기 때문이다.
+///
+/// # Errors
+///
+/// 접속 모드가 아니거나 묶음 ID 형식이 틀리면 화면에 보여 줄 문장.
+#[tauri::command]
+pub fn check_host_identity(
+    state: State<'_, RunModeState>,
+    bundle_id: &str,
+    generation: u32,
+) -> Result<HostCheckResponse, String> {
+    let stored = read(remote_data_dir(&state)?);
+    Ok(compare(&stored, seen_host(bundle_id, generation)?).into())
+}
+
+/// 승인받아 이어진 호스트를 기억한다(BR-H5). 넘겨받은 새 호스트면 새 세대를 기억한다.
+///
+/// # Errors
+///
+/// 접속 모드가 아니거나, 붙지 않을 호스트거나, 저장하지 못하면 화면에 보여 줄 문장.
+#[tauri::command]
+pub fn remember_host_identity(
+    state: State<'_, RunModeState>,
+    bundle_id: &str,
+    generation: u32,
+) -> Result<(), String> {
+    remember(remote_data_dir(&state)?, seen_host(bundle_id, generation)?)
+}
+
+fn remember(data_dir: &Path, seen: HostIdentity) -> Result<(), String> {
+    let stored = read(data_dir);
+    match compare(&stored, seen) {
+        HostCheck::Same => return Ok(()),
+        check if !check.can_connect() => {
+            return Err("이 호스트에는 붙을 수 없습니다".to_owned());
+        }
+        _ => {}
+    }
+    let stored = Stored {
+        host: Some(StoredHost {
+            bundle_id: seen.bundle_id.to_string(),
+            generation: seen.generation,
+        }),
+        ..stored
+    };
+    write(data_dir, &stored).map_err(save_failed)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -292,5 +434,82 @@ mod tests {
 
         std::fs::write(dir.path().join(FILE), "망가진 내용").unwrap();
         assert!(read(dir.path()).host_address.is_none());
+    }
+
+    fn host(byte: u8, generation: u32) -> HostIdentity {
+        HostIdentity {
+            bundle_id: DataBundleId::from_bytes([byte; 16]),
+            generation,
+        }
+    }
+
+    #[test]
+    fn br_h5_remembers_approved_host_and_newer_generation() {
+        let dir = tempfile::tempdir().unwrap();
+
+        remember(dir.path(), host(1, 1)).unwrap();
+        assert_eq!(compare(&read(dir.path()), host(1, 1)), HostCheck::Same);
+
+        remember(dir.path(), host(1, 2)).unwrap();
+        assert_eq!(compare(&read(dir.path()), host(1, 1)), HostCheck::Older);
+    }
+
+    #[test]
+    fn br_h5_refuses_to_remember_older_or_other_host() {
+        let dir = tempfile::tempdir().unwrap();
+        remember(dir.path(), host(1, 2)).unwrap();
+
+        assert!(remember(dir.path(), host(1, 1)).is_err());
+        assert!(remember(dir.path(), host(2, 5)).is_err());
+        assert_eq!(compare(&read(dir.path()), host(1, 2)), HostCheck::Same);
+    }
+
+    #[test]
+    fn remembering_host_keeps_device_token() {
+        let dir = tempfile::tempdir().unwrap();
+        write(
+            dir.path(),
+            &Stored {
+                device_token: Some("증표".to_owned()),
+                ..Stored::default()
+            },
+        )
+        .unwrap();
+
+        remember(dir.path(), host(1, 1)).unwrap();
+
+        assert_eq!(read(dir.path()).device_token.as_deref(), Some("증표"));
+    }
+
+    #[test]
+    fn older_file_without_host_reads_as_first() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join(FILE), r#"{"hostAddress":"192.168.0.12"}"#).unwrap();
+
+        assert_eq!(compare(&read(dir.path()), host(1, 1)), HostCheck::First);
+    }
+
+    #[test]
+    fn br_h5_forgetting_host_lets_other_host_in() {
+        let dir = tempfile::tempdir().unwrap();
+        remember(dir.path(), host(1, 2)).unwrap();
+        let stored = Stored {
+            host_address: Some("192.168.0.12".to_owned()),
+            device_token: Some("증표".to_owned()),
+            approved_once: true,
+            ..read(dir.path())
+        };
+
+        let stored = forgotten(stored);
+
+        assert_eq!(compare(&stored, host(2, 1)), HostCheck::First);
+        assert_eq!(stored.device_token, None);
+        assert_eq!(stored.host_address.as_deref(), Some("192.168.0.12"));
+        assert!(stored.approved_once);
+    }
+
+    #[test]
+    fn broken_host_id_from_host_is_refused() {
+        assert!(seen_host("아무 글자", 1).is_err());
     }
 }

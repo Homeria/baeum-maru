@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   clearDeviceRequest,
+  forgetHost,
   rememberApproved,
   remoteSettings,
 } from "../../api/remote";
@@ -134,6 +135,19 @@ export function RemoteGate({ leftoverData, children }: RemoteGateProps) {
     </div>
   );
 
+  // BR-H5: 붙지 않을 호스트에서는 다시 시도해도 같다
+  const addressOnly = (
+    <div className={formStyles.actions}>
+      <button
+        type="button"
+        className={formStyles.submit}
+        onClick={() => setEditingAddress(true)}
+      >
+        주소 다시 입력
+      </button>
+    </div>
+  );
+
   if (connection.isError) {
     return page(
       <>
@@ -163,6 +177,54 @@ export function RemoteGate({ leftoverData, children }: RemoteGateProps) {
             맞지 않습니다. 두 PC를 같은 버전으로 맞춰 주세요.
           </p>
           {retry}
+        </>,
+      );
+    case "olderHost":
+      return page(
+        <>
+          <p className={authStyles.intro} role="alert">
+            이 주소의 호스트 PC({address})는 다른 PC로 호스트를 넘기기 전의 옛
+            데이터를 갖고 있습니다. 여기에 접수하면 데이터가 둘로 갈라집니다. 새
+            호스트 PC의 주소를 넣어 주세요.
+          </p>
+          {addressOnly}
+        </>,
+      );
+    case "otherHost":
+      return page(
+        <>
+          <p className={authStyles.intro} role="alert">
+            이 주소의 호스트 PC({address})는 이 PC가 쓰던 것과 다른 데이터를
+            갖고 있습니다. 쓰던 호스트 PC의 주소를 넣어 주세요. 호스트 PC를 새로
+            설치했다면 이 호스트에 새로 승인을 요청해 주세요.
+          </p>
+          <div className={formStyles.actions}>
+            <button
+              type="button"
+              className={formStyles.secondary}
+              onClick={() => setEditingAddress(true)}
+            >
+              주소 다시 입력
+            </button>
+            <button
+              type="button"
+              className={formStyles.submit}
+              onClick={() => {
+                setNotice(null);
+                void forgetHost()
+                  .then(reloadSettings)
+                  .catch((error: unknown) =>
+                    setNotice(
+                      error instanceof Error
+                        ? error.message
+                        : "처리하지 못했습니다",
+                    ),
+                  );
+              }}
+            >
+              이 호스트에 새로 승인 요청
+            </button>
+          </div>
         </>,
       );
     case "request":

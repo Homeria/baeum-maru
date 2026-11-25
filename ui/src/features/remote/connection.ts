@@ -1,6 +1,10 @@
 import { approvalStatus } from "../../api/approval";
 import { HostError, connectToHost } from "../../api/client";
-import { clearDeviceRequest } from "../../api/remote";
+import {
+  checkHostIdentity,
+  clearDeviceRequest,
+  rememberHostIdentity,
+} from "../../api/remote";
 import { fetchHostVersion } from "../../api/version";
 
 /** 접속 모드에서 호스트와 이어진 정도. */
@@ -9,6 +13,10 @@ export type Connection =
   | { kind: "unreachable" }
   /** 호스트와 앱의 버전이 맞지 않는다. */
   | { kind: "incompatible"; hostVersion: string }
+  /** 이 PC가 쓰던 데이터의 넘기기 전 옛 호스트다(BR-H5). 붙지 않는다. */
+  | { kind: "olderHost" }
+  /** 이 PC가 쓰던 것과 다른 데이터의 호스트다(BR-H5). 붙지 않는다. */
+  | { kind: "otherHost" }
   /** 이 PC는 아직 승인을 요청하지 않았다. */
   | { kind: "request" }
   /** 승인을 기다린다. */
@@ -22,7 +30,8 @@ export type Connection =
  * 기억한 주소의 호스트에 이 PC가 어디까지 이어졌는지 본다(ADR 0004, BR-K14, BR-K15).
  *
  * 앞으로의 요청이 그 호스트로 가고 기기 증표를 싣도록 맞춘 뒤, 호스트가 응답하는지,
- * 버전이 맞는지, 승인받았는지를 차례로 묻는다. `onRejected`는 쓰는 중에 승인이 취소되면 불린다.
+ * 버전이 맞는지, 쓰던 데이터의 최신 호스트인지(BR-H5), 승인받았는지를 차례로 묻는다.
+ * 승인받았으면 그 호스트를 기억한다. `onRejected`는 쓰는 중에 승인이 취소되면 불린다.
  */
 export async function checkConnection(
   address: string,
@@ -38,6 +47,13 @@ export async function checkConnection(
   }
   if (!version.compatible) {
     return { kind: "incompatible", hostVersion: version.hostVersion };
+  }
+  const host = await checkHostIdentity(version.bundleId, version.generation);
+  if (host === "older") {
+    return { kind: "olderHost" };
+  }
+  if (host === "other_bundle") {
+    return { kind: "otherHost" };
   }
   if (token === null) {
     return { kind: "request" };
@@ -58,6 +74,8 @@ export async function checkConnection(
   }
   switch (status) {
     case "approved":
+      // 넘겨받은 새 호스트면 새 세대를 기억해, 옛 호스트에 다시 붙지 않게 한다
+      await rememberHostIdentity(version.bundleId, version.generation);
       return { kind: "ready" };
     case "pending":
       return { kind: "waiting" };

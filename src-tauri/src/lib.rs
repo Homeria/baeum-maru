@@ -58,6 +58,9 @@ pub fn run() {
             remote::save_device_request,
             remote::clear_device_request,
             remote::remember_approved,
+            remote::check_host_identity,
+            remote::remember_host_identity,
+            remote::forget_host,
             run_mode::choose_run_mode,
             run_mode::change_run_mode
         ])
