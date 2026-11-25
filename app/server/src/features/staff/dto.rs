@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use time::{Date, OffsetDateTime};
 use ts_rs::TS;
 
-use crate::db::staff::StaffRecord;
+use super::repository::StaffRecord;
 use crate::features::auth::dto::RoleCode;
 
 /// `POST /api/staff` 본문. 확인 전이라 글자 그대로다.

@@ -14,13 +14,13 @@ use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::backup::Backups;
 use crate::features::{
-    access_logs, auth, courses, devices, members, priority_reasons, rooms, subjects, terms,
+    access_logs, auth, courses, devices, members, priority_reasons, rooms, staff, subjects, terms,
 };
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::version;
 use crate::infra::version::Version;
 use crate::server::{
-    applications, backups, handover, lotteries, rosters, run_mode, selection_results, setup, staff,
+    applications, backups, handover, lotteries, rosters, run_mode, selection_results, setup,
 };
 
 /// ADR 0004: 포트 47800 고정.
@@ -192,26 +192,7 @@ pub fn router(state: AppState) -> Router {
                 ChangeKind::Application,
             ),
         )
-        .route(
-            "/api/staff",
-            notifies(
-                get(staff::list_staff).post(staff::create_staff),
-                &notices,
-                ChangeKind::Staff,
-            ),
-        )
-        .route(
-            "/api/staff/{id}",
-            notifies(
-                get(staff::get_staff).patch(staff::update_staff),
-                &notices,
-                ChangeKind::Staff,
-            ),
-        )
-        .route(
-            "/api/staff/{id}/pin",
-            notifies(post(staff::reset_staff_pin), &notices, ChangeKind::Staff),
-        )
+        .merge(staff::handler::routes(&notices))
         .merge(access_logs::handler::routes(&notices))
         .route(
             "/api/backups",

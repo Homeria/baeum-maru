@@ -10,5 +10,6 @@ pub(crate) mod devices;
 pub(crate) mod members;
 pub(crate) mod priority_reasons;
 pub(crate) mod rooms;
+pub(crate) mod staff;
 pub(crate) mod subjects;
 pub(crate) mod terms;

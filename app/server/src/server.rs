@@ -10,6 +10,5 @@ pub(crate) mod rosters;
 pub(crate) mod run_mode;
 pub(crate) mod selection_results;
 pub(crate) mod setup;
-pub(crate) mod staff;
 #[cfg(test)]
 pub(crate) mod test_support;
