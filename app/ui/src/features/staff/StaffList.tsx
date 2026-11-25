@@ -3,7 +3,8 @@ import type { StaffListResponse } from "../../api/generated/StaffListResponse";
 import styles from "../../components/layout/listPage.module.css";
 import tableStyles from "../../components/table/table.module.css";
 import { ROLE_LABELS } from "../auth/roles";
-import { staffStatusLabel, todayText } from "./staffFormData";
+import { todayText } from "../../lib/dates";
+import { staffStatusLabel } from "./staffFormData";
 
 /** {@link StaffList}의 속성. */
 export interface StaffListProps {

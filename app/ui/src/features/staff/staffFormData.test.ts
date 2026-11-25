@@ -8,7 +8,6 @@ import {
   staffStatusLabel,
   toCreateStaffRequest,
   toUpdateStaffRequest,
-  todayText,
 } from "./staffFormData";
 
 const STAFF: StaffResponse = {
@@ -90,11 +89,5 @@ describe("staffStatusLabel", () => {
       "잠김",
     );
     expect(staffStatusLabel(STAFF, "2027-02-28")).toBe("사용 중");
-  });
-});
-
-describe("todayText", () => {
-  test("이 PC의 날짜를 YYYY-MM-DD로", () => {
-    expect(todayText(new Date(2027, 0, 5, 23, 59))).toBe("2027-01-05");
   });
 });
