@@ -11,8 +11,8 @@ use sqlx::SqlitePool;
 use time::{Date, OffsetDateTime};
 
 use super::lotteries::decode_error;
-use super::members::gender_from_text;
 use super::selection_results::{CourseResultError, ResultMember, course_result_in};
+use crate::features::members::repository::gender_from_text;
 use crate::infra::db::timestamp_text;
 
 /// 선발 결과(BR-P2). 게시용은 포기를 넣지 않는다(BR-P3).
@@ -167,7 +167,7 @@ struct DetailRow {
 }
 
 /// 화면의 강좌 이름과 같다: 과목, 수준, 반을 띄어 잇는다.
-pub(super) fn course_name(subject: &str, level: Option<&str>, section: Option<&str>) -> String {
+pub(crate) fn course_name(subject: &str, level: Option<&str>, section: Option<&str>) -> String {
     [Some(subject), level, section]
         .into_iter()
         .flatten()

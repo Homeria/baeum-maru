@@ -22,7 +22,7 @@ use crate::backup::inspect::{self, InspectError};
 use crate::backup::restore::{PrepareError, RestoreOutcome};
 use crate::backup::source::{RestoreSource, SourceError};
 use crate::backup::{Backups, SecondLocationError, SecondLocationStatus};
-use crate::db::courses;
+use crate::features::courses::repository as courses;
 use crate::http::auth::{Client, CurrentStaff};
 use crate::http::error::{ApiError, FieldError};
 

@@ -4,7 +4,7 @@ use baeum_domain::SubjectInput;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::db::subjects::SubjectRecord;
+use super::repository::SubjectRecord;
 
 /// `POST /api/subjects`, `PATCH /api/subjects/{id}` 본문. 확인 전이라 글자 그대로다.
 #[derive(Debug, Deserialize, TS)]

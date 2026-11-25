@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use time::Date;
 use ts_rs::TS;
 
-use crate::db::members::MemberRecord;
+use super::repository::MemberRecord;
 use crate::infra::db::timestamp_text;
 
 /// 성별. JSON으로는 `"male"`, `"female"`.

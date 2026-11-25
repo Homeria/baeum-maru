@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use time::Date;
 use ts_rs::TS;
 
-use crate::db::terms::TermRecord;
+use super::repository::TermRecord;
 
 /// `POST /api/terms`, `PATCH /api/terms/{id}` 본문. 확인 전이다.
 #[derive(Debug, Deserialize, TS)]

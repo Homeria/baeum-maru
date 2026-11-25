@@ -6,21 +6,20 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use axum::extract::FromRef;
 use axum::http::{HeaderName, HeaderValue, Method, header};
-use axum::routing::{delete, get, patch, post, put};
+use axum::routing::{delete, get, post, put};
 use axum::{Router, middleware};
 use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::backup::Backups;
-use crate::features::rooms;
+use crate::features::{courses, members, priority_reasons, rooms, subjects, terms};
 use crate::http::changes::{self, ChangeKind, ChangeNotices, notifies};
 use crate::http::{auth, version};
 use crate::infra::version::Version;
 use crate::server::{
-    access_logs, applications, backups, courses, devices, handover, login, lotteries, members,
-    priority_reasons, recovery, rosters, run_mode, selection_results, setup, staff, subjects,
-    terms,
+    access_logs, applications, backups, devices, handover, login, lotteries, recovery, rosters,
+    run_mode, selection_results, setup, staff,
 };
 
 /// ADR 0004: 포트 47800 고정.
@@ -102,87 +101,12 @@ pub fn router(state: AppState) -> Router {
     // BR-K1: 로그인한 요청만 받는다. 데이터를 바꾸는 주소에는 변경 알림을 붙인다 (ADR 0008)
     let signed_in = Router::new()
         .route("/api/changes", get(changes::stream_changes))
-        .route(
-            "/api/members",
-            notifies(
-                get(members::search_members).post(members::create_member),
-                &notices,
-                ChangeKind::Member,
-            ),
-        )
-        .route(
-            "/api/members/{id}",
-            notifies(
-                get(members::get_member)
-                    .patch(members::update_member)
-                    .delete(members::delete_member),
-                &notices,
-                ChangeKind::Member,
-            ),
-        )
+        .merge(members::handler::routes(&notices))
         .merge(rooms::handler::routes(&notices))
-        .route(
-            "/api/priority-reasons",
-            notifies(
-                get(priority_reasons::list_priority_reasons)
-                    .post(priority_reasons::create_priority_reason),
-                &notices,
-                ChangeKind::PriorityReason,
-            ),
-        )
-        .route(
-            "/api/priority-reasons/{id}",
-            notifies(
-                patch(priority_reasons::update_priority_reason)
-                    .delete(priority_reasons::delete_priority_reason),
-                &notices,
-                ChangeKind::PriorityReason,
-            ),
-        )
-        .route(
-            "/api/subjects",
-            notifies(
-                get(subjects::list_subjects).post(subjects::create_subject),
-                &notices,
-                ChangeKind::Subject,
-            ),
-        )
-        .route(
-            "/api/subjects/{id}",
-            notifies(
-                get(subjects::get_subject)
-                    .patch(subjects::update_subject)
-                    .delete(subjects::delete_subject),
-                &notices,
-                ChangeKind::Subject,
-            ),
-        )
-        .route(
-            "/api/terms",
-            notifies(
-                get(terms::list_terms).post(terms::create_term),
-                &notices,
-                ChangeKind::Term,
-            ),
-        )
-        .route(
-            "/api/terms/{id}",
-            notifies(
-                get(terms::get_term)
-                    .patch(terms::update_term)
-                    .delete(terms::delete_term),
-                &notices,
-                ChangeKind::Term,
-            ),
-        )
-        .route(
-            "/api/terms/{term_id}/courses",
-            notifies(
-                get(courses::list_courses).post(courses::create_course),
-                &notices,
-                ChangeKind::Course,
-            ),
-        )
+        .merge(priority_reasons::handler::routes(&notices))
+        .merge(subjects::handler::routes(&notices))
+        .merge(terms::handler::routes(&notices))
+        .merge(courses::handler::routes(&notices))
         .route(
             "/api/terms/{term_id}/applications",
             notifies(
@@ -265,16 +189,6 @@ pub fn router(state: AppState) -> Router {
                 put(applications::set_priority_reasons),
                 &notices,
                 ChangeKind::Application,
-            ),
-        )
-        .route(
-            "/api/courses/{id}",
-            notifies(
-                get(courses::get_course)
-                    .patch(courses::update_course)
-                    .delete(courses::delete_course),
-                &notices,
-                ChangeKind::Course,
             ),
         )
         .route(

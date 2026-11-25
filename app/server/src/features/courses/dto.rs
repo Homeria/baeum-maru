@@ -4,7 +4,7 @@ use baeum_domain::{CourseInput, ScheduleInput, weekday_from_number};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::db::courses::{CourseRecord, ScheduleRecord, ScheduleRoom};
+use super::repository::{CourseRecord, ScheduleRecord, ScheduleRoom};
 
 /// `POST /api/terms/{termId}/courses`, `PATCH /api/courses/{id}` 본문. 확인 전이다.
 #[derive(Debug, Deserialize, TS)]

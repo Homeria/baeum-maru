@@ -4,7 +4,7 @@ use baeum_domain::PriorityMethod;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::db::priority_reasons::PriorityReasonRecord;
+use super::repository::PriorityReasonRecord;
 
 /// 배정 방식(BR-S11). 지금은 자리 보장뿐이다.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

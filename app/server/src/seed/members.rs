@@ -5,7 +5,7 @@ use sqlx::SqlitePool;
 use time::{Date, Month, OffsetDateTime};
 
 use super::{SeedError, fail};
-use crate::db::members;
+use crate::features::members::repository as members;
 
 const MEMBER_COUNT: usize = 300;
 
