@@ -12,7 +12,8 @@ use crate::features::applications::repository::priorities::*;
 use crate::features::applications::repository::{
     CoursePriorities, NewApplications, SubmitError, list_for_member, submit,
 };
-use crate::features::lotteries::repository::{self as lotteries, SelectionStage};
+use crate::features::lotteries::repository::{SelectionStage, course_lottery};
+use crate::features::lotteries::service as lotteries;
 use crate::infra::db::open_temp;
 
 fn now() -> OffsetDateTime {
@@ -100,7 +101,7 @@ impl Fixture {
     }
 
     async fn stage(&self) -> SelectionStage {
-        lotteries::course_lottery(&self.pool, self.course_id)
+        course_lottery(&self.pool, self.course_id)
             .await
             .unwrap()
             .unwrap()

@@ -4,7 +4,7 @@
 //! 시드는 부른 쪽이 만들어 넘긴다(ADR 0016). 호스트 PC에서만 부르는지(BR-L6)와 역할은
 //! 서버가 확인한다.
 
-use baeum_domain::{Capacity, LotterySeed, LotteryVersion, Personal, allocate};
+use baeum_domain::{Capacity, LotterySeed, LotteryVersion, Personal};
 use sqlx::{SqliteConnection, SqlitePool};
 use time::OffsetDateTime;
 
@@ -66,38 +66,6 @@ pub struct CourseLottery {
     /// 추첨 뒤 `entrants`의 앞에서 몇 명이 당첨인지(자리 보장 포함). 나머지는 차례로
     /// 대기 순번 1, 2, … 추첨 전이면 0.
     pub selected_count: usize,
-}
-
-/// 추첨하지 못했다.
-#[derive(Debug, thiserror::Error)]
-pub enum RunLotteryError {
-    #[error("강좌를 찾지 못했습니다")]
-    CourseNotFound,
-    /// BR-L5: 마감 뒤에는 다시 추첨할 수 없다.
-    #[error("선발을 마감한 강좌입니다")]
-    Closed,
-    /// 접수됨 신청이 없다. 빈 추첨으로 신청만 막히는 일(BR-L3)을 피한다.
-    #[error("추첨할 신청이 없습니다")]
-    NoApplicants,
-    /// BR-S5: 자리 보장 신청이 정원보다 많다. 이전 추첨도 그대로 둔다.
-    #[error("자리 보장 신청 {guaranteed}건이 정원 {capacity}명보다 많습니다")]
-    OverCapacity { guaranteed: usize, capacity: u16 },
-    #[error("추첨하지 못했습니다: {0}")]
-    Db(#[from] sqlx::Error),
-}
-
-/// 선발을 마감하지 못했다.
-#[derive(Debug, thiserror::Error)]
-pub enum CloseSelectionError {
-    #[error("강좌를 찾지 못했습니다")]
-    CourseNotFound,
-    /// 추첨 전에는 마감할 결과가 없다.
-    #[error("추첨하지 않은 강좌입니다")]
-    NotDrawn,
-    #[error("이미 선발을 마감한 강좌입니다")]
-    AlreadyClosed,
-    #[error("선발을 마감하지 못했습니다: {0}")]
-    Db(#[from] sqlx::Error),
 }
 
 /// `term_id` 학기 강좌마다 선발 단계. 강좌 id 순.
@@ -184,139 +152,111 @@ pub async fn course_lottery(
     }))
 }
 
-/// 강좌의 접수됨 신청을 추첨하고 새 추첨 기록의 id를 돌려준다.
-///
-/// 이미 추첨한 강좌면 이전 기록에 취소 표시를 하고 그 신청들을 접수됨으로 되돌린 뒤 다시
-/// 뽑는다(BR-L4). 읽고 확인한 뒤 쓰므로 `BEGIN IMMEDIATE`로 한다 (ADR 0005).
-pub async fn run(
-    pool: &SqlitePool,
+/// 강좌의 접수됨 신청과 자리 보장 사유가 붙었는지. 접수한 순서.
+pub(super) async fn submitted_applications(
+    conn: &mut SqliteConnection,
     course_id: i64,
-    staff_id: i64,
-    seed: LotterySeed,
-    now: OffsetDateTime,
-) -> Result<i64, RunLotteryError> {
-    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
-    let course = course_row(&mut tx, course_id)
-        .await?
-        .ok_or(RunLotteryError::CourseNotFound)?;
-    if course.closed {
-        return Err(RunLotteryError::Closed);
-    }
-    let capacity = course.capacity()?;
-    let now = timestamp_text(now);
-
-    cancel_active_run(&mut tx, course_id, staff_id, &now).await?;
-
-    let applications: Vec<(i64, bool)> = sqlx::query_as(concat!(
+) -> Result<Vec<(i64, bool)>, sqlx::Error> {
+    sqlx::query_as(concat!(
         "SELECT a.id, ",
         guaranteed_column!(),
         " FROM applications a WHERE a.course_id = ? AND a.status = 'submitted'"
     ))
     .bind(course_id)
-    .fetch_all(&mut *tx)
-    .await?;
-    if applications.is_empty() {
-        return Err(RunLotteryError::NoApplicants);
-    }
-    let mut guaranteed = Vec::new();
-    let mut others = Vec::new();
-    for (id, is_guaranteed) in applications {
-        if is_guaranteed {
-            guaranteed.push(id);
-        } else {
-            others.push(id);
-        }
-    }
+    .fetch_all(conn)
+    .await
+}
 
-    let version = LotteryVersion::CURRENT;
-    // 정원을 넘으면 돌려주면서 tx가 사라져 위의 취소도 되돌려진다
-    let allocation = allocate(&guaranteed, &others, capacity, seed, version).map_err(|error| {
-        RunLotteryError::OverCapacity {
-            guaranteed: error.guaranteed,
-            capacity: error.capacity,
-        }
-    })?;
-    let draw = allocation.draw();
-    let run_id = sqlx::query(
+/// 추첨 기록을 남기고 id를 돌려준다. `now`는 [`timestamp_text`] 글자.
+pub(super) async fn insert_run(
+    conn: &mut SqliteConnection,
+    course_id: i64,
+    staff_id: i64,
+    now: &str,
+    seed: LotterySeed,
+    version: LotteryVersion,
+    capacity: Capacity,
+) -> Result<i64, sqlx::Error> {
+    Ok(sqlx::query(
         "INSERT INTO lottery_runs (course_id, run_by, run_at, seed, version, capacity)
          VALUES (?, ?, ?, ?, ?, ?)",
     )
     .bind(course_id)
     .bind(staff_id)
-    .bind(&now)
+    .bind(now)
     .bind(seed.to_hex())
     .bind(version.number())
     .bind(i64::from(capacity.value()))
-    .execute(&mut *tx)
+    .execute(conn)
     .await?
-    .last_insert_rowid();
-
-    for &application_id in allocation.guaranteed() {
-        sqlx::query(
-            "INSERT INTO lottery_guaranteed_entries (lottery_run_id, application_id) VALUES (?, ?)",
-        )
-        .bind(run_id)
-        .bind(application_id)
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query("UPDATE applications SET status = 'selected' WHERE id = ?")
-            .bind(application_id)
-            .execute(&mut *tx)
-            .await?;
-    }
-    for (index, &application_id) in draw.order().iter().enumerate() {
-        let status = if index < draw.selected().len() {
-            "selected"
-        } else {
-            "waitlisted"
-        };
-        // 정원이 200명까지라 순서도 i64에 들어간다
-        let position = i64::try_from(index + 1).map_err(|_| decode_error("순서가 너무 큽니다"))?;
-        sqlx::query(
-            "INSERT INTO lottery_entries (lottery_run_id, application_id, position)
-             VALUES (?, ?, ?)",
-        )
-        .bind(run_id)
-        .bind(application_id)
-        .bind(position)
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query("UPDATE applications SET status = ? WHERE id = ?")
-            .bind(status)
-            .bind(application_id)
-            .execute(&mut *tx)
-            .await?;
-    }
-
-    tx.commit().await?;
-    Ok(run_id)
+    .last_insert_rowid())
 }
 
-/// 강좌의 선발을 마감한다(BR-L5). 마감 뒤에는 다시 추첨할 수 없다.
-pub async fn close(
-    pool: &SqlitePool,
+/// 자리 보장으로 당첨된 신청을 추첨 기록에 남긴다(BR-S4).
+pub(super) async fn insert_guaranteed_entry(
+    conn: &mut SqliteConnection,
+    run_id: i64,
+    application_id: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO lottery_guaranteed_entries (lottery_run_id, application_id) VALUES (?, ?)",
+    )
+    .bind(run_id)
+    .bind(application_id)
+    .execute(conn)
+    .await?;
+    Ok(())
+}
+
+/// 뽑힌 신청을 추첨 기록에 순서와 함께 남긴다. `position`은 1부터.
+pub(super) async fn insert_entry(
+    conn: &mut SqliteConnection,
+    run_id: i64,
+    application_id: i64,
+    position: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO lottery_entries (lottery_run_id, application_id, position)
+         VALUES (?, ?, ?)",
+    )
+    .bind(run_id)
+    .bind(application_id)
+    .bind(position)
+    .execute(conn)
+    .await?;
+    Ok(())
+}
+
+/// 추첨 결과로 신청 상태를 당첨이나 대기로 바꾼다.
+pub(super) async fn set_drawn_status(
+    conn: &mut SqliteConnection,
+    application_id: i64,
+    selected: bool,
+) -> Result<(), sqlx::Error> {
+    let status = if selected { "selected" } else { "waitlisted" };
+    sqlx::query("UPDATE applications SET status = ? WHERE id = ?")
+        .bind(status)
+        .bind(application_id)
+        .execute(conn)
+        .await?;
+    Ok(())
+}
+
+/// 선발 마감을 남긴다(BR-L5).
+pub(super) async fn insert_closure(
+    conn: &mut SqliteConnection,
     course_id: i64,
     staff_id: i64,
     now: OffsetDateTime,
-) -> Result<(), CloseSelectionError> {
-    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
-    let course = course_row(&mut tx, course_id)
-        .await?
-        .ok_or(CloseSelectionError::CourseNotFound)?;
-    match course.stage() {
-        SelectionStage::NotDrawn => return Err(CloseSelectionError::NotDrawn),
-        SelectionStage::Closed => return Err(CloseSelectionError::AlreadyClosed),
-        SelectionStage::Drawn => {}
-    }
+) -> Result<(), sqlx::Error> {
     sqlx::query(
         "INSERT INTO selection_closures (course_id, closed_by, closed_at) VALUES (?, ?, ?)",
     )
     .bind(course_id)
     .bind(staff_id)
     .bind(timestamp_text(now))
-    .execute(&mut *tx)
+    .execute(conn)
     .await?;
-    tx.commit().await?;
     Ok(())
 }
 
@@ -342,23 +282,23 @@ fn stage_of(drawn: bool, closed: bool) -> SelectionStage {
 }
 
 #[derive(sqlx::FromRow)]
-struct CourseRow {
+pub(super) struct CourseRow {
     capacity: i64,
     drawn: bool,
     closed: bool,
 }
 
 impl CourseRow {
-    fn capacity(&self) -> Result<Capacity, sqlx::Error> {
+    pub(super) fn capacity(&self) -> Result<Capacity, sqlx::Error> {
         Capacity::new(self.capacity).map_err(|_| decode_error("정원이 범위 밖입니다"))
     }
 
-    fn stage(&self) -> SelectionStage {
+    pub(super) fn stage(&self) -> SelectionStage {
         stage_of(self.drawn, self.closed)
     }
 }
 
-async fn course_row(
+pub(super) async fn course_row(
     conn: &mut SqliteConnection,
     course_id: i64,
 ) -> Result<Option<CourseRow>, sqlx::Error> {

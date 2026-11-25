@@ -15,7 +15,8 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use super::dto::{CourseLotteryResponse, CourseStageResponse, SelectionListResponse};
-use super::repository::{self, CloseSelectionError, RunLotteryError};
+use super::repository;
+use super::service::{self, CloseSelectionError, RunLotteryError};
 use crate::features::auth::middleware::{Client, CurrentStaff};
 use crate::features::backups::backup::Backups;
 use crate::features::terms::handler::require_term;
@@ -95,7 +96,7 @@ async fn run_lottery(
         )
         .await;
     let seed = secret::new_lottery_seed().map_err(ApiError::internal)?;
-    let run_id = repository::run(&db, id, staff.id, seed, OffsetDateTime::now_utc())
+    let run_id = service::run(&db, id, staff.id, seed, OffsetDateTime::now_utc())
         .await
         .map_err(|error| match error {
             RunLotteryError::CourseNotFound => ApiError::CourseNotFound,
@@ -125,7 +126,7 @@ async fn close_selection(
             OffsetDateTime::now_utc(),
         )
         .await;
-    repository::close(&db, id, staff.id, OffsetDateTime::now_utc())
+    service::close(&db, id, staff.id, OffsetDateTime::now_utc())
         .await
         .map_err(|error| match error {
             CloseSelectionError::CourseNotFound => ApiError::CourseNotFound,

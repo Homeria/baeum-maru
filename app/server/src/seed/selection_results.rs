@@ -9,7 +9,7 @@ use time::OffsetDateTime;
 
 use super::basics::Basics;
 use super::{SeedError, fail};
-use crate::features::lotteries::repository as lotteries;
+use crate::features::lotteries::service as lotteries;
 use crate::features::selection_results::repository::changes as selection_changes;
 use crate::features::selection_results::repository::course_result;
 
