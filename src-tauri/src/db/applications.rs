@@ -1097,9 +1097,12 @@ mod tests {
         #[tokio::test]
         async fn br_x1_term_end_date_is_last_day() {
             let (_dir, pool, course) = closed_course(3, 1).await;
-            // 학기 종료일 2027-06-30. 한국 시간으로 그날 밤과 다음 날 아침
-            let last_day = datetime!(2027-06-30 14:59:59 UTC);
-            let next_day = datetime!(2027-06-30 15:00:00 UTC);
+            // 학기 종료일 2027-06-30. 이 PC 시간대로 그날 마지막 순간과 다음 날 0시.
+            // 검사 서버는 UTC라 한국 시간을 박아 두면 안 된다
+            let offset = time::UtcOffset::local_offset_at(datetime!(2027-06-30 12:00 UTC))
+                .unwrap_or(time::UtcOffset::UTC);
+            let last_day = datetime!(2027-06-30 23:59:59).assume_offset(offset);
+            let next_day = datetime!(2027-07-01 00:00:00).assume_offset(offset);
 
             apply_new_member(&pool, &course, "10001", last_day)
                 .await
