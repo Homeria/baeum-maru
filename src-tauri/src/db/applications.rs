@@ -4,14 +4,14 @@ use std::collections::{BTreeSet, HashMap};
 
 use baeum_domain::{
     AdditionalOutcome, ApplicationRule, ClassTime, CourseForRules, RuleViolation, Schedule,
-    additional_outcome, check_application, weekday_from_number,
+    check_application, weekday_from_number,
 };
 use sqlx::{SqliteConnection, SqlitePool};
 use time::{Date, OffsetDateTime};
 
 use super::application_priorities::{self, ChangeTarget};
 use super::lotteries::decode_error;
-use super::selection_results::{CourseResultError, course_result_in};
+use super::selection_results::{CourseResultError, course_result_in, next_additional};
 use super::timestamp_text;
 use crate::clock;
 
@@ -288,9 +288,6 @@ pub async fn submit(
 }
 
 /// 선발 마감한 강좌 `course_id`에 추가 신청 하나를 받으면 어떻게 되는지(BR-X2).
-///
-/// 지금의 선발 결과에서 빈자리, 남은 대기자, 지금까지 쓴 가장 큰 대기 순번을 센다. 포기한
-/// 사람과 승격한 사람의 순번도 쓴 번호다(BR-W6).
 async fn additional_outcome_for(
     conn: &mut SqliteConnection,
     course_id: i64,
@@ -304,23 +301,7 @@ async fn additional_outcome_for(
                 decode_error("마감한 강좌의 선발 결과가 없습니다")
             }
         })?;
-    let last_waitlist_number = result
-        .selected
-        .iter()
-        .filter_map(|entry| entry.waitlist_number)
-        .chain(result.waitlisted.iter().map(|entry| entry.waitlist_number))
-        .chain(
-            result
-                .withdrawn
-                .iter()
-                .filter_map(|entry| entry.waitlist_number),
-        )
-        .max();
-    Ok(additional_outcome(
-        result.open_seats,
-        result.waitlisted.len(),
-        last_waitlist_number,
-    ))
+    Ok(next_additional(&result))
 }
 
 /// 회원이 `term_id` 학기에 낸 유효한 신청. 접수한 순서.

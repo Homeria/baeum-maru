@@ -21,12 +21,12 @@ use crate::db::applications::{
 };
 use crate::db::terms;
 
-pub use json::RuleViolationResponse;
+pub use json::{AdditionalOutcomeResponse, RuleViolationResponse};
 use json::{
     ApplicationCountListResponse, ApplicationCountResponse, ApplicationListResponse,
     ApplicationResponse, DeleteApplicationRequest, ListApplicationsParams,
     SetPriorityReasonsRequest, SetPriorityReasonsResponse, SubmitApplicationsRequest,
-    SubmitApplicationsResponse,
+    SubmitApplicationsResponse, SubmittedResponse,
 };
 
 /// 회원이 이 학기에 낸 유효한 신청. 학기가 없으면 404.
@@ -109,18 +109,23 @@ pub async fn submit_applications(
         priorities: &priorities,
     };
     let submitted = applications::submit(&db, new, OffsetDateTime::now_utc()).await?;
-    let ids: Vec<i64> = submitted.iter().map(|item| item.id).collect();
     tracing::info!(
         staff_id = staff.id,
         term_id,
         member_id = request.member_id,
-        count = ids.len(),
+        count = submitted.len(),
+        additional = submitted
+            .iter()
+            .filter(|item| item.additional.is_some())
+            .count(),
         overridden = reason.is_some(),
         "신청 저장"
     );
     Ok((
         StatusCode::CREATED,
-        Json(SubmitApplicationsResponse { ids }),
+        Json(SubmitApplicationsResponse {
+            items: submitted.into_iter().map(SubmittedResponse::from).collect(),
+        }),
     ))
 }
 
@@ -248,8 +253,9 @@ mod tests {
 
     use super::*;
     use crate::db::test_support::{
-        insert_application, insert_course, insert_lottery_run, insert_member,
-        insert_priority_reason, insert_schedule, insert_staff, insert_subject, insert_term,
+        DrawnCourse, insert_application, insert_course, insert_drawn_course, insert_lottery_run,
+        insert_member, insert_priority_reason, insert_schedule, insert_staff, insert_subject,
+        insert_term,
     };
     use crate::server::test_support::{app, app_as, delete_with_body, get, json_body, post, put};
 
@@ -335,7 +341,15 @@ mod tests {
         .await;
 
         assert_eq!(response.status(), StatusCode::CREATED);
-        let ids = json_body(response).await["ids"].clone();
+        let items = json_body(response).await["items"].clone();
+        let ids = json!(
+            items
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|item| item["id"].clone())
+                .collect::<Vec<_>>()
+        );
         let list = s.list(router.clone()).await;
         assert_eq!(list["items"][0]["id"], ids[0]);
         assert_eq!(list["items"][0]["courseId"], s.yoga_basic);
@@ -483,7 +497,9 @@ mod tests {
         let (_dir, db, router) = app_as("temp_staff").await;
         let s = setup(&db).await;
         let response = post(router.clone(), &s.uri(), &s.body(&[s.yoga_basic], None)).await;
-        let id = json_body(response).await["ids"][0].as_i64().unwrap();
+        let id = json_body(response).await["items"][0]["id"]
+            .as_i64()
+            .unwrap();
         let uri = format!("/api/applications/{id}");
 
         let status = delete_with(router.clone(), &uri, Some(" 잘못 고름 ")).await;
@@ -579,7 +595,7 @@ mod tests {
             &s.body_with_priorities(s.yoga_basic, &[]),
         )
         .await;
-        let id = json_body(without).await["ids"][0].as_i64().unwrap();
+        let id = json_body(without).await["items"][0]["id"].as_i64().unwrap();
         let changed = put(router, &priority_uri(id), &reason_ids(&[leader])).await;
 
         assert_eq!(with_reason.status(), StatusCode::FORBIDDEN);
@@ -592,7 +608,9 @@ mod tests {
         let s = setup(&db).await;
         let leader = insert_priority_reason(&db, "반장").await.unwrap();
         let response = post(router.clone(), &s.uri(), &s.body(&[s.yoga_basic], None)).await;
-        let id = json_body(response).await["ids"][0].as_i64().unwrap();
+        let id = json_body(response).await["items"][0]["id"]
+            .as_i64()
+            .unwrap();
 
         let attached = put(router.clone(), &priority_uri(id), &reason_ids(&[leader])).await;
 
@@ -620,7 +638,9 @@ mod tests {
         let (_dir, db, router) = app().await;
         let s = setup(&db).await;
         let response = post(router.clone(), &s.uri(), &s.body(&[s.yoga_basic], None)).await;
-        let id = json_body(response).await["ids"][0].as_i64().unwrap();
+        let id = json_body(response).await["items"][0]["id"]
+            .as_i64()
+            .unwrap();
 
         let unknown_reason = put(router.clone(), &priority_uri(id), &reason_ids(&[999])).await;
         let unknown_application = put(router, &priority_uri(999), &reason_ids(&[])).await;
@@ -634,5 +654,54 @@ mod tests {
             json_body(unknown_application).await["code"],
             "APPLICATION_NOT_FOUND"
         );
+    }
+
+    /// 정원 2명, 신청 3명으로 추첨하고 마감한 강좌. 새 회원 하나가 추가 신청할 주소와 본문.
+    async fn closed_course(db: &SqlitePool) -> (DrawnCourse, String, String) {
+        let course = insert_drawn_course(db, 2, 3, true).await;
+        let member_id = insert_member(db, "10001").await.unwrap();
+        let uri = format!("/api/terms/{}/applications", course.term_id);
+        let body = json!({
+            "memberId": member_id,
+            "courseIds": [course.course_id],
+            "overrideReason": null,
+            "priorities": [],
+        })
+        .to_string();
+        (course, uri, body)
+    }
+
+    #[tokio::test]
+    async fn br_x2_additional_application_tells_its_outcome() {
+        let (_dir, db, router) = app().await;
+        let (course, uri, body) = closed_course(&db).await;
+
+        let response = post(router, &uri, &body).await;
+
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let item = json_body(response).await["items"][0].clone();
+        assert_eq!(item["courseId"], course.course_id);
+        // 대기 1번 다음
+        assert_eq!(
+            item["additional"],
+            json!({ "kind": "waitlisted", "waitlistNumber": 2 })
+        );
+    }
+
+    #[tokio::test]
+    async fn br_x1_ended_term_takes_no_additional_application() {
+        let (_dir, db, router) = app().await;
+        let (_course, uri, body) = closed_course(&db).await;
+        sqlx::query("UPDATE terms SET starts_on = '2020-03-02', ends_on = '2020-06-30'")
+            .execute(&db)
+            .await
+            .unwrap();
+
+        let response = post(router, &uri, &body).await;
+
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        let body = json_body(response).await;
+        assert_eq!(body["code"], "TERM_ENDED");
+        assert_eq!(body["rule"], "BR-X1");
     }
 }

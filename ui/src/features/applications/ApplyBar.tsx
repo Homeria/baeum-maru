@@ -69,7 +69,7 @@ export function ApplyBar({
       setViolations(null);
       setReasonError(null);
       setError(null);
-      setNotice(`${response.ids.length}건 신청했습니다`);
+      setNotice(`${response.items.length}건 신청했습니다`);
       onSubmitted();
       void queryClient.invalidateQueries({
         queryKey: ["applications", termId, memberId],

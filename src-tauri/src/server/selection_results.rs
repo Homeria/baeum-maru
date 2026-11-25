@@ -249,7 +249,9 @@ mod tests {
             list,
             json!({ "items": [{
                 "courseId": course.course_id, "capacity": 2, "selected": 2,
-                "waitlisted": 3, "openSeats": 0
+                "waitlisted": 3, "openSeats": 0,
+                // 대기 1~3번 다음
+                "nextAdditional": { "kind": "waitlisted", "waitlistNumber": 4 }
             }] })
         );
         assert_eq!(shown["selected"].as_array().unwrap().len(), 2);
