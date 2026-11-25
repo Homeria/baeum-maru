@@ -2,35 +2,11 @@
 //! `features::setup::repository`에 있다.
 
 use baeum_domain::{NewStaff, Role, StaffProfile};
-use sqlx::SqlitePool;
+use sqlx::{SqliteConnection, SqlitePool};
 use time::{Date, OffsetDateTime};
 
 use crate::features::auth::repository::decode_role;
-use crate::infra::db::{is_unique_violation, timestamp_text};
-
-/// 직원 계정을 저장하지 못했다.
-#[derive(Debug, thiserror::Error)]
-pub enum SaveStaffError {
-    /// BR-K2: 직원 이름은 겹치지 않는다.
-    #[error("같은 이름의 직원이 있습니다")]
-    DuplicateName,
-    /// BR-K9: 사용 중인 관리자가 하나도 남지 않게 된다.
-    #[error("사용 중인 관리자가 한 명은 있어야 합니다")]
-    LastAdmin,
-    #[error("직원을 저장하지 못했습니다: {0}")]
-    Db(sqlx::Error),
-}
-
-impl From<sqlx::Error> for SaveStaffError {
-    fn from(error: sqlx::Error) -> Self {
-        // staff에서 UNIQUE는 name_key 하나뿐이다
-        if is_unique_violation(&error) {
-            SaveStaffError::DuplicateName
-        } else {
-            SaveStaffError::Db(error)
-        }
-    }
-}
+use crate::infra::db::timestamp_text;
 
 /// 직원 관리 화면에 보여 주는 직원 하나. PIN 해시는 담지 않는다.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,7 +20,7 @@ pub struct StaffRecord {
 }
 
 #[derive(sqlx::FromRow)]
-struct StaffRow {
+pub(super) struct StaffRow {
     id: i64,
     name: String,
     role: String,
@@ -96,7 +72,7 @@ pub async fn insert(
     staff: &NewStaff,
     pin_hash: &str,
     now: OffsetDateTime,
-) -> Result<i64, SaveStaffError> {
+) -> Result<i64, sqlx::Error> {
     let profile = staff.profile();
     let now = timestamp_text(now);
     let result = sqlx::query(
@@ -115,21 +91,15 @@ pub async fn insert(
     Ok(result.last_insert_rowid())
 }
 
-/// `id`인 직원의 이름·역할·유효기간·사용 중지를 바꾸고 바꾼 뒤 모습을 돌려준다. 없으면 `None`.
-///
-/// BR-K9: 바꾼 뒤 `today`에 사용 중인 관리자가 하나도 없으면 되돌리고
-/// [`SaveStaffError::LastAdmin`]. 두 관리자를 동시에 막지 못하게 `BEGIN IMMEDIATE`로 한다.
-pub async fn update(
-    pool: &SqlitePool,
+/// `id`인 직원의 이름·역할·유효기간·사용 중지를 바꾸고 바꾼 뒤 줄을 돌려준다. 없으면 `None`.
+pub(super) async fn update_row(
+    conn: &mut SqliteConnection,
     id: i64,
     profile: &StaffProfile,
     disabled: bool,
-    today: Date,
     now: OffsetDateTime,
-) -> Result<Option<StaffRecord>, SaveStaffError> {
-    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
-
-    let row: Option<StaffRow> = sqlx::query_as(
+) -> Result<Option<StaffRow>, sqlx::Error> {
+    sqlx::query_as(
         "UPDATE staff SET name = ?, name_key = ?, role = ?, valid_until = ?, disabled = ?,
                           updated_at = ?
          WHERE id = ?
@@ -142,13 +112,16 @@ pub async fn update(
     .bind(disabled)
     .bind(timestamp_text(now))
     .bind(id)
-    .fetch_optional(&mut *tx)
-    .await?;
-    let Some(row) = row else {
-        return Ok(None);
-    };
+    .fetch_optional(conn)
+    .await
+}
 
-    let has_admin: bool = sqlx::query_scalar(
+/// `today`에 사용 중인 관리자가 하나라도 있는지(BR-K9).
+pub(super) async fn has_active_admin(
+    conn: &mut SqliteConnection,
+    today: Date,
+) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar(
         "SELECT EXISTS (
              SELECT 1 FROM staff
              WHERE role = 'admin' AND disabled = 0
@@ -156,15 +129,8 @@ pub async fn update(
          )",
     )
     .bind(today)
-    .fetch_one(&mut *tx)
-    .await?;
-    if !has_admin {
-        // tx를 저장하지 않고 버려 바꾼 것을 되돌린다
-        return Err(SaveStaffError::LastAdmin);
-    }
-
-    tx.commit().await?;
-    Ok(Some(StaffRecord::try_from(row)?))
+    .fetch_one(conn)
+    .await
 }
 
 /// BR-K10: `id`인 직원의 PIN을 새 해시로 바꾼다. 틀린 횟수와 계정 잠금도 푼다.
