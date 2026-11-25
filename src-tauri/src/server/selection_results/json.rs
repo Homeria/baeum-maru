@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::db::selection_results::{ClosedCourse, ResultMember};
+use crate::server::applications::AdditionalOutcomeResponse;
 
 /// `GET /api/terms/{termId}/selection-results` 응답. 선발을 마감한 강좌만, 강좌 id 순.
 #[derive(Debug, Serialize, TS)]
@@ -28,6 +29,8 @@ pub struct ClosedCourseResponse {
     /// 정원 - 당첨(BR-W1).
     #[ts(type = "number")]
     pub open_seats: usize,
+    /// 지금 추가 신청을 하나 받으면 어떻게 되는지(BR-X2). 신청 화면이 미리 보여 준다.
+    pub next_additional: AdditionalOutcomeResponse,
 }
 
 impl From<ClosedCourse> for ClosedCourseResponse {
@@ -38,6 +41,7 @@ impl From<ClosedCourse> for ClosedCourseResponse {
             selected: course.selected,
             waitlisted: course.waitlisted,
             open_seats: course.open_seats,
+            next_additional: course.next_additional.into(),
         }
     }
 }

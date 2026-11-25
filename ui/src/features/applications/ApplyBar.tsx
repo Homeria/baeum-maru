@@ -2,13 +2,18 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { submitApplications } from "../../api/applications";
 import { HostError } from "../../api/client";
+import type { AdditionalOutcomeResponse } from "../../api/generated/AdditionalOutcomeResponse";
 import type { CourseResponse } from "../../api/generated/CourseResponse";
 import type { PriorityReasonResponse } from "../../api/generated/PriorityReasonResponse";
 import type { RuleViolationResponse } from "../../api/generated/RuleViolationResponse";
 import formStyles from "../../components/form/form.module.css";
 import { useCan } from "../auth/useCan";
 import { courseName } from "../courses/courseFormData";
-import { priorityRequests, type ChosenPriorities } from "./applicationsData";
+import {
+  priorityRequests,
+  submittedNotice,
+  type ChosenPriorities,
+} from "./applicationsData";
 import { PriorityChoices } from "./PriorityChoices";
 import { RuleViolationDialog } from "./RuleViolationDialog";
 import styles from "./ApplicationsPage.module.css";
@@ -26,6 +31,8 @@ export interface ApplyBarProps {
   /** 고른 강좌에 붙일 사유. */
   priorities: ChosenPriorities;
   onTogglePriority: (courseId: number, reasonId: number) => void;
+  /** 마감한 강좌의 추가 신청 미리 보기(BR-X2). 결과가 달라졌는지 알리는 데 쓴다. */
+  additional: ReadonlyMap<number, AdditionalOutcomeResponse>;
   /** 신청을 저장했다. 고른 강좌와 사유를 비운다. */
   onSubmitted: () => void;
 }
@@ -35,6 +42,7 @@ export interface ApplyBarProps {
  *
  * 규칙을 어기면 창을 띄워 어긴 규칙을 보여 주고, 사유를 받으면 그대로 다시 신청한다.
  * 사유 목록이 있고 우선 배정을 할 수 있는 역할이면, 고른 강좌마다 사유 체크박스를 붙인다(BR-S12).
+ * 추가 신청으로 고른 마감 강좌에는 붙이지 않는다(BR-S13).
  */
 export function ApplyBar({
   termId,
@@ -44,6 +52,7 @@ export function ApplyBar({
   reasons,
   priorities,
   onTogglePriority,
+  additional,
   onSubmitted,
 }: ApplyBarProps) {
   const queryClient = useQueryClient();
@@ -54,28 +63,42 @@ export function ApplyBar({
   >(null);
   const [reasonError, setReasonError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<readonly string[] | null>(null);
+  // 추가 신청(마감한 강좌)에는 우선 배정 사유를 붙이지 않는다 (BR-S13)
+  const priorityCourseIds = chosen.filter((id) => !additional.has(id));
 
   const submit = useMutation({
-    mutationFn: (overrideReason: string | null) =>
+    // previews: 누른 때 보였던 미리 보기. 응답이 오기 전에 화면이 새로 받아도 비교할 수 있게 함께 넘김
+    mutationFn: ({
+      overrideReason,
+    }: {
+      overrideReason: string | null;
+      previews: ReadonlyMap<number, AdditionalOutcomeResponse>;
+    }) =>
       submitApplications(termId, {
         // 버튼이 회원을 고른 뒤에만 눌리므로 0으로 보낼 일은 없음
         memberId: memberId ?? 0,
         courseIds: [...chosen],
         overrideReason,
-        priorities: canAssign ? priorityRequests(chosen, priorities) : [],
+        priorities: canAssign
+          ? priorityRequests(priorityCourseIds, priorities)
+          : [],
       }),
-    onSuccess: (response) => {
+    onSuccess: (response, { previews }) => {
       setViolations(null);
       setReasonError(null);
       setError(null);
-      setNotice(`${response.ids.length}건 신청했습니다`);
+      setNotice(submittedNotice(response.items, previews, courses));
       onSubmitted();
       void queryClient.invalidateQueries({
         queryKey: ["applications", termId, memberId],
       });
       void queryClient.invalidateQueries({
         queryKey: ["applicationCounts", termId],
+      });
+      // 추가 신청이 빈자리와 다음 대기 순번을 바꾼다 (BR-X2)
+      void queryClient.invalidateQueries({
+        queryKey: ["closed-courses", termId],
       });
     },
     onError: (failure) => {
@@ -97,7 +120,8 @@ export function ApplyBar({
   });
 
   const count = chosen.length;
-  const showPriorities = canAssign && reasons.length > 0 && count > 0;
+  const showPriorities =
+    canAssign && reasons.length > 0 && priorityCourseIds.length > 0;
 
   return (
     <>
@@ -106,7 +130,7 @@ export function ApplyBar({
           className={styles.chosenPriorities}
           aria-label="고른 강좌의 우선 배정"
         >
-          {chosen.map((courseId) => {
+          {priorityCourseIds.map((courseId) => {
             const course = courses.find(
               (candidate) => candidate.id === courseId,
             );
@@ -133,9 +157,13 @@ export function ApplyBar({
           </p>
         )}
         {notice && count === 0 && (
-          <p className={formStyles.notice} role="status">
-            {notice}
-          </p>
+          <div className={formStyles.notice} role="status">
+            {notice.map((line) => (
+              <p key={line} className={styles.noticeLine}>
+                {line}
+              </p>
+            ))}
+          </div>
         )}
         <button
           type="button"
@@ -144,7 +172,7 @@ export function ApplyBar({
           onClick={() => {
             setNotice(null);
             setError(null);
-            submit.mutate(null);
+            submit.mutate({ overrideReason: null, previews: additional });
           }}
         >
           {submit.isPending && violations === null
@@ -159,7 +187,9 @@ export function ApplyBar({
             canOverride={canOverride}
             saving={submit.isPending}
             reasonError={reasonError}
-            onOverride={(reason) => submit.mutate(reason)}
+            onOverride={(reason) =>
+              submit.mutate({ overrideReason: reason, previews: additional })
+            }
             onCancel={() => setViolations(null)}
           />
         )}

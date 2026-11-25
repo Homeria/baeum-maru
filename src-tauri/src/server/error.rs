@@ -57,8 +57,10 @@ pub enum ApiError {
     CourseNotFound,
     /// BR-T6: 신청이나 삭제 기록이 있는 강좌는 지울 수 없다.
     CourseInUse,
-    /// BR-L3: 추첨한 강좌는 새 신청을 받지 않는다.
+    /// BR-L3: 추첨한 강좌는 선발 마감 전까지 새 신청을 받지 않는다.
     CourseDrawn,
+    /// BR-X1: 학기 종료일이 지나 추가 신청을 받지 않는다.
+    TermEnded,
     /// BR-L5: 선발을 마감한 강좌는 다시 추첨하거나 마감할 수 없다.
     SelectionClosed,
     /// 추첨 전에는 마감할 수 없다.
@@ -183,6 +185,7 @@ pub enum ErrorCode {
     CourseNotFound,
     CourseInUse,
     CourseDrawn,
+    TermEnded,
     SelectionClosed,
     NotDrawn,
     SelectionNotClosed,
@@ -391,8 +394,15 @@ impl IntoResponse for ApiError {
             ApiError::CourseDrawn => (
                 StatusCode::CONFLICT,
                 ErrorCode::CourseDrawn,
-                "추첨한 강좌는 새 신청을 받지 않습니다. 고른 강좌에서 빼 주세요",
+                "추첨한 강좌는 선발 마감 전까지 새 신청을 받지 않습니다. 고른 강좌에서 빼 주세요",
                 Some("BR-L3"),
+                Vec::new(),
+            ),
+            ApiError::TermEnded => (
+                StatusCode::CONFLICT,
+                ErrorCode::TermEnded,
+                "학기가 끝나 추가 신청을 받지 않습니다. 고른 강좌에서 빼 주세요",
+                Some("BR-X1"),
                 Vec::new(),
             ),
             ApiError::SelectionClosed => (

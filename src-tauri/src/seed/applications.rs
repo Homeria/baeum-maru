@@ -172,4 +172,5 @@ async fn submit(
         now,
     )
     .await
+    .map(|submitted| submitted.into_iter().map(|item| item.id).collect())
 }

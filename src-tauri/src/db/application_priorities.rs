@@ -257,7 +257,7 @@ mod tests {
             )
             .await
             .unwrap();
-            ids[0]
+            ids[0].id
         }
 
         async fn reasons_of(&self, index: usize) -> Vec<i64> {

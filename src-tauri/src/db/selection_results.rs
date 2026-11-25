@@ -1,10 +1,11 @@
 //! 선발 결과: 마감한 강좌의 당첨자, 대기자, 포기한 사람(BR-C3, BR-W1~W8).
 //!
-//! 대기 순번은 추첨 기록의 순서에서 계산한다(BR-W6). 연락할 차례도 저장하지 않고 그때그때
-//! 정한다(BR-W1).
+//! 대기 순번은 추첨 기록의 순서에서 계산하고, 추가 신청은 받을 때 정해 둔 순번을 쓴다(BR-W6,
+//! BR-X2). 연락할 차례는 저장하지 않고 그때그때 정한다(BR-W1).
 
 use baeum_domain::{
-    Capacity, ContactResult, Personal, Waiting, WithdrawnFrom, contact_turns, open_seats,
+    AdditionalOutcome, Capacity, ContactResult, Personal, Waiting, WithdrawnFrom,
+    additional_outcome, contact_turns, open_seats,
 };
 use sqlx::{SqliteConnection, SqlitePool};
 
@@ -18,6 +19,8 @@ pub struct ClosedCourse {
     pub selected: usize,
     pub waitlisted: usize,
     pub open_seats: usize,
+    /// 지금 추가 신청을 하나 받으면 어떻게 되는지(BR-X2). 화면이 미리 보여 준다.
+    pub next_additional: AdditionalOutcome,
 }
 
 /// 결과 목록의 회원 한 명.
@@ -44,7 +47,7 @@ pub struct WaitingEntry {
     pub member: ResultMember,
     /// 연락에 쓴다(BR-W2). 누구에게 보여 줄지는 서버가 정한다.
     pub phone_number: Personal<String>,
-    /// 추첨 때 받은 대기 순번. 1부터(BR-W6).
+    /// 추첨이나 추가 신청 때 받은 대기 순번. 1부터(BR-W6).
     pub waitlist_number: usize,
     pub last_contact: Option<ContactResult>,
     /// 지금 연락할 차례(BR-W1).
@@ -67,11 +70,11 @@ pub struct CourseResult {
     /// 지금 정원.
     pub capacity: Capacity,
     pub open_seats: usize,
-    /// 자리 보장(id 순) 다음에 뽑힌 순서.
+    /// 자리 보장(id 순), 뽑힌 순서, 추가 신청(받은 순서).
     pub selected: Vec<SelectedEntry>,
     /// 대기 순번 순서.
     pub waitlisted: Vec<WaitingEntry>,
-    /// 뽑힌 순서.
+    /// 뽑힌 순서, 그다음 추가 신청(받은 순서).
     pub withdrawn: Vec<WithdrawnEntry>,
 }
 
@@ -88,36 +91,67 @@ pub enum CourseResultError {
 }
 
 /// 학기에서 선발을 마감한 강좌들의 인원. 강좌 id 순서.
+///
+/// 강좌마다 선발 결과를 읽어 센다. 다음 추가 신청의 대기 순번은 추첨 기록에서 계산해야 해서다.
+/// 강좌들을 같은 때의 모습으로 읽도록 트랜잭션 하나에서 읽는다.
 pub async fn closed_courses(
     pool: &SqlitePool,
     term_id: i64,
 ) -> Result<Vec<ClosedCourse>, sqlx::Error> {
-    let rows: Vec<(i64, i64, i64, i64)> = sqlx::query_as(
-        "SELECT c.id, c.capacity,
-                (SELECT COUNT(*) FROM applications a
-                 WHERE a.course_id = c.id AND a.status IN ('selected', 'confirmed')),
-                (SELECT COUNT(*) FROM applications a
-                 WHERE a.course_id = c.id AND a.status = 'waitlisted')
-         FROM courses c JOIN selection_closures s ON s.course_id = c.id
+    let mut conn = pool.begin().await?;
+    let course_ids: Vec<i64> = sqlx::query_scalar(
+        "SELECT c.id FROM courses c JOIN selection_closures s ON s.course_id = c.id
          WHERE c.term_id = ?
          ORDER BY c.id",
     )
     .bind(term_id)
-    .fetch_all(pool)
+    .fetch_all(&mut *conn)
     .await?;
-    rows.into_iter()
-        .map(|(course_id, capacity, selected, waitlisted)| {
-            let capacity = course_capacity(capacity)?;
-            let selected = count(selected)?;
-            Ok(ClosedCourse {
-                course_id,
-                capacity,
-                selected,
-                waitlisted: count(waitlisted)?,
-                open_seats: open_seats(capacity, selected),
-            })
-        })
-        .collect()
+    let mut courses = Vec::with_capacity(course_ids.len());
+    for course_id in course_ids {
+        let result = course_result_in(&mut conn, course_id)
+            .await
+            .map_err(|error| match error {
+                CourseResultError::Db(error) => error,
+                // 같은 연결에서 방금 마감한 강좌로 읽었다
+                CourseResultError::CourseNotFound | CourseResultError::NotClosed => {
+                    decode_error("마감한 강좌의 선발 결과가 없습니다")
+                }
+            })?;
+        courses.push(ClosedCourse {
+            course_id,
+            capacity: result.capacity,
+            selected: result.selected.len(),
+            waitlisted: result.waitlisted.len(),
+            open_seats: result.open_seats,
+            next_additional: next_additional(&result),
+        });
+    }
+    Ok(courses)
+}
+
+/// 이 선발 결과에 추가 신청을 하나 더 받으면 어떻게 되는지(BR-X2).
+///
+/// 남은 대기자 수와 지금까지 쓴 가장 큰 대기 순번을 센다. 포기한 사람과 승격한 사람의 순번도
+/// 쓴 번호다(BR-W6).
+pub fn next_additional(result: &CourseResult) -> AdditionalOutcome {
+    let last_waitlist_number = result
+        .selected
+        .iter()
+        .filter_map(|entry| entry.waitlist_number)
+        .chain(result.waitlisted.iter().map(|entry| entry.waitlist_number))
+        .chain(
+            result
+                .withdrawn
+                .iter()
+                .filter_map(|entry| entry.waitlist_number),
+        )
+        .max();
+    additional_outcome(
+        result.open_seats,
+        result.waitlisted.len(),
+        last_waitlist_number,
+    )
 }
 
 /// 마감한 강좌 하나의 선발 결과.
@@ -155,10 +189,10 @@ pub(super) async fn course_result_in(
     };
     let capacity = course_capacity(capacity)?;
 
-    // 자리 보장(id 순, 순서 없음) 다음에 추첨 대상(뽑힌 순서)
+    // 자리 보장(id 순, 순서 없음), 추첨 대상(뽑힌 순서), 추가 신청(받은 순서. 대기 순번도 이 순서다)
     let rows: Vec<ResultRow> = sqlx::query_as(
         "SELECT a.id AS application_id, m.name, m.member_no, m.phone_number, a.status,
-                NULL AS position,
+                NULL AS position, NULL AS additional_number, 0 AS additional,
                 (SELECT x.kind FROM selection_changes x
                  WHERE x.application_id = a.id
                    AND x.kind IN ('accepted', 'declined', 'unreachable')
@@ -172,7 +206,7 @@ pub(super) async fn course_result_in(
          JOIN members m ON m.id = a.member_id
          WHERE g.lottery_run_id = ?1
          UNION ALL
-         SELECT a.id, m.name, m.member_no, m.phone_number, a.status, e.position,
+         SELECT a.id, m.name, m.member_no, m.phone_number, a.status, e.position, NULL, 0,
                 (SELECT x.kind FROM selection_changes x
                  WHERE x.application_id = a.id
                    AND x.kind IN ('accepted', 'declined', 'unreachable')
@@ -185,17 +219,39 @@ pub(super) async fn course_result_in(
          JOIN applications a ON a.id = e.application_id
          JOIN members m ON m.id = a.member_id
          WHERE e.lottery_run_id = ?1
+         UNION ALL
+         SELECT a.id, m.name, m.member_no, m.phone_number, a.status, NULL, x.waitlist_number, 1,
+                (SELECT c.kind FROM selection_changes c
+                 WHERE c.application_id = a.id
+                   AND c.kind IN ('accepted', 'declined', 'unreachable')
+                 ORDER BY c.id DESC LIMIT 1),
+                (SELECT c.from_status FROM selection_changes c
+                 WHERE c.application_id = a.id AND c.to_status = 'withdrawn'
+                 ORDER BY c.id DESC LIMIT 1),
+                2, a.id
+         FROM additional_applications x
+         JOIN applications a ON a.id = x.application_id
+         JOIN members m ON m.id = a.member_id
+         WHERE a.course_id = ?2
          ORDER BY sort_group, sort_key",
     )
     .bind(run.id)
+    .bind(course_id)
     .fetch_all(&mut *conn)
     .await?;
 
     // BR-W6: 추첨 때 당첨된 수. 그 뒤의 뽑힌 순서가 대기 순번이다
-    let guaranteed = rows.iter().filter(|row| row.position.is_none()).count();
-    let drawn = rows.len() - guaranteed;
+    let guaranteed = rows.iter().filter(|row| row.is_guaranteed()).count();
+    let drawn = rows.iter().filter(|row| row.position.is_some()).count();
     let drawn_selected = drawn.min(run.capacity()?.saturating_sub(guaranteed));
     let waitlist_number = |row: &ResultRow| -> Result<Option<usize>, sqlx::Error> {
+        // BR-X2: 추가 신청은 받을 때 정한 순번
+        if row.additional {
+            return row
+                .additional_number
+                .map(|n| usize::try_from(n).map_err(|_| decode_error("대기 순번이 범위 밖입니다")))
+                .transpose();
+        }
         let Some(position) = row.position else {
             return Ok(None);
         };
@@ -209,6 +265,8 @@ pub(super) async fn course_result_in(
     let mut withdrawn = Vec::new();
     for row in rows {
         let number = waitlist_number(&row)?;
+        // 아래에서 이름과 번호를 옮겨 가기 전에 읽어 둔다
+        let guaranteed = row.is_guaranteed();
         let last_contact = row
             .last_contact
             .as_deref()
@@ -229,7 +287,7 @@ pub(super) async fn course_result_in(
         match row.status.as_str() {
             "selected" | "confirmed" => selected.push(SelectedEntry {
                 member,
-                guaranteed: row.position.is_none(),
+                guaranteed,
                 waitlist_number: number,
             }),
             "waitlisted" => waiting.push(WaitingEntry {
@@ -280,10 +338,21 @@ struct ResultRow {
     member_no: String,
     phone_number: String,
     status: String,
-    /// 추첨 대상의 뽑힌 순서. 자리 보장이면 없다.
+    /// 추첨 대상의 뽑힌 순서. 자리 보장과 추가 신청이면 없다.
     position: Option<i64>,
+    /// 추가 신청을 대기로 받았을 때 정한 대기 순번.
+    additional_number: Option<i64>,
+    /// 추가 신청이다(BR-X2).
+    additional: bool,
     last_contact: Option<String>,
     withdrawn_from: Option<String>,
+}
+
+impl ResultRow {
+    /// 자리 보장으로 당첨됐다(BR-S4). 추첨 대상도 추가 신청도 아니다.
+    fn is_guaranteed(&self) -> bool {
+        self.position.is_none() && !self.additional
+    }
 }
 
 fn withdrawn_from(status: &str) -> Result<WithdrawnFrom, sqlx::Error> {
@@ -296,10 +365,6 @@ fn withdrawn_from(status: &str) -> Result<WithdrawnFrom, sqlx::Error> {
 
 fn course_capacity(capacity: i64) -> Result<Capacity, sqlx::Error> {
     Capacity::new(capacity).map_err(|_| decode_error("정원이 범위 밖입니다"))
-}
-
-fn count(value: i64) -> Result<usize, sqlx::Error> {
-    usize::try_from(value).map_err(|_| decode_error("인원이 범위 밖입니다"))
 }
 
 #[cfg(test)]

@@ -1,16 +1,19 @@
-//! 신청 저장(규칙 확인과 규칙 예외), 목록, 지우기(삭제 기록).
+//! 신청 저장(규칙 확인과 규칙 예외, 추가 신청), 목록, 지우기(삭제 기록).
 
 use std::collections::{BTreeSet, HashMap};
 
 use baeum_domain::{
-    ApplicationRule, ClassTime, CourseForRules, RuleViolation, Schedule, check_application,
-    weekday_from_number,
+    AdditionalOutcome, ApplicationRule, ClassTime, CourseForRules, RuleViolation, Schedule,
+    check_application, weekday_from_number,
 };
 use sqlx::{SqliteConnection, SqlitePool};
-use time::OffsetDateTime;
+use time::{Date, OffsetDateTime};
 
 use super::application_priorities::{self, ChangeTarget};
+use super::lotteries::decode_error;
+use super::selection_results::{CourseResultError, course_result_in, next_additional};
 use super::timestamp_text;
+use crate::clock;
 
 /// 유효한 신청의 상태(BR-A 머리말). 탈락·포기는 규칙 계산과 인원에서 빠진다.
 macro_rules! valid_statuses {
@@ -50,12 +53,18 @@ pub enum SubmitError {
     /// 고른 강좌가 그 학기에 없다. 그 사이 지워졌거나 다른 학기의 강좌다.
     #[error("이 학기에 없는 강좌를 골랐습니다")]
     CourseNotFound(Vec<i64>),
-    /// BR-L3: 추첨한 강좌는 새 신청을 받지 않는다. 고른 강좌 가운데 추첨한 강좌들.
-    #[error("추첨한 강좌는 새 신청을 받지 않습니다")]
+    /// BR-L3: 추첨한 강좌는 선발 마감 전까지 새 신청을 받지 않는다. 고른 강좌 가운데 그런 강좌들.
+    #[error("추첨한 강좌는 선발 마감 전까지 새 신청을 받지 않습니다")]
     CourseDrawn(Vec<i64>),
+    /// BR-X1: 학기 종료일이 지나 추가 신청을 받지 않는다. 고른 강좌 가운데 선발 마감한 강좌들.
+    #[error("학기가 끝나 추가 신청을 받지 않습니다")]
+    TermEnded(Vec<i64>),
     /// 우선 배정 사유를 고르지 않은 강좌에 붙였다.
     #[error("고르지 않은 강좌에 우선 배정을 붙였습니다")]
     PriorityForUnchosenCourse(Vec<i64>),
+    /// BR-S13: 추가 신청(선발 마감한 강좌)에는 우선 배정 사유를 붙이지 않는다.
+    #[error("추가 신청에는 우선 배정을 붙일 수 없습니다")]
+    PriorityForAdditional(Vec<i64>),
     /// 목록에 없는 우선 배정 사유. 그 사이 지워졌을 수 있다.
     #[error("목록에 없는 우선 배정 사유를 골랐습니다")]
     PriorityReasonNotFound(Vec<i64>),
@@ -64,6 +73,15 @@ pub enum SubmitError {
     RulesBroken(Vec<RuleViolation>),
     #[error("신청을 저장하지 못했습니다: {0}")]
     Db(#[from] sqlx::Error),
+}
+
+/// 저장한 신청 하나.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Submitted {
+    pub id: i64,
+    pub course_id: i64,
+    /// 추가 신청(BR-X2)이면 그 결과. 보통 신청(접수됨)이면 `None`.
+    pub additional: Option<AdditionalOutcome>,
 }
 
 /// 회원의 신청 하나.
@@ -97,7 +115,10 @@ pub enum DeleteApplicationError {
     Db(#[from] sqlx::Error),
 }
 
-/// 신청을 저장하고 새 id를 고른 순서대로 돌려준다.
+/// 신청을 저장하고 고른 순서대로 돌려준다.
+///
+/// 선발 마감한 강좌는 추가 신청으로 받아 바로 당첨이나 대기로 정한다(BR-X1, BR-X2). 같은
+/// 트랜잭션에서 세므로 여러 PC가 동시에 받아도 늦게 저장한 쪽이 뒤에 선다.
 ///
 /// 규칙을 어기면 사유가 있고 모두 예외를 줄 수 있는 규칙일 때만 저장하고, 어긴 규칙마다 규칙 예외를 남긴다.
 /// 이미 낸 신청을 읽고 확인한 뒤 저장하므로 `BEGIN IMMEDIATE`로 한다 (ADR 0005).
@@ -105,7 +126,7 @@ pub async fn submit(
     pool: &SqlitePool,
     new: NewApplications<'_>,
     now: OffsetDateTime,
-) -> Result<Vec<i64>, SubmitError> {
+) -> Result<Vec<Submitted>, SubmitError> {
     let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
     let member_exists: bool =
         sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM members WHERE id = ?)")
@@ -127,14 +148,34 @@ pub async fn submit(
         return Err(SubmitError::CourseNotFound(missing));
     }
     let drawn_ids = drawn_course_ids(&mut tx, new.term_id).await?;
-    let drawn: Vec<i64> = new
+    let closed_ids = closed_course_ids(&mut tx, new.term_id).await?;
+    let (closed, drawn): (Vec<i64>, Vec<i64>) = new
         .course_ids
         .iter()
         .copied()
         .filter(|id| drawn_ids.contains(id))
-        .collect();
+        .partition(|id| closed_ids.contains(id));
     if !drawn.is_empty() {
         return Err(SubmitError::CourseDrawn(drawn));
+    }
+    let for_additional: Vec<i64> = new
+        .priorities
+        .iter()
+        .filter(|priority| !priority.reason_ids.is_empty())
+        .map(|priority| priority.course_id)
+        .filter(|id| closed.contains(id))
+        .collect();
+    if !for_additional.is_empty() {
+        return Err(SubmitError::PriorityForAdditional(for_additional));
+    }
+    if !closed.is_empty() {
+        let ends_on: Date = sqlx::query_scalar("SELECT ends_on FROM terms WHERE id = ?")
+            .bind(new.term_id)
+            .fetch_one(&mut *tx)
+            .await?;
+        if clock::local_date(now) > ends_on {
+            return Err(SubmitError::TermEnded(closed));
+        }
     }
     let unchosen: Vec<i64> = new
         .priorities
@@ -169,19 +210,46 @@ pub async fn submit(
     };
 
     let now = timestamp_text(now);
-    let mut ids = Vec::with_capacity(new.course_ids.len());
+    let mut submitted = Vec::with_capacity(new.course_ids.len());
     for &course_id in new.course_ids {
+        let additional = if closed_ids.contains(&course_id) {
+            Some(additional_outcome_for(&mut tx, course_id).await?)
+        } else {
+            None
+        };
+        let status = match additional {
+            None => "submitted",
+            Some(AdditionalOutcome::Selected) => "selected",
+            Some(AdditionalOutcome::Waitlisted(_)) => "waitlisted",
+        };
         let id = sqlx::query(
             "INSERT INTO applications (member_id, course_id, status, submitted_by, submitted_at)
-             VALUES (?, ?, 'submitted', ?, ?)",
+             VALUES (?, ?, ?, ?, ?)",
         )
         .bind(new.member_id)
         .bind(course_id)
+        .bind(status)
         .bind(new.staff_id)
         .bind(&now)
         .execute(&mut *tx)
         .await?
         .last_insert_rowid();
+        if let Some(outcome) = additional {
+            let waitlist_number = match outcome {
+                AdditionalOutcome::Selected => None,
+                AdditionalOutcome::Waitlisted(number) => Some(
+                    i64::try_from(number).map_err(|_| decode_error("대기 순번이 범위 밖입니다"))?,
+                ),
+            };
+            sqlx::query(
+                "INSERT INTO additional_applications (application_id, waitlist_number)
+                 VALUES (?, ?)",
+            )
+            .bind(id)
+            .bind(waitlist_number)
+            .execute(&mut *tx)
+            .await?;
+        }
         if let Some(reason) = reason {
             let mut rules: Vec<ApplicationRule> = violations
                 .iter()
@@ -221,11 +289,32 @@ pub async fn submit(
         for reason_id in reasons {
             application_priorities::attach(&mut tx, &target, reason_id).await?;
         }
-        ids.push(id);
+        submitted.push(Submitted {
+            id,
+            course_id,
+            additional,
+        });
     }
 
     tx.commit().await?;
-    Ok(ids)
+    Ok(submitted)
+}
+
+/// 선발 마감한 강좌 `course_id`에 추가 신청 하나를 받으면 어떻게 되는지(BR-X2).
+async fn additional_outcome_for(
+    conn: &mut SqliteConnection,
+    course_id: i64,
+) -> Result<AdditionalOutcome, SubmitError> {
+    let result = course_result_in(conn, course_id)
+        .await
+        .map_err(|error| match error {
+            CourseResultError::Db(error) => error,
+            // 위에서 같은 트랜잭션으로 마감한 강좌임을 확인했다
+            CourseResultError::CourseNotFound | CourseResultError::NotClosed => {
+                decode_error("마감한 강좌의 선발 결과가 없습니다")
+            }
+        })?;
+    Ok(next_additional(&result))
 }
 
 /// 회원이 `term_id` 학기에 낸 유효한 신청. 접수한 순서.
@@ -454,6 +543,21 @@ async fn drawn_course_ids(
     .await
 }
 
+/// `term_id` 학기에서 선발을 마감한 강좌들.
+async fn closed_course_ids(
+    conn: &mut SqliteConnection,
+    term_id: i64,
+) -> Result<Vec<i64>, sqlx::Error> {
+    sqlx::query_scalar(
+        "SELECT s.course_id
+         FROM selection_closures s JOIN courses c ON c.id = s.course_id
+         WHERE c.term_id = ?",
+    )
+    .bind(term_id)
+    .fetch_all(conn)
+    .await
+}
+
 /// 회원이 `term_id` 학기에 유효한 신청을 낸 강좌들. 접수한 순서.
 async fn applied_course_ids(
     conn: &mut SqliteConnection,
@@ -599,7 +703,11 @@ mod tests {
 
         let list = f.list().await;
         assert_eq!(list.len(), 2);
-        assert_eq!(list.iter().map(|a| a.id).collect::<Vec<_>>(), ids);
+        assert_eq!(
+            list.iter().map(|a| a.id).collect::<Vec<_>>(),
+            ids.iter().map(|item| item.id).collect::<Vec<_>>()
+        );
+        assert!(ids.iter().all(|item| item.additional.is_none()));
         assert_eq!(list[0].course_id, f.yoga_basic);
         assert_eq!(list[0].submitted_at, now());
         assert_eq!(list[0].overridden_rules, []);
@@ -791,7 +899,7 @@ mod tests {
             .await
             .unwrap();
 
-        delete(&f.pool, ids[0], f.staff_id, Some("잘못 고름"), now())
+        delete(&f.pool, ids[0].id, f.staff_id, Some("잘못 고름"), now())
             .await
             .unwrap();
 
@@ -839,5 +947,252 @@ mod tests {
             matches!(error, DeleteApplicationError::NotFound),
             "{error:?}"
         );
+    }
+
+    /// 추가 신청(BR-X1~X3). 정원과 신청자 수를 정해 추첨하고 마감한 강좌 하나에 받는다.
+    mod additional {
+        use super::*;
+        use crate::db::selection_changes;
+        use crate::db::selection_results::course_result;
+        use crate::db::test_support::{DrawnCourse, insert_drawn_course, insert_priority_reason};
+
+        async fn closed_course(
+            capacity: i64,
+            applicants: usize,
+        ) -> (tempfile::TempDir, SqlitePool, DrawnCourse) {
+            let (dir, pool) = open_temp().await;
+            let course = insert_drawn_course(&pool, capacity, applicants, true).await;
+            (dir, pool, course)
+        }
+
+        /// 새 회원 하나가 그 강좌에 추가 신청한다.
+        async fn apply_new_member(
+            pool: &SqlitePool,
+            course: &DrawnCourse,
+            member_no: &str,
+            now: OffsetDateTime,
+        ) -> Result<Vec<Submitted>, SubmitError> {
+            let member_id = insert_member(pool, member_no).await.unwrap();
+            submit(
+                pool,
+                NewApplications {
+                    term_id: course.term_id,
+                    member_id,
+                    course_ids: &[course.course_id],
+                    override_reason: None,
+                    staff_id: course.staff_id,
+                    priorities: &[],
+                },
+                now,
+            )
+            .await
+        }
+
+        fn outcome(submitted: &[Submitted]) -> Option<AdditionalOutcome> {
+            submitted[0].additional
+        }
+
+        async fn waitlist_numbers(pool: &SqlitePool, course_id: i64) -> Vec<usize> {
+            course_result(pool, course_id)
+                .await
+                .unwrap()
+                .waitlisted
+                .iter()
+                .map(|entry| entry.waitlist_number)
+                .collect()
+        }
+
+        #[tokio::test]
+        async fn br_x2_open_seat_without_waiting_is_selected_at_once() {
+            let (_dir, pool, course) = closed_course(3, 2).await;
+
+            let submitted = apply_new_member(&pool, &course, "10001", now())
+                .await
+                .unwrap();
+
+            assert_eq!(outcome(&submitted), Some(AdditionalOutcome::Selected));
+            let result = course_result(&pool, course.course_id).await.unwrap();
+            assert_eq!(result.selected.len(), 3);
+            assert_eq!(result.open_seats, 0);
+            // 추첨 순서가 없어도 자리 보장이 아니다
+            let last = result.selected.last().unwrap();
+            assert_eq!(last.member.application_id, submitted[0].id);
+            assert!(!last.guaranteed);
+            assert_eq!(last.waitlist_number, None);
+        }
+
+        #[tokio::test]
+        async fn br_x2_full_course_waits_after_last_number() {
+            let (_dir, pool, course) = closed_course(2, 4).await;
+            assert_eq!(waitlist_numbers(&pool, course.course_id).await, [1, 2]);
+
+            let first = apply_new_member(&pool, &course, "10001", now())
+                .await
+                .unwrap();
+            let second = apply_new_member(&pool, &course, "10002", now())
+                .await
+                .unwrap();
+
+            assert_eq!(outcome(&first), Some(AdditionalOutcome::Waitlisted(3)));
+            assert_eq!(outcome(&second), Some(AdditionalOutcome::Waitlisted(4)));
+            assert_eq!(
+                waitlist_numbers(&pool, course.course_id).await,
+                [1, 2, 3, 4]
+            );
+        }
+
+        #[tokio::test]
+        async fn br_x2_open_seat_with_waiting_members_still_waits() {
+            let (_dir, pool, course) = closed_course(2, 4).await;
+            let result = course_result(&pool, course.course_id).await.unwrap();
+            let winner = result.selected[0].member.application_id;
+            selection_changes::withdraw(&pool, winner, None, course.staff_id, now())
+                .await
+                .unwrap();
+
+            let submitted = apply_new_member(&pool, &course, "10001", now())
+                .await
+                .unwrap();
+
+            // 빈자리는 연락을 기다리는 대기자 차례다 (BR-W1)
+            assert_eq!(outcome(&submitted), Some(AdditionalOutcome::Waitlisted(3)));
+        }
+
+        #[tokio::test]
+        async fn br_w6_number_of_withdrawn_waiting_member_is_not_reused() {
+            let (_dir, pool, course) = closed_course(2, 3).await;
+            let result = course_result(&pool, course.course_id).await.unwrap();
+            let waiting = result.waitlisted[0].member.application_id;
+            selection_changes::withdraw(&pool, waiting, None, course.staff_id, now())
+                .await
+                .unwrap();
+
+            let submitted = apply_new_member(&pool, &course, "10001", now())
+                .await
+                .unwrap();
+
+            assert_eq!(outcome(&submitted), Some(AdditionalOutcome::Waitlisted(2)));
+        }
+
+        #[tokio::test]
+        async fn br_x2_later_of_two_at_once_waits_for_last_seat() {
+            let (_dir, pool, course) = closed_course(2, 1).await;
+
+            let (first, second) = tokio::join!(
+                apply_new_member(&pool, &course, "10001", now()),
+                apply_new_member(&pool, &course, "10002", now()),
+            );
+
+            let mut outcomes = [outcome(&first.unwrap()), outcome(&second.unwrap())];
+            outcomes.sort_by_key(|outcome| format!("{outcome:?}"));
+            assert_eq!(
+                outcomes,
+                [
+                    Some(AdditionalOutcome::Selected),
+                    Some(AdditionalOutcome::Waitlisted(1))
+                ]
+            );
+        }
+
+        #[tokio::test]
+        async fn br_x1_term_end_date_is_last_day() {
+            let (_dir, pool, course) = closed_course(3, 1).await;
+            // 학기 종료일 2027-06-30. 이 PC 시간대로 그날 마지막 순간과 다음 날 0시.
+            // 검사 서버는 UTC라 한국 시간을 박아 두면 안 된다
+            let offset = time::UtcOffset::local_offset_at(datetime!(2027-06-30 12:00 UTC))
+                .unwrap_or(time::UtcOffset::UTC);
+            let last_day = datetime!(2027-06-30 23:59:59).assume_offset(offset);
+            let next_day = datetime!(2027-07-01 00:00:00).assume_offset(offset);
+
+            apply_new_member(&pool, &course, "10001", last_day)
+                .await
+                .unwrap();
+            let result = apply_new_member(&pool, &course, "10002", next_day).await;
+
+            assert!(
+                matches!(&result, Err(SubmitError::TermEnded(ids)) if *ids == [course.course_id]),
+                "{result:?}"
+            );
+        }
+
+        #[tokio::test]
+        async fn br_x3_rules_apply_to_additional_application() {
+            let (_dir, pool, course) = closed_course(3, 1).await;
+            // 이미 이 강좌에 당첨된 회원 (BR-A4)
+            let member_id: i64 =
+                sqlx::query_scalar("SELECT member_id FROM applications WHERE course_id = ?")
+                    .bind(course.course_id)
+                    .fetch_one(&pool)
+                    .await
+                    .unwrap();
+
+            let result = submit(
+                &pool,
+                NewApplications {
+                    term_id: course.term_id,
+                    member_id,
+                    course_ids: &[course.course_id],
+                    override_reason: Some("사유"),
+                    staff_id: course.staff_id,
+                    priorities: &[],
+                },
+                now(),
+            )
+            .await;
+
+            assert!(
+                matches!(&result, Err(SubmitError::RulesBroken(_))),
+                "{result:?}"
+            );
+        }
+
+        #[tokio::test]
+        async fn br_s13_additional_application_takes_no_priority() {
+            let (_dir, pool, course) = closed_course(3, 1).await;
+            let reason_id = insert_priority_reason(&pool, "반장").await.unwrap();
+            let member_id = insert_member(&pool, "10001").await.unwrap();
+            let reason_ids = [reason_id];
+            let priorities = [CoursePriorities {
+                course_id: course.course_id,
+                reason_ids: &reason_ids,
+            }];
+
+            let result = submit(
+                &pool,
+                NewApplications {
+                    term_id: course.term_id,
+                    member_id,
+                    course_ids: &[course.course_id],
+                    override_reason: None,
+                    staff_id: course.staff_id,
+                    priorities: &priorities,
+                },
+                now(),
+            )
+            .await;
+
+            assert!(
+                matches!(&result, Err(SubmitError::PriorityForAdditional(ids)) if *ids == [course.course_id]),
+                "{result:?}"
+            );
+        }
+
+        #[tokio::test]
+        async fn br_x2_additional_record_cannot_change() {
+            let (_dir, pool, course) = closed_course(3, 1).await;
+            apply_new_member(&pool, &course, "10001", now())
+                .await
+                .unwrap();
+
+            let update = sqlx::query("UPDATE additional_applications SET waitlist_number = 9")
+                .execute(&pool)
+                .await;
+            let delete = sqlx::query("DELETE FROM additional_applications")
+                .execute(&pool)
+                .await;
+
+            assert!(update.is_err());
+            assert!(delete.is_err());
+        }
     }
 }
