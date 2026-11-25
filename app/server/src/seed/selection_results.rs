@@ -9,8 +9,9 @@ use time::OffsetDateTime;
 
 use super::basics::Basics;
 use super::{SeedError, fail};
+use crate::db::selection_changes;
 use crate::db::selection_results::course_result;
-use crate::db::{lotteries, selection_changes};
+use crate::features::lotteries::repository as lotteries;
 
 /// [`super::basics::COURSES`]에서의 자리. 정원 15명에 18명이 신청해 대기 3명이 생긴다.
 const CALLIGRAPHY: usize = 7;

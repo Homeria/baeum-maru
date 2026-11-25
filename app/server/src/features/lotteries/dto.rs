@@ -3,7 +3,7 @@
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::db::lotteries::{CourseStage, Entrant, SelectionStage};
+use super::repository::{CourseStage, Entrant, SelectionStage};
 
 /// 강좌의 선발 단계. DB 기록에서 계산한다.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]

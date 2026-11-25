@@ -14,15 +14,13 @@ use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::backup::Backups;
 use crate::features::{
-    access_logs, auth, courses, devices, members, priority_reasons, rooms, setup, staff, subjects,
-    terms,
+    access_logs, auth, courses, devices, lotteries, members, priority_reasons, rooms, setup, staff,
+    subjects, terms,
 };
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::version;
 use crate::infra::version::Version;
-use crate::server::{
-    applications, backups, handover, lotteries, rosters, run_mode, selection_results,
-};
+use crate::server::{applications, backups, handover, rosters, run_mode, selection_results};
 
 /// ADR 0004: 포트 47800 고정.
 pub const PORT: u16 = 47800;
@@ -121,26 +119,7 @@ pub fn router(state: AppState) -> Router {
             "/api/terms/{term_id}/application-counts",
             get(applications::list_application_counts),
         )
-        .route(
-            "/api/terms/{term_id}/selections",
-            get(lotteries::list_selections),
-        )
-        .route(
-            "/api/courses/{id}/lottery",
-            notifies(
-                get(lotteries::get_lottery).post(lotteries::run_lottery),
-                &notices,
-                ChangeKind::Selection,
-            ),
-        )
-        .route(
-            "/api/courses/{id}/selection-closure",
-            notifies(
-                post(lotteries::close_selection),
-                &notices,
-                ChangeKind::Selection,
-            ),
-        )
+        .merge(lotteries::handler::routes(&notices))
         .route(
             "/api/terms/{term_id}/roster-exports",
             post(rosters::export_roster),

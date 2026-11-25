@@ -7,6 +7,7 @@ pub(crate) mod access_logs;
 pub(crate) mod auth;
 pub(crate) mod courses;
 pub(crate) mod devices;
+pub(crate) mod lotteries;
 pub(crate) mod members;
 pub(crate) mod priority_reasons;
 pub(crate) mod rooms;

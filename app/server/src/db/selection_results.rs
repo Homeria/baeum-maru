@@ -9,7 +9,7 @@ use baeum_domain::{
 };
 use sqlx::{SqliteConnection, SqlitePool};
 
-use super::lotteries::active_run;
+use crate::features::lotteries::repository::active_run;
 use crate::infra::db::decode_error;
 
 /// 마감한 강좌 하나의 인원.

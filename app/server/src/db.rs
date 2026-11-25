@@ -4,7 +4,6 @@
 
 pub mod application_priorities;
 pub mod applications;
-pub mod lotteries;
 pub mod rosters;
 pub mod selection_changes;
 pub mod selection_results;

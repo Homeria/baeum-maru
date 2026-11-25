@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use sqlx::{SqliteConnection, SqlitePool};
 use time::OffsetDateTime;
 
-use super::lotteries::cancel_active_run;
+use crate::features::lotteries::repository::cancel_active_run;
 use crate::infra::db::timestamp_text;
 
 /// 사유를 바꾸지 못했다.
@@ -183,11 +183,11 @@ mod tests {
     use crate::db::applications::{
         CoursePriorities, NewApplications, SubmitError, list_for_member, submit,
     };
-    use crate::db::lotteries::{self, SelectionStage};
     use crate::db::test_support::{
         insert_course, insert_member, insert_priority_reason, insert_staff, insert_subject,
         insert_term,
     };
+    use crate::features::lotteries::repository::{self as lotteries, SelectionStage};
     use crate::infra::db::open_temp;
     use baeum_domain::LotterySeed;
 
