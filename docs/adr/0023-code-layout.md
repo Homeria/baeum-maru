@@ -194,3 +194,10 @@ ui/src/
 - `launcher`로 이름을 바꿨을 때 Tauri 도구(`tauri dev`, `tauri build`)가 설정 파일을 찾지 못하거나 Windows 빌드가 깨지면 `app/src-tauri`로 둔다. 구조는 같고 이름만 다르다.
 - 화면 기능 폴더는 파일이 적으면 하위 폴더 없이 평평하게 둔다. 커지면 `components/`, `hooks/`, `data/`로 나눈다. 기준은 화면 폴더를 정리하는 PR에서 실제 파일 수를 보고 정한다. 서버에서 단순한 기능에 service를 두지 않는 것과 같은 생각이다.
 - 로그인, 세션, PIN 확인, 복구 코드는 기능 폴더 하나(`features/auth/`)로 모은다. 다른 기능은 PIN 확인과 세션 확인을 이 폴더의 service로만 부른다. 의존 방향 표의 "`staff`의 PIN 확인"은 "`auth`"로 읽는다. 따로 crate로 떼지 않는 것은 auth가 DB 층을 써야 해서, 떼면 DB 층까지 crate로 나눠야 하기 때문이다.
+
+기능별 폴더로 옮기기 전에(#88, 2026-11-25) 이렇게 정했다.
+
+- 신청에 우선 배정 사유를 붙이는 코드(지금 `db/application_priorities.rs`)는 따로 기능 폴더를 두지 않고 `features/applications/` 안에 둔다. 따로 요청 주소가 없고 신청 요청이 처리한다. 추첨이 이것을 읽으므로 의존 방향 표에 "`lotteries` → `applications`"를 더한다.
+- 처음 설정(`setup`)은 첫 관리자를 만드는 일이라 직원 기능과 함께 옮긴다.
+- 기능별 폴더로 옮기는 일은 PR 넷으로 나눈다: 공통층(`infra/`, `http/`, `router.rs`)과 단순한 기능, auth와 직원, 신청·추첨·선발 결과·명단, 백업·넘기기. 다 옮기기 전까지는 옛 자리(`db/`, `server/`)와 새 자리가 함께 있다.
+- 기능 폴더의 테스트는 요청 처리와 SQL을 합쳐 300줄을 넘으면 `tests/handler.rs`, `tests/repository.rs`(service가 있으면 `tests/service.rs`)로 나누고, 그보다 작으면 `tests.rs` 하나에 둔다.
