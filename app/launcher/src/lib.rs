@@ -1,33 +1,19 @@
 //! 배움마루 앱.
 //!
-//! 창(Tauri)을 띄우고, 같은 프로세스에서 HTTP 서버를 돌린다.
+//! 창(Tauri)을 띄우고, 같은 프로세스에서 HTTP 서버(`baeum-server`)를 돌린다.
 
-mod backup;
-mod backup_file;
-mod broken_db;
-mod clock;
 mod commands;
 mod data_dir;
-mod db;
-mod handover;
-mod pin_check;
-mod roster_xlsx;
-mod run_mode;
-mod secret;
-#[cfg(feature = "dev-seed")]
-pub mod seed;
-mod server;
-mod startup;
-mod take_over;
-mod version;
 
 use tauri::Manager;
 use tracing_subscriber::EnvFilter;
 
 use time::OffsetDateTime;
 
-use crate::backup::Backups;
-use crate::backup_file::name::BackupKind;
+use baeum_server::backup::Backups;
+use baeum_server::backup_file::name::BackupKind;
+use baeum_server::{backup, broken_db, handover, run_mode, server, startup, version};
+
 use crate::data_dir::DataDir;
 
 /// 앱을 시작한다. 창을 닫으면 돌아온다.

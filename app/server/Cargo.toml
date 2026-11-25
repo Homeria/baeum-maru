@@ -1,0 +1,47 @@
+[package]
+name = "baeum-server"
+description = "배움마루 서버: DB, HTTP 서버, 백업, 실행 모드, 호스트 넘기기. Tauri를 모른다 (ADR 0023)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+# 화면 확인용 더미 데이터 명령(`just seed`). 기능을 켜야만 빌드되므로 출시 빌드에는 들어가지 않는다
+[[bin]]
+name = "seed"
+path = "src/bin/seed.rs"
+required-features = ["dev-seed"]
+
+[features]
+dev-seed = []
+
+[dependencies]
+argon2 = "0.6.0"
+axum = "0.8"
+baeum-domain = { version = "0.1.0", path = "../domain" }
+getrandom = "0.4.3"
+rust_xlsxwriter = "0.104.0"
+serde = { version = "1", features = ["derive"] }
+# 백업 설정 파일(backup-settings.json)
+serde_json = "1"
+sha2 = "0.11.1"
+sqlx = { version = "0.9.1", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "macros", "migrate", "time"] }
+thiserror = "2"
+# ADR 0015: 날짜 JSON은 "2026-11-15" 글자 (serde-human-readable), 지역 날짜는 local-offset
+time = { version = "0.3.55", features = ["local-offset", "macros", "serde", "serde-human-readable"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "fs", "sync", "time"] }
+# 변경 알림을 SSE 흐름으로 내보낸다 (ADR 0008)
+tokio-stream = "0.1.19"
+tower-http = { version = "0.7", features = ["cors", "set-header"] }
+tracing = "0.1"
+ts-rs = "12"
+
+[dev-dependencies]
+calamine = "0.38.0"
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
+
+[lints]
+workspace = true

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["domain", "launcher"]
+members = ["domain", "server", "launcher"]
 
 # 모든 crate가 함께 쓰는 정보.
 # [ADR 0012]: 버전 번호는 여기 한 곳에만 적는다.

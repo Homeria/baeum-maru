@@ -9,7 +9,7 @@ async fn main() -> ExitCode {
         eprintln!("사용법: seed <데이터 폴더>");
         return ExitCode::FAILURE;
     };
-    match baeum_maru_lib::seed::run(&dir).await {
+    match baeum_server::seed::run(&dir).await {
         Ok(report) => {
             println!("{}에 더미 데이터를 넣었습니다", dir.display());
             println!("관리자 PIN 123456, 다른 직원 PIN 1234");

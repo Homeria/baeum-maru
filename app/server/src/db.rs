@@ -38,7 +38,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, S
 /// 데이터 폴더 안의 DB 파일 이름.
 const FILE_NAME: &str = "baeum-maru.db";
 
-/// `src-tauri/migrations/`의 구조 변경 파일. 빌드할 때 실행 파일에 들어간다.
+/// `app/server/migrations/`의 구조 변경 파일. 빌드할 때 실행 파일에 들어간다.
 static MIGRATOR: Migrator = sqlx::migrate!();
 
 /// 데이터 폴더 `dir` 안의 DB 파일.

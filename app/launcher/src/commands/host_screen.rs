@@ -9,7 +9,7 @@ use sqlx::SqlitePool;
 use tauri::{AppHandle, Manager};
 use time::OffsetDateTime;
 
-use crate::db::devices;
+use baeum_server::db::devices;
 
 /// 다른 PC가 입력할 이 PC의 주소(예: `192.168.0.12`). 찾지 못하면 `None`.
 ///

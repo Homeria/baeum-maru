@@ -5,7 +5,7 @@
 mod access_logs;
 mod applications;
 pub(crate) mod auth;
-pub(crate) mod backups;
+pub mod backups;
 mod changes;
 mod courses;
 mod devices;

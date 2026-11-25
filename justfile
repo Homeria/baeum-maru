@@ -24,7 +24,7 @@ build:
 # 화면 확인용 더미 데이터를 넣는다. 개발 exe 옆 data 폴더라서 just dev가 포터블판으로 이 폴더를 쓴다.
 # 폴더가 비어 있지 않으면 아무것도 넣지 않고 멈춘다
 seed:
-    cargo run --manifest-path app/Cargo.toml -p baeum-maru --features dev-seed --bin seed -- {{seed_dir}}
+    cargo run --manifest-path app/Cargo.toml -p baeum-server --features dev-seed --bin seed -- {{seed_dir}}
 
 # 더미 데이터 폴더를 지운다. just dev가 다시 원래 데이터 폴더를 쓴다
 seed-clear:
