@@ -69,13 +69,13 @@ pub fn run() {
             remote::forget_host,
             commands::run_mode::choose_run_mode,
             commands::run_mode::change_run_mode,
-            handover::handover_file,
-            handover::save_handover_file,
-            handover::abort_handover,
-            handover::handed_over_admins,
-            handover::cancel_handover,
-            take_over::preview_take_over,
-            take_over::take_over
+            commands::handover::handover_file,
+            commands::handover::save_handover_file,
+            commands::handover::abort_handover,
+            commands::handover::handed_over_admins,
+            commands::handover::cancel_handover,
+            commands::take_over::preview_take_over,
+            commands::take_over::take_over
         ])
         .setup(|app| {
             let host: version::Version = version::CURRENT.parse()?;
