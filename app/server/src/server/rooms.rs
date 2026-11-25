@@ -12,9 +12,9 @@ use baeum_domain::{Action, NewRoom, RoomError};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::auth::CurrentStaff;
-use super::error::ApiError;
 use crate::db::rooms::{self, SaveRoomError};
+use crate::http::auth::CurrentStaff;
+use crate::http::error::ApiError;
 
 use json::{CreateRoomResponse, RoomListResponse, RoomRequest, RoomResponse};
 

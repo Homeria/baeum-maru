@@ -3,18 +3,14 @@
 //! ADR 0008: 요청은 HTTP + JSON, 변경 알림은 SSE.
 
 mod access_logs;
-mod applications;
-pub(crate) mod auth;
+pub(crate) mod applications;
 pub(crate) mod backups;
-mod changes;
 mod courses;
 mod devices;
-pub(crate) mod error;
 mod handover;
 pub(crate) mod login;
 mod lotteries;
 mod members;
-mod paging;
 mod priority_reasons;
 mod recovery;
 mod rooms;
@@ -26,8 +22,7 @@ mod staff;
 mod subjects;
 mod terms;
 #[cfg(test)]
-mod test_support;
-mod version;
+pub(crate) mod test_support;
 
 use std::net::{Ipv4Addr, SocketAddr};
 
@@ -39,8 +34,9 @@ use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 
-use self::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::backup::Backups;
+use crate::http::changes::{self, ChangeKind, ChangeNotices, notifies};
+use crate::http::{auth, version};
 use crate::infra::version::Version;
 
 /// ADR 0004: 포트 47800 고정.

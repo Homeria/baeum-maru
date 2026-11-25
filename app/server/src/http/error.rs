@@ -11,9 +11,10 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use ts_rs::TS;
 
-use super::applications::RuleViolationResponse;
+// TODO(#88): 신청 기능을 옮길 때 이 의존(http → 신청)을 없앤다. 지금은 공통층이 신청 응답 타입을 안다
 use crate::infra::db::DeleteError;
 use crate::pin_check::PinRefusal;
+use crate::server::applications::RuleViolationResponse;
 
 /// 요청을 처리하지 못했다.
 #[derive(Debug)]

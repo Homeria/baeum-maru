@@ -13,11 +13,11 @@ use baeum_domain::{Action, DeviceName};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::auth::{Client, CurrentDevice, CurrentStaff, device_token};
-use super::error::{ApiError, FieldError};
 use crate::db::access_logs::AccessEvent;
 use crate::db::devices::{self, DecideError, RequestError};
 use crate::db::staff;
+use crate::http::auth::{Client, CurrentDevice, CurrentStaff, device_token};
+use crate::http::error::{ApiError, FieldError};
 use crate::infra::secret::{self, DeviceToken};
 use crate::pin_check::check_pin;
 
@@ -197,7 +197,7 @@ mod tests {
 
     use super::*;
     use crate::db::access_logs::list_for_test;
-    use crate::server::auth::DEVICE_HEADER;
+    use crate::http::auth::DEVICE_HEADER;
     use crate::server::test_support::{
         app_as, app_without_staff, delete, from_other_pc, get, json_body, post,
     };

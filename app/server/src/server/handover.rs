@@ -14,11 +14,11 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 use ts_rs::TS;
 
-use super::auth::{Client, CurrentStaff};
-use super::error::ApiError;
 use crate::backup::Backups;
 use crate::db::access_logs::{self, AccessEvent};
 use crate::db::staff;
+use crate::http::auth::{Client, CurrentStaff};
+use crate::http::error::ApiError;
 use crate::pin_check::check_pin;
 use crate::run_mode::{self, RunMode};
 

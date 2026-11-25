@@ -12,9 +12,9 @@ use baeum_domain::{Pin, RecoveryCode, Role};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::error::{ApiError, FieldError};
 use super::staff::field_name;
 use crate::db::{recovery, staff};
+use crate::http::error::{ApiError, FieldError};
 use crate::infra::secret::{self, AdminSecrets};
 
 use json::{RecoveryRequest, RecoveryResponse};

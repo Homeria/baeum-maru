@@ -12,10 +12,10 @@ use baeum_domain::{Action, CourseError, NewCourse};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::auth::CurrentStaff;
-use super::error::ApiError;
 use crate::db::courses::{self, MissingReference, SaveCourseError};
 use crate::db::terms;
+use crate::http::auth::CurrentStaff;
+use crate::http::error::ApiError;
 
 use json::{CourseListResponse, CourseRequest, CourseResponse, CreateCourseResponse};
 

@@ -204,10 +204,10 @@ mod tests {
     use tower::ServiceExt;
 
     use super::*;
+    use crate::http::version::VERSION_HEADER;
     use crate::server::test_support::{
         app, app_as, app_without_staff, delete, get, json_body, patch, post,
     };
-    use crate::server::version::VERSION_HEADER;
 
     /// 로그인이 필요한 주소마다 하나씩. id는 없는 값이어도 된다 (로그인 확인이 먼저다).
     const SIGNED_IN_ROUTES: [(&str, &str); 18] = [

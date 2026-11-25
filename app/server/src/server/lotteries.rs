@@ -14,10 +14,10 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use super::applications::require_term;
-use super::auth::{Client, CurrentStaff};
-use super::error::ApiError;
 use crate::backup::Backups;
 use crate::db::lotteries::{self, CloseSelectionError, RunLotteryError};
+use crate::http::auth::{Client, CurrentStaff};
+use crate::http::error::ApiError;
 use crate::infra::backup_file::name::BackupKind;
 use crate::infra::secret;
 

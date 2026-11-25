@@ -15,9 +15,9 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use super::applications::field_error;
-use super::auth::CurrentStaff;
-use super::error::ApiError;
 use crate::db::{rosters, terms};
+use crate::http::auth::CurrentStaff;
+use crate::http::error::ApiError;
 use crate::roster_xlsx;
 
 use json::RosterExportRequest;

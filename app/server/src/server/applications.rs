@@ -13,13 +13,13 @@ use baeum_domain::{Action, Reason};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::auth::CurrentStaff;
-use super::error::{ApiError, FieldError};
 use crate::db::application_priorities::{self, SetPrioritiesError};
 use crate::db::applications::{
     self, CoursePriorities, DeleteApplicationError, NewApplications, SubmitError,
 };
 use crate::db::terms;
+use crate::http::auth::CurrentStaff;
+use crate::http::error::{ApiError, FieldError};
 
 pub use json::{AdditionalOutcomeResponse, RuleViolationResponse};
 use json::{

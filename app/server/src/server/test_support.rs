@@ -21,11 +21,11 @@ use time::OffsetDateTime;
 use tower::ServiceExt;
 use tower_http::set_header::SetRequestHeaderLayer;
 
-use super::auth::DEVICE_HEADER;
-use super::version::VERSION_HEADER;
 use super::{AppState, router};
 use crate::db::sessions;
 use crate::db::test_support::insert_staff;
+use crate::http::auth::DEVICE_HEADER;
+use crate::http::version::VERSION_HEADER;
 use crate::infra::secret::{DeviceToken, SessionToken};
 
 /// 임시 DB로 라우터를 만들고 관리자로 로그인해 둔다. `TempDir`가 살아 있는 동안 DB가 남는다.

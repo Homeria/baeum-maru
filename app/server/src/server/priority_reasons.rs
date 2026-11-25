@@ -13,9 +13,9 @@ use baeum_domain::{Action, NewPriorityReason, PriorityError};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::auth::CurrentStaff;
-use super::error::ApiError;
 use crate::db::priority_reasons::{self, SavePriorityReasonError};
+use crate::http::auth::CurrentStaff;
+use crate::http::error::ApiError;
 
 use json::{
     CreatePriorityReasonResponse, PriorityReasonListResponse, PriorityReasonRequest,

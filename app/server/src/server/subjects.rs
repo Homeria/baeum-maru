@@ -12,9 +12,9 @@ use baeum_domain::{Action, NewSubject, SubjectError};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::auth::CurrentStaff;
-use super::error::ApiError;
 use crate::db::subjects::{self, SaveSubjectError};
+use crate::http::auth::CurrentStaff;
+use crate::http::error::ApiError;
 
 use json::{CreateSubjectResponse, SubjectListResponse, SubjectRequest, SubjectResponse};
 

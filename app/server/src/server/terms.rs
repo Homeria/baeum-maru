@@ -12,9 +12,9 @@ use baeum_domain::{Action, NewTerm, TermError};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::auth::CurrentStaff;
-use super::error::ApiError;
 use crate::db::terms::{self, SaveTermError};
+use crate::http::auth::CurrentStaff;
+use crate::http::error::ApiError;
 
 use json::{CreateTermResponse, TermListResponse, TermRequest, TermResponse};
 

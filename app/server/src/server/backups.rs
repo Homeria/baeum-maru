@@ -18,13 +18,13 @@ use baeum_domain::Action;
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::auth::{Client, CurrentStaff};
-use super::error::{ApiError, FieldError};
 use crate::backup::inspect::{self, InspectError};
 use crate::backup::restore::{PrepareError, RestoreOutcome};
 use crate::backup::source::{RestoreSource, SourceError};
 use crate::backup::{Backups, SecondLocationError, SecondLocationStatus};
 use crate::db::courses;
+use crate::http::auth::{Client, CurrentStaff};
+use crate::http::error::{ApiError, FieldError};
 
 use json::{
     BackupFailureResponse, BackupListResponse, BackupResponse, RestoreOutcomeResponse,

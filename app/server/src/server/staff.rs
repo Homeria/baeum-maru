@@ -14,9 +14,9 @@ use baeum_domain::{Action, NewStaff, Pin, StaffError, StaffProfile};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::auth::CurrentStaff;
-use super::error::ApiError;
 use crate::db::staff::{self, SaveStaffError};
+use crate::http::auth::CurrentStaff;
+use crate::http::error::ApiError;
 use crate::infra::secret;
 
 use crate::infra::clock::local_today;

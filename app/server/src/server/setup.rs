@@ -12,9 +12,9 @@ use baeum_domain::NewStaff;
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::error::ApiError;
 use super::staff::field_name;
 use crate::db::staff::{self, SetupError};
+use crate::http::error::ApiError;
 use crate::infra::secret::AdminSecrets;
 
 use json::{SetupRequest, SetupResponse, SetupStatusResponse};

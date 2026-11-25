@@ -7,6 +7,7 @@ pub mod backup;
 pub mod broken_db;
 mod db;
 pub mod handover;
+mod http;
 mod infra;
 mod pin_check;
 mod roster_xlsx;
