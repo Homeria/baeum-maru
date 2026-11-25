@@ -12,9 +12,8 @@ use time::{Date, OffsetDateTime};
 
 use crate::features::courses::repository::course_name;
 use crate::features::members::repository::gender_from_text;
-use crate::features::selection_results::repository::{
-    CourseResultError, ResultMember, course_result_in,
-};
+use crate::features::selection_results::error::CourseResultError;
+use crate::features::selection_results::repository::{ResultMember, course_result_in};
 use crate::infra::db::{decode_error, timestamp_text};
 
 /// 선발 결과(BR-P2). 게시용은 포기를 넣지 않는다(BR-P3).

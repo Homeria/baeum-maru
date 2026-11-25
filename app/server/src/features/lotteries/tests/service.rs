@@ -10,6 +10,7 @@ use crate::db::test_support::{
     insert_application, insert_course, insert_member, insert_priority_reason, insert_staff,
     insert_subject, insert_term,
 };
+use crate::features::lotteries::error::*;
 use crate::features::lotteries::repository::*;
 use crate::features::lotteries::service::*;
 use crate::infra::db::open_temp;

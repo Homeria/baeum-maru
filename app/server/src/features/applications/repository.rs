@@ -10,9 +10,8 @@ use baeum_domain::{
 use sqlx::{SqliteConnection, SqlitePool};
 use time::{Date, OffsetDateTime};
 
-use crate::features::selection_results::repository::{
-    CourseResultError, course_result_in, next_additional,
-};
+use crate::features::selection_results::error::CourseResultError;
+use crate::features::selection_results::repository::{course_result_in, next_additional};
 use crate::infra::db::decode_error;
 use crate::infra::db::timestamp_text;
 

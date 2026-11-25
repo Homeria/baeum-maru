@@ -8,8 +8,9 @@ use time::OffsetDateTime;
 
 use super::basics::{Basics, COURSES};
 use super::{SeedError, fail};
+use crate::features::applications::error::SubmitError;
 use crate::features::applications::service::{
-    self as applications, CoursePriorities, NewApplications, SubmitError,
+    self as applications, CoursePriorities, NewApplications,
 };
 use crate::features::priority_reasons::repository as priority_reasons;
 

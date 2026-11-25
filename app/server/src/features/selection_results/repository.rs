@@ -11,6 +11,7 @@ use baeum_domain::{
 };
 use sqlx::{SqliteConnection, SqlitePool};
 
+use super::error::CourseResultError;
 use crate::features::lotteries::repository::active_run;
 use crate::infra::db::decode_error;
 
@@ -79,18 +80,6 @@ pub struct CourseResult {
     pub waitlisted: Vec<WaitingEntry>,
     /// 뽑힌 순서, 그다음 추가 신청(받은 순서).
     pub withdrawn: Vec<WithdrawnEntry>,
-}
-
-/// 선발 결과를 읽지 못했다.
-#[derive(Debug, thiserror::Error)]
-pub enum CourseResultError {
-    #[error("강좌를 찾지 못했습니다")]
-    CourseNotFound,
-    /// 포기와 승격은 선발 마감 뒤에만 한다(BR-C3).
-    #[error("선발을 마감하지 않은 강좌입니다")]
-    NotClosed,
-    #[error("선발 결과를 읽지 못했습니다: {0}")]
-    Db(#[from] sqlx::Error),
 }
 
 /// 학기에서 선발을 마감한 강좌의 id. 강좌 id 순서.
