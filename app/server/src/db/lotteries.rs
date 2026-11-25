@@ -8,7 +8,7 @@ use baeum_domain::{Capacity, LotterySeed, LotteryVersion, Personal, allocate};
 use sqlx::{SqliteConnection, SqlitePool};
 use time::OffsetDateTime;
 
-use super::timestamp_text;
+use crate::infra::db::timestamp_text;
 
 /// 강좌 한 줄에서 선발 단계를 읽는 SELECT 칸. 강좌 테이블은 `c`.
 macro_rules! stage_columns {
@@ -461,11 +461,11 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::db::open_temp;
     use crate::db::test_support::{
         insert_application, insert_course, insert_member, insert_priority_reason, insert_staff,
         insert_subject, insert_term,
     };
+    use crate::infra::db::open_temp;
 
     fn now() -> OffsetDateTime {
         datetime!(2026-11-22 01:02:03 UTC)

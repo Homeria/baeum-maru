@@ -18,14 +18,15 @@ use time::OffsetDateTime;
 use ts_rs::TS;
 
 use crate::backup::inspect::inspect;
-use crate::backup_file::name::BackupKind;
-use crate::backup_file::{self, store};
-use crate::clock;
-use crate::db::access_logs::{self, AccessEvent};
-use crate::db::{self, staff};
+use crate::db::staff;
+use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
+use crate::infra::backup_file::name::BackupKind;
+use crate::infra::backup_file::{self, store};
+use crate::infra::clock;
+use crate::infra::db;
+use crate::infra::startup;
 use crate::pin_check::check_pin;
 use crate::run_mode::{self, RunMode, RunModeState};
-use crate::startup;
 
 /// 넘기는 중일 때 켜면서 만든 넘기기 파일. 앱에 맡겨 두고 명령이 꺼내 쓴다.
 #[derive(Debug)]
@@ -283,9 +284,9 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::db::access_logs::list_for_test;
-    use crate::db::data_bundle;
     use crate::db::test_support::insert_staff;
+    use crate::features::access_logs::repository::list_for_test;
+    use crate::infra::data_bundle;
 
     const NOW: OffsetDateTime = datetime!(2026-11-25 01:00 UTC);
 
@@ -325,7 +326,7 @@ mod tests {
         let pool = db::open(data_dir).await.unwrap();
         let admin = insert_staff(&pool, "관리자", "admin", None).await.unwrap();
         sqlx::query("UPDATE staff SET pin_hash = ?")
-            .bind(crate::secret::hash("123456").unwrap())
+            .bind(crate::infra::secret::hash("123456").unwrap())
             .execute(&pool)
             .await
             .unwrap();

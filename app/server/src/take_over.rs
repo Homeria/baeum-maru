@@ -19,14 +19,14 @@ use ts_rs::TS;
 
 use crate::backup::inspect::inspect;
 use crate::backup::{self, restore};
-use crate::backup_file::name::BackupKind;
-use crate::backup_file::{self, store};
-use crate::clock;
-use crate::db::access_logs::{self, AccessEvent};
-use crate::db::{self, data_bundle};
+use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
+use crate::infra::backup_file::name::BackupKind;
+use crate::infra::backup_file::{self, store};
+use crate::infra::clock;
+use crate::infra::secret;
+use crate::infra::startup;
+use crate::infra::{data_bundle, db};
 use crate::run_mode::{self, RunMode, RunModeState};
-use crate::secret;
-use crate::startup;
 
 /// 예전 DB를 백업으로 남기지 못했을 때 옮겨 두는 이름. 하나만 둔다.
 const KEPT_DB: &str = "baeum-maru.before-take-over.db";
@@ -278,8 +278,8 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use crate::db::access_logs::list_for_test;
     use crate::db::test_support::{insert_member, insert_staff};
+    use crate::features::access_logs::repository::list_for_test;
 
     const NOW: OffsetDateTime = datetime!(2026-11-25 01:00 UTC);
 

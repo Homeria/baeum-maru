@@ -3,8 +3,8 @@
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::access_logs::{self, AccessEvent};
-use super::timestamp_text;
+use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
+use crate::infra::db::timestamp_text;
 
 /// 저장된 복구 코드의 해시. 처음 설정 전이면 `None`.
 pub async fn code_hash(pool: &SqlitePool) -> Result<Option<String>, sqlx::Error> {
@@ -64,9 +64,9 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::db::access_logs::list_for_test;
-    use crate::db::open_temp;
     use crate::db::staff::{get_login_account, setup};
+    use crate::features::access_logs::repository::list_for_test;
+    use crate::infra::db::open_temp;
 
     fn now() -> OffsetDateTime {
         datetime!(2026-11-15 01:02:03 UTC)

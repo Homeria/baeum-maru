@@ -13,8 +13,8 @@ use std::path::{Path, PathBuf};
 
 use time::OffsetDateTime;
 
-use crate::clock::local_date;
-use crate::db::{self, DbError};
+use crate::infra::clock::local_date;
+use crate::infra::db::{self, DbError};
 
 /// 더미 데이터를 넣지 못했다.
 #[derive(Debug, thiserror::Error)]
@@ -237,7 +237,7 @@ mod tests {
             .fetch_one(&pool)
             .await
             .unwrap();
-        let result = db::selection_results::course_result(&pool, course_id)
+        let result = crate::db::selection_results::course_result(&pool, course_id)
             .await
             .unwrap();
         assert_eq!(result.open_seats, 1);

@@ -18,10 +18,10 @@ use std::time::Duration;
 use sqlx::SqlitePool;
 use time::{OffsetDateTime, PrimitiveDateTime};
 
-use crate::backup_file;
-use crate::backup_file::name::{BackupKind, BackupName};
-use crate::backup_file::store::{self, BackupError, StoredBackup};
-use crate::clock;
+use crate::infra::backup_file;
+use crate::infra::backup_file::name::{BackupKind, BackupName};
+use crate::infra::backup_file::store::{self, BackupError, StoredBackup};
+use crate::infra::clock;
 use restore::{PrepareError, RestoreOutcome};
 use settings::BackupSettings;
 
@@ -305,7 +305,7 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::db::open_temp;
+    use crate::infra::db::open_temp;
 
     #[tokio::test]
     async fn daily_backup_is_made_once_a_day() {

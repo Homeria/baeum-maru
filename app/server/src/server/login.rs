@@ -9,14 +9,14 @@ use axum::http::{HeaderMap, StatusCode};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::auth::{CurrentDevice, bearer_token};
-use super::error::ApiError;
-use crate::db::access_logs::{self, AccessEvent};
 use crate::db::{sessions, staff};
+use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
+use crate::http::auth::{CurrentDevice, bearer_token};
+use crate::http::error::ApiError;
+use crate::infra::secret::SessionToken;
 use crate::pin_check::check_pin;
-use crate::secret::SessionToken;
 
-use crate::clock::local_today;
+use crate::infra::clock::local_today;
 use json::{
     LoginRequest, LoginResponse, LoginStaffListResponse, LoginStaffResponse, SignedInStaffResponse,
     UnlockRequest,
@@ -135,10 +135,10 @@ mod tests {
     use tower::ServiceExt;
 
     use super::*;
-    use crate::db::access_logs::list_for_test;
     use crate::db::test_support::insert_staff;
+    use crate::features::access_logs::repository::list_for_test;
+    use crate::http::version::VERSION_HEADER;
     use crate::server::test_support::{app_without_staff, get, json_body, post};
-    use crate::server::version::VERSION_HEADER;
 
     /// 처음 설정으로 관리자(PIN 123456)를 만들고 id를 돌려준다.
     async fn setup_admin(router: Router) -> i64 {
@@ -165,7 +165,7 @@ mod tests {
         let mut request = Request::builder()
             .method(method)
             .uri(uri)
-            .header(VERSION_HEADER, crate::version::CURRENT)
+            .header(VERSION_HEADER, crate::infra::version::CURRENT)
             .header(header::CONTENT_TYPE, "application/json");
         if let Some(token) = token {
             request = request.header(header::AUTHORIZATION, format!("Bearer {token}"));
@@ -191,7 +191,7 @@ mod tests {
         let body = json_body(login(router, admin_id, "123456").await).await;
         let old = OffsetDateTime::now_utc() - time::Duration::minutes(10);
         sqlx::query("UPDATE sessions SET last_seen_at = ?")
-            .bind(crate::db::timestamp_text(old))
+            .bind(crate::infra::db::timestamp_text(old))
             .execute(db)
             .await
             .unwrap();

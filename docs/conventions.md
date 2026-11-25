@@ -140,9 +140,11 @@ let count = members.len(); // 회원 수
 - 업무 규칙 테스트는 이름 앞에 규칙 번호를 붙인다: `br_a1_…`. 실패하면 어느 규칙인지 바로 보이고, `cargo test br_a1`로 그 규칙만 돌릴 수 있다.
 - 규칙마다 허용 예와 거부 예를 하나 이상 만든다.
 - 데이터는 지어낸 것만 쓴다. 가짜인 게 바로 보이는 값을 쓴다. 예: `회원1`, `010-0000-0001`
-- 단위 테스트는 같은 파일의 `#[cfg(test)] mod tests`에 둔다.
-- 요청 주소부터 DB까지 거치는 테스트는 그 기능의 요청 처리 파일(예: `server/members.rs`)의 `tests`에 둔다. 라우터에 요청을 직접 보내므로(`oneshot`) 내부 모듈을 공개하지 않아도 된다.
-- 여러 기능의 테스트가 함께 쓰는 도우미는 `#[cfg(test)]`로 묶어 한곳에 둔다. 요청 보내기와 임시 DB 라우터는 `server/test_support.rs`, 임시 DB 열기는 `db::open_temp`. 두 기능에서 같은 도우미가 생기면 옮긴다.
+- 기능 폴더의 테스트는 그 기능 폴더의 `tests`에 둔다. 요청 처리와 SQL 테스트를 합쳐 300줄을 넘으면 `tests/handler.rs`, `tests/repository.rs`(service가 있으면 `tests/service.rs`)로 나누고, 그보다 작으면 `tests.rs` 하나에 `mod handler { … }`, `mod repository { … }`로 둔다.
+  - 테스트 파일은 시험할 파일 밖에 있으므로 필요한 `use`를 직접 적는다. 비공개 함수를 시험해야 하면 그 함수만 `pub(super)`로 연다.
+- 기능 폴더가 아닌 곳(`infra/`, `http/`, 옛 자리 `db/`·`server/`)의 테스트는 같은 파일의 `#[cfg(test)] mod tests`에 둔다.
+- 요청 주소부터 DB까지 거치는 테스트는 그 기능의 `tests/handler.rs`(또는 `tests.rs`의 `mod handler`)에 둔다. 라우터에 요청을 직접 보내므로(`oneshot`) 요청 처리 함수를 공개하지 않아도 된다.
+- 여러 기능의 테스트가 함께 쓰는 도우미는 `#[cfg(test)]`로 묶어 한곳에 둔다. 요청 보내기와 임시 DB 라우터는 `server/test_support.rs`, 더미 데이터 넣기는 `db/test_support.rs`, 임시 DB 열기는 `infra::db::open_temp`. 두 기능에서 같은 도우미가 생기면 옮긴다.
 - crate의 `tests/` 폴더는 공개 API만으로 시험할 수 있을 때 쓴다.
 - 화면 테스트는 Vitest로, 테스트할 파일 옆에 `이름.test.ts`로 둔다. 설명은 한국어 문장으로 쓴다: `test("빈 검색어는 싣지 않는다", …)`
 - 화면은 지금 순수 함수(계산, 변환)만 테스트한다. 버튼을 누르는 화면 동작 테스트는 아직 하지 않는다.
@@ -273,33 +275,55 @@ tracing::info!(application_id = %id, "신청 저장");
 | `app/server` | DB, HTTP 서버, 백업, 실행 모드 파일, 호스트 넘기기. Tauri를 모른다 |
 | `app/launcher` | 창, 대화상자, 다시 켜기, 켤 때 갈라지기, 앱 명령 |
 
-- 기능 하나(회원, 강좌, 신청…)는 지금 세 곳에 나뉜다. 기능별 폴더로 모으는 일은 다음 PR에서 한다(ADR 0023).
+- server 안은 공통층과 기능 폴더로 나눈다. 부르는 방향은 `router → features → http, infra → domain`이다.
 
 | 곳 | 하는 일 |
 |---|---|
-| `app/domain/src/member.rs` | 업무 규칙과 확인 |
-| `app/server/src/db/members.rs` | SQL |
-| `app/server/src/server/members.rs` | 요청 처리 함수. 확인 → 저장 순서를 엮는다 |
-| `app/server/src/server/members/json.rs` | 요청·응답 JSON 타입과 변환 |
+| `infra/` | DB 열기와 구조 변경, 공통 DB 도구, 시계, 암호화, 데이터 묶음, 백업 파일, 버전. HTTP와 기능을 모른다 |
+| `http/` | 오류 응답, 인증, 쪽 나누기, 변경 알림(SSE), 버전 확인 |
+| `features/<기능>/` | 기능 하나의 요청 처리, SQL, 요청·응답 모양, 테스트 |
+| `router.rs` | 기능마다 `routes()`를 모으고 인증을 씌운다. 서버를 띄운다 |
 
-- 요청 처리 함수는 요청 주소 표의 순서(찾기, 보기, 만들기, 고치기, 지우기)로 둔다.
-- 한 요청이 여러 테이블을 한 트랜잭션으로 다루게 되면(접수 등) 그때 순서를 엮는 층을 따로 둘지 정한다.
+- 기능 폴더 안은 이렇게 둔다.
+
+| 파일 | 하는 일 |
+|---|---|
+| `handler.rs` | 요청 처리 함수와 요청 주소(`routes()`). 확인 → 저장 순서를 엮는다 |
+| `repository.rs` | SQL |
+| `dto.rs` | 요청·응답 JSON 타입과 변환 |
+| `service.rs` | 한 요청이 여러 테이블을 한 트랜잭션으로 다룰 때만 둔다. 단순한 기능은 두지 않는다 |
+| `tests.rs` 또는 `tests/` | 아래 "테스트" 참고 |
+
+- `routes()`는 상태 타입을 `S`로 받고 `SqlitePool: FromRef<S>`만 요구한다. 기능 폴더는 `router.rs`의 `AppState`를 모른다. 인증 단계가 다른 주소는 함수를 나눈다(예: `devices::handler::approval_routes()`).
+- 요청 처리 함수는 `routes()`만 부르므로 공개하지 않는다. 요청 주소 표의 순서(찾기, 보기, 만들기, 고치기, 지우기)로 둔다.
+- 다른 기능의 SQL을 부를 때는 `use crate::features::terms::repository as terms;`처럼 기능 이름으로 들여온다. 기능끼리 부르는 방향은 ADR 0023의 의존 방향 표에 있는 것만 쓴다.
+- 아직 옮기지 않은 기능(직원, 로그인, 신청, 추첨, 선발 결과, 명단, 백업, 넘기기 등)은 옛 자리인 `db/`(SQL)와 `server/`(요청 처리)에 있다. 기능별로 옮기는 중이다(ADR 0023 구현 메모).
 - 앱 명령(Tauri 명령)은 `app/launcher/src/commands/`에 둔다. 창, 대화상자, 다시 켜기, 켤 때 맡긴 상태 꺼내기만 하고 나머지는 server의 본체(`handover`, `take_over`, `broken_db`, `run_mode` 등)를 부른다.
 - server는 `lib.rs`에서 앱이 부르는 것만 공개한다. DB 함수와 HTTP 요청 처리는 공개하지 않는다. 앱이 새로 필요한 것이 생기면 안쪽 모듈을 열지 말고 함수 하나를 `pub use`로 내보낸다.
 
 ```text
 app/server/src/
 ├─ lib.rs
-├─ db.rs
-├─ db/
-│  └─ members.rs
-├─ server.rs
-└─ server/
-   ├─ error.rs
-   ├─ version.rs
+├─ router.rs
+├─ infra.rs
+├─ infra/
+│  ├─ db.rs
+│  └─ clock.rs …
+├─ http.rs
+├─ http/
+│  ├─ error.rs
+│  └─ auth.rs …
+├─ features.rs
+└─ features/
    ├─ members.rs
    └─ members/
-      └─ json.rs
+      ├─ handler.rs
+      ├─ repository.rs
+      ├─ dto.rs
+      ├─ tests.rs
+      └─ tests/
+         ├─ handler.rs
+         └─ repository.rs
 ```
 
 ## 화면 파일

@@ -9,7 +9,7 @@ use time::OffsetDateTime;
 use super::basics::{Basics, COURSES};
 use super::{SeedError, fail};
 use crate::db::applications::{self, CoursePriorities, NewApplications, SubmitError};
-use crate::db::priority_reasons;
+use crate::features::priority_reasons::repository as priority_reasons;
 
 /// [`COURSES`]에서의 자리.
 const YOGA_BEGINNER_1: usize = 0;
