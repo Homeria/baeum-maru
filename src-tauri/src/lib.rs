@@ -6,6 +6,7 @@ mod backup;
 mod backup_file;
 mod broken_db;
 mod clock;
+mod commands;
 mod data_dir;
 mod db;
 mod handover;
@@ -54,7 +55,7 @@ pub fn run() {
             broken_db::startup_state,
             broken_db::preview_broken_db_backup,
             broken_db::restore_broken_db,
-            run_mode::run_mode_state,
+            commands::run_mode::run_mode_state,
             host_screen::host_address,
             host_screen::open_device_request_count,
             remote::remote_settings,
@@ -65,8 +66,8 @@ pub fn run() {
             remote::check_host_identity,
             remote::remember_host_identity,
             remote::forget_host,
-            run_mode::choose_run_mode,
-            run_mode::change_run_mode,
+            commands::run_mode::choose_run_mode,
+            commands::run_mode::change_run_mode,
             handover::handover_file,
             handover::save_handover_file,
             handover::abort_handover,
