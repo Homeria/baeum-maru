@@ -3,8 +3,9 @@
 
 use tauri::{AppHandle, Manager, State};
 
-use baeum_server::broken_db::{self, BrokenDb, StartupStateResponse};
-use baeum_server::server::backups::{RestorePreviewResponse, RestoreRequest};
+use baeum_server::broken_db::{
+    self, BrokenDb, RestorePreviewResponse, RestoreRequest, StartupStateResponse,
+};
 
 /// 켤 때 DB 상태. 깨졌으면 백업 목록과 권하는 백업도 준다.
 #[tauri::command]

@@ -94,6 +94,18 @@ pub struct OpenRequest {
     pub requested_at: OffsetDateTime,
 }
 
+/// 5분이 지나지 않은 기다리는 승인 요청 수. 호스트 화면의 앱 명령이 쓴다(BR-K15).
+///
+/// # Errors
+///
+/// DB를 읽지 못했다.
+pub async fn open_request_count(
+    pool: &SqlitePool,
+    now: OffsetDateTime,
+) -> Result<usize, sqlx::Error> {
+    Ok(open_requests(pool, now).await?.len())
+}
+
 /// 5분이 지나지 않은 기다리는 요청을 먼저 온 것부터 읽는다.
 pub async fn open_requests(
     pool: &SqlitePool,

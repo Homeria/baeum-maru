@@ -9,8 +9,6 @@ use sqlx::SqlitePool;
 use tauri::{AppHandle, Manager};
 use time::OffsetDateTime;
 
-use baeum_server::db::devices;
-
 /// 다른 PC가 입력할 이 PC의 주소(예: `192.168.0.12`). 찾지 못하면 `None`.
 ///
 /// 같은 네트워크로 나가는 길의 이 PC 쪽 주소를 쓴다. UDP 소켓을 바깥 주소에 "연결"하면
@@ -34,8 +32,8 @@ pub async fn open_device_request_count(app: AppHandle) -> usize {
     let Some(db) = app.try_state::<SqlitePool>() else {
         return 0;
     };
-    match devices::open_requests(&db, OffsetDateTime::now_utc()).await {
-        Ok(requests) => requests.len(),
+    match baeum_server::open_request_count(&db, OffsetDateTime::now_utc()).await {
+        Ok(count) => count,
         Err(error) => {
             tracing::error!(%error, "승인 요청 수를 읽지 못했습니다");
             0
