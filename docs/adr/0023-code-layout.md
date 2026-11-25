@@ -201,3 +201,4 @@ ui/src/
 - 처음 설정(`setup`)은 첫 관리자를 만드는 일이라 직원 기능과 함께 옮긴다.
 - 기능별 폴더로 옮기는 일은 PR 넷으로 나눈다: 공통층(`infra/`, `http/`, `router.rs`)과 단순한 기능, auth와 직원, 신청·추첨·선발 결과·명단, 백업·넘기기. 다 옮기기 전까지는 옛 자리(`db/`, `server/`)와 새 자리가 함께 있다.
 - 기능 폴더의 테스트는 요청 처리와 SQL을 합쳐 300줄을 넘으면 `tests/handler.rs`, `tests/repository.rs`(service가 있으면 `tests/service.rs`)로 나누고, 그보다 작으면 `tests.rs` 하나에 둔다.
+- 강좌는 학기가 있는지 확인하려고 학기 SQL을 읽는다. 의존 방향 표에 "`courses` → `terms`"를 더한다.
