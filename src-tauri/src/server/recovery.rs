@@ -12,7 +12,6 @@ use baeum_domain::{Pin, RecoveryCode, Role};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::auth::is_usable;
 use super::error::{ApiError, FieldError};
 use super::staff::field_name;
 use crate::db::{recovery, staff};
@@ -41,7 +40,7 @@ pub async fn recover(
     if account.role != Role::Admin {
         return Err(ApiError::RecoveryAdminOnly);
     }
-    if !is_usable(&account) {
+    if !account.is_usable() {
         return Err(ApiError::AccountUnavailable);
     }
     let stored = recovery::code_hash(&db)

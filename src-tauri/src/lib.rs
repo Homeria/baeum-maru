@@ -12,6 +12,7 @@ mod db;
 mod handover;
 mod host_screen;
 mod pick;
+mod pin_check;
 mod remote;
 mod restart;
 mod roster_xlsx;

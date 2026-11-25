@@ -24,10 +24,8 @@ use crate::backup_file::{self, store};
 use crate::clock;
 use crate::db::access_logs::{self, AccessEvent};
 use crate::db::{self, staff};
+use crate::pin_check::check_pin;
 use crate::run_mode::{self, RunMode, RunModeState};
-use crate::server::auth::CurrentDevice;
-use crate::server::error::ApiError;
-use crate::server::login::check_pin;
 use crate::startup;
 
 /// 넘기는 중일 때 켜면서 만든 넘기기 파일. 앱에 맡겨 두고 명령이 꺼내 쓴다.
@@ -275,26 +273,11 @@ async fn check_admin_pin(
     if account.role != Role::Admin {
         return Err("관리자만 넘기기를 취소할 수 있습니다".to_owned());
     }
-    let host_pc = CurrentDevice { id: None };
-    let account = check_pin(pool, account, pin, host_pc, AccessEvent::LoginFailed, now)
+    // 넘긴 PC 자신에서 하므로 기기는 늘 호스트 자신이다
+    let account = check_pin(pool, account, pin, None, AccessEvent::LoginFailed, now)
         .await
-        .map_err(pin_refusal)?;
+        .map_err(|refusal| refusal.to_string())?;
     Ok(account.id)
-}
-
-/// PIN 확인 실패를 화면 문장으로. 서버 응답(`ApiError`)의 문장과 같게 둔다.
-fn pin_refusal(error: ApiError) -> String {
-    match error {
-        ApiError::WrongPin => "PIN이 맞지 않습니다. 5번 연속 틀리면 5분 동안 잠깁니다",
-        ApiError::AccountLocked => {
-            "PIN을 5번 연속 틀려 잠겼습니다. 5분이 지나면 다시 할 수 있습니다"
-        }
-        ApiError::AccountUnavailable => {
-            "사용 중지했거나 유효기간이 지난 계정입니다. 관리자에게 물어 주세요"
-        }
-        _ => "PIN을 확인하지 못했습니다",
-    }
-    .to_owned()
 }
 
 /// 넘기기 취소를 접속 기록에 남기고 실행 모드를 호스트로 바꾼다.

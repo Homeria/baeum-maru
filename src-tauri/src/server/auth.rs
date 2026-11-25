@@ -11,14 +11,12 @@ use axum::http::request::Parts;
 use axum::http::{HeaderMap, header};
 use axum::middleware::Next;
 use axum::response::Response;
-use baeum_domain::{Action, Role, is_screen_locked, is_valid_on};
+use baeum_domain::{Action, Role, is_screen_locked};
 
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use super::error::ApiError;
-use crate::clock::local_today;
-use crate::db::staff::LoginAccount;
 use crate::db::{devices, sessions};
 use crate::secret::{DeviceToken, SessionToken};
 
@@ -172,7 +170,7 @@ pub async fn require_session(
         .await
         .map_err(ApiError::internal)?
         .ok_or(ApiError::LoginRequired)?;
-    if !is_usable(&session.account) {
+    if !session.account.is_usable() {
         return Err(ApiError::AccountUnavailable);
     }
     if is_screen_locked(session.last_seen_at, now) {
@@ -189,12 +187,6 @@ pub async fn require_session(
         role: session.account.role,
     });
     Ok(next.run(request).await)
-}
-
-/// BR-K5, BR-K6: 사용 중지하지 않았고 유효기간이 남은 계정인지.
-/// 유효기간은 기관의 달력 날짜라 이 PC의 날짜로 본다.
-pub fn is_usable(account: &LoginAccount) -> bool {
-    !account.disabled && is_valid_on(account.valid_until, local_today())
 }
 
 /// `Authorization: Bearer <증표>` 머리글의 증표. 없거나 모양이 틀리면 `None`.
