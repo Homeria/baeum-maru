@@ -38,6 +38,20 @@ pub async fn write(executor: impl SqliteExecutor<'_>, identity: HostIdentity) ->
     Ok(())
 }
 
+/// 세대 번호를 하나 올리고 올린 값을 돌려준다(BR-H4). 넘겨받을 때 쓴다.
+///
+/// # Errors
+///
+/// 쓰지 못하면 오류.
+pub async fn raise_generation(executor: impl SqliteExecutor<'_>) -> sqlx::Result<u32> {
+    let generation: i64 = sqlx::query_scalar(
+        "UPDATE data_bundle SET generation = generation + 1 WHERE id = 1 RETURNING generation",
+    )
+    .fetch_one(executor)
+    .await?;
+    u32::try_from(generation).map_err(|error| sqlx::Error::Decode(Box::new(error)))
+}
+
 /// 열려 있지 않은 DB 파일에서 읽는다. 깨진 DB도 이 표만은 읽힐 수 있어 한번 해 본다.
 /// 못 읽으면 `None`.
 pub async fn read_file(file: &Path) -> Option<HostIdentity> {
@@ -92,6 +106,18 @@ mod tests {
         write(&pool, identity).await.unwrap();
 
         assert_eq!(read(&pool).await.unwrap(), identity);
+    }
+
+    #[tokio::test]
+    async fn br_h4_raising_generation_keeps_bundle_id() {
+        let (_dir, pool) = open_temp().await;
+        let before = read(&pool).await.unwrap();
+
+        assert_eq!(raise_generation(&pool).await.unwrap(), 2);
+
+        let after = read(&pool).await.unwrap();
+        assert_eq!(after.bundle_id, before.bundle_id);
+        assert_eq!(after.generation, 2);
     }
 
     #[tokio::test]

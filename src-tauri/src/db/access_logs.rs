@@ -34,11 +34,13 @@ pub enum AccessEvent {
     Handover,
     /// BR-H2: 관리자가 넘기기를 취소하고 다시 호스트로 돌아왔다.
     HandoverCanceled,
+    /// BR-H3: 관리자가 넘기기 파일로 이 PC를 새 호스트로 시작했다. 넘겨받은 DB에 남긴다.
+    TakeOver,
 }
 
 impl AccessEvent {
     /// 모든 값.
-    const ALL: [AccessEvent; 13] = [
+    const ALL: [AccessEvent; 14] = [
         AccessEvent::Login,
         AccessEvent::LoginFailed,
         AccessEvent::Logout,
@@ -52,6 +54,7 @@ impl AccessEvent {
         AccessEvent::RunModeChanged,
         AccessEvent::Handover,
         AccessEvent::HandoverCanceled,
+        AccessEvent::TakeOver,
     ];
 
     /// DB `access_logs.event`에 쓰는 값.
@@ -70,6 +73,7 @@ impl AccessEvent {
             AccessEvent::RunModeChanged => "run_mode_changed",
             AccessEvent::Handover => "handover",
             AccessEvent::HandoverCanceled => "handover_canceled",
+            AccessEvent::TakeOver => "take_over",
         }
     }
 

@@ -20,6 +20,7 @@ mod secret;
 pub mod seed;
 mod server;
 mod startup;
+mod take_over;
 mod version;
 
 use tauri::Manager;
@@ -47,6 +48,7 @@ pub fn run() {
             save_file::save_file,
             pick::pick_folder,
             pick::pick_backup_file,
+            pick::pick_handover_file,
             restart::restart_app,
             broken_db::startup_state,
             broken_db::preview_broken_db_backup,
@@ -68,7 +70,9 @@ pub fn run() {
             handover::save_handover_file,
             handover::abort_handover,
             handover::handed_over_admins,
-            handover::cancel_handover
+            handover::cancel_handover,
+            take_over::preview_take_over,
+            take_over::take_over
         ])
         .setup(|app| {
             let host: version::Version = version::CURRENT.parse()?;

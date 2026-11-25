@@ -15,6 +15,7 @@ export const ACCESS_EVENT_LABELS: Record<AccessEventCode, string> = {
   run_mode_changed: "실행 모드 바꾸기",
   handover: "호스트 넘기기",
   handover_canceled: "넘기기 취소",
+  take_over: "넘겨받기",
 };
 
 /** 실패라서 눈에 띄게 보여 줄 일. */

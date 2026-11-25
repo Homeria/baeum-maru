@@ -35,6 +35,7 @@ pub enum AccessEventCode {
     RunModeChanged,
     Handover,
     HandoverCanceled,
+    TakeOver,
 }
 
 impl From<AccessEvent> for AccessEventCode {
@@ -53,6 +54,7 @@ impl From<AccessEvent> for AccessEventCode {
             AccessEvent::RunModeChanged => AccessEventCode::RunModeChanged,
             AccessEvent::Handover => AccessEventCode::Handover,
             AccessEvent::HandoverCanceled => AccessEventCode::HandoverCanceled,
+            AccessEvent::TakeOver => AccessEventCode::TakeOver,
         }
     }
 }

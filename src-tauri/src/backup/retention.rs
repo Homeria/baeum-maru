@@ -23,7 +23,8 @@ pub fn to_remove(backups: &[BackupName]) -> Vec<BackupName> {
             | BackupKind::BeforeLottery { .. }
             | BackupKind::BeforeClose { .. }
             | BackupKind::BeforeRestore
-            | BackupKind::BeforeHandover => event.push(*backup),
+            | BackupKind::BeforeHandover
+            | BackupKind::BeforeTakeOver => event.push(*backup),
             BackupKind::BeforeMigration => {}
         }
     }

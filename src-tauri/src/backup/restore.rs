@@ -29,6 +29,8 @@ use crate::db::{self, DbError};
 
 /// 받아 둔 백업 파일. 이 파일이 있으면 다음 시작 때 바꾼다.
 const PENDING_DB: &str = "restore-pending.db";
+/// 넘겨받을 파일을 데이터 폴더에 받아 두는 이름. 바로 바꾸고 지운다.
+const TAKE_OVER_DB: &str = "take-over-pending.db";
 /// 누가 언제 복원했는지.
 const PENDING_INFO: &str = "restore-pending.json";
 /// 깨진 DB를 남겨 두는 이름. 하나만 둔다.
@@ -184,6 +186,20 @@ pub async fn apply_pending(data_dir: &Path, now: OffsetDateTime) -> Option<Resto
         }
     }
     Some(outcome)
+}
+
+/// `source`를 이 데이터 폴더의 DB로 들인다(BR-H3 넘겨받기). DB를 쥔 곳이 없을 때만 부른다.
+///
+/// 지금 DB 파일이 있으면 바꾸는 동안 옮겨 두었다가, 다 되면 지운다. 실패하면 제자리로 돌려놓는다.
+/// 지우기 전에 남길 것은 부르는 쪽이 백업으로 남긴다.
+pub async fn install_copy(data_dir: &Path, source: &Path) -> std::io::Result<()> {
+    let pending = data_dir.join(TAKE_OVER_DB);
+    write_then_rename(&pending, Content::CopyOf(source)).await?;
+    let swapped = swap(data_dir, &pending).await;
+    if swapped.is_err() {
+        let _ = remove_if_exists(&pending).await;
+    }
+    swapped
 }
 
 /// 되돌렸으면 되돌리기 전의 묶음 ID와 세대 번호를 다시 써 넣고(BR-H4) 접속 기록에 남긴다.
