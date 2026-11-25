@@ -1,10 +1,11 @@
+import type { AdditionalOutcomeResponse } from "../../api/generated/AdditionalOutcomeResponse";
 import type { CourseResponse } from "../../api/generated/CourseResponse";
 import type { SelectionStageCode } from "../../api/generated/SelectionStageCode";
 import listStyles from "../../components/layout/listPage.module.css";
 import tableStyles from "../../components/table/table.module.css";
 import { courseName, scheduleSummary } from "../courses/courseFormData";
 import { STAGE_LABELS } from "../selection/selectionData";
-import { countLabel } from "./applicationsData";
+import { additionalLabel, countLabel } from "./applicationsData";
 import styles from "./ApplicationsPage.module.css";
 
 /** {@link CourseChoiceList}의 속성. */
@@ -20,8 +21,15 @@ export interface CourseChoiceListProps {
   chosen: readonly number[];
   /** 고른 회원이 이미 신청한 강좌. 고를 수 없다. */
   appliedIds: ReadonlySet<number>;
-  /** 강좌 id로 찾는 선발 단계. 추첨한 강좌는 새 신청을 받지 않아 고를 수 없다(BR-L3). */
+  /**
+   * 강좌 id로 찾는 선발 단계. 추첨했지만 마감 전인 강좌는 새 신청을 받지 않아 고를 수 없다(BR-L3).
+   * 마감한 강좌는 추가 신청으로 고른다(BR-X1).
+   */
   stages: ReadonlyMap<number, SelectionStageCode>;
+  /** 마감한 강좌에 지금 추가 신청을 받으면 어떻게 되는지(BR-X2). 강좌 id로 찾는다. */
+  additional: ReadonlyMap<number, AdditionalOutcomeResponse>;
+  /** 학기 종료일이 지나 추가 신청을 받지 않는다(BR-X1). */
+  termEnded: boolean;
   onToggle: (id: number) => void;
 }
 
@@ -34,6 +42,8 @@ export function CourseChoiceList({
   chosen,
   appliedIds,
   stages,
+  additional,
+  termEnded,
   onToggle,
 }: CourseChoiceListProps) {
   return (
@@ -58,8 +68,15 @@ export function CourseChoiceList({
               const summary = scheduleSummary(course.schedules, showBuilding);
               const applied = appliedIds.has(course.id);
               const stage = stages.get(course.id) ?? "not_drawn";
-              // 신청했거나 추첨한 강좌는 고를 수 없다
-              const locked = applied || stage !== "not_drawn";
+              // 마감한 강좌는 추가 신청으로 받는다. 미리 보기를 아직 못 받았으면 기다린다
+              const preview =
+                stage === "closed" && !termEnded
+                  ? additional.get(course.id)
+                  : undefined;
+              const open = stage === "not_drawn" || preview !== undefined;
+              // 신청했거나, 추첨하고 마감 전이거나, 학기가 끝난 마감 강좌는 고를 수 없다
+              const locked = applied || !open;
+              const previewId = `additional-preview-${course.id}`;
               const checked = chosen.includes(course.id);
               return (
                 <tr
@@ -79,7 +96,9 @@ export function CourseChoiceList({
                       <span className={styles.muted}>신청함</span>
                     ) : locked ? (
                       <span className={styles.muted}>
-                        {STAGE_LABELS[stage]}
+                        {stage === "closed" && termEnded
+                          ? "학기 끝남"
+                          : STAGE_LABELS[stage]}
                       </span>
                     ) : (
                       <input
@@ -87,6 +106,7 @@ export function CourseChoiceList({
                         checked={checked}
                         disabled={!selectable}
                         aria-label={`${courseName(course)} 고르기`}
+                        aria-describedby={preview ? previewId : undefined}
                         // 줄을 누르면 고르므로 칸 자체의 누름은 줄에 맡김
                         onClick={(event) => event.stopPropagation()}
                         onChange={() => onToggle(course.id)}
@@ -100,6 +120,11 @@ export function CourseChoiceList({
                   <td>{summary.room}</td>
                   <td>
                     {countLabel(counts.get(course.id) ?? 0, course.capacity)}
+                    {preview && !applied && (
+                      <span id={previewId} className={styles.additionalPreview}>
+                        추가 신청: {additionalLabel(preview)}
+                      </span>
+                    )}
                   </td>
                 </tr>
               );

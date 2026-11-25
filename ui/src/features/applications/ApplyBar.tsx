@@ -2,13 +2,18 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { submitApplications } from "../../api/applications";
 import { HostError } from "../../api/client";
+import type { AdditionalOutcomeResponse } from "../../api/generated/AdditionalOutcomeResponse";
 import type { CourseResponse } from "../../api/generated/CourseResponse";
 import type { PriorityReasonResponse } from "../../api/generated/PriorityReasonResponse";
 import type { RuleViolationResponse } from "../../api/generated/RuleViolationResponse";
 import formStyles from "../../components/form/form.module.css";
 import { useCan } from "../auth/useCan";
 import { courseName } from "../courses/courseFormData";
-import { priorityRequests, type ChosenPriorities } from "./applicationsData";
+import {
+  priorityRequests,
+  submittedNotice,
+  type ChosenPriorities,
+} from "./applicationsData";
 import { PriorityChoices } from "./PriorityChoices";
 import { RuleViolationDialog } from "./RuleViolationDialog";
 import styles from "./ApplicationsPage.module.css";
@@ -26,6 +31,8 @@ export interface ApplyBarProps {
   /** 고른 강좌에 붙일 사유. */
   priorities: ChosenPriorities;
   onTogglePriority: (courseId: number, reasonId: number) => void;
+  /** 마감한 강좌의 추가 신청 미리 보기(BR-X2). 결과가 달라졌는지 알리는 데 쓴다. */
+  additional: ReadonlyMap<number, AdditionalOutcomeResponse>;
   /** 신청을 저장했다. 고른 강좌와 사유를 비운다. */
   onSubmitted: () => void;
 }
@@ -44,6 +51,7 @@ export function ApplyBar({
   reasons,
   priorities,
   onTogglePriority,
+  additional,
   onSubmitted,
 }: ApplyBarProps) {
   const queryClient = useQueryClient();
@@ -54,10 +62,16 @@ export function ApplyBar({
   >(null);
   const [reasonError, setReasonError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<readonly string[] | null>(null);
 
   const submit = useMutation({
-    mutationFn: (overrideReason: string | null) =>
+    // previews: 누른 때 보였던 미리 보기. 응답이 오기 전에 화면이 새로 받아도 비교할 수 있게 함께 넘김
+    mutationFn: ({
+      overrideReason,
+    }: {
+      overrideReason: string | null;
+      previews: ReadonlyMap<number, AdditionalOutcomeResponse>;
+    }) =>
       submitApplications(termId, {
         // 버튼이 회원을 고른 뒤에만 눌리므로 0으로 보낼 일은 없음
         memberId: memberId ?? 0,
@@ -65,17 +79,21 @@ export function ApplyBar({
         overrideReason,
         priorities: canAssign ? priorityRequests(chosen, priorities) : [],
       }),
-    onSuccess: (response) => {
+    onSuccess: (response, { previews }) => {
       setViolations(null);
       setReasonError(null);
       setError(null);
-      setNotice(`${response.items.length}건 신청했습니다`);
+      setNotice(submittedNotice(response.items, previews, courses));
       onSubmitted();
       void queryClient.invalidateQueries({
         queryKey: ["applications", termId, memberId],
       });
       void queryClient.invalidateQueries({
         queryKey: ["applicationCounts", termId],
+      });
+      // 추가 신청이 빈자리와 다음 대기 순번을 바꾼다 (BR-X2)
+      void queryClient.invalidateQueries({
+        queryKey: ["closed-courses", termId],
       });
     },
     onError: (failure) => {
@@ -133,9 +151,13 @@ export function ApplyBar({
           </p>
         )}
         {notice && count === 0 && (
-          <p className={formStyles.notice} role="status">
-            {notice}
-          </p>
+          <div className={formStyles.notice} role="status">
+            {notice.map((line) => (
+              <p key={line} className={styles.noticeLine}>
+                {line}
+              </p>
+            ))}
+          </div>
         )}
         <button
           type="button"
@@ -144,7 +166,7 @@ export function ApplyBar({
           onClick={() => {
             setNotice(null);
             setError(null);
-            submit.mutate(null);
+            submit.mutate({ overrideReason: null, previews: additional });
           }}
         >
           {submit.isPending && violations === null
@@ -159,7 +181,9 @@ export function ApplyBar({
             canOverride={canOverride}
             saving={submit.isPending}
             reasonError={reasonError}
-            onOverride={(reason) => submit.mutate(reason)}
+            onOverride={(reason) =>
+              submit.mutate({ overrideReason: reason, previews: additional })
+            }
             onCancel={() => setViolations(null)}
           />
         )}

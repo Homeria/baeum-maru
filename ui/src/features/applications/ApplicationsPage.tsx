@@ -8,6 +8,7 @@ import { listCourses } from "../../api/courses";
 import { listSelections } from "../../api/lotteries";
 import { listPriorityReasons } from "../../api/priorityReasons";
 import { listRooms } from "../../api/rooms";
+import { listClosedCourses } from "../../api/selectionResults";
 import { listTerms } from "../../api/terms";
 import formStyles from "../../components/form/form.module.css";
 import { ViewOnlyNotice } from "../auth/ViewOnlyNotice";
@@ -15,10 +16,13 @@ import { MemberList } from "../members/MemberList";
 import { hasSeveralBuildings } from "../rooms/roomFormData";
 import { TermBar } from "../terms/TermBar";
 import { currentTerm } from "../terms/termFormData";
+import { todayText } from "../staff/staffFormData";
 import { useCan } from "../auth/useCan";
 import { stagesByCourse } from "../selection/selectionData";
 import {
+  additionalByCourse,
   countsByCourse,
+  isTermEnded,
   toggleChoice,
   togglePriority,
   type ChosenPriorities,
@@ -31,6 +35,9 @@ import styles from "./ApplicationsPage.module.css";
 /**
  * 신청 탭. 맨 위에서 학기를 고르고, 왼쪽에서 회원을 찾아 고르면 그 회원의 신청이 보인다.
  * 오른쪽은 그 학기의 강좌와 신청 인원/정원이다. 강좌를 골라 한 번에 신청한다.
+ *
+ * 선발 마감한 강좌는 학기 종료일까지 추가 신청으로 고른다(BR-X1). 고르기 전에 바로 당첨인지
+ * 대기 몇 번째인지 보여 준다(BR-X2).
  *
  * 학기나 회원을 바꾸면 고른 강좌를 비운다. 학기 등록·고치기는 강좌 탭에서 한다.
  * 신청을 받을 수 없는 역할(BR-K3)은 강좌를 고를 수 없다.
@@ -62,6 +69,12 @@ export function ApplicationsPage() {
   const selections = useQuery({
     queryKey: ["selections", termId],
     queryFn: () => listSelections(termId ?? 0),
+    enabled: termId !== null,
+  });
+  // 마감한 강좌에 추가 신청을 받으면 어떻게 되는지 미리 보기 (BR-X2)
+  const closedCourses = useQuery({
+    queryKey: ["closed-courses", termId],
+    queryFn: () => listClosedCourses(termId ?? 0),
     enabled: termId !== null,
   });
   const rooms = useQuery({ queryKey: ["rooms"], queryFn: listRooms });
@@ -100,6 +113,8 @@ export function ApplicationsPage() {
     : false;
   const reasonItems = reasons.data?.items ?? [];
   const stages = stagesByCourse(selections.data?.items ?? []);
+  const additional = additionalByCourse(closedCourses.data?.items ?? []);
+  const termEnded = isTermEnded(current, todayText());
   const clearChoices = () => {
     setChosen([]);
     setPriorities(new Map());
@@ -158,6 +173,8 @@ export function ApplicationsPage() {
               chosen={chosen}
               appliedIds={appliedIds}
               stages={stages}
+              additional={additional}
+              termEnded={termEnded}
               onToggle={(id) => {
                 setChosen((prev) => toggleChoice(prev, id));
                 // 빼는 강좌의 사유도 지운다. 다시 고르면 처음부터
@@ -183,6 +200,7 @@ export function ApplicationsPage() {
                     togglePriority(prev, courseId, reasonId),
                   )
                 }
+                additional={additional}
                 onSubmitted={clearChoices}
               />
             ) : (

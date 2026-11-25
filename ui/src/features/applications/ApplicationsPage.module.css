@@ -66,6 +66,18 @@
   color: var(--color-text-muted);
 }
 
+/* 신청 결과 알림의 한 줄 */
+.noticeLine {
+  margin: 0;
+}
+
+/* 마감한 강좌의 추가 신청 미리 보기. 신청/정원 아래 줄 */
+.additionalPreview {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.9em;
+}
+
 .override {
   color: var(--color-text-muted);
   font-size: 0.9em;
