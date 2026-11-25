@@ -14,7 +14,7 @@ use baeum_domain::{
 };
 use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Worksheet, XlsxError};
 
-use crate::db::rosters::{RosterCourse, RosterEntry, RosterResult};
+use crate::features::rosters::repository::{RosterCourse, RosterEntry, RosterResult};
 
 #[cfg(test)]
 pub mod test_support;

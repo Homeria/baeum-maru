@@ -6,7 +6,7 @@ use baeum_domain::{Capacity, Gender, Personal};
 use calamine::{Reader, Xlsx};
 use time::macros::date;
 
-use crate::db::rosters::{RosterCourse, RosterEntry, RosterMember, RosterResult};
+use crate::features::rosters::repository::{RosterCourse, RosterEntry, RosterMember, RosterResult};
 
 fn member(member_id: i64, name: &str, member_no: &str, phone: &str) -> RosterMember {
     RosterMember {

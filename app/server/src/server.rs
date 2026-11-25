@@ -4,7 +4,6 @@
 
 pub(crate) mod backups;
 pub(crate) mod handover;
-pub(crate) mod rosters;
 pub(crate) mod run_mode;
 #[cfg(test)]
 pub(crate) mod test_support;

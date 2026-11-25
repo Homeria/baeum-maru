@@ -8,7 +8,7 @@ use rust_xlsxwriter::{Workbook, XlsxError};
 
 use super::side_by_side::{table_width, write_side_by_side};
 use super::{Heading, TableFormats, course_title, print_on_a4, sheet_names};
-use crate::db::rosters::RosterCourse;
+use crate::features::rosters::repository::RosterCourse;
 
 /// 게시용 표의 글씨 크기.
 const FONT_SIZE: f64 = 14.0;
@@ -44,7 +44,7 @@ mod tests {
     use baeum_domain::{MaskChar, RosterChoice, RosterColumn, RosterKind};
 
     use super::*;
-    use crate::roster_xlsx::test_support::{read_sheet, sample_roster};
+    use crate::features::rosters::xlsx::test_support::{read_sheet, sample_roster};
 
     fn spec(include: &[RosterColumn], mask: &[RosterColumn]) -> RosterSpec {
         RosterSpec::new(RosterChoice {

@@ -7,7 +7,7 @@ use baeum_domain::{RosterColumn, RosterSpec};
 use rust_xlsxwriter::{Format, FormatBorder, Worksheet, XlsxError};
 
 use super::{TableFormats, cell, column_width, text_width};
-use crate::db::rosters::{RosterCourse, RosterEntry, RosterResult};
+use crate::features::rosters::repository::{RosterCourse, RosterEntry, RosterResult};
 
 /// 당첨자 묶음이나 대기자 묶음 하나.
 struct Group<'a> {

@@ -13,7 +13,7 @@ use rust_xlsxwriter::{Format, FormatAlign, Workbook, Worksheet, XlsxError};
 use super::{
     FONT, Heading, PRIORITY_TEXT, TableFormats, cell, column_width, print_on_a4, text_width,
 };
-use crate::db::rosters::{RosterCourse, RosterEntry, RosterResult};
+use crate::features::rosters::repository::{RosterCourse, RosterEntry, RosterResult};
 
 /// 회원별 명단 시트 이름.
 const SHEET_NAME: &str = "회원별 결과";
@@ -256,7 +256,7 @@ mod tests {
     use baeum_domain::{MaskChar, RosterChoice, RosterKind};
 
     use super::*;
-    use crate::roster_xlsx::test_support::{read_sheet, sample_roster};
+    use crate::features::rosters::xlsx::test_support::{read_sheet, sample_roster};
 
     fn spec(include: &[RosterColumn], mask: &[RosterColumn]) -> RosterSpec {
         RosterSpec::new(RosterChoice {
