@@ -12,16 +12,16 @@
 use std::path::{Path, PathBuf};
 
 use baeum_domain::Role;
-use serde::Serialize;
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
-use ts_rs::TS;
 
 use super::run_mode::{self, RunMode, RunModeState};
 use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
 use crate::features::auth::repository as auth;
 use crate::features::auth::service::check_pin;
 use crate::features::backups::service::inspect::inspect;
+/// 화면이 받는 모양. launcher가 이 모듈 이름으로 찾는다.
+pub use crate::features::handover::dto::{HandedOverAdmin, HandoverFileResponse};
 use crate::infra::backup_file::name::BackupKind;
 use crate::infra::backup_file::{self, store};
 use crate::infra::clock;
@@ -62,18 +62,6 @@ async fn make_file(data_dir: &Path, now: OffsetDateTime) -> Result<PathBuf, Stri
     })?;
     tracing::info!(%name, "데이터 넘기기 직전 백업을 만들었습니다");
     Ok(dir.join(name.to_string()))
-}
-
-/// 넘기기 파일 확인 화면에 보여 줄 것. 회원 이름 같은 개인정보는 담지 않는다.
-#[derive(Debug, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct HandoverFileResponse {
-    pub term_names: Vec<String>,
-    #[ts(type = "number")]
-    pub member_count: i64,
-    #[ts(type = "number")]
-    pub application_count: i64,
 }
 
 /// 켤 때 만든 넘기기 파일의 미리보기.
@@ -160,16 +148,6 @@ pub async fn abort(run_mode: &RunModeState) -> Result<(), String> {
     back_to_host(run_mode.data_dir(), None, OffsetDateTime::now_utc()).await?;
     tracing::info!("넘기지 않고 호스트로 돌아갑니다");
     Ok(())
-}
-
-/// 넘김 화면의 관리자 목록 한 줄.
-#[derive(Debug, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct HandedOverAdmin {
-    #[ts(type = "number")]
-    pub id: i64,
-    pub name: String,
 }
 
 /// 넘기기를 취소할 수 있는 관리자들. 넘긴 PC에서만.

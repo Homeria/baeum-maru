@@ -11,16 +11,16 @@
 
 use std::path::Path;
 
-use serde::Serialize;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{ConnectOptions, Connection, SqliteConnection};
 use time::OffsetDateTime;
-use ts_rs::TS;
 
 use super::run_mode::{self, RunMode, RunModeState};
 use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
 use crate::features::backups::service::inspect::inspect;
 use crate::features::backups::service::{self as backup, restore};
+/// 화면이 받는 모양. launcher가 이 모듈 이름으로 찾는다.
+pub use crate::features::handover::dto::{TakeOverAdmin, TakeOverPreviewResponse};
 use crate::infra::backup_file::name::BackupKind;
 use crate::infra::backup_file::{self, store};
 use crate::infra::clock;
@@ -30,30 +30,6 @@ use crate::infra::{data_bundle, db};
 
 /// 예전 DB를 백업으로 남기지 못했을 때 옮겨 두는 이름. 하나만 둔다.
 const KEPT_DB: &str = "baeum-maru.before-take-over.db";
-
-/// 넘겨받기 확인 화면에 보여 줄 것. 관리자 이름 말고는 개인정보를 담지 않는다.
-#[derive(Debug, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct TakeOverPreviewResponse {
-    pub term_names: Vec<String>,
-    #[ts(type = "number")]
-    pub member_count: i64,
-    #[ts(type = "number")]
-    pub application_count: i64,
-    /// 확인에 쓸 수 있는 파일 안의 관리자들.
-    pub admins: Vec<TakeOverAdmin>,
-}
-
-/// 파일 안의 관리자 한 명.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct TakeOverAdmin {
-    #[ts(type = "number")]
-    pub id: i64,
-    pub name: String,
-}
 
 /// 넘겨받지 못했다. 이 PC는 그대로다.
 #[derive(Debug, thiserror::Error)]
