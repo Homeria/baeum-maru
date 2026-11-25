@@ -11,10 +11,8 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use ts_rs::TS;
 
-// TODO(#88): 신청 기능을 옮길 때 이 의존(http → 신청)을 없앤다. 지금은 공통층이 신청 응답 타입을 안다
 use crate::infra::db::DeleteError;
-use crate::server::applications::RuleViolationResponse;
-use baeum_domain::PinRefusal;
+use baeum_domain::{ApplicationRule, PinRefusal, RuleViolation};
 
 /// 요청을 처리하지 못했다.
 #[derive(Debug)]
@@ -661,5 +659,66 @@ impl From<QueryRejection> for ApiError {
 impl From<PathRejection> for ApiError {
     fn from(_: PathRejection) -> Self {
         ApiError::MalformedRequest
+    }
+}
+
+/// `field` 칸 하나의 입력 오류(422).
+pub fn field_error(field: &str, message: String) -> ApiError {
+    ApiError::InvalidInput(vec![FieldError {
+        field: field.to_owned(),
+        message,
+    }])
+}
+
+/// 신청 규칙. DB와 같은 이름.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+#[expect(
+    clippy::enum_variant_names,
+    reason = "규칙 이름이 모두 '하지 않기'(no_…)라서 같은 앞말이 뜻을 가진다"
+)]
+pub enum ApplicationRuleCode {
+    /// BR-A4
+    NoDuplicate,
+    /// BR-A1
+    NoTimeOverlap,
+    /// BR-A2
+    NoSameSubject,
+}
+
+impl From<ApplicationRule> for ApplicationRuleCode {
+    fn from(rule: ApplicationRule) -> Self {
+        match rule {
+            ApplicationRule::NoDuplicate => ApplicationRuleCode::NoDuplicate,
+            ApplicationRule::NoTimeOverlap => ApplicationRuleCode::NoTimeOverlap,
+            ApplicationRule::NoSameSubject => ApplicationRuleCode::NoSameSubject,
+        }
+    }
+}
+
+/// 신청하려는 강좌가 어긴 규칙 하나. 오류 응답의 `violations`에 담긴다.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct RuleViolationResponse {
+    #[ts(type = "number")]
+    pub course_id: i64,
+    pub rule: ApplicationRuleCode,
+    /// 부딪힌 강좌. 이미 신청한 강좌이거나 함께 고른 강좌.
+    #[ts(type = "number")]
+    pub other_course_id: i64,
+    /// 사유를 적으면 받을 수 있는지(BR-A6, BR-A7).
+    pub can_override: bool,
+}
+
+impl From<RuleViolation> for RuleViolationResponse {
+    fn from(violation: RuleViolation) -> Self {
+        RuleViolationResponse {
+            course_id: violation.course_id,
+            rule: violation.rule.into(),
+            other_course_id: violation.other_course_id,
+            can_override: violation.rule.can_override(),
+        }
     }
 }

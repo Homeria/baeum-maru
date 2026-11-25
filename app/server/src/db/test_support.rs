@@ -316,7 +316,7 @@ pub async fn insert_drawn_course(
             .unwrap();
     }
     let now = time::macros::datetime!(2026-11-22 01:02:03 UTC);
-    super::lotteries::run(
+    crate::features::lotteries::repository::run(
         pool,
         course_id,
         staff_id,
@@ -326,7 +326,7 @@ pub async fn insert_drawn_course(
     .await
     .unwrap();
     if close {
-        super::lotteries::close(pool, course_id, staff_id, now)
+        crate::features::lotteries::repository::close(pool, course_id, staff_id, now)
             .await
             .unwrap();
     }

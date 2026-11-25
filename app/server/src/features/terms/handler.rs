@@ -135,3 +135,12 @@ impl From<SaveTermError> for ApiError {
         }
     }
 }
+
+/// 학기가 있어야 한다. 학기 아래 주소(신청, 추첨, 선발 결과, 명단)가 먼저 확인한다.
+pub(crate) async fn require_term(db: &SqlitePool, term_id: i64) -> Result<(), ApiError> {
+    repository::get(db, term_id)
+        .await
+        .map_err(ApiError::internal)?
+        .ok_or(ApiError::TermNotFound)
+        .map(|_| ())
+}

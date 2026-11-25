@@ -209,3 +209,12 @@ auth와 직원을 옮기기 전에(#90, 2026-11-25) 이렇게 정했다.
 - 변경 알림 스트림(`/api/changes`)은 열려 있는 동안 세션과 기기를 다시 확인하므로 auth에 둔다. `http/changes.rs`에는 알림 보내기만 남는다.
 - 직원 역할의 JSON 타입(`RoleCode`)은 로그인 응답과 직원 응답이 같이 쓴다. `auth`와 `staff`가 서로 부르지 않게 auth에 둔다.
 - 의존 방향 표의 "`staff`의 PIN 확인"은 "`auth`(로그인한 직원, PIN 확인)"로 읽고, "`setup` → `staff`(입력 확인)"를 더한다.
+
+신청·추첨·선발 결과·명단을 옮기기 전에(#92, 2026-11-25) 이렇게 정했다.
+
+- 위의 "`lotteries` → `applications`"는 실제 코드와 반대였다. 추첨은 우선 배정 사유를 SQL로 읽을 뿐 신청 코드를 부르지 않고, 신청이 추첨을 부른다(우선 배정 사유를 바꾸면 진행 중인 추첨을 취소한다). 의존 방향 표는 이렇게 읽는다: `applications` → `lotteries`, `selection_results`. `selection_results` → `lotteries`. `rosters` → `selection_results`, `members`, `courses`, `terms`. `lotteries` → `terms`.
+- 우선 배정 사유 붙이기(`db/application_priorities.rs`)는 `features/applications/repository/priorities.rs`에, 포기·연락 기록(`db/selection_changes.rs`)은 `features/selection_results/repository/changes.rs`에 둔다. 따로 요청 주소가 없고 그 기능의 요청이 처리한다.
+- 이번까지는 repository 함수가 트랜잭션을 연다. service 층(트랜잭션을 service로 옮기기)은 신청, 추첨, 선발 결과, auth, 처음 설정을 묶어 따로 PR로 만든다. 옮기기와 로직 나누기를 한 PR에 섞지 않으려는 것이다.
+- 명단의 Excel 만들기(`roster_xlsx`)는 그림처럼 맨 위에 두지 않고 `features/rosters/xlsx/`에 둔다. 명단 SQL의 타입을 받아 파일을 만들고 명단 요청 처리가 이것을 불러서, 맨 위에 두면 명단과 서로 부르는 순환이 된다.
+- 추가 신청 결과 응답(`AdditionalOutcomeResponse`)은 선발 결과가 계산하는 값이라 선발 결과의 `dto`에 두고 신청이 가져다 쓴다.
+- 접속 기록과 auth는 기능 단위로 보면 서로 부른다: 접속 기록의 요청 처리는 다른 기능처럼 auth의 로그인 확인을 쓰고, auth의 SQL은 로그인 기록을 남기려고 접속 기록의 SQL을 부른다. 층 단위로는 순환이 없다(`access_logs::handler` → `auth::middleware` → `auth::repository` → `access_logs::repository`, 접속 기록의 repository는 아무것도 부르지 않는다). 그래서 "접속 기록은 다른 기능을 부르지 않는다"는 repository에 대한 말로 읽는다.

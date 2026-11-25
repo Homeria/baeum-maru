@@ -237,9 +237,10 @@ mod tests {
             .fetch_one(&pool)
             .await
             .unwrap();
-        let result = crate::db::selection_results::course_result(&pool, course_id)
-            .await
-            .unwrap();
+        let result =
+            crate::features::selection_results::repository::course_result(&pool, course_id)
+                .await
+                .unwrap();
         assert_eq!(result.open_seats, 1);
         let turns: Vec<(usize, bool)> = result
             .waitlisted
