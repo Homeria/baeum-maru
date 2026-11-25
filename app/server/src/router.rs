@@ -13,13 +13,15 @@ use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::backup::Backups;
-use crate::features::{courses, members, priority_reasons, rooms, subjects, terms};
+use crate::features::{
+    access_logs, courses, devices, members, priority_reasons, rooms, subjects, terms,
+};
 use crate::http::changes::{self, ChangeKind, ChangeNotices, notifies};
 use crate::http::{auth, version};
 use crate::infra::version::Version;
 use crate::server::{
-    access_logs, applications, backups, devices, handover, login, lotteries, recovery, rosters,
-    run_mode, selection_results, setup, staff,
+    applications, backups, handover, login, lotteries, recovery, rosters, run_mode,
+    selection_results, setup, staff,
 };
 
 /// ADR 0004: 포트 47800 고정.
@@ -211,7 +213,7 @@ pub fn router(state: AppState) -> Router {
             "/api/staff/{id}/pin",
             notifies(post(staff::reset_staff_pin), &notices, ChangeKind::Staff),
         )
-        .route("/api/access-logs", get(access_logs::list_access_logs))
+        .merge(access_logs::handler::routes(&notices))
         .route(
             "/api/backups",
             notifies(
@@ -234,20 +236,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/backups/restore", post(backups::restore))
         .route("/api/handover", post(handover::start_handover))
-        .route("/api/device-requests", get(devices::list_device_requests))
-        .route(
-            "/api/device-requests/{id}/approve",
-            notifies(post(devices::approve_device), &notices, ChangeKind::Device),
-        )
-        .route(
-            "/api/device-requests/{id}/reject",
-            notifies(post(devices::reject_device), &notices, ChangeKind::Device),
-        )
-        .route("/api/devices", get(devices::list_devices))
-        .route(
-            "/api/devices/{id}",
-            notifies(delete(devices::revoke_device), &notices, ChangeKind::Device),
-        )
+        .merge(devices::handler::routes(&notices))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::require_session,
@@ -279,8 +268,7 @@ pub fn router(state: AppState) -> Router {
     // 버전 확인은 기기 확인보다 먼저 한다
     let checked = Router::new()
         // BR-K15: 승인받지 않은 기기가 요청하고 결과를 본다
-        .route("/api/approval/request", post(devices::request_approval))
-        .route("/api/approval/status", get(devices::approval_status))
+        .merge(devices::handler::approval_routes())
         .merge(approved)
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

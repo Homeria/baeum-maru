@@ -9,8 +9,8 @@ use axum::http::{HeaderMap, StatusCode};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use crate::db::access_logs::{self, AccessEvent};
 use crate::db::{sessions, staff};
+use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
 use crate::http::auth::{CurrentDevice, bearer_token};
 use crate::http::error::ApiError;
 use crate::infra::secret::SessionToken;
@@ -135,8 +135,8 @@ mod tests {
     use tower::ServiceExt;
 
     use super::*;
-    use crate::db::access_logs::list_for_test;
     use crate::db::test_support::insert_staff;
+    use crate::features::access_logs::repository::list_for_test;
     use crate::http::version::VERSION_HEADER;
     use crate::server::test_support::{app_without_staff, get, json_body, post};
 

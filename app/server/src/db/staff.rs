@@ -6,7 +6,7 @@ use baeum_domain::{
 use sqlx::SqlitePool;
 use time::{Date, OffsetDateTime};
 
-use super::access_logs::{self, AccessEvent};
+use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
 use crate::infra::clock::local_today;
 use crate::infra::db::{is_unique_violation, timestamp_text};
 
@@ -413,8 +413,8 @@ mod tests {
     use time::macros::{date, datetime};
 
     use super::*;
-    use crate::db::access_logs::list_for_test;
     use crate::db::test_support::insert_staff;
+    use crate::features::access_logs::repository::list_for_test;
     use crate::infra::db::open_temp;
 
     fn now() -> OffsetDateTime {

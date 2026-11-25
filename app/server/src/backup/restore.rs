@@ -20,7 +20,7 @@ use sqlx::SqlitePool;
 use time::{OffsetDateTime, PrimitiveDateTime};
 
 use super::inspect::{BackupPreview, InspectError, inspect};
-use crate::db::access_logs::{self, AccessEvent};
+use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
 use crate::infra::backup_file::name::{BackupKind, BackupName};
 use crate::infra::backup_file::store::{self, BackupError, StoredBackup};
 use crate::infra::clock;

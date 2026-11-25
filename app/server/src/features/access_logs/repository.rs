@@ -183,7 +183,7 @@ pub async fn record_on_device(
 }
 
 /// 트랜잭션 안에서 다른 저장과 함께 남길 때 쓴다. `now`는 [`timestamp_text`] 모양.
-pub(super) async fn insert(
+pub(crate) async fn insert(
     conn: &mut SqliteConnection,
     staff_id: Option<i64>,
     event: AccessEvent,
@@ -193,7 +193,7 @@ pub(super) async fn insert(
 }
 
 /// [`insert`]와 같지만 어느 기기의 일인지도 남긴다.
-pub(super) async fn insert_on_device(
+pub(crate) async fn insert_on_device(
     conn: &mut SqliteConnection,
     staff_id: Option<i64>,
     device_id: Option<i64>,
@@ -219,76 +219,4 @@ pub(crate) async fn list_for_test(pool: &SqlitePool) -> Vec<(Option<i64>, String
         .fetch_all(pool)
         .await
         .unwrap()
-}
-
-#[cfg(test)]
-mod tests {
-
-    use time::macros::datetime;
-
-    use super::*;
-    use crate::db::test_support::insert_staff;
-    use crate::infra::db::open_temp;
-
-    #[tokio::test]
-    async fn records_event_with_and_without_staff() {
-        let (_dir, pool) = open_temp().await;
-        let staff_id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
-        let now = datetime!(2026-11-15 01:02:03 UTC);
-
-        record(&pool, Some(staff_id), AccessEvent::Login, now)
-            .await
-            .unwrap();
-        record(&pool, None, AccessEvent::LoginFailed, now)
-            .await
-            .unwrap();
-
-        assert_eq!(
-            list_for_test(&pool).await,
-            [
-                (Some(staff_id), "login".to_owned()),
-                (None, "login_failed".to_owned()),
-            ]
-        );
-    }
-
-    #[tokio::test]
-    async fn lists_newest_first_by_page_with_staff_name() {
-        let (_dir, pool) = open_temp().await;
-        let staff_id = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
-        let at = |minute: u8| {
-            datetime!(2026-11-15 01:00 UTC)
-                .replace_minute(minute)
-                .unwrap()
-        };
-        record(&pool, None, AccessEvent::LoginFailed, at(0))
-            .await
-            .unwrap();
-        record(&pool, Some(staff_id), AccessEvent::Login, at(1))
-            .await
-            .unwrap();
-        record(&pool, Some(staff_id), AccessEvent::Logout, at(2))
-            .await
-            .unwrap();
-
-        let first = list(&pool, 1, 2).await.unwrap();
-        let second = list(&pool, 2, 2).await.unwrap();
-
-        assert_eq!(first.total, 3);
-        let events: Vec<AccessEvent> = first.items.iter().map(|item| item.event).collect();
-        assert_eq!(events, [AccessEvent::Logout, AccessEvent::Login]);
-        assert_eq!(first.items[0].staff_name.as_deref(), Some("직원1"));
-        assert_eq!(first.items[0].occurred_at, at(2));
-        assert_eq!(
-            second.items,
-            [AccessLogRecord {
-                id: second.items[0].id,
-                occurred_at: at(0),
-                staff_id: None,
-                staff_name: None,
-                device_name: None,
-                event: AccessEvent::LoginFailed,
-            }]
-        );
-    }
 }

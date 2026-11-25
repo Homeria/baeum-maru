@@ -22,7 +22,8 @@ use ts_rs::TS;
 
 use super::auth::{CurrentDevice, bearer_token, device_token};
 use super::error::ApiError;
-use crate::db::{devices, sessions};
+use crate::db::sessions;
+use crate::features::devices::repository as devices;
 
 /// 바뀐 데이터의 종류. 이름은 용어집의 영어 이름을 소문자와 밑줄로 쓴다(ADR 0008 구현 메모).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]

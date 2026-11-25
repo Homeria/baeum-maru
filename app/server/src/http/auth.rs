@@ -17,7 +17,8 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use super::error::ApiError;
-use crate::db::{devices, sessions};
+use crate::db::sessions;
+use crate::features::devices::repository as devices;
 use crate::infra::secret::{DeviceToken, SessionToken};
 
 /// 지금 요청한 직원. 로그인 확인을 통과한 요청에서만 꺼낼 수 있다.

@@ -7,8 +7,8 @@ use baeum_domain::is_account_locked;
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use crate::db::access_logs::{self, AccessEvent};
 use crate::db::staff::{self, LoginAccount};
+use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
 use crate::infra::secret;
 
 /// PIN 확인을 거절했다.

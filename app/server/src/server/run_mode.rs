@@ -13,8 +13,8 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 use ts_rs::TS;
 
-use crate::db::access_logs::{self, AccessEvent};
 use crate::db::staff;
+use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
 use crate::http::auth::CurrentDevice;
 use crate::http::error::ApiError;
 use crate::pin_check::check_pin;
@@ -69,8 +69,8 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::db::access_logs::list_for_test;
     use crate::db::test_support::insert_staff;
+    use crate::features::access_logs::repository::list_for_test;
     use crate::server::test_support::{app_without_staff, get, json_body, post};
 
     /// 처음 설정으로 관리자(PIN 123456)를 만들고 id를 돌려준다.

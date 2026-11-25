@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::db::devices::{DeviceRecord, OpenRequest, RequestStatus};
+use super::repository::{DeviceRecord, OpenRequest, RequestStatus};
 use crate::infra::db::timestamp_text;
 
 /// `POST /api/approval/request` 본문.

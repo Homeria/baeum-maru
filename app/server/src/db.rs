@@ -2,10 +2,8 @@
 //!
 //! DB 열기와 공통 도구는 [`crate::infra::db`]에 있다.
 
-pub mod access_logs;
 pub mod application_priorities;
 pub mod applications;
-pub mod devices;
 pub mod lotteries;
 pub mod recovery;
 pub mod rosters;

@@ -15,8 +15,8 @@ use time::OffsetDateTime;
 use ts_rs::TS;
 
 use crate::backup::Backups;
-use crate::db::access_logs::{self, AccessEvent};
 use crate::db::staff;
+use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
 use crate::http::auth::{Client, CurrentStaff};
 use crate::http::error::ApiError;
 use crate::pin_check::check_pin;
@@ -68,7 +68,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::db::access_logs::list_for_test;
+    use crate::features::access_logs::repository::list_for_test;
     use crate::server::test_support::{app, app_as, from_approved_pc, json_body, post};
 
     /// 로그인해 둔 첫 직원의 PIN을 123456으로 정한다.

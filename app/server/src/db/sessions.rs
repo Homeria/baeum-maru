@@ -4,8 +4,8 @@ use baeum_domain::SCREEN_LOCK;
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::access_logs::{self, AccessEvent};
 use super::staff::{LoginAccount, LoginAccountRow};
+use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
 use crate::infra::db::timestamp_text;
 
 /// 요청에 실린 증표의 세션과 그 직원 계정. 요청마다 함께 읽는다 (ADR 0014).
@@ -164,8 +164,8 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::db::access_logs::list_for_test;
     use crate::db::test_support::insert_staff;
+    use crate::features::access_logs::repository::list_for_test;
     use crate::infra::db::open_temp;
 
     fn at(minute: u8) -> OffsetDateTime {

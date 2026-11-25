@@ -19,7 +19,7 @@ use ts_rs::TS;
 
 use crate::backup::inspect::inspect;
 use crate::backup::{self, restore};
-use crate::db::access_logs::{self, AccessEvent};
+use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
 use crate::infra::backup_file::name::BackupKind;
 use crate::infra::backup_file::{self, store};
 use crate::infra::clock;
@@ -278,8 +278,8 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use crate::db::access_logs::list_for_test;
     use crate::db::test_support::{insert_member, insert_staff};
+    use crate::features::access_logs::repository::list_for_test;
 
     const NOW: OffsetDateTime = datetime!(2026-11-25 01:00 UTC);
 

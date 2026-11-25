@@ -114,8 +114,8 @@ mod tests {
     use serde_json::{Value, json};
 
     use super::*;
-    use crate::db::access_logs::list_for_test;
     use crate::db::test_support::insert_staff;
+    use crate::features::access_logs::repository::list_for_test;
     use crate::server::test_support::{app_without_staff, get, json_body, post};
 
     /// 처음 설정으로 관리자(PIN 123456)를 만들고 (관리자 id, 복구 코드)를 돌려준다.

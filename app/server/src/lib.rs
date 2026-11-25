@@ -19,7 +19,7 @@ pub mod seed;
 mod server;
 pub mod take_over;
 
-pub use db::devices::open_request_count;
+pub use features::devices::repository::open_request_count;
 pub use infra::backup_file::name::BackupKind;
 pub use infra::{startup, version};
 pub use router::serve;

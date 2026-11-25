@@ -3,7 +3,7 @@
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::access_logs::{self, AccessEvent};
+use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
 use crate::infra::db::timestamp_text;
 
 /// 저장된 복구 코드의 해시. 처음 설정 전이면 `None`.
@@ -64,8 +64,8 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::db::access_logs::list_for_test;
     use crate::db::staff::{get_login_account, setup};
+    use crate::features::access_logs::repository::list_for_test;
     use crate::infra::db::open_temp;
 
     fn now() -> OffsetDateTime {
