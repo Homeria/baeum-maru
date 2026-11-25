@@ -239,3 +239,4 @@ service 층을 만들기 전에(#96, 2026-11-25) 이렇게 정했다.
 - 다른 기능이 트랜잭션 안에서 부르는 것(신청 → 진행 중인 추첨 취소 등)은 repository 함수로 둔다. 기능끼리 service를 부르지 않는다.
 - repository의 하위 파일(`repository/priorities.rs`, `repository/changes.rs`)처럼 service도 `service/priorities.rs`, `service/changes.rs`로 둔다. 그 테스트 파일(`tests/priorities.rs`, `tests/changes.rs`)은 이름을 그대로 둔다. 큰 service 함수의 테스트는 `tests/service.rs`에 둔다.
 - 백업과 넘기기의 본체는 #100에서 `backups/service.rs`·`service/`, `handover/service/`로 옮겼다. 파일과 데이터 폴더를 다루는 코드가 대부분이라 repository로 나누지 않고, 화면 타입은 `dto.rs`로, 테스트는 `tests/`로 뗐다. 실행 모드(`RunMode`)는 응답 모양이 아니라 실행 모드 파일의 값이라 `service/run_mode.rs`에 둔다.
+- 기능의 오류 enum은 #102에서 기능마다 `error.rs`로 모았다. 위의 "오류 enum은 service에 둔다"를 바꾼다. service에 두면 repository가 그 오류를 돌려주지 못해, 오류만 바꾸는 얇은 service 함수가 생겼다(직원 추가). `ApiError`로 바꾸는 `From`은 handler에, domain crate의 오류(`PinRefusal` 등)는 domain에 둔다.
