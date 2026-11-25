@@ -15,7 +15,7 @@ use time::OffsetDateTime;
 use super::error::ApiError;
 use super::staff::field_name;
 use crate::db::staff::{self, SetupError};
-use crate::secret::AdminSecrets;
+use crate::infra::secret::AdminSecrets;
 
 use json::{SetupRequest, SetupResponse, SetupStatusResponse};
 
@@ -84,7 +84,7 @@ mod tests {
     use baeum_domain::RecoveryCode;
 
     use super::*;
-    use crate::secret;
+    use crate::infra::secret;
     use crate::server::test_support::{app_without_staff, get, json_body, post};
 
     fn admin(name: &str, pin: &str) -> String {

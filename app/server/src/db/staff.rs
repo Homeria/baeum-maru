@@ -7,8 +7,8 @@ use sqlx::SqlitePool;
 use time::{Date, OffsetDateTime};
 
 use super::access_logs::{self, AccessEvent};
-use super::{is_unique_violation, timestamp_text};
-use crate::clock::local_today;
+use crate::infra::clock::local_today;
+use crate::infra::db::{is_unique_violation, timestamp_text};
 
 /// 처음 설정을 하지 못했다.
 #[derive(Debug, thiserror::Error)]
@@ -414,8 +414,8 @@ mod tests {
 
     use super::*;
     use crate::db::access_logs::list_for_test;
-    use crate::db::open_temp;
     use crate::db::test_support::insert_staff;
+    use crate::infra::db::open_temp;
 
     fn now() -> OffsetDateTime {
         datetime!(2026-11-15 01:02:03 UTC)

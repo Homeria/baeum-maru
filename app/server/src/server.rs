@@ -41,7 +41,7 @@ use tower_http::set_header::SetResponseHeaderLayer;
 
 use self::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::backup::Backups;
-use crate::version::Version;
+use crate::infra::version::Version;
 
 /// ADR 0004: 포트 47800 고정.
 pub const PORT: u16 = 47800;
@@ -463,7 +463,7 @@ pub async fn serve(host: Version, db: SqlitePool, backups: Backups) {
 async fn listen(host: Version, db: SqlitePool, backups: Backups) -> Result<(), std::io::Error> {
     let addr = SocketAddr::from((LISTEN_ADDR, PORT));
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    tracing::info!(%addr, version = crate::version::CURRENT, "서버 시작");
+    tracing::info!(%addr, version = crate::infra::version::CURRENT, "서버 시작");
     // 처리 함수가 요청을 보낸 PC의 주소를 알게 한다 (BR-L6, auth::Client)
     let app = router(AppState::new(host, db, backups))
         .into_make_service_with_connect_info::<SocketAddr>();
@@ -487,7 +487,7 @@ mod tests {
 
     async fn send(request: Request<Body>) -> Response<Body> {
         let dir = tempfile::tempdir().unwrap();
-        let db = crate::db::open(dir.path()).await.unwrap();
+        let db = crate::infra::db::open(dir.path()).await.unwrap();
         let backups = Backups::new(db.clone(), dir.path());
         // 호스트 PC 자신의 창에서 보낸 것으로 본다
         router(AppState::new("0.1.0".parse().unwrap(), db, backups))

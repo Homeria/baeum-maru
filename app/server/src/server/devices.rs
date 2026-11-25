@@ -18,8 +18,8 @@ use super::error::{ApiError, FieldError};
 use crate::db::access_logs::AccessEvent;
 use crate::db::devices::{self, DecideError, RequestError};
 use crate::db::staff;
+use crate::infra::secret::{self, DeviceToken};
 use crate::pin_check::check_pin;
-use crate::secret::{self, DeviceToken};
 
 use json::{
     ApprovalRequest, ApprovalRequestResponse, ApprovalStatusResponse, ApproveDeviceRequest,

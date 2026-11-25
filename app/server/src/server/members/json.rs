@@ -8,7 +8,7 @@ use time::Date;
 use ts_rs::TS;
 
 use crate::db::members::MemberRecord;
-use crate::db::timestamp_text;
+use crate::infra::db::timestamp_text;
 
 /// 성별. JSON으로는 `"male"`, `"female"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

@@ -74,7 +74,7 @@ mod tests {
     /// 로그인해 둔 첫 직원의 PIN을 123456으로 정한다.
     async fn set_pin(db: &SqlitePool) {
         sqlx::query("UPDATE staff SET pin_hash = ?")
-            .bind(crate::secret::hash("123456").unwrap())
+            .bind(crate::infra::secret::hash("123456").unwrap())
             .execute(db)
             .await
             .unwrap();

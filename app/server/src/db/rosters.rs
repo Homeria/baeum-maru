@@ -13,7 +13,7 @@ use time::{Date, OffsetDateTime};
 use super::lotteries::decode_error;
 use super::members::gender_from_text;
 use super::selection_results::{CourseResultError, ResultMember, course_result_in};
-use super::timestamp_text;
+use crate::infra::db::timestamp_text;
 
 /// 선발 결과(BR-P2). 게시용은 포기를 넣지 않는다(BR-P3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -218,9 +218,9 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::db::open_temp;
     use crate::db::selection_changes;
     use crate::db::test_support::{insert_course, insert_drawn_course, insert_subject};
+    use crate::infra::db::open_temp;
 
     #[tokio::test]
     async fn br_p1_reads_only_closed_courses_with_member_details() {

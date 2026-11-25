@@ -4,7 +4,7 @@ use baeum_domain::{CategoryName, NewSubject};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::{DeleteError, is_unique_violation, timestamp_text};
+use crate::infra::db::{DeleteError, is_unique_violation, timestamp_text};
 
 /// 과목을 저장하지 못했다.
 #[derive(Debug, thiserror::Error)]
@@ -113,8 +113,8 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::db::open_temp;
     use crate::db::test_support::{insert_course, insert_term};
+    use crate::infra::db::open_temp;
 
     fn now() -> OffsetDateTime {
         datetime!(2026-11-15 01:02:03 UTC)

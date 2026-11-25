@@ -304,7 +304,7 @@ mod tests {
         let staff_id = crate::db::test_support::insert_staff(db, "지켜볼직원", "admin", None)
             .await
             .unwrap();
-        let session = crate::secret::SessionToken::new().unwrap();
+        let session = crate::infra::secret::SessionToken::new().unwrap();
         sessions::start(
             db,
             staff_id,
@@ -314,7 +314,7 @@ mod tests {
         )
         .await
         .unwrap();
-        let device = crate::secret::DeviceToken::new().unwrap();
+        let device = crate::infra::secret::DeviceToken::new().unwrap();
         sqlx::query(
             "INSERT INTO devices (name, token_hash, approved_at, approved_by)
              VALUES ('시험 PC', ?, '2026-11-24T00:00:00.000Z', ?)",

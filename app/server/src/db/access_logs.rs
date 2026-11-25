@@ -3,7 +3,7 @@
 use sqlx::{SqliteConnection, SqlitePool};
 use time::OffsetDateTime;
 
-use super::timestamp_text;
+use crate::infra::db::timestamp_text;
 
 /// 접속 기록에 남기는 일. 입력한 PIN은 남기지 않는다.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -227,8 +227,8 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::db::open_temp;
     use crate::db::test_support::insert_staff;
+    use crate::infra::db::open_temp;
 
     #[tokio::test]
     async fn records_event_with_and_without_staff() {

@@ -4,7 +4,7 @@ use baeum_domain::{Gender, NewMember, Personal};
 use sqlx::SqlitePool;
 use time::{Date, OffsetDateTime};
 
-use super::{DeleteError, is_unique_violation, timestamp_text};
+use crate::infra::db::{DeleteError, is_unique_violation, timestamp_text};
 
 /// 회원을 저장하거나 고치지 못했다.
 #[derive(Debug, thiserror::Error)]
@@ -248,7 +248,7 @@ mod tests {
     use time::macros::{date, datetime};
 
     use super::*;
-    use crate::db::open_temp;
+    use crate::infra::db::open_temp;
 
     fn today() -> Date {
         date!(2026 - 11 - 15)

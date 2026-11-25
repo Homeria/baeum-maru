@@ -18,7 +18,7 @@ use time::OffsetDateTime;
 
 use super::error::ApiError;
 use crate::db::{devices, sessions};
-use crate::secret::{DeviceToken, SessionToken};
+use crate::infra::secret::{DeviceToken, SessionToken};
 
 /// 지금 요청한 직원. 로그인 확인을 통과한 요청에서만 꺼낼 수 있다.
 ///
@@ -235,7 +235,7 @@ mod tests {
         let mut request = Request::builder()
             .method(method)
             .uri(uri)
-            .header(VERSION_HEADER, crate::version::CURRENT)
+            .header(VERSION_HEADER, crate::infra::version::CURRENT)
             .header(header::CONTENT_TYPE, "application/json");
         if let Some(token) = token {
             request = request.header(header::AUTHORIZATION, token);
@@ -269,7 +269,7 @@ mod tests {
     async fn set_last_seen(db: &SqlitePool, minutes_ago: i64) {
         let last_seen = OffsetDateTime::now_utc() - time::Duration::minutes(minutes_ago);
         sqlx::query("UPDATE sessions SET last_seen_at = ?")
-            .bind(crate::db::timestamp_text(last_seen))
+            .bind(crate::infra::db::timestamp_text(last_seen))
             .execute(db)
             .await
             .unwrap();
@@ -300,7 +300,7 @@ mod tests {
         set_last_seen(&db, 9).await;
         let before = last_seen(&db).await;
         let request = Request::get("/api/rooms")
-            .header(VERSION_HEADER, crate::version::CURRENT)
+            .header(VERSION_HEADER, crate::infra::version::CURRENT)
             .header(QUIET_HEADER, "1")
             .body(Body::empty())
             .unwrap();

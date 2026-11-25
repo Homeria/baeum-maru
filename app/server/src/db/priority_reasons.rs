@@ -4,7 +4,7 @@ use baeum_domain::{NewPriorityReason, PriorityMethod};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use super::{DeleteError, is_unique_violation, timestamp_text};
+use crate::infra::db::{DeleteError, is_unique_violation, timestamp_text};
 
 /// 사유를 저장하지 못했다.
 #[derive(Debug, thiserror::Error)]
@@ -128,11 +128,11 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::db::open_temp;
     use crate::db::test_support::{
         NOW, insert_application, insert_course, insert_member, insert_staff, insert_subject,
         insert_term,
     };
+    use crate::infra::db::open_temp;
 
     fn now() -> OffsetDateTime {
         datetime!(2026-11-22 01:02:03 UTC)

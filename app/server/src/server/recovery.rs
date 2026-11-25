@@ -15,7 +15,7 @@ use time::OffsetDateTime;
 use super::error::{ApiError, FieldError};
 use super::staff::field_name;
 use crate::db::{recovery, staff};
-use crate::secret::{self, AdminSecrets};
+use crate::infra::secret::{self, AdminSecrets};
 
 use json::{RecoveryRequest, RecoveryResponse};
 

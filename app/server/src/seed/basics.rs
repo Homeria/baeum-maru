@@ -12,7 +12,7 @@ use time::{Date, Duration, OffsetDateTime, Weekday};
 
 use super::{SeedError, fail};
 use crate::db::{courses, rooms, staff, subjects, terms};
-use crate::secret::{self, AdminSecrets};
+use crate::infra::secret::{self, AdminSecrets};
 
 /// 개발용 고정 PIN. `docs/development.md`에도 적는다.
 const ADMIN_PIN: &str = "123456";

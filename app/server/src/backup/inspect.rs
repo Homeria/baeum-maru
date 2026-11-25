@@ -7,7 +7,7 @@ use std::path::Path;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{ConnectOptions, Connection, SqliteConnection};
 
-use crate::db;
+use crate::infra::db;
 
 /// 복원 확인 창에 보여 줄 것.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -91,10 +91,10 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::backup_file::name::BackupKind;
-    use crate::backup_file::store;
-    use crate::db::open_temp;
     use crate::db::test_support::{insert_member, insert_term};
+    use crate::infra::backup_file::name::BackupKind;
+    use crate::infra::backup_file::store;
+    use crate::infra::db::open_temp;
 
     async fn backup_of(pool: &sqlx::SqlitePool, dir: &Path) -> std::path::PathBuf {
         let name = store::create(pool, dir, BackupKind::Manual, datetime!(2026-11-23 09:00))

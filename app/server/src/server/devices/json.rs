@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::db::devices::{DeviceRecord, OpenRequest, RequestStatus};
-use crate::db::timestamp_text;
+use crate::infra::db::timestamp_text;
 
 /// `POST /api/approval/request` 본문.
 #[derive(Debug, Deserialize, TS)]

@@ -8,7 +8,7 @@ use std::path::Path;
 use sqlx::SqlitePool;
 use sqlx::migrate::MigrateError;
 
-use crate::db::{self, DbError};
+use crate::infra::db::{self, DbError};
 
 /// DB를 쓸 수 없는 까닭. 화면이 무엇을 보여 줄지 정한다.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

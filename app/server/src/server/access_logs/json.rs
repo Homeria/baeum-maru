@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::db::access_logs::{AccessEvent, AccessLogRecord};
-use crate::db::timestamp_text;
+use crate::infra::db::timestamp_text;
 
 /// `GET /api/access-logs`의 `?` 뒤 값.
 #[derive(Debug, Deserialize, TS)]

@@ -128,8 +128,8 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::db::open_temp;
     use crate::db::test_support::insert_member;
+    use crate::infra::db::open_temp;
 
     const AT: PrimitiveDateTime = datetime!(2026-11-23 09:00);
 

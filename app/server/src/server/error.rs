@@ -12,7 +12,7 @@ use serde::Serialize;
 use ts_rs::TS;
 
 use super::applications::RuleViolationResponse;
-use crate::db::DeleteError;
+use crate::infra::db::DeleteError;
 use crate::pin_check::PinRefusal;
 
 /// 요청을 처리하지 못했다.

@@ -4,22 +4,19 @@
 //! DB 함수와 HTTP 요청 처리는 공개하지 않는다. 앱이 쓰는 것만 아래에서 다시 내보낸다.
 
 pub mod backup;
-mod backup_file;
 pub mod broken_db;
-mod clock;
 mod db;
 pub mod handover;
+mod infra;
 mod pin_check;
 mod roster_xlsx;
 pub mod run_mode;
-mod secret;
 #[cfg(feature = "dev-seed")]
 pub mod seed;
 mod server;
-pub mod startup;
 pub mod take_over;
-pub mod version;
 
-pub use backup_file::name::BackupKind;
 pub use db::devices::open_request_count;
+pub use infra::backup_file::name::BackupKind;
+pub use infra::{startup, version};
 pub use server::serve;

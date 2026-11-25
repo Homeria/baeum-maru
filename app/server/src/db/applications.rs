@@ -12,8 +12,8 @@ use time::{Date, OffsetDateTime};
 use super::application_priorities::{self, ChangeTarget};
 use super::lotteries::decode_error;
 use super::selection_results::{CourseResultError, course_result_in, next_additional};
-use super::timestamp_text;
-use crate::clock;
+use crate::infra::clock;
+use crate::infra::db::timestamp_text;
 
 /// 유효한 신청의 상태(BR-A 머리말). 탈락·포기는 규칙 계산과 인원에서 빠진다.
 macro_rules! valid_statuses {
@@ -582,11 +582,11 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::db::open_temp;
     use crate::db::test_support::{
         insert_application, insert_course, insert_lottery_run, insert_member, insert_schedule,
         insert_staff, insert_subject, insert_term,
     };
+    use crate::infra::db::open_temp;
 
     fn now() -> OffsetDateTime {
         datetime!(2026-11-22 01:02:03 UTC)

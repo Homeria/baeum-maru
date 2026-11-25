@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::db;
+use crate::infra::db;
 
 /// 실행 모드를 기억하는 파일. 데이터 폴더 안에 둔다.
 const FILE: &str = "run-mode.json";

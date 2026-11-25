@@ -241,8 +241,8 @@ mod tests {
 
     use super::super::test_support::{app, app_as, from_approved_pc, get, json_body, post, put};
     use crate::backup::Backups;
-    use crate::backup_file::name::BackupKind;
     use crate::db::test_support::{insert_course, insert_subject, insert_term};
+    use crate::infra::backup_file::name::BackupKind;
 
     #[tokio::test]
     async fn only_admin_manages_backups() {
@@ -376,7 +376,7 @@ mod tests {
         let elsewhere = tempfile::tempdir().unwrap();
         let copied = elsewhere.path().join("옛 백업.db");
         tokio::fs::copy(
-            crate::backup_file::dir(dir.path()).join(&file_name),
+            crate::infra::backup_file::dir(dir.path()).join(&file_name),
             &copied,
         )
         .await

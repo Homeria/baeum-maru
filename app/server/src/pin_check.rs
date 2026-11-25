@@ -9,7 +9,7 @@ use time::OffsetDateTime;
 
 use crate::db::access_logs::{self, AccessEvent};
 use crate::db::staff::{self, LoginAccount};
-use crate::secret;
+use crate::infra::secret;
 
 /// PIN 확인을 거절했다.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]

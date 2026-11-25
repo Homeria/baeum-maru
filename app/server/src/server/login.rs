@@ -13,10 +13,10 @@ use super::auth::{CurrentDevice, bearer_token};
 use super::error::ApiError;
 use crate::db::access_logs::{self, AccessEvent};
 use crate::db::{sessions, staff};
+use crate::infra::secret::SessionToken;
 use crate::pin_check::check_pin;
-use crate::secret::SessionToken;
 
-use crate::clock::local_today;
+use crate::infra::clock::local_today;
 use json::{
     LoginRequest, LoginResponse, LoginStaffListResponse, LoginStaffResponse, SignedInStaffResponse,
     UnlockRequest,
@@ -165,7 +165,7 @@ mod tests {
         let mut request = Request::builder()
             .method(method)
             .uri(uri)
-            .header(VERSION_HEADER, crate::version::CURRENT)
+            .header(VERSION_HEADER, crate::infra::version::CURRENT)
             .header(header::CONTENT_TYPE, "application/json");
         if let Some(token) = token {
             request = request.header(header::AUTHORIZATION, format!("Bearer {token}"));
@@ -191,7 +191,7 @@ mod tests {
         let body = json_body(login(router, admin_id, "123456").await).await;
         let old = OffsetDateTime::now_utc() - time::Duration::minutes(10);
         sqlx::query("UPDATE sessions SET last_seen_at = ?")
-            .bind(crate::db::timestamp_text(old))
+            .bind(crate::infra::db::timestamp_text(old))
             .execute(db)
             .await
             .unwrap();

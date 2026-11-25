@@ -26,7 +26,7 @@ use super::version::VERSION_HEADER;
 use super::{AppState, router};
 use crate::db::sessions;
 use crate::db::test_support::insert_staff;
-use crate::secret::{DeviceToken, SessionToken};
+use crate::infra::secret::{DeviceToken, SessionToken};
 
 /// 임시 DB로 라우터를 만들고 관리자로 로그인해 둔다. `TempDir`가 살아 있는 동안 DB가 남는다.
 pub async fn app() -> (tempfile::TempDir, SqlitePool, Router) {
@@ -64,10 +64,10 @@ pub async fn app_as(role: &str) -> (tempfile::TempDir, SqlitePool, Router) {
 ///
 /// 요청은 호스트 PC 자신(127.0.0.1)에서 온 것으로 본다. 다른 PC는 [`from_other_pc`].
 pub async fn app_without_staff() -> (tempfile::TempDir, SqlitePool, Router) {
-    let (dir, db) = crate::db::open_temp().await;
+    let (dir, db) = crate::infra::db::open_temp().await;
     let backups = crate::backup::Backups::new(db.clone(), dir.path());
     let router = router(AppState::new(
-        crate::version::CURRENT.parse().unwrap(),
+        crate::infra::version::CURRENT.parse().unwrap(),
         db.clone(),
         backups,
     ))
@@ -207,7 +207,7 @@ fn json(request: Builder) -> Builder {
 
 async fn send(router: Router, request: Builder, body: Body) -> Response<Body> {
     let request = request
-        .header(VERSION_HEADER, crate::version::CURRENT)
+        .header(VERSION_HEADER, crate::infra::version::CURRENT)
         .body(body)
         .unwrap();
     router.oneshot(request).await.unwrap()

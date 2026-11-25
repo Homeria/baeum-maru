@@ -73,7 +73,7 @@ pub async fn read_file(file: &Path) -> Option<HostIdentity> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::open_temp;
+    use crate::infra::db::open_temp;
 
     #[tokio::test]
     async fn br_h4_new_db_starts_at_generation_one() {
@@ -137,7 +137,7 @@ mod tests {
         pool.close().await;
 
         assert_eq!(
-            read_file(&crate::db::file(dir.path())).await,
+            read_file(&crate::infra::db::file(dir.path())).await,
             Some(identity)
         );
     }

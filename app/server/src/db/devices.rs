@@ -5,7 +5,7 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use super::access_logs::{self, AccessEvent};
-use super::timestamp_text;
+use crate::infra::db::timestamp_text;
 
 /// 한 번에 기다릴 수 있는 승인 요청 수. 같은 Wi-Fi의 누군가가 요청을 쏟아내도 호스트 화면이
 /// 요청으로 덮이지 않게 한다.
@@ -284,8 +284,8 @@ mod tests {
 
     use super::*;
     use crate::db::access_logs::list_for_test;
-    use crate::db::open_temp;
     use crate::db::test_support::insert_staff;
+    use crate::infra::db::open_temp;
 
     const NOW: OffsetDateTime = datetime!(2026-11-24 01:00 UTC);
 

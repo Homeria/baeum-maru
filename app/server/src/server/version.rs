@@ -14,8 +14,8 @@ use sqlx::SqlitePool;
 use ts_rs::TS;
 
 use super::error::ApiError;
-use crate::db::data_bundle;
-use crate::version::{self, Version};
+use crate::infra::data_bundle;
+use crate::infra::version::{self, Version};
 
 /// 요청한 앱이 자기 버전을 싣는 헤더.
 pub const VERSION_HEADER: &str = "x-baeum-version";
@@ -83,7 +83,7 @@ fn is_compatible(headers: &HeaderMap, host: Version) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::open_temp;
+    use crate::infra::db::open_temp;
 
     async fn call(host: &str, client: Option<&str>) -> VersionResponse {
         let (_dir, db) = open_temp().await;

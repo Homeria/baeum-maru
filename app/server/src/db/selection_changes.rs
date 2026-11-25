@@ -8,7 +8,7 @@ use sqlx::{SqliteConnection, SqlitePool};
 use time::OffsetDateTime;
 
 use super::lotteries::decode_error;
-use super::timestamp_text;
+use crate::infra::db::timestamp_text;
 
 /// 선발 결과를 바꾸지 못했다.
 #[derive(Debug, thiserror::Error)]
@@ -235,9 +235,9 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::db::open_temp;
     use crate::db::selection_results::{CourseResult, course_result};
     use crate::db::test_support::insert_drawn_course;
+    use crate::infra::db::open_temp;
 
     fn now() -> OffsetDateTime {
         datetime!(2026-11-23 01:02:03 UTC)

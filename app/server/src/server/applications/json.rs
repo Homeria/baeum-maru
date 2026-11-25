@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::db::applications::{ApplicationRecord, CourseCount, Submitted};
-use crate::db::timestamp_text;
+use crate::infra::db::timestamp_text;
 
 /// `GET /api/terms/{termId}/applications`의 `?` 뒤.
 #[derive(Debug, Deserialize)]

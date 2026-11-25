@@ -17,9 +17,9 @@ use time::OffsetDateTime;
 use super::auth::CurrentStaff;
 use super::error::ApiError;
 use crate::db::staff::{self, SaveStaffError};
-use crate::secret;
+use crate::infra::secret;
 
-use crate::clock::local_today;
+use crate::infra::clock::local_today;
 pub use json::RoleCode;
 use json::{
     CreateStaffRequest, CreateStaffResponse, ResetPinRequest, StaffListResponse, StaffResponse,

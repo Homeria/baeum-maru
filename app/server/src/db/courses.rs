@@ -8,7 +8,7 @@ use baeum_domain::{ClassTime, LevelName, NewCourse, Schedule, SectionName, weekd
 use sqlx::{SqliteConnection, SqlitePool};
 use time::{OffsetDateTime, Weekday};
 
-use super::{DeleteError, is_unique_violation, timestamp_text};
+use crate::infra::db::{DeleteError, is_unique_violation, timestamp_text};
 
 /// 강좌가 가리키는 것 중 DB에 없는 것. 그 사이 다른 직원이 지웠을 수 있다.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -403,8 +403,8 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::db::open_temp;
     use crate::db::test_support::{insert_room, insert_subject, insert_term};
+    use crate::infra::db::open_temp;
 
     fn now() -> OffsetDateTime {
         datetime!(2026-11-15 01:02:03 UTC)

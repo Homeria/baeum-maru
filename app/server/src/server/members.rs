@@ -17,7 +17,7 @@ use super::error::ApiError;
 use super::paging::Paging;
 use crate::db::members::{self, SaveMemberError};
 
-use crate::clock::local_date;
+use crate::infra::clock::local_date;
 use json::{
     CreateMemberResponse, MemberListItem, MemberListResponse, MemberRequest, MemberResponse,
     SearchMembersParams,
