@@ -7,6 +7,7 @@ use crate::db::test_support::{
     insert_course, insert_drawn_course, insert_selection_change, insert_subject,
 };
 use crate::features::selection_results::repository::*;
+use crate::features::selection_results::service::closed_courses;
 use crate::infra::db::open_temp;
 
 /// 정원 2명 강좌에 신청 5건을 추첨했다. 마감하면 당첨 2명, 대기 3명.

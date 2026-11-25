@@ -1,4 +1,4 @@
-//! 추첨 SQL 테스트.
+//! 추첨·마감 service 테스트. 결과는 repository의 읽기 함수로 확인한다.
 
 use baeum_domain::{Capacity, LotterySeed, LotteryVersion};
 use baeum_domain::{LotteryDraw, draw_lottery};
@@ -11,6 +11,7 @@ use crate::db::test_support::{
     insert_subject, insert_term,
 };
 use crate::features::lotteries::repository::*;
+use crate::features::lotteries::service::*;
 use crate::infra::db::open_temp;
 
 fn now() -> OffsetDateTime {

@@ -10,6 +10,7 @@ use crate::db::test_support::{
     insert_staff, insert_subject, insert_term,
 };
 use crate::features::applications::repository::*;
+use crate::features::applications::service::*;
 use crate::infra::db::open_temp;
 
 fn now() -> OffsetDateTime {
@@ -373,8 +374,8 @@ async fn deleting_missing_application_is_not_found() {
 mod additional {
     use super::*;
     use crate::db::test_support::{DrawnCourse, insert_drawn_course, insert_priority_reason};
-    use crate::features::selection_results::repository::changes as selection_changes;
     use crate::features::selection_results::repository::course_result;
+    use crate::features::selection_results::service::changes as selection_changes;
 
     async fn closed_course(
         capacity: i64,

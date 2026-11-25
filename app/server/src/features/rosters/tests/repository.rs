@@ -6,7 +6,7 @@ use time::macros::datetime;
 
 use crate::db::test_support::{insert_course, insert_drawn_course, insert_subject};
 use crate::features::rosters::repository::*;
-use crate::features::selection_results::repository::changes as selection_changes;
+use crate::features::selection_results::service::changes as selection_changes;
 use crate::infra::db::open_temp;
 
 #[tokio::test]

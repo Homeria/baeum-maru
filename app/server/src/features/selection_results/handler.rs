@@ -20,8 +20,9 @@ use super::dto::{
     ClosedCourseListResponse, ClosedCourseResponse, ContactRequest, CorrectWithdrawalRequest,
     CourseResultResponse, SelectedResponse, WaitingResponse, WithdrawRequest, WithdrawnResponse,
 };
-use super::repository::changes::{self as selection_changes, ChangeSelectionError};
 use super::repository::{self, CourseResultError};
+use super::service;
+use super::service::changes::{self as selection_changes, ChangeSelectionError};
 use crate::features::auth::middleware::CurrentStaff;
 use crate::features::terms::handler::require_term;
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
@@ -61,7 +62,7 @@ async fn list_closed_courses(
 ) -> Result<Json<ClosedCourseListResponse>, ApiError> {
     let Path(term_id) = term_id?;
     require_term(&db, term_id).await?;
-    let courses = repository::closed_courses(&db, term_id)
+    let courses = service::closed_courses(&db, term_id)
         .await
         .map_err(ApiError::internal)?;
     Ok(Json(ClosedCourseListResponse {

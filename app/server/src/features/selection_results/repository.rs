@@ -93,44 +93,19 @@ pub enum CourseResultError {
     Db(#[from] sqlx::Error),
 }
 
-/// 학기에서 선발을 마감한 강좌들의 인원. 강좌 id 순서.
-///
-/// 강좌마다 선발 결과를 읽어 센다. 다음 추가 신청의 대기 순번은 추첨 기록에서 계산해야 해서다.
-/// 강좌들을 같은 때의 모습으로 읽도록 트랜잭션 하나에서 읽는다.
-pub async fn closed_courses(
-    pool: &SqlitePool,
+/// 학기에서 선발을 마감한 강좌의 id. 강좌 id 순서.
+pub(super) async fn closed_course_ids(
+    conn: &mut SqliteConnection,
     term_id: i64,
-) -> Result<Vec<ClosedCourse>, sqlx::Error> {
-    let mut conn = pool.begin().await?;
-    let course_ids: Vec<i64> = sqlx::query_scalar(
+) -> Result<Vec<i64>, sqlx::Error> {
+    sqlx::query_scalar(
         "SELECT c.id FROM courses c JOIN selection_closures s ON s.course_id = c.id
          WHERE c.term_id = ?
          ORDER BY c.id",
     )
     .bind(term_id)
-    .fetch_all(&mut *conn)
-    .await?;
-    let mut courses = Vec::with_capacity(course_ids.len());
-    for course_id in course_ids {
-        let result = course_result_in(&mut conn, course_id)
-            .await
-            .map_err(|error| match error {
-                CourseResultError::Db(error) => error,
-                // 같은 연결에서 방금 마감한 강좌로 읽었다
-                CourseResultError::CourseNotFound | CourseResultError::NotClosed => {
-                    decode_error("마감한 강좌의 선발 결과가 없습니다")
-                }
-            })?;
-        courses.push(ClosedCourse {
-            course_id,
-            capacity: result.capacity,
-            selected: result.selected.len(),
-            waitlisted: result.waitlisted.len(),
-            open_seats: result.open_seats,
-            next_additional: next_additional(&result),
-        });
-    }
-    Ok(courses)
+    .fetch_all(conn)
+    .await
 }
 
 /// 이 선발 결과에 추가 신청을 하나 더 받으면 어떻게 되는지(BR-X2).

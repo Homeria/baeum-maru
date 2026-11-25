@@ -229,3 +229,12 @@ auth와 직원을 옮기기 전에(#90, 2026-11-25) 이렇게 정했다.
   - `backups` → `access_logs`, `auth`(로그인 확인), `courses`(백업 목록에 "추첨 직전" 백업의 강좌 이름을 붙인다).
   - `lotteries` → `backups`(추첨 직전, 선발 마감 직전 백업. 마감 주소도 추첨 요청 처리에 있다).
   - 순환은 없다. `backups`는 `handover`와 `lotteries`를 부르지 않는다.
+
+service 층을 만들기 전에(#96, 2026-11-25) 이렇게 정했다.
+
+- service 층은 PR 셋으로 만든다: 신청·추첨·선발 결과, auth·직원·처음 설정, 백업·넘기기 본체 정리. 첫 PR에서 정한 모양을 나머지가 따른다. 강좌, 기기 승인, 명단은 단순한 기능이라 지금처럼 repository가 트랜잭션을 연다.
+- service가 `pool.begin_with("BEGIN IMMEDIATE")`로 트랜잭션을 열고 커밋한다. 트랜잭션 안에서 쓰는 repository 함수는 `conn: &mut SqliteConnection`을 받아 SQL 한 덩어리씩만 한다. 트랜잭션 없이 읽기만 하는 함수는 `&SqlitePool`을 받는다. 제네릭 `Executor`는 한 함수에서 쿼리를 여러 번 할 때 쓰기 까다로워 쓰지 않는다.
+- service 함수는 옮기기 전 repository 함수의 인자(`pool: &SqlitePool, …`)를 그대로 받는다. 그래서 handler와 다른 기능의 테스트는 부르는 경로만 바뀐다.
+- 규칙 확인과 분기, 오류 enum은 service에 둔다. 규칙 계산 자체는 `baeum-domain`이 한다.
+- 다른 기능이 트랜잭션 안에서 부르는 것(신청 → 진행 중인 추첨 취소 등)은 repository 함수로 둔다. 기능끼리 service를 부르지 않는다.
+- repository의 하위 파일(`repository/priorities.rs`, `repository/changes.rs`)처럼 service도 `service/priorities.rs`, `service/changes.rs`로 둔다. 그 테스트 파일(`tests/priorities.rs`, `tests/changes.rs`)은 이름을 그대로 둔다. 큰 service 함수의 테스트는 `tests/service.rs`에 둔다.
