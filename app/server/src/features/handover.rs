@@ -4,6 +4,7 @@
 //! (ADR 0023 구현 메모).
 
 mod dto;
+pub(crate) mod error;
 pub(crate) mod handler;
 pub mod service;
 #[cfg(test)]

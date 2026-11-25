@@ -19,13 +19,14 @@ use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use time::{OffsetDateTime, PrimitiveDateTime};
 
-use super::inspect::{BackupPreview, InspectError, inspect};
+use super::inspect::{BackupPreview, inspect};
 use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
+use crate::features::backups::error::{BrokenRestoreError, PrepareError};
 use crate::infra::backup_file::name::{BackupKind, BackupName};
-use crate::infra::backup_file::store::{self, BackupError, StoredBackup};
+use crate::infra::backup_file::store::{self, StoredBackup};
 use crate::infra::clock;
 use crate::infra::data_bundle;
-use crate::infra::db::{self, DbError};
+use crate::infra::db::{self};
 
 /// 받아 둔 백업 파일. 이 파일이 있으면 다음 시작 때 바꾼다.
 pub(in crate::features::backups) const PENDING_DB: &str = "restore-pending.db";
@@ -39,29 +40,6 @@ pub(in crate::features::backups) const BROKEN_DB: &str = "baeum-maru.broken.db";
 pub(in crate::features::backups) const REPLACED: &str = ".replaced";
 /// DB와 함께 다니는 보조 파일(WAL). 남으면 옛 내용이 새 파일에 덮일 수 있다.
 const SIDE_FILES: [&str; 2] = ["-wal", "-shm"];
-
-/// 복원을 준비하지 못했다.
-#[derive(Debug, thiserror::Error)]
-pub enum PrepareError {
-    #[error(transparent)]
-    Inspect(#[from] InspectError),
-    /// 복원 직전 백업을 만들지 못하면 복원하지 않는다.
-    #[error("지금 상태를 백업하지 못해 복원하지 않았습니다: {0}")]
-    Backup(#[source] BackupError),
-    #[error("백업 파일을 받아 두지 못했습니다: {0}")]
-    Io(#[from] std::io::Error),
-}
-
-/// 깨진 DB를 되돌리지 못했다. 깨진 DB는 제자리에 그대로 있다.
-#[derive(Debug, thiserror::Error)]
-pub enum BrokenRestoreError {
-    #[error(transparent)]
-    Inspect(#[from] InspectError),
-    #[error("백업 파일을 옮기지 못했습니다: {0}")]
-    Io(#[from] std::io::Error),
-    #[error("되돌린 DB를 열지 못했습니다: {0}")]
-    Open(#[from] DbError),
-}
 
 /// 시작할 때 복원한 결과. 백업 탭에 보여 준다.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

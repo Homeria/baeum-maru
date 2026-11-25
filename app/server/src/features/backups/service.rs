@@ -19,27 +19,13 @@ use std::time::Duration;
 use sqlx::SqlitePool;
 use time::{OffsetDateTime, PrimitiveDateTime};
 
+use super::error::{PrepareError, SecondLocationError};
 use crate::infra::backup_file;
 use crate::infra::backup_file::name::{BackupKind, BackupName};
 use crate::infra::backup_file::store::{self, BackupError, StoredBackup};
 use crate::infra::clock;
-use restore::{PrepareError, RestoreOutcome};
+use restore::RestoreOutcome;
 use settings::BackupSettings;
-
-/// 두 번째 위치를 바꾸지 못했다.
-#[derive(Debug, thiserror::Error)]
-pub enum SecondLocationError {
-    #[error("폴더 경로는 드라이브부터 적어야 합니다")]
-    NotAbsolute,
-    #[error("없는 폴더입니다. 외장 디스크나 USB가 꽂혀 있는지 확인해 주세요")]
-    NotFolder,
-    #[error("첫 번째 백업 폴더와 같은 곳은 고를 수 없습니다. 다른 디스크의 폴더를 골라 주세요")]
-    SameAsFirst,
-    #[error("이 폴더에 파일을 쓸 수 없습니다. 다른 폴더를 골라 주세요")]
-    NotWritable(#[source] std::io::Error),
-    #[error("백업 설정을 저장하지 못했습니다: {0}")]
-    Save(#[source] std::io::Error),
-}
 
 /// 마지막으로 실패한 자동 백업. 다음 자동 백업이 되면 지운다. 백업 탭에 보여 준다.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

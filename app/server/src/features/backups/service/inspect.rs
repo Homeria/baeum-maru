@@ -7,6 +7,7 @@ use std::path::Path;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{ConnectOptions, Connection, SqliteConnection};
 
+use crate::features::backups::error::InspectError;
 use crate::infra::db;
 
 /// 복원 확인 창에 보여 줄 것.
@@ -16,19 +17,6 @@ pub struct BackupPreview {
     pub term_names: Vec<String>,
     pub member_count: i64,
     pub application_count: i64,
-}
-
-/// 복원할 수 없는 파일이다. 경로는 담지 않는다.
-#[derive(Debug, thiserror::Error)]
-pub enum InspectError {
-    #[error("백업 파일을 열지 못했습니다. 파일이 깨졌거나 DB 파일이 아닙니다")]
-    Broken(#[source] sqlx::Error),
-    #[error("백업 파일이 깨졌습니다. 다른 백업을 골라 주세요")]
-    Damaged,
-    #[error("배움마루 백업 파일이 아닙니다")]
-    NotBaeumMaru,
-    #[error("더 새 버전의 배움마루에서 만든 백업입니다. 앱을 새 버전으로 바꾼 뒤 복원해 주세요")]
-    NewerVersion,
 }
 
 /// `file`이 복원할 수 있는 백업인지 보고 미리보기 값을 센다.

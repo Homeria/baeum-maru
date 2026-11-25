@@ -4,6 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::features::backups::error::SourceError;
 use crate::infra::backup_file::name::BackupName;
 
 /// 복원할 백업 파일.
@@ -14,32 +15,6 @@ pub struct RestoreSource {
     pub name: Option<BackupName>,
     /// 오류를 붙일 요청 칸. `fileName` 또는 `path`
     pub field: &'static str,
-}
-
-/// 복원할 파일을 고르지 못했다.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
-pub enum SourceError {
-    /// 파일 이름과 경로 중 하나만 채워야 한다. 화면 코드의 잘못이다.
-    #[error("파일 이름과 경로 중 하나만 보내야 합니다")]
-    Malformed,
-    #[error("백업 목록에 없는 파일입니다")]
-    NotInList,
-    #[error("파일 경로는 드라이브부터 적어야 합니다")]
-    NotAbsolute,
-    #[error("백업 파일이 없습니다. 외장 디스크나 USB가 꽂혀 있는지 확인해 주세요")]
-    Missing { field: &'static str },
-}
-
-impl SourceError {
-    /// 오류를 붙일 요청 칸. [`SourceError::Malformed`]는 칸이 없다.
-    pub fn field(self) -> Option<&'static str> {
-        match self {
-            SourceError::Malformed => None,
-            SourceError::NotInList => Some("fileName"),
-            SourceError::NotAbsolute => Some("path"),
-            SourceError::Missing { field } => Some(field),
-        }
-    }
 }
 
 impl RestoreSource {

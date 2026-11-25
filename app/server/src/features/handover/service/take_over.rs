@@ -17,10 +17,12 @@ use time::OffsetDateTime;
 
 use super::run_mode::{self, RunMode, RunModeState};
 use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
+use crate::features::backups::error::InspectError;
 use crate::features::backups::service::inspect::inspect;
-use crate::features::backups::service::{self as backup, restore};
+use crate::features::backups::service::restore;
 /// 화면이 받는 모양. launcher가 이 모듈 이름으로 찾는다.
 pub use crate::features::handover::dto::{TakeOverAdmin, TakeOverPreviewResponse};
+use crate::features::handover::error::TakeOverError;
 use crate::infra::backup_file::name::BackupKind;
 use crate::infra::backup_file::{self, store};
 use crate::infra::clock;
@@ -30,27 +32,6 @@ use crate::infra::{data_bundle, db};
 
 /// 예전 DB를 백업으로 남기지 못했을 때 옮겨 두는 이름. 하나만 둔다.
 pub(in crate::features::handover) const KEPT_DB: &str = "baeum-maru.before-take-over.db";
-
-/// 넘겨받지 못했다. 이 PC는 그대로다.
-#[derive(Debug, thiserror::Error)]
-pub enum TakeOverError {
-    #[error(transparent)]
-    Inspect(#[from] backup::inspect::InspectError),
-    #[error("이 PC는 이미 호스트이거나 호스트를 넘기는 중입니다")]
-    NotAllowedHere,
-    #[error("파일에서 그 관리자를 찾지 못했습니다")]
-    AdminNotFound,
-    #[error("PIN이 맞지 않습니다")]
-    WrongPin,
-    #[error("이 PC에 남은 예전 데이터를 보관하지 못해 넘겨받지 않았습니다")]
-    KeepLeftover(#[source] std::io::Error),
-    #[error("파일을 이 PC로 옮기지 못했습니다")]
-    Install(#[source] std::io::Error),
-    #[error("넘겨받은 DB를 열지 못했습니다")]
-    Open(#[source] db::DbError),
-    #[error("넘겨받은 DB에 세대 번호를 쓰지 못했습니다")]
-    Record(#[source] sqlx::Error),
-}
 
 /// 넘겨받기는 아직 호스트가 아닌 PC에서만 한다. 처음 켠 PC와 접속 모드 PC.
 pub(in crate::features::handover) fn can_take_over(mode: Option<RunMode>) -> bool {
@@ -114,7 +95,7 @@ async fn open_read_only(file: &Path) -> Result<SqliteConnection, TakeOverError> 
 
 /// 파일을 읽지 못했다. 살펴보기는 통과했으니 배움마루 파일이 아니라고 본다.
 fn not_ours() -> TakeOverError {
-    TakeOverError::Inspect(backup::inspect::InspectError::NotBaeumMaru)
+    TakeOverError::Inspect(InspectError::NotBaeumMaru)
 }
 
 /// 읽은 결과를 넘기기 파일 오류로.
