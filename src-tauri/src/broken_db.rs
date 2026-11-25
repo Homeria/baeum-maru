@@ -1,4 +1,5 @@
-//! DB가 깨졌을 때 로그인 없이 복원하는 앱 명령(ADR 0011 DB 손상 시 복원).
+//! DB가 깨졌을 때 로그인 없이 복원하기(ADR 0011 DB 손상 시 복원). Tauri를 모르고, 앱 명령은
+//! `commands::broken_db`가 한다.
 //!
 //! 서버는 띄우지 않는다. 앱 명령은 그 PC의 창에서만 부를 수 있다. 복원 명령은 켤 때 DB가
 //! 깨졌다고 가린 경우에만 동작한다. 화면에는 데이터를 보여 주지 않고 개수와 학기 이름만 준다.
@@ -6,7 +7,6 @@
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
-use tauri::{AppHandle, Manager};
 use time::OffsetDateTime;
 use ts_rs::TS;
 
@@ -15,9 +15,7 @@ use crate::backup::inspect::inspect;
 use crate::backup::restore::{self, BrokenRestoreError};
 use crate::backup::source::RestoreSource;
 use crate::backup_file::{self, name::BackupName};
-use crate::server::backups::json::{
-    BackupKindCode, RestorePreviewResponse, RestoreRequest, local_text,
-};
+use crate::server::backups::{BackupKindCode, RestorePreviewResponse, RestoreRequest, local_text};
 use crate::startup::DbProblem;
 
 /// 켤 때 DB를 쓸 수 없었다. 앱에 맡겨 두고 명령이 꺼내 쓴다.
@@ -83,10 +81,9 @@ pub struct StartupStateResponse {
     pub suggestion: Option<BrokenDbSuggestion>,
 }
 
-/// 켤 때 DB 상태. 깨졌으면 백업 목록과 권하는 백업도 준다.
-#[tauri::command]
-pub async fn startup_state(app: AppHandle) -> StartupStateResponse {
-    let Some(broken) = app.try_state::<BrokenDb>() else {
+/// 켤 때 DB 상태. 깨졌으면 백업 목록과 권하는 백업도 준다. `broken`은 켤 때 맡겨 둔 상태다.
+pub async fn startup_state(broken: Option<&BrokenDb>) -> StartupStateResponse {
+    let Some(broken) = broken else {
         return StartupStateResponse {
             state: StartupStateCode::Ready,
             backups: Vec::new(),
@@ -128,12 +125,11 @@ pub async fn startup_state(app: AppHandle) -> StartupStateResponse {
 /// # Errors
 ///
 /// DB가 깨지지 않았거나 쓸 수 없는 파일이면 화면에 보여 줄 문장.
-#[tauri::command]
-pub async fn preview_broken_db_backup(
-    app: AppHandle,
+pub async fn preview(
+    broken: Option<&BrokenDb>,
     request: RestoreRequest,
 ) -> Result<RestorePreviewResponse, String> {
-    let data_dir = broken_data_dir(&app)?;
+    let data_dir = broken_data_dir(broken)?;
     let source = resolve(&data_dir, request).await?;
     let preview = inspect(&source.file)
         .await
@@ -141,14 +137,13 @@ pub async fn preview_broken_db_backup(
     Ok(preview_response(source.name, preview))
 }
 
-/// 깨진 DB를 고른 백업으로 되돌리고 앱을 다시 켠다. 성공하면 돌아오지 않는다.
+/// 깨진 DB를 고른 백업으로 되돌린다. 다시 켜기는 부르는 쪽이 한다.
 ///
 /// # Errors
 ///
 /// DB가 깨지지 않았거나 되돌리지 못하면 화면에 보여 줄 문장. 깨진 DB는 그대로다.
-#[tauri::command]
-pub async fn restore_broken_db(app: AppHandle, request: RestoreRequest) -> Result<(), String> {
-    let data_dir = broken_data_dir(&app)?;
+pub async fn restore(broken: Option<&BrokenDb>, request: RestoreRequest) -> Result<(), String> {
+    let data_dir = broken_data_dir(broken)?;
     let source = resolve(&data_dir, request).await?;
     restore::restore_broken(&data_dir, &source.file, OffsetDateTime::now_utc())
         .await
@@ -160,13 +155,12 @@ pub async fn restore_broken_db(app: AppHandle, request: RestoreRequest) -> Resul
                     "되돌리지 못했습니다. 다른 백업을 골라 주세요".to_owned()
                 }
             }
-        })?;
-    app.restart();
+        })
 }
 
 /// DB가 깨졌을 때만 데이터 폴더를 준다. 멀쩡하면 로그인 없이 복원할 수 없다.
-fn broken_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    match app.try_state::<BrokenDb>() {
+fn broken_data_dir(broken: Option<&BrokenDb>) -> Result<PathBuf, String> {
+    match broken {
         Some(broken) if broken.problem == DbProblem::Broken => Ok(broken.data_dir.clone()),
         _ => Err(
             "DB가 깨졌을 때만 여기서 복원할 수 있습니다. 로그인한 뒤 백업 탭에서 복원해 주세요"

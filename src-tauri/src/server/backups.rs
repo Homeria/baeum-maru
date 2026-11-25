@@ -3,7 +3,10 @@
 //! 두 번째 위치는 그 PC의 폴더라서 호스트 PC에서만 바꾼다. 다른 PC에서는 보기만 한다.
 //! 복원도 호스트 PC에서만 한다. 호스트 앱을 다시 켜야 하고, 고른 파일도 호스트의 경로다.
 
-pub(crate) mod json;
+mod json;
+
+/// 깨진 DB 복원(`broken_db`)도 같은 모양으로 답한다.
+pub use json::{BackupKindCode, RestorePreviewResponse, RestoreRequest, local_text};
 
 use std::path::PathBuf;
 
@@ -24,9 +27,8 @@ use crate::backup::{Backups, SecondLocationError, SecondLocationStatus};
 use crate::db::courses;
 
 use json::{
-    BackupFailureResponse, BackupKindCode, BackupListResponse, BackupResponse,
-    RestoreOutcomeResponse, RestorePreviewResponse, RestoreRequest, SecondLocationRequest,
-    SecondLocationResponse, local_text,
+    BackupFailureResponse, BackupListResponse, BackupResponse, RestoreOutcomeResponse,
+    SecondLocationRequest, SecondLocationResponse,
 };
 
 /// 백업 목록, 마지막 자동 백업 실패, 두 번째 위치.
