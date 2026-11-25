@@ -6,6 +6,7 @@
 pub(crate) mod access_logs;
 pub(crate) mod applications;
 pub(crate) mod auth;
+pub(crate) mod backups;
 pub(crate) mod courses;
 pub(crate) mod devices;
 pub(crate) mod lotteries;

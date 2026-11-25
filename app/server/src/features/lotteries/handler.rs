@@ -16,8 +16,8 @@ use time::OffsetDateTime;
 
 use super::dto::{CourseLotteryResponse, CourseStageResponse, SelectionListResponse};
 use super::repository::{self, CloseSelectionError, RunLotteryError};
-use crate::backup::Backups;
 use crate::features::auth::middleware::{Client, CurrentStaff};
+use crate::features::backups::backup::Backups;
 use crate::features::terms::handler::require_term;
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::error::ApiError;

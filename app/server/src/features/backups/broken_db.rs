@@ -10,15 +10,15 @@ use serde::Serialize;
 use time::OffsetDateTime;
 use ts_rs::TS;
 
-use crate::backup::inspect::BackupPreview;
-use crate::backup::inspect::inspect;
-use crate::backup::restore::{self, BrokenRestoreError};
-use crate::backup::source::RestoreSource;
+use super::dto::{BackupKindCode, local_text};
+/// 미리보기와 복원 요청은 로그인한 뒤 백업 탭의 복원과 같은 모양이다.
+pub use super::dto::{RestorePreviewResponse, RestoreRequest};
+use crate::features::backups::backup::inspect::BackupPreview;
+use crate::features::backups::backup::inspect::inspect;
+use crate::features::backups::backup::restore::{self, BrokenRestoreError};
+use crate::features::backups::backup::source::RestoreSource;
 use crate::infra::backup_file::{self, name::BackupName};
 use crate::infra::startup::DbProblem;
-use crate::server::backups::{BackupKindCode, local_text};
-/// 미리보기와 복원 요청은 로그인한 뒤 백업 탭의 복원과 같은 모양이다.
-pub use crate::server::backups::{RestorePreviewResponse, RestoreRequest};
 
 /// 켤 때 DB를 쓸 수 없었다. 앱에 맡겨 두고 명령이 꺼내 쓴다.
 #[derive(Debug, Clone)]
