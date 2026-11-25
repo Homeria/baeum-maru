@@ -19,8 +19,8 @@ use ts_rs::TS;
 
 use super::run_mode::{self, RunMode, RunModeState};
 use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
-use crate::features::backups::backup::inspect::inspect;
-use crate::features::backups::backup::{self, restore};
+use crate::features::backups::service::inspect::inspect;
+use crate::features::backups::service::{self as backup, restore};
 use crate::infra::backup_file::name::BackupKind;
 use crate::infra::backup_file::{self, store};
 use crate::infra::clock;

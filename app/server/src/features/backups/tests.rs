@@ -7,7 +7,7 @@ mod handler {
     use time::macros::datetime;
 
     use crate::db::test_support::{insert_course, insert_subject, insert_term};
-    use crate::features::backups::backup::Backups;
+    use crate::features::backups::service::Backups;
     use crate::infra::backup_file::name::BackupKind;
     use crate::server::test_support::{app, app_as, from_approved_pc, get, json_body, post, put};
 
