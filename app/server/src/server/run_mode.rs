@@ -14,9 +14,9 @@ use time::OffsetDateTime;
 use ts_rs::TS;
 
 use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
+use crate::features::auth::middleware::CurrentDevice;
 use crate::features::auth::repository as auth;
 use crate::features::auth::service::check_pin;
-use crate::http::auth::CurrentDevice;
 use crate::http::error::ApiError;
 
 /// `POST /api/run-mode/permit` 본문. PIN이 들어 있어 `Debug`를 만들지 않는다.

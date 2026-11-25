@@ -1,22 +1,30 @@
 //! 로그인, 로그아웃, 화면 잠금 풀기, 복구 코드로 PIN 다시 정하기 (BR-K1, BR-K5~K8, BR-K12, BR-K13).
 
+use std::convert::Infallible;
+use std::time::Duration;
+
 use axum::extract::rejection::JsonRejection;
 use axum::extract::{FromRef, State};
 use axum::http::{HeaderMap, StatusCode};
+use axum::response::IntoResponse;
+use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use baeum_domain::{Pin, PinRefusal, RecoveryCode, Role};
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
+use tokio::sync::{broadcast, mpsc};
+use tokio_stream::wrappers::ReceiverStream;
 
 use super::dto::{
     LoginRequest, LoginResponse, LoginStaffListResponse, LoginStaffResponse, RecoveryRequest,
     RecoveryResponse, SignedInStaffResponse, UnlockRequest,
 };
+use super::middleware::{CurrentDevice, bearer_token, device_token};
 use super::repository;
 use super::service::check_pin;
 use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
-use crate::http::auth::{CurrentDevice, bearer_token};
+use crate::http::changes::{BACKLOG, ChangeKind, ChangeNotices};
 use crate::http::error::{ApiError, FieldError};
 use crate::infra::clock::local_today;
 use crate::infra::secret::{self, AdminSecrets, SessionToken};
@@ -25,7 +33,7 @@ use crate::infra::secret::{self, AdminSecrets, SessionToken};
 ///
 /// 로그인 화면과 잠긴 화면은 로그인 확인을 거치지 않고 스스로 세션을 본다.
 /// PIN을 잊은 관리자는 로그인하지 못하므로 복구도 여기서 받는다.
-pub(crate) fn routes<S>() -> Router<S>
+pub(crate) fn login_routes<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
     SqlitePool: FromRef<S>,
@@ -36,6 +44,16 @@ where
         .route("/api/unlock", post(unlock))
         .route("/api/logout", post(logout))
         .route("/api/recovery", post(recover))
+}
+
+/// 로그인한 요청만 받는 주소: 변경 알림 연결 (ADR 0008).
+pub(crate) fn routes<S>() -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+    SqlitePool: FromRef<S>,
+    ChangeNotices: FromRef<S>,
+{
+    Router::new().route("/api/changes", get(stream_changes))
 }
 
 /// PIN 확인 거절을 같은 문장의 응답으로 바꾼다.
@@ -241,4 +259,114 @@ fn parse_input(code: &str, pin: &str) -> Result<(RecoveryCode, Pin), ApiError> {
             Err(ApiError::InvalidInput(fields))
         }
     }
+}
+
+/// 세션과 기기 승인이 아직 살아 있는지 다시 보는 간격.
+const RECHECK_EVERY: Duration = Duration::from_secs(30);
+
+/// `GET /api/changes`: 변경 알림을 SSE로 흘려보낸다.
+///
+/// 로그인 확인을 거친 뒤에만 열린다. 열린 뒤에도 세션이 잠기거나 끝났거나, 기기 승인이
+/// 취소되면 끊는다. 이 확인은 세션의 마지막 요청 시각을 새로 적지 않는다(BR-K8).
+///
+/// # Errors
+///
+/// 증표가 머리글에 없으면(로그인 확인을 붙이지 않은 경우) [`ApiError::LoginRequired`] 또는
+/// [`ApiError::DeviceNotApproved`].
+async fn stream_changes(
+    State(notices): State<ChangeNotices>,
+    State(db): State<SqlitePool>,
+    device: CurrentDevice,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, ApiError> {
+    let session = bearer_token(&headers)
+        .ok_or(ApiError::LoginRequired)?
+        .hash();
+    let device = match device.id {
+        // 호스트 PC 자신의 창은 기기 승인이 없다
+        None => None,
+        Some(_) => Some(
+            device_token(&headers)
+                .ok_or(ApiError::DeviceNotApproved)?
+                .hash(),
+        ),
+    };
+    let watch = Watch { session, device };
+    let (events, stream) = mpsc::channel(BACKLOG);
+    tokio::spawn(forward(db, watch, notices.subscribe(), events));
+    Ok(Sse::new(ReceiverStream::new(stream)).keep_alive(KeepAlive::default()))
+}
+
+/// 열린 연결이 아직 쓸 수 있는지 볼 증표들의 해시.
+pub(super) struct Watch {
+    pub(super) session: [u8; 32],
+    /// 다른 PC면 그 기기의 증표. 호스트 PC 자신이면 `None`.
+    pub(super) device: Option<[u8; 32]>,
+}
+
+impl Watch {
+    pub(super) async fn still_open(&self, db: &SqlitePool, now: OffsetDateTime) -> bool {
+        match self.check(db, now).await {
+            Ok(open) => open,
+            Err(error) => {
+                tracing::error!(%error, "변경 알림 연결을 확인하지 못했습니다");
+                false
+            }
+        }
+    }
+
+    async fn check(&self, db: &SqlitePool, now: OffsetDateTime) -> Result<bool, sqlx::Error> {
+        let Some(session) = repository::find(db, &self.session).await? else {
+            return Ok(false);
+        };
+        if !session.account.is_usable() || baeum_domain::is_screen_locked(session.last_seen_at, now)
+        {
+            return Ok(false);
+        }
+        match &self.device {
+            None => Ok(true),
+            Some(device) => Ok(repository::find_approved(db, device).await?.is_some()),
+        }
+    }
+}
+
+/// 방송 채널의 알림을 이 연결로 옮긴다. 화면이 연결을 닫거나, 확인에 실패하거나,
+/// 알림이 너무 밀리면 끝난다. 끝나면 연결이 닫히고, 화면은 다시 연결하며 전부 다시 받는다.
+async fn forward(
+    db: SqlitePool,
+    watch: Watch,
+    mut changes: broadcast::Receiver<ChangeKind>,
+    events: mpsc::Sender<Result<Event, Infallible>>,
+) {
+    let mut recheck = tokio::time::interval(RECHECK_EVERY);
+    // 첫 틱은 바로 오고, 방금 로그인 확인을 거쳤으니 건너뛴다
+    recheck.tick().await;
+    loop {
+        tokio::select! {
+            () = events.closed() => return,
+            _ = recheck.tick() => {
+                if !watch.still_open(&db, OffsetDateTime::now_utc()).await {
+                    return;
+                }
+            }
+            change = changes.recv() => {
+                // 뒤처졌거나(Lagged) 서버가 닫혔다. 끊으면 화면이 전부 다시 받는다 (ADR 0008)
+                let Ok(kind) = change else { return };
+                if events.send(Ok(event(kind))).await.is_err() {
+                    return;
+                }
+            }
+        }
+    }
+}
+
+fn event(kind: ChangeKind) -> Event {
+    // 알림 이름만 담는다. 예: event: change, data: "application"
+    Event::default()
+        .event("change")
+        .json_data(kind)
+        .unwrap_or_else(|error| {
+            tracing::error!(%error, "변경 알림을 만들지 못했습니다");
+            Event::default().event("change")
+        })
 }

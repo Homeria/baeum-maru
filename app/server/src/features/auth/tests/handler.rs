@@ -11,9 +11,11 @@ use tower::ServiceExt;
 
 use crate::db::test_support::insert_staff;
 use crate::features::access_logs::repository::list_for_test;
+use crate::features::auth::handler::Watch;
+use crate::features::auth::repository as sessions;
 use crate::http::version::VERSION_HEADER;
 use crate::infra::secret::SessionToken;
-use crate::server::test_support::{app_without_staff, get, json_body, post};
+use crate::server::test_support::{app, app_without_staff, get, json_body, post};
 
 /// 처음 설정으로 관리자(PIN 123456)를 만들고 id를 돌려준다.
 async fn setup_admin(router: Router) -> i64 {
@@ -411,4 +413,80 @@ async fn unknown_staff_is_not_found() {
 
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["code"], "STAFF_NOT_FOUND");
+}
+
+#[tokio::test]
+async fn needs_login() {
+    let (_dir, _db, router) = app_without_staff().await;
+
+    let response = get(router, "/api/changes").await;
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+/// 관리자 세션 하나와 승인한 기기 하나를 DB에 바로 넣고, 둘을 지켜보는 [`Watch`]를 만든다.
+async fn watch_on_approved_pc(db: &SqlitePool) -> Watch {
+    let staff_id = crate::db::test_support::insert_staff(db, "지켜볼직원", "admin", None)
+        .await
+        .unwrap();
+    let session = crate::infra::secret::SessionToken::new().unwrap();
+    sessions::start(
+        db,
+        staff_id,
+        None,
+        &session.hash(),
+        OffsetDateTime::now_utc(),
+    )
+    .await
+    .unwrap();
+    let device = crate::infra::secret::DeviceToken::new().unwrap();
+    sqlx::query(
+        "INSERT INTO devices (name, token_hash, approved_at, approved_by)
+         VALUES ('시험 PC', ?, '2026-11-24T00:00:00.000Z', ?)",
+    )
+    .bind(device.hash().as_slice())
+    .bind(staff_id)
+    .execute(db)
+    .await
+    .unwrap();
+    Watch {
+        session: session.hash(),
+        device: Some(device.hash()),
+    }
+}
+
+#[tokio::test]
+async fn br_k16_revoked_device_ends_the_connection() {
+    let (_dir, db, _router) = app_without_staff().await;
+    let watch = watch_on_approved_pc(&db).await;
+    let now = OffsetDateTime::now_utc();
+    assert!(watch.still_open(&db, now).await);
+
+    sqlx::query("UPDATE devices SET revoked_at = '2026-11-24T00:00:00.000Z'")
+        .execute(&db)
+        .await
+        .unwrap();
+
+    assert!(!watch.still_open(&db, now).await);
+}
+
+#[tokio::test]
+async fn br_k8_locked_session_ends_the_connection() {
+    let (_dir, db, _router) = app_without_staff().await;
+    let watch = watch_on_approved_pc(&db).await;
+
+    let later = OffsetDateTime::now_utc() + time::Duration::minutes(10);
+
+    assert!(!watch.still_open(&db, later).await);
+}
+
+#[tokio::test]
+async fn closed_session_ends_the_check() {
+    let (_dir, db, _router) = app().await;
+    let watch = Watch {
+        session: [0; 32],
+        device: None,
+    };
+
+    assert!(!watch.still_open(&db, OffsetDateTime::now_utc()).await);
 }

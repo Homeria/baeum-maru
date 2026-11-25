@@ -20,9 +20,9 @@ use super::dto::{
 };
 use super::repository::{self, DecideError, RequestError};
 use crate::features::access_logs::repository::AccessEvent;
+use crate::features::auth::middleware::{Client, CurrentDevice, CurrentStaff, device_token};
 use crate::features::auth::repository as auth;
 use crate::features::auth::service::check_pin;
-use crate::http::auth::{Client, CurrentDevice, CurrentStaff, device_token};
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::error::{ApiError, FieldError};
 use crate::infra::secret::{self, DeviceToken};

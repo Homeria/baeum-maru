@@ -18,7 +18,7 @@ use time::OffsetDateTime;
 use super::applications::{field_error, require_term};
 use crate::db::selection_changes::{self, ChangeSelectionError};
 use crate::db::selection_results::{self, CourseResultError};
-use crate::http::auth::CurrentStaff;
+use crate::features::auth::middleware::CurrentStaff;
 use crate::http::error::ApiError;
 
 use json::{

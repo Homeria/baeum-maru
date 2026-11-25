@@ -17,8 +17,8 @@ use crate::db::application_priorities::{self, SetPrioritiesError};
 use crate::db::applications::{
     self, CoursePriorities, DeleteApplicationError, NewApplications, SubmitError,
 };
+use crate::features::auth::middleware::CurrentStaff;
 use crate::features::terms::repository as terms;
-use crate::http::auth::CurrentStaff;
 use crate::http::error::{ApiError, FieldError};
 
 pub use json::{AdditionalOutcomeResponse, RuleViolationResponse};

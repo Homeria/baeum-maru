@@ -15,7 +15,7 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use crate::db::staff::{self, SaveStaffError};
-use crate::http::auth::CurrentStaff;
+use crate::features::auth::middleware::CurrentStaff;
 use crate::http::error::ApiError;
 use crate::infra::secret;
 

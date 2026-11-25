@@ -17,7 +17,7 @@ use super::dto::{
     SearchMembersParams,
 };
 use super::repository::{self, SaveMemberError};
-use crate::http::auth::CurrentStaff;
+use crate::features::auth::middleware::CurrentStaff;
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::error::ApiError;
 use crate::http::paging::Paging;

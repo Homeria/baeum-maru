@@ -4,6 +4,7 @@
 
 pub(crate) mod dto;
 pub(crate) mod handler;
+pub(crate) mod middleware;
 pub(crate) mod repository;
 pub(crate) mod service;
 #[cfg(test)]

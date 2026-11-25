@@ -16,9 +16,9 @@ use ts_rs::TS;
 
 use crate::backup::Backups;
 use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
+use crate::features::auth::middleware::{Client, CurrentStaff};
 use crate::features::auth::repository as auth;
 use crate::features::auth::service::check_pin;
-use crate::http::auth::{Client, CurrentStaff};
 use crate::http::error::ApiError;
 use crate::run_mode::{self, RunMode};
 

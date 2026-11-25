@@ -372,3 +372,16 @@ pub async fn use_code(
     tx.commit().await?;
     Ok(true)
 }
+
+// 기기 증표
+
+/// BR-K14, BR-K16: 증표 해시가 `token_hash`이고 승인을 취소하지 않은 기기의 id. 없으면 `None`.
+pub async fn find_approved(
+    pool: &SqlitePool,
+    token_hash: &[u8; 32],
+) -> Result<Option<i64>, sqlx::Error> {
+    sqlx::query_scalar("SELECT id FROM devices WHERE token_hash = ? AND revoked_at IS NULL")
+        .bind(token_hash.as_slice())
+        .fetch_optional(pool)
+        .await
+}
