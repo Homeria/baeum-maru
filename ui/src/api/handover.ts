@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { postNoContent } from "./client";
 import type { HandedOverAdmin } from "./generated/HandedOverAdmin";
 import type { HandoverFileResponse } from "./generated/HandoverFileResponse";
+import type { TakeOverPreviewResponse } from "./generated/TakeOverPreviewResponse";
 
 /**
  * BR-H1: 로그인한 관리자의 PIN으로 호스트 넘기기를 시작한다. 호스트 PC에서만.
@@ -37,6 +38,30 @@ export function handedOverAdmins(): Promise<HandedOverAdmin[]> {
 /** BR-H2: 관리자 PIN으로 넘기기를 취소하고 다시 호스트로 켠다. 성공하면 돌아오지 않는다. */
 export function cancelHandover(staffId: number, pin: string): Promise<void> {
   return call<void>("cancel_handover", { staffId, pin });
+}
+
+/** 파일 고르기 창으로 넘겨받을 넘기기 파일(`.db`)을 고른다(BR-H3). 창을 닫으면 `null`. */
+export function pickHandoverFile(): Promise<string | null> {
+  return call<string | null>("pick_handover_file");
+}
+
+/** 고른 넘기기 파일의 미리보기와 확인에 쓸 파일 안 관리자들. */
+export function previewTakeOver(
+  path: string,
+): Promise<TakeOverPreviewResponse> {
+  return call<TakeOverPreviewResponse>("preview_take_over", { path });
+}
+
+/**
+ * BR-H3: 파일 안 관리자의 PIN으로 확인하고 이 PC를 새 호스트로 시작한다.
+ * 성공하면 앱이 다시 켜져서 돌아오지 않는다.
+ */
+export function takeOver(
+  path: string,
+  staffId: number,
+  pin: string,
+): Promise<void> {
+  return call<void>("take_over", { path, staffId, pin });
 }
 
 /** 앱 명령을 부른다. 앱이 보낸 실패 문장은 그대로 `Error`로 던진다. */

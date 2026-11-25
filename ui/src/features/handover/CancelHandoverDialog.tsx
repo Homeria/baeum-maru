@@ -4,6 +4,7 @@ import { cancelHandover, handedOverAdmins } from "../../api/handover";
 import { ConfirmDialog } from "../../components/dialog/ConfirmDialog";
 import formStyles from "../../components/form/form.module.css";
 import authStyles from "../auth/auth.module.css";
+import { AdminPinFields } from "./AdminPinFields";
 
 /** {@link CancelHandoverDialog}의 속성. */
 export interface CancelHandoverDialogProps {
@@ -45,58 +46,29 @@ export function CancelHandoverDialog({ onCancel }: CancelHandoverDialogProps) {
       }}
       onCancel={onCancel}
     >
-      <div className={authStyles.stack}>
-        {admins.isPending ? (
-          <p className={authStyles.hint}>관리자 목록을 불러오는 중…</p>
-        ) : admins.isError ? (
-          <p className={formStyles.formError} role="alert">
-            {admins.error.message}
-          </p>
-        ) : (
-          <fieldset className={formStyles.field}>
-            <legend className={formStyles.label}>관리자</legend>
-            <div className={authStyles.names}>
-              {admins.data.map((admin) => (
-                <label key={admin.id} className={authStyles.name}>
-                  <input
-                    type="radio"
-                    name="cancel-handover-admin"
-                    checked={staffId === admin.id}
-                    onChange={() => {
-                      setStaffId(admin.id);
-                      setMissing(false);
-                    }}
-                  />
-                  {admin.name}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        )}
-        <div className={formStyles.field}>
-          <label htmlFor="cancel-handover-pin" className={formStyles.label}>
-            PIN
-          </label>
-          <input
-            id="cancel-handover-pin"
-            className={formStyles.input}
-            type="password"
-            inputMode="numeric"
-            autoComplete="off"
-            maxLength={8}
-            value={pin}
-            onChange={(event) => {
-              setPin(event.target.value);
-              setMissing(false);
-            }}
-          />
-        </div>
-        {missing && (
-          <p className={formStyles.fieldError}>
-            관리자를 고르고 PIN을 넣어 주세요
-          </p>
-        )}
-      </div>
+      {admins.isPending ? (
+        <p className={authStyles.hint}>관리자 목록을 불러오는 중…</p>
+      ) : admins.isError ? (
+        <p className={formStyles.formError} role="alert">
+          {admins.error.message}
+        </p>
+      ) : (
+        <AdminPinFields
+          idPrefix="cancel-handover"
+          admins={admins.data}
+          staffId={staffId}
+          onStaffId={(id) => {
+            setStaffId(id);
+            setMissing(false);
+          }}
+          pin={pin}
+          onPin={(value) => {
+            setPin(value);
+            setMissing(false);
+          }}
+          missing={missing}
+        />
+      )}
       {cancel.isError && (
         <p className={formStyles.formError} role="alert">
           {cancel.error.message}
