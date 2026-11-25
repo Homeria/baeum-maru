@@ -21,10 +21,10 @@ use super::dto::{
     SecondLocationResponse, local_text,
 };
 use crate::features::auth::middleware::{Client, CurrentStaff};
-use crate::features::backups::backup::inspect::{self, InspectError};
-use crate::features::backups::backup::restore::{PrepareError, RestoreOutcome};
-use crate::features::backups::backup::source::{RestoreSource, SourceError};
-use crate::features::backups::backup::{Backups, SecondLocationError, SecondLocationStatus};
+use crate::features::backups::service::inspect::{self, InspectError};
+use crate::features::backups::service::restore::{PrepareError, RestoreOutcome};
+use crate::features::backups::service::source::{RestoreSource, SourceError};
+use crate::features::backups::service::{Backups, SecondLocationError, SecondLocationStatus};
 use crate::features::courses::repository as courses;
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::error::{ApiError, FieldError, field_error};

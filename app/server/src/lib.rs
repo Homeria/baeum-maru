@@ -12,9 +12,9 @@ mod router;
 pub mod seed;
 mod server;
 
-pub use features::backups::{backup, broken_db};
+pub use features::backups::service::{self as backup, broken_db};
 pub use features::devices::repository::open_request_count;
-pub use features::handover::{hand_over as handover, run_mode, take_over};
+pub use features::handover::service::{hand_over as handover, run_mode, take_over};
 pub use infra::backup_file::name::BackupKind;
 pub use infra::{startup, version};
 pub use router::serve;

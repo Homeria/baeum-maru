@@ -2,7 +2,7 @@
 //!
 //! - `POST /api/handover`: 호스트 넘기기를 시작한다(BR-H1). 서버는 관리자 PIN을 확인하고, 접속
 //!   기록에 남기고, 실행 모드를 "넘기는 중"으로 바꿔 둘 뿐이다. 화면이 앱을 다시 켜면 서버 없이
-//!   DB만 열어 넘기기 파일을 만든다([`super::hand_over`]). 그래서 넘기기 파일을 만드는 동안 다른
+//!   DB만 열어 넘기기 파일을 만든다([`super::service::hand_over`]). 그래서 넘기기 파일을 만드는 동안 다른
 //!   PC가 저장하는 일이 없다.
 //! - `POST /api/run-mode/permit`: 실행 모드 바꾸기를 관리자 PIN으로 허락받는다(BR-K17, ADR 0021).
 //!   바꾸는 일 자체는 그 PC의 앱이 한다. 접속 모드 PC는 직원 계정이 없어서 호스트에 묻는다.
@@ -17,12 +17,12 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use super::dto::{HandoverRequest, RunModePermitRequest};
-use super::run_mode::{self, RunMode};
+use super::service::run_mode::{self, RunMode};
 use crate::features::access_logs::repository::{self as access_logs, AccessEvent};
 use crate::features::auth::middleware::{Client, CurrentDevice, CurrentStaff};
 use crate::features::auth::repository as auth;
 use crate::features::auth::service::check_pin;
-use crate::features::backups::backup::Backups;
+use crate::features::backups::service::Backups;
 use crate::http::error::ApiError;
 
 /// 넘기기 시작 주소. 로그인한 요청만 받는 묶음에 들어간다.

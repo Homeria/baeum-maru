@@ -143,7 +143,7 @@ let count = members.len(); // 회원 수
 - 기능 폴더의 테스트는 그 기능 폴더의 `tests`에 둔다. 요청 처리와 SQL 테스트를 합쳐 300줄을 넘으면 `tests/handler.rs`, `tests/repository.rs`(service가 있으면 `tests/service.rs`)로 나누고, 그보다 작으면 `tests.rs` 하나에 `mod handler { … }`, `mod repository { … }`로 둔다. `repository/`·`service/` 아래 하위 파일의 테스트는 같은 이름으로 둔다(`service/changes.rs`·`repository/changes.rs` → `tests/changes.rs`). 테스트가 같은 준비 도우미를 쓰면 service와 repository 테스트를 한 파일에 둬도 된다.
   - 테스트 파일은 시험할 파일 밖에 있으므로 필요한 `use`를 직접 적는다. 비공개 함수를 시험해야 하면 그 함수만 `pub(super)`로 연다.
 - 기능 폴더가 아닌 곳(`infra/`, `http/`)의 테스트는 같은 파일의 `#[cfg(test)] mod tests`에 둔다. 명단의 Excel 만들기(`features/rosters/xlsx/`)도 시트 종류마다 파일이 나뉘고 전용 도우미가 있어 파일 안에 둔다.
-- 백업과 넘기기의 본체(`backups/backup.rs`·`backup/`, `broken_db.rs`, `handover/hand_over.rs`, `take_over.rs`, `run_mode.rs`)의 테스트는 지금 파일 안에 있다. service 층 PR에서 정리할 때 옮긴다(ADR 0023 구현 메모).
+- 테스트를 기능 폴더의 `tests/`로 꺼내면 시험할 파일의 자식이 아니게 된다. 비공개 항목을 시험해야 하면 그 항목만 `pub(in crate::features::<기능>)`로 연다(`pub(super)`는 `tests`까지 닿지 않는다).
 - domain의 테스트는 개념마다 `<개념>/tests.rs`에 둔다(예: `course.rs`의 `#[cfg(test)] mod tests;` → `course/tests.rs`). 그 파일의 자식 모듈이라 `use super::*;`로 비공개 항목도 시험한다.
 - 요청 주소부터 DB까지 거치는 테스트는 그 기능의 `tests/handler.rs`(또는 `tests.rs`의 `mod handler`)에 둔다. 라우터에 요청을 직접 보내므로(`oneshot`) 요청 처리 함수를 공개하지 않아도 된다.
 - 여러 기능의 테스트가 함께 쓰는 도우미는 `#[cfg(test)]`로 묶어 한곳에 둔다. 요청 보내기와 임시 DB 라우터는 `server/test_support.rs`, 더미 데이터 넣기는 `db/test_support.rs`, 임시 DB 열기는 `infra::db::open_temp`. 두 기능에서 같은 도우미가 생기면 옮긴다.
@@ -304,9 +304,10 @@ tracing::info!(application_id = %id, "신청 저장");
 - 기능은 모두 `features/`에 있다. 옛 자리 `server/`와 `db/`에는 여러 기능이 함께 쓰는 테스트 도우미만 남았다. 어디로 옮길지는 흐름 테스트 PR에서 정한다.
 - service가 있는 기능은 service만 트랜잭션을 연다(`pool.begin_with("BEGIN IMMEDIATE")`). 트랜잭션 안에서 쓰는 repository 함수는 `conn: &mut SqliteConnection`을 받고, 읽기만 하는 함수는 `&SqlitePool`을 받는다. service 함수는 `pool: &SqlitePool`을 받는다.
 - repository의 SQL 도우미는 같은 기능의 service만 쓰도록 `pub(super)`(하위 파일이면 `pub(in crate::features::<기능>)`)로 연다. 다른 기능이 트랜잭션 안에서 부르는 것(진행 중인 추첨 취소, 선발 결과 읽기)만 `pub(crate)`로 둔다. 기능끼리 service를 부르지 않는다.
-- 지금 service가 있는 기능은 신청, 추첨, 선발 결과, auth, 직원, 처음 설정이다. 강좌, 기기 승인, 명단은 단순한 기능이라 repository가 연다(ADR 0023 구현 메모).
+- 지금 service가 있는 기능은 신청, 추첨, 선발 결과, auth, 직원, 처음 설정, 백업, 넘기기다. 강좌, 기기 승인, 명단은 단순한 기능이라 repository가 연다(ADR 0023 구현 메모).
+- 백업과 넘기기의 service(`backups/service.rs`·`service/`, `handover/service/`)는 파일과 데이터 폴더를 많이 다뤄 repository로 나누지 않았다. 앱 명령이 화면에 주는 모양도 그 기능의 `dto.rs`에 두고, launcher가 찾는 이름으로 service 모듈에서 다시 내보낸다.
 - auth의 service(PIN 확인 `check_pin`)는 다른 기능(기기 승인, 넘기기)도 부른다. 기능끼리 service를 부르지 않는다는 규칙의 예외다(ADR 0023).
-- 앱 명령(Tauri 명령)은 `app/launcher/src/commands/`에 둔다. 창, 대화상자, 다시 켜기, 켤 때 맡긴 상태 꺼내기만 하고 나머지는 server의 본체(`handover`, `take_over`, `broken_db`, `run_mode` 등)를 부른다. 이 이름들은 `features/backups/`, `features/handover/` 안에 있고 `lib.rs`가 같은 이름으로 내보낸다.
+- 앱 명령(Tauri 명령)은 `app/launcher/src/commands/`에 둔다. 창, 대화상자, 다시 켜기, 켤 때 맡긴 상태 꺼내기만 하고 나머지는 server의 본체(`handover`, `take_over`, `broken_db`, `run_mode` 등)를 부른다. 이 이름들은 `features/backups/service/`, `features/handover/service/` 안에 있고 `lib.rs`가 같은 이름으로 내보낸다.
 - server는 `lib.rs`에서 앱이 부르는 것만 공개한다. DB 함수와 HTTP 요청 처리는 공개하지 않는다. 앱이 새로 필요한 것이 생기면 안쪽 모듈을 열지 말고 함수 하나를 `pub use`로 내보낸다.
 
 ```text

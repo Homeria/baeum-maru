@@ -18,7 +18,7 @@ use super::dto::{CourseLotteryResponse, CourseStageResponse, SelectionListRespon
 use super::repository;
 use super::service::{self, CloseSelectionError, RunLotteryError};
 use crate::features::auth::middleware::{Client, CurrentStaff};
-use crate::features::backups::backup::Backups;
+use crate::features::backups::service::Backups;
 use crate::features::terms::handler::require_term;
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::error::ApiError;

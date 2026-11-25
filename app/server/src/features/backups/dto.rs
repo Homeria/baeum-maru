@@ -1,4 +1,4 @@
-//! `/api/backups`의 요청·응답 JSON 모양.
+//! `/api/backups`의 요청·응답 JSON 모양과, 깨진 DB 복원 앱 명령이 화면에 주는 모양.
 
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -154,4 +154,51 @@ pub fn local_text(at: PrimitiveDateTime) -> String {
     ))
     // 이 형식은 늘 쓸 수 있다
     .unwrap_or_default()
+}
+
+/// 켤 때 DB 상태.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum StartupStateCode {
+    /// 정상. 평소처럼 로그인한다.
+    Ready,
+    /// 깨졌다. 복원 화면을 띄운다.
+    Broken,
+    /// 더 새 버전 앱의 DB다. 앱 업데이트를 안내한다.
+    NewerVersion,
+    /// 데이터 폴더를 쓸 수 없다.
+    Unavailable,
+}
+
+/// 복원 화면의 백업 한 줄.
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct BrokenDbBackupResponse {
+    pub file_name: String,
+    /// 호스트 PC의 지역 시각.
+    pub taken_at: String,
+    pub kind: BackupKindCode,
+}
+
+/// 권하는 백업과 그 미리보기.
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct BrokenDbSuggestion {
+    pub file_name: String,
+    pub preview: RestorePreviewResponse,
+}
+
+/// `startup_state` 명령의 응답.
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct StartupStateResponse {
+    pub state: StartupStateCode,
+    /// 깨졌을 때만. 새것부터.
+    pub backups: Vec<BrokenDbBackupResponse>,
+    /// 깨졌을 때, 새것부터 살펴 처음으로 쓸 수 있는 백업. 없으면 `null`.
+    pub suggestion: Option<BrokenDbSuggestion>,
 }

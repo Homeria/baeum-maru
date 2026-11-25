@@ -12,7 +12,7 @@ use sqlx::SqlitePool;
 use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 
-use crate::features::backups::backup::Backups;
+use crate::features::backups::service::Backups;
 use crate::features::{
     access_logs, applications, auth, backups, courses, devices, handover, lotteries, members,
     priority_reasons, rooms, rosters, selection_results, setup, staff, subjects, terms,

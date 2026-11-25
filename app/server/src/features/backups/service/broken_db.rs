@@ -6,17 +6,19 @@
 
 use std::path::{Path, PathBuf};
 
-use serde::Serialize;
 use time::OffsetDateTime;
-use ts_rs::TS;
 
-use super::dto::{BackupKindCode, local_text};
+use super::inspect::BackupPreview;
+use super::inspect::inspect;
+use super::restore::{self, BrokenRestoreError};
+use super::source::RestoreSource;
+use crate::features::backups::dto::{BackupKindCode, local_text};
+/// 화면이 받는 모양. launcher가 이 모듈 이름으로 찾는다.
+pub use crate::features::backups::dto::{
+    BrokenDbBackupResponse, BrokenDbSuggestion, StartupStateCode, StartupStateResponse,
+};
 /// 미리보기와 복원 요청은 로그인한 뒤 백업 탭의 복원과 같은 모양이다.
-pub use super::dto::{RestorePreviewResponse, RestoreRequest};
-use crate::features::backups::backup::inspect::BackupPreview;
-use crate::features::backups::backup::inspect::inspect;
-use crate::features::backups::backup::restore::{self, BrokenRestoreError};
-use crate::features::backups::backup::source::RestoreSource;
+pub use crate::features::backups::dto::{RestorePreviewResponse, RestoreRequest};
 use crate::infra::backup_file::{self, name::BackupName};
 use crate::infra::startup::DbProblem;
 
@@ -34,53 +36,6 @@ impl BrokenDb {
             problem,
         }
     }
-}
-
-/// 켤 때 DB 상태.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(export)]
-pub enum StartupStateCode {
-    /// 정상. 평소처럼 로그인한다.
-    Ready,
-    /// 깨졌다. 복원 화면을 띄운다.
-    Broken,
-    /// 더 새 버전 앱의 DB다. 앱 업데이트를 안내한다.
-    NewerVersion,
-    /// 데이터 폴더를 쓸 수 없다.
-    Unavailable,
-}
-
-/// 복원 화면의 백업 한 줄.
-#[derive(Debug, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct BrokenDbBackupResponse {
-    pub file_name: String,
-    /// 호스트 PC의 지역 시각.
-    pub taken_at: String,
-    pub kind: BackupKindCode,
-}
-
-/// 권하는 백업과 그 미리보기.
-#[derive(Debug, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct BrokenDbSuggestion {
-    pub file_name: String,
-    pub preview: RestorePreviewResponse,
-}
-
-/// `startup_state` 명령의 응답.
-#[derive(Debug, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct StartupStateResponse {
-    pub state: StartupStateCode,
-    /// 깨졌을 때만. 새것부터.
-    pub backups: Vec<BrokenDbBackupResponse>,
-    /// 깨졌을 때, 새것부터 살펴 처음으로 쓸 수 있는 백업. 없으면 `null`.
-    pub suggestion: Option<BrokenDbSuggestion>,
 }
 
 /// 켤 때 DB 상태. 깨졌으면 백업 목록과 권하는 백업도 준다. `broken`은 켤 때 맡겨 둔 상태다.
