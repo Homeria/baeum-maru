@@ -19,6 +19,8 @@ pub enum BackupKindCode {
     BeforeClose,
     BeforeMigration,
     BeforeRestore,
+    BeforeHandover,
+    BeforeTakeOver,
 }
 
 impl BackupKindCode {
@@ -34,6 +36,8 @@ impl BackupKindCode {
             BackupKind::BeforeClose { course_id } => (BackupKindCode::BeforeClose, Some(course_id)),
             BackupKind::BeforeMigration => (BackupKindCode::BeforeMigration, None),
             BackupKind::BeforeRestore => (BackupKindCode::BeforeRestore, None),
+            BackupKind::BeforeHandover => (BackupKindCode::BeforeHandover, None),
+            BackupKind::BeforeTakeOver => (BackupKindCode::BeforeTakeOver, None),
         }
     }
 }

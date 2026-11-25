@@ -11,4 +11,12 @@ hostVersion: string,
 /**
  * 요청한 앱과 함께 쓸 수 있는지. 헤더가 없거나 형식이 틀리면 `false`.
  */
-compatible: boolean, };
+compatible: boolean, 
+/**
+ * 이 호스트 데이터의 묶음 ID(BR-H4). 무작위 값이라 개인정보가 아니다.
+ */
+bundleId: string, 
+/**
+ * 이 호스트의 세대 번호(BR-H4).
+ */
+generation: number, };

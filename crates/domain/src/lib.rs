@@ -11,6 +11,7 @@
 mod application;
 mod course;
 mod device;
+mod handover;
 mod lottery;
 mod member;
 mod personal;
@@ -31,6 +32,7 @@ pub use course::{
     SectionName, weekday_from_number,
 };
 pub use device::{APPROVAL_WINDOW, ApprovalCode, DeviceError, DeviceName, is_approval_open};
+pub use handover::{DataBundleId, DataBundleIdError, HostCheck, HostIdentity, check_host};
 pub use lottery::{
     Allocation, LotteryDraw, LotterySeed, LotteryVersion, OverCapacity, allocate, draw_lottery,
 };

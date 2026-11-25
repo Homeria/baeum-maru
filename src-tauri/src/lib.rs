@@ -7,6 +7,7 @@ mod broken_db;
 mod clock;
 mod data_dir;
 mod db;
+mod handover;
 mod host_screen;
 mod pick;
 mod remote;
@@ -19,6 +20,7 @@ mod secret;
 pub mod seed;
 mod server;
 mod startup;
+mod take_over;
 mod version;
 
 use tauri::Manager;
@@ -46,6 +48,7 @@ pub fn run() {
             save_file::save_file,
             pick::pick_folder,
             pick::pick_backup_file,
+            pick::pick_handover_file,
             restart::restart_app,
             broken_db::startup_state,
             broken_db::preview_broken_db_backup,
@@ -58,8 +61,18 @@ pub fn run() {
             remote::save_device_request,
             remote::clear_device_request,
             remote::remember_approved,
+            remote::check_host_identity,
+            remote::remember_host_identity,
+            remote::forget_host,
             run_mode::choose_run_mode,
-            run_mode::change_run_mode
+            run_mode::change_run_mode,
+            handover::handover_file,
+            handover::save_handover_file,
+            handover::abort_handover,
+            handover::handed_over_admins,
+            handover::cancel_handover,
+            take_over::preview_take_over,
+            take_over::take_over
         ])
         .setup(|app| {
             let host: version::Version = version::CURRENT.parse()?;
@@ -71,6 +84,14 @@ pub fn run() {
             // ADR 0021: 호스트일 때만 DB를 열고 서버와 백업을 켠다. 아직 고르지 않았으면 화면이 묻는다
             let mode = run_mode::resolve(data_dir.path());
             app.manage(run_mode::RunModeState::new(data_dir.path(), mode));
+            // BR-H1: 넘기는 중이면 서버 없이 DB만 열어 넘기기 파일을 만든다. 그 밖에는 None을 맡긴다
+            let handing_over = (mode == Some(run_mode::RunMode::HandingOver)).then(|| {
+                tauri::async_runtime::block_on(handover::prepare(
+                    data_dir.path(),
+                    OffsetDateTime::now_utc(),
+                ))
+            });
+            app.manage(handing_over);
             if mode != Some(run_mode::RunMode::Host) {
                 tracing::info!(?mode, "호스트가 아니라서 DB를 열지 않습니다");
                 return Ok(());

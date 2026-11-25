@@ -3,4 +3,4 @@
 /**
  * 이 PC의 앱이 켜는 방식.
  */
-export type RunMode = "host" | "remote";
+export type RunMode = "host" | "remote" | "handing_over" | "handed_over";

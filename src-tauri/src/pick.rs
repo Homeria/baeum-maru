@@ -39,11 +39,29 @@ pub async fn pick_folder(app: AppHandle) -> Result<Option<String>, String> {
 /// 창이 응답 없이 사라졌거나 경로를 알 수 없으면 화면에 보여 줄 문장.
 #[tauri::command]
 pub async fn pick_backup_file(app: AppHandle) -> Result<Option<String>, String> {
+    pick_db_file(&app, "복원할 백업 파일", "배움마루 백업").await
+}
+
+/// 파일 고르기 창을 띄워 넘겨받을 넘기기 파일(`.db`) 경로를 돌려준다(BR-H3). 창을 닫으면 `None`이다.
+///
+/// # Errors
+///
+/// 창이 응답 없이 사라졌거나 경로를 알 수 없으면 화면에 보여 줄 문장.
+#[tauri::command]
+pub async fn pick_handover_file(app: AppHandle) -> Result<Option<String>, String> {
+    pick_db_file(&app, "넘겨받을 넘기기 파일", "배움마루 데이터").await
+}
+
+async fn pick_db_file(
+    app: &AppHandle,
+    title: &str,
+    filter: &str,
+) -> Result<Option<String>, String> {
     let (picked, chosen) = tokio::sync::oneshot::channel();
     app.dialog()
         .file()
-        .set_title("복원할 백업 파일")
-        .add_filter("배움마루 백업", &["db"])
+        .set_title(title)
+        .add_filter(filter, &["db"])
         .pick_file(move |path| {
             let _ = picked.send(path);
         });

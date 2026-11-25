@@ -31,6 +31,10 @@ pub enum BackupKind {
     BeforeMigration,
     /// 복원 직전. 복원 자체를 되돌릴 수 있게 한다.
     BeforeRestore,
+    /// 호스트 넘기기 직전(BR-H1). 넘기기 파일과 같은 내용이다.
+    BeforeHandover,
+    /// 넘겨받기 직전(BR-H3). 이 PC에 남아 있던 예전 데이터다.
+    BeforeTakeOver,
 }
 
 impl BackupKind {
@@ -44,6 +48,8 @@ impl BackupKind {
             BackupKind::BeforeClose { course_id } => format!("before-close-c{course_id}"),
             BackupKind::BeforeMigration => "before-migration".to_owned(),
             BackupKind::BeforeRestore => "before-restore".to_owned(),
+            BackupKind::BeforeHandover => "before-handover".to_owned(),
+            BackupKind::BeforeTakeOver => "before-take-over".to_owned(),
         }
     }
 
@@ -58,6 +64,8 @@ impl BackupKind {
             "exit" => Some(BackupKind::Exit),
             "before-migration" => Some(BackupKind::BeforeMigration),
             "before-restore" => Some(BackupKind::BeforeRestore),
+            "before-handover" => Some(BackupKind::BeforeHandover),
+            "before-take-over" => Some(BackupKind::BeforeTakeOver),
             _ => course("before-lottery-c")
                 .map(|course_id| BackupKind::BeforeLottery { course_id })
                 .or_else(|| {

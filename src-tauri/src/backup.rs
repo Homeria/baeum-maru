@@ -139,6 +139,11 @@ impl Backups {
             .unwrap_or_else(PoisonError::into_inner) = failure;
     }
 
+    /// 데이터 폴더.
+    pub fn data_dir(&self) -> &Path {
+        &self.data_dir
+    }
+
     /// 첫 번째 위치(백업 폴더).
     pub fn dir(&self) -> &Path {
         &self.dir

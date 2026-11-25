@@ -20,6 +20,7 @@ import {
   secondLocationWarning,
 } from "./backupData";
 import styles from "./BackupPanel.module.css";
+import { HandoverDialog } from "../handover/HandoverDialog";
 import { RestoreDialog } from "./RestoreDialog";
 
 const QUERY_KEY = ["backups"] as const;
@@ -27,7 +28,8 @@ const QUERY_KEY = ["backups"] as const;
 /**
  * 백업 탭(ADR 0011). 관리자에게만 보인다.
  *
- * 백업 목록과 지금 백업, 두 번째 위치, 복원을 보여 준다. 두 번째 위치와 복원은 호스트 PC에서만 한다.
+ * 백업 목록과 지금 백업, 두 번째 위치, 복원, 호스트 넘기기(BR-H1)를 보여 준다. 두 번째 위치와
+ * 복원, 호스트 넘기기는 호스트 PC에서만 한다.
  */
 export function BackupPanel() {
   const queryClient = useQueryClient();
@@ -36,6 +38,7 @@ export function BackupPanel() {
     source: RestoreSource;
     preview: RestorePreviewResponse;
   } | null>(null);
+  const [handingOver, setHandingOver] = useState(false);
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: listBackups,
@@ -200,11 +203,25 @@ export function BackupPanel() {
             다른 곳의 백업 파일로 복원
           </button>
         )}
+        {onHost && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setNotice(null);
+              setHandingOver(true);
+            }}
+          >
+            호스트 넘기기
+          </button>
+        )}
         <button type="button" onClick={() => void refetch()}>
           새로 보기
         </button>
         {!onHost && (
-          <p className={styles.muted}>복원은 호스트 PC에서만 할 수 있습니다</p>
+          <p className={styles.muted}>
+            복원과 호스트 넘기기는 호스트 PC에서만 할 수 있습니다
+          </p>
         )}
         {failure !== null ? (
           <p className={styles.warning} role="alert">
@@ -259,6 +276,7 @@ export function BackupPanel() {
         )}
       </div>
 
+      {handingOver && <HandoverDialog onCancel={() => setHandingOver(false)} />}
       {restoring !== null && (
         <RestoreDialog
           source={restoring.source}

@@ -60,7 +60,8 @@ export function StaffFlow() {
     );
   }
   // 로그인 전 화면 구석의 실행 모드 바꾸기(ADR 0021). 직원이 없으면 지킬 데이터가 없다
-  const modeSwitch = mode !== null && (
+  // 넘기기 상태는 이 화면까지 오지 않는다(BR-H1)
+  const modeSwitch = (mode === "host" || mode === "remote") && (
     <RunModeSwitch current={mode} needsPin={!status.data.needed} />
   );
   if (status.data.needed) {
