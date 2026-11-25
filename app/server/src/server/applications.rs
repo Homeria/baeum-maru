@@ -21,7 +21,6 @@ use crate::features::auth::middleware::CurrentStaff;
 use crate::features::terms::handler::require_term;
 use crate::http::error::{ApiError, RuleViolationResponse, field_error};
 
-pub use json::AdditionalOutcomeResponse;
 use json::{
     ApplicationCountListResponse, ApplicationCountResponse, ApplicationListResponse,
     ApplicationResponse, DeleteApplicationRequest, ListApplicationsParams,

@@ -1,10 +1,10 @@
 //! 신청 API의 요청·응답 JSON 모양과 DB·업무 규칙 타입 사이의 변환.
 
-use baeum_domain::AdditionalOutcome;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::db::applications::{ApplicationRecord, CourseCount, Submitted};
+use crate::features::selection_results::dto::AdditionalOutcomeResponse;
 use crate::http::error::ApplicationRuleCode;
 use crate::infra::db::timestamp_text;
 
@@ -94,35 +94,6 @@ impl From<Submitted> for SubmittedResponse {
             id: submitted.id,
             course_id: submitted.course_id,
             additional: submitted.additional.map(AdditionalOutcomeResponse::from),
-        }
-    }
-}
-
-/// 추가 신청의 결과(BR-X2). 예: `{ "kind": "waitlisted", "waitlistNumber": 3 }`
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
-#[serde(
-    tag = "kind",
-    rename_all = "snake_case",
-    rename_all_fields = "camelCase"
-)]
-#[ts(export)]
-pub enum AdditionalOutcomeResponse {
-    /// 바로 당첨.
-    Selected,
-    /// 이 대기 순번으로 대기.
-    Waitlisted {
-        #[ts(type = "number")]
-        waitlist_number: usize,
-    },
-}
-
-impl From<AdditionalOutcome> for AdditionalOutcomeResponse {
-    fn from(outcome: AdditionalOutcome) -> Self {
-        match outcome {
-            AdditionalOutcome::Selected => AdditionalOutcomeResponse::Selected,
-            AdditionalOutcome::Waitlisted(waitlist_number) => {
-                AdditionalOutcomeResponse::Waitlisted { waitlist_number }
-            }
         }
     }
 }

@@ -10,9 +10,11 @@ use baeum_domain::{Capacity, Gender, Personal, RosterColumn, RosterSpec};
 use sqlx::SqlitePool;
 use time::{Date, OffsetDateTime};
 
-use super::selection_results::{CourseResultError, ResultMember, course_result_in};
 use crate::features::courses::repository::course_name;
 use crate::features::members::repository::gender_from_text;
+use crate::features::selection_results::repository::{
+    CourseResultError, ResultMember, course_result_in,
+};
 use crate::infra::db::{decode_error, timestamp_text};
 
 /// 선발 결과(BR-P2). 게시용은 포기를 넣지 않는다(BR-P3).
@@ -209,8 +211,8 @@ mod tests {
     use time::macros::datetime;
 
     use super::*;
-    use crate::db::selection_changes;
     use crate::db::test_support::{insert_course, insert_drawn_course, insert_subject};
+    use crate::features::selection_results::repository::changes as selection_changes;
     use crate::infra::db::open_temp;
 
     #[tokio::test]

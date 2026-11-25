@@ -14,13 +14,13 @@ use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::backup::Backups;
 use crate::features::{
-    access_logs, auth, courses, devices, lotteries, members, priority_reasons, rooms, setup, staff,
-    subjects, terms,
+    access_logs, auth, courses, devices, lotteries, members, priority_reasons, rooms,
+    selection_results, setup, staff, subjects, terms,
 };
 use crate::http::changes::{ChangeKind, ChangeNotices, notifies};
 use crate::http::version;
 use crate::infra::version::Version;
-use crate::server::{applications, backups, handover, rosters, run_mode, selection_results};
+use crate::server::{applications, backups, handover, rosters, run_mode};
 
 /// ADR 0004: 포트 47800 고정.
 pub const PORT: u16 = 47800;
@@ -124,38 +124,7 @@ pub fn router(state: AppState) -> Router {
             "/api/terms/{term_id}/roster-exports",
             post(rosters::export_roster),
         )
-        .route(
-            "/api/terms/{term_id}/selection-results",
-            get(selection_results::list_closed_courses),
-        )
-        .route(
-            "/api/courses/{id}/selection-result",
-            get(selection_results::get_course_result),
-        )
-        .route(
-            "/api/applications/{id}/withdrawal",
-            notifies(
-                post(selection_results::withdraw),
-                &notices,
-                ChangeKind::Selection,
-            ),
-        )
-        .route(
-            "/api/applications/{id}/contacts",
-            notifies(
-                post(selection_results::record_contact),
-                &notices,
-                ChangeKind::Selection,
-            ),
-        )
-        .route(
-            "/api/applications/{id}/withdrawal-correction",
-            notifies(
-                post(selection_results::correct_withdrawal),
-                &notices,
-                ChangeKind::Selection,
-            ),
-        )
+        .merge(selection_results::handler::routes(&notices))
         .route(
             "/api/applications/{id}",
             notifies(

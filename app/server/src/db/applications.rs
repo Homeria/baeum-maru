@@ -10,7 +10,9 @@ use sqlx::{SqliteConnection, SqlitePool};
 use time::{Date, OffsetDateTime};
 
 use super::application_priorities::{self, ChangeTarget};
-use super::selection_results::{CourseResultError, course_result_in, next_additional};
+use crate::features::selection_results::repository::{
+    CourseResultError, course_result_in, next_additional,
+};
 use crate::infra::clock;
 use crate::infra::db::decode_error;
 use crate::infra::db::timestamp_text;
@@ -952,9 +954,9 @@ mod tests {
     /// 추가 신청(BR-X1~X3). 정원과 신청자 수를 정해 추첨하고 마감한 강좌 하나에 받는다.
     mod additional {
         use super::*;
-        use crate::db::selection_changes;
-        use crate::db::selection_results::course_result;
         use crate::db::test_support::{DrawnCourse, insert_drawn_course, insert_priority_reason};
+        use crate::features::selection_results::repository::changes as selection_changes;
+        use crate::features::selection_results::repository::course_result;
 
         async fn closed_course(
             capacity: i64,

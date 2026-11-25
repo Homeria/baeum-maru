@@ -1,11 +1,10 @@
 //! 선발 결과 API의 요청·응답 JSON 모양과 DB·업무 규칙 타입 사이의 변환.
 
-use baeum_domain::{ContactResult, WithdrawnFrom};
+use baeum_domain::{AdditionalOutcome, ContactResult, WithdrawnFrom};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::db::selection_results::{ClosedCourse, ResultMember};
-use crate::server::applications::AdditionalOutcomeResponse;
+use super::repository::{ClosedCourse, ResultMember};
 
 /// `GET /api/terms/{termId}/selection-results` 응답. 선발을 마감한 강좌만, 강좌 id 순.
 #[derive(Debug, Serialize, TS)]
@@ -198,4 +197,33 @@ pub struct ContactRequest {
 pub struct CorrectWithdrawalRequest {
     /// 바로잡는 사유(BR-W8). 필수.
     pub reason: String,
+}
+
+/// 추가 신청의 결과(BR-X2). 예: `{ "kind": "waitlisted", "waitlistNumber": 3 }`
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export)]
+pub enum AdditionalOutcomeResponse {
+    /// 바로 당첨.
+    Selected,
+    /// 이 대기 순번으로 대기.
+    Waitlisted {
+        #[ts(type = "number")]
+        waitlist_number: usize,
+    },
+}
+
+impl From<AdditionalOutcome> for AdditionalOutcomeResponse {
+    fn from(outcome: AdditionalOutcome) -> Self {
+        match outcome {
+            AdditionalOutcome::Selected => AdditionalOutcomeResponse::Selected,
+            AdditionalOutcome::Waitlisted(waitlist_number) => {
+                AdditionalOutcomeResponse::Waitlisted { waitlist_number }
+            }
+        }
+    }
 }
