@@ -32,7 +32,7 @@ use crate::infra::startup;
 #[derive(Debug)]
 pub struct HandingOver {
     /// 백업 폴더의 "데이터 넘기기 직전" 백업. 만들지 못했으면 화면에 보여 줄 문장.
-    file: Result<PathBuf, String>,
+    pub(in crate::features::handover) file: Result<PathBuf, String>,
 }
 
 /// 넘기는 중이면 켤 때 부른다. 서버를 띄우기 전이라 그사이 저장되는 것이 없다.
@@ -120,7 +120,10 @@ pub fn file_name(now: OffsetDateTime) -> String {
 }
 
 /// `source`를 `target`에 복사하고 다시 읽어 본다. USB가 빠지거나 가득 차도 알아채게 한다.
-async fn copy_checked(source: &Path, target: &Path) -> Result<(), String> {
+pub(in crate::features::handover) async fn copy_checked(
+    source: &Path,
+    target: &Path,
+) -> Result<(), String> {
     let failed = |kind: std::io::ErrorKind| {
         // 경로에는 직원 이름 같은 폴더 이름이 있을 수 있어 로그에 남기지 않는다
         tracing::warn!(?kind, "넘기기 파일을 저장하지 못했습니다");
@@ -206,7 +209,7 @@ async fn open_handed_over(run_mode: &RunModeState) -> Result<SqlitePool, String>
 }
 
 /// 관리자 PIN이 맞으면 그 관리자 id.
-async fn check_admin_pin(
+pub(in crate::features::handover) async fn check_admin_pin(
     pool: &SqlitePool,
     staff_id: i64,
     pin: String,
@@ -232,7 +235,7 @@ async fn check_admin_pin(
 /// 넘기기 취소를 접속 기록에 남기고 실행 모드를 호스트로 바꾼다.
 ///
 /// 넘기지 않고 돌아갈 때(`staff_id`가 `None`)는 기록하지 못해도 돌아간다. 아무 데도 넘기지 않았다.
-async fn back_to_host(
+pub(in crate::features::handover) async fn back_to_host(
     data_dir: &Path,
     staff_id: Option<i64>,
     now: OffsetDateTime,
@@ -255,106 +258,4 @@ async fn back_to_host(
         tracing::error!(%error, "실행 모드를 기억하지 못했습니다");
         "실행 모드를 기억하지 못했습니다. 데이터 폴더를 쓸 수 있는지 확인해 주세요".to_owned()
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use time::macros::datetime;
-
-    use super::*;
-    use crate::db::test_support::insert_staff;
-    use crate::features::access_logs::repository::list_for_test;
-    use crate::infra::data_bundle;
-
-    const NOW: OffsetDateTime = datetime!(2026-11-25 01:00 UTC);
-
-    #[tokio::test]
-    async fn br_h1_prepare_makes_before_handover_backup() {
-        let dir = tempfile::tempdir().unwrap();
-        db::open(dir.path()).await.unwrap().close().await;
-
-        let handing_over = prepare(dir.path(), NOW).await;
-
-        let file = handing_over.file.unwrap();
-        assert!(file.starts_with(backup_file::dir(dir.path())));
-        assert!(inspect(&file).await.is_ok());
-        let listed = store::list(&backup_file::dir(dir.path())).await.unwrap();
-        assert_eq!(listed[0].name.kind, BackupKind::BeforeHandover);
-    }
-
-    #[tokio::test]
-    async fn saved_file_is_checked() {
-        let dir = tempfile::tempdir().unwrap();
-        db::open(dir.path()).await.unwrap().close().await;
-        let source = prepare(dir.path(), NOW).await.file.unwrap();
-        let target = dir.path().join("넘기기.db");
-
-        copy_checked(&source, &target).await.unwrap();
-
-        assert!(inspect(&target).await.is_ok());
-        assert!(
-            copy_checked(&source, &dir.path().join("없는 폴더/넘기기.db"))
-                .await
-                .is_err()
-        );
-    }
-
-    /// 넘긴 PC의 DB에 PIN 123456인 관리자를 만든다.
-    async fn handed_over_with_admin(data_dir: &Path) -> i64 {
-        let pool = db::open(data_dir).await.unwrap();
-        let admin = insert_staff(&pool, "관리자", "admin", None).await.unwrap();
-        sqlx::query("UPDATE staff SET pin_hash = ?")
-            .bind(crate::infra::secret::hash("123456").unwrap())
-            .execute(&pool)
-            .await
-            .unwrap();
-        pool.close().await;
-        admin
-    }
-
-    #[tokio::test]
-    async fn br_h2_admin_pin_cancels_without_raising_generation() {
-        let dir = tempfile::tempdir().unwrap();
-        let admin = handed_over_with_admin(dir.path()).await;
-        let pool = db::open(dir.path()).await.unwrap();
-
-        let checked = check_admin_pin(&pool, admin, "123456".to_owned(), NOW).await;
-        pool.close().await;
-        back_to_host(dir.path(), checked.ok(), NOW).await.unwrap();
-
-        assert_eq!(run_mode::resolve(dir.path()), Some(RunMode::Host));
-        let pool = db::open(dir.path()).await.unwrap();
-        assert_eq!(data_bundle::read(&pool).await.unwrap().generation, 1);
-        assert_eq!(
-            list_for_test(&pool).await.last().unwrap(),
-            &(Some(admin), "handover_canceled".to_owned())
-        );
-    }
-
-    #[tokio::test]
-    async fn br_h2_wrong_pin_or_non_admin_does_not_cancel() {
-        let dir = tempfile::tempdir().unwrap();
-        let admin = handed_over_with_admin(dir.path()).await;
-        let pool = db::open(dir.path()).await.unwrap();
-        let worker = insert_staff(&pool, "직원1", "staff", None).await.unwrap();
-
-        let wrong = check_admin_pin(&pool, admin, "000000".to_owned(), NOW).await;
-        let not_admin = check_admin_pin(&pool, worker, "123456".to_owned(), NOW).await;
-
-        assert_eq!(
-            wrong,
-            Err("PIN이 맞지 않습니다. 5번 연속 틀리면 5분 동안 잠깁니다".to_owned())
-        );
-        assert!(not_admin.is_err());
-        assert_eq!(
-            list_for_test(&pool).await.last().unwrap(),
-            &(Some(admin), "login_failed".to_owned())
-        );
-    }
-
-    #[test]
-    fn suggested_file_name_has_local_date() {
-        assert!(file_name(NOW).starts_with("배움마루 넘기기 2026-11-2"));
-        assert!(file_name(NOW).ends_with(".db"));
-    }
 }
