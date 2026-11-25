@@ -62,6 +62,9 @@ pub enum SubmitError {
     /// 우선 배정 사유를 고르지 않은 강좌에 붙였다.
     #[error("고르지 않은 강좌에 우선 배정을 붙였습니다")]
     PriorityForUnchosenCourse(Vec<i64>),
+    /// BR-S13: 추가 신청(선발 마감한 강좌)에는 우선 배정 사유를 붙이지 않는다.
+    #[error("추가 신청에는 우선 배정을 붙일 수 없습니다")]
+    PriorityForAdditional(Vec<i64>),
     /// 목록에 없는 우선 배정 사유. 그 사이 지워졌을 수 있다.
     #[error("목록에 없는 우선 배정 사유를 골랐습니다")]
     PriorityReasonNotFound(Vec<i64>),
@@ -154,6 +157,16 @@ pub async fn submit(
         .partition(|id| closed_ids.contains(id));
     if !drawn.is_empty() {
         return Err(SubmitError::CourseDrawn(drawn));
+    }
+    let for_additional: Vec<i64> = new
+        .priorities
+        .iter()
+        .filter(|priority| !priority.reason_ids.is_empty())
+        .map(|priority| priority.course_id)
+        .filter(|id| closed.contains(id))
+        .collect();
+    if !for_additional.is_empty() {
+        return Err(SubmitError::PriorityForAdditional(for_additional));
     }
     if !closed.is_empty() {
         let ends_on: Date = sqlx::query_scalar("SELECT ends_on FROM terms WHERE id = ?")
@@ -941,7 +954,7 @@ mod tests {
         use super::*;
         use crate::db::selection_changes;
         use crate::db::selection_results::course_result;
-        use crate::db::test_support::{DrawnCourse, insert_drawn_course};
+        use crate::db::test_support::{DrawnCourse, insert_drawn_course, insert_priority_reason};
 
         async fn closed_course(
             capacity: i64,
@@ -1126,6 +1139,37 @@ mod tests {
 
             assert!(
                 matches!(&result, Err(SubmitError::RulesBroken(_))),
+                "{result:?}"
+            );
+        }
+
+        #[tokio::test]
+        async fn br_s13_additional_application_takes_no_priority() {
+            let (_dir, pool, course) = closed_course(3, 1).await;
+            let reason_id = insert_priority_reason(&pool, "반장").await.unwrap();
+            let member_id = insert_member(&pool, "10001").await.unwrap();
+            let reason_ids = [reason_id];
+            let priorities = [CoursePriorities {
+                course_id: course.course_id,
+                reason_ids: &reason_ids,
+            }];
+
+            let result = submit(
+                &pool,
+                NewApplications {
+                    term_id: course.term_id,
+                    member_id,
+                    course_ids: &[course.course_id],
+                    override_reason: None,
+                    staff_id: course.staff_id,
+                    priorities: &priorities,
+                },
+                now(),
+            )
+            .await;
+
+            assert!(
+                matches!(&result, Err(SubmitError::PriorityForAdditional(ids)) if *ids == [course.course_id]),
                 "{result:?}"
             );
         }

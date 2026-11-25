@@ -42,6 +42,7 @@ export interface ApplyBarProps {
  *
  * 규칙을 어기면 창을 띄워 어긴 규칙을 보여 주고, 사유를 받으면 그대로 다시 신청한다.
  * 사유 목록이 있고 우선 배정을 할 수 있는 역할이면, 고른 강좌마다 사유 체크박스를 붙인다(BR-S12).
+ * 추가 신청으로 고른 마감 강좌에는 붙이지 않는다(BR-S13).
  */
 export function ApplyBar({
   termId,
@@ -63,6 +64,8 @@ export function ApplyBar({
   const [reasonError, setReasonError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<readonly string[] | null>(null);
+  // 추가 신청(마감한 강좌)에는 우선 배정 사유를 붙이지 않는다 (BR-S13)
+  const priorityCourseIds = chosen.filter((id) => !additional.has(id));
 
   const submit = useMutation({
     // previews: 누른 때 보였던 미리 보기. 응답이 오기 전에 화면이 새로 받아도 비교할 수 있게 함께 넘김
@@ -77,7 +80,9 @@ export function ApplyBar({
         memberId: memberId ?? 0,
         courseIds: [...chosen],
         overrideReason,
-        priorities: canAssign ? priorityRequests(chosen, priorities) : [],
+        priorities: canAssign
+          ? priorityRequests(priorityCourseIds, priorities)
+          : [],
       }),
     onSuccess: (response, { previews }) => {
       setViolations(null);
@@ -115,7 +120,8 @@ export function ApplyBar({
   });
 
   const count = chosen.length;
-  const showPriorities = canAssign && reasons.length > 0 && count > 0;
+  const showPriorities =
+    canAssign && reasons.length > 0 && priorityCourseIds.length > 0;
 
   return (
     <>
@@ -124,7 +130,7 @@ export function ApplyBar({
           className={styles.chosenPriorities}
           aria-label="고른 강좌의 우선 배정"
         >
-          {chosen.map((courseId) => {
+          {priorityCourseIds.map((courseId) => {
             const course = courses.find(
               (candidate) => candidate.id === courseId,
             );

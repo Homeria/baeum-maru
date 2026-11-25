@@ -230,9 +230,11 @@ impl From<SubmitError> for ApiError {
             SubmitError::CourseNotFound(_) => ApiError::CourseNotFound,
             SubmitError::CourseDrawn(_) => ApiError::CourseDrawn,
             SubmitError::TermEnded(_) => ApiError::TermEnded,
-            // 화면은 목록에서 고른 사유만 보낸다. 그 사이 지워졌을 때만 온다
+            // 화면은 목록에서 고른 사유만, 추가 신청이 아닌 강좌에만 보낸다. 그 사이 사유가
+            // 지워졌거나 강좌가 마감됐을 때만 온다
             error @ (SubmitError::PriorityForUnchosenCourse(_)
-            | SubmitError::PriorityReasonNotFound(_)) => {
+            | SubmitError::PriorityReasonNotFound(_)
+            | SubmitError::PriorityForAdditional(_)) => {
                 field_error("priorities", error.to_string())
             }
             SubmitError::RulesBroken(violations) => ApiError::RulesBroken(
