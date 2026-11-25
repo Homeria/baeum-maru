@@ -4,7 +4,7 @@ use baeum_domain::RoomInput;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::db::rooms::RoomRecord;
+use super::repository::RoomRecord;
 
 /// `POST /api/rooms`, `PATCH /api/rooms/{id}` 본문. 확인 전이라 글자 그대로다.
 #[derive(Debug, Deserialize, TS)]

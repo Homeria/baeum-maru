@@ -11,7 +11,8 @@ use time::Weekday::{Friday, Monday, Thursday, Tuesday, Wednesday};
 use time::{Date, Duration, OffsetDateTime, Weekday};
 
 use super::{SeedError, fail};
-use crate::db::{courses, rooms, staff, subjects, terms};
+use crate::db::{courses, staff, subjects, terms};
+use crate::features::rooms::repository as rooms;
 use crate::infra::secret::{self, AdminSecrets};
 
 /// 개발용 고정 PIN. `docs/development.md`에도 적는다.

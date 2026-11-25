@@ -6,11 +6,13 @@
 pub mod backup;
 pub mod broken_db;
 mod db;
+mod features;
 pub mod handover;
 mod http;
 mod infra;
 mod pin_check;
 mod roster_xlsx;
+mod router;
 pub mod run_mode;
 #[cfg(feature = "dev-seed")]
 pub mod seed;
@@ -20,4 +22,4 @@ pub mod take_over;
 pub use db::devices::open_request_count;
 pub use infra::backup_file::name::BackupKind;
 pub use infra::{startup, version};
-pub use server::serve;
+pub use router::serve;

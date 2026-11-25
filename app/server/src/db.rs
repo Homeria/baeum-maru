@@ -11,7 +11,6 @@ pub mod lotteries;
 pub mod members;
 pub mod priority_reasons;
 pub mod recovery;
-pub mod rooms;
 pub mod rosters;
 pub mod selection_changes;
 pub mod selection_results;
