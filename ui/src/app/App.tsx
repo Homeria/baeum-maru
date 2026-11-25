@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { startupState } from "../api/startup";
 import { BrokenDbPage } from "../features/broken-db/BrokenDbPage";
 import { StartupProblemPage } from "../features/broken-db/StartupProblemPage";
+import { HandedOverPage } from "../features/handover/HandedOverPage";
+import { HandingOverPage } from "../features/handover/HandingOverPage";
 import { RemoteGate } from "../features/remote/RemoteGate";
 import { ChooseRunModePage } from "../features/run-mode/ChooseRunModePage";
 import { useRunMode } from "../features/run-mode/useRunMode";
@@ -14,6 +16,7 @@ import { StaffFlow } from "./StaffFlow";
  * 맨 먼저 이 PC의 실행 모드를 앱에 묻는다(ADR 0021).
  * - 아직 고르지 않았으면 고르게 한다.
  * - 접속 모드면 호스트 주소와 기기 승인을 거친다(ADR 0004, BR-K15).
+ * - 호스트를 넘기는 중이거나 넘겼으면 그 화면만 보여 준다(BR-H1). 서버가 없어 로그인하지 않는다.
  * - 호스트면 DB를 쓸 수 있는지 묻는다(ADR 0011). 깨졌으면 로그인 없이 복원 화면을 띄운다.
  */
 export function App() {
@@ -32,6 +35,12 @@ export function App() {
   }
   if (runMode.data !== undefined && runMode.data.mode === null) {
     return <ChooseRunModePage />;
+  }
+  if (runMode.data?.mode === "handing_over") {
+    return <HandingOverPage />;
+  }
+  if (runMode.data?.mode === "handed_over") {
+    return <HandedOverPage />;
   }
   if (runMode.data?.mode === "remote") {
     return (
