@@ -8,7 +8,7 @@ import {
 } from "../../api/handover";
 import formStyles from "../../components/form/form.module.css";
 import authStyles from "../auth/auth.module.css";
-import { AdminPinFields } from "./AdminPinFields";
+import { AdminPinFields } from "../auth/AdminPinFields";
 import { fileLines } from "./handoverData";
 
 /** {@link TakeOverPage}의 속성. */

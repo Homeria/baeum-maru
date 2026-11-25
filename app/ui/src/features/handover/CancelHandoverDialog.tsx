@@ -4,7 +4,7 @@ import { cancelHandover, handedOverAdmins } from "../../api/handover";
 import { ConfirmDialog } from "../../components/dialog/ConfirmDialog";
 import formStyles from "../../components/form/form.module.css";
 import authStyles from "../auth/auth.module.css";
-import { AdminPinFields } from "./AdminPinFields";
+import { AdminPinFields } from "../auth/AdminPinFields";
 
 /** {@link CancelHandoverDialog}의 속성. */
 export interface CancelHandoverDialogProps {

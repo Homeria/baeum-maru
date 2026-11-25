@@ -1,5 +1,5 @@
 import formStyles from "../../components/form/form.module.css";
-import authStyles from "../auth/auth.module.css";
+import authStyles from "./auth.module.css";
 
 /** 고를 수 있는 관리자 한 명. */
 export interface AdminChoice {
@@ -20,7 +20,7 @@ export interface AdminPinFieldsProps {
   missing: boolean;
 }
 
-/** 관리자를 고르고 PIN을 넣는 칸들. 넘기기 취소와 넘겨받기에서 쓴다(BR-H2, BR-H3). */
+/** 관리자를 고르고 PIN을 넣는 칸들. 넘기기 취소, 넘겨받기(BR-H2, BR-H3), 실행 모드 바꾸기(BR-K17)에서 쓴다. */
 export function AdminPinFields({
   idPrefix,
   admins,
