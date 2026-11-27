@@ -26,6 +26,7 @@ permissions:
 
 jobs:
   check-site:
+    name: 웹사이트 (site)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
