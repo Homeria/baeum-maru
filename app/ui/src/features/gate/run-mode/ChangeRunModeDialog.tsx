@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { listLoginStaff } from "../auth/api";
 import type { RunMode } from "../../../api/generated/RunMode";
 import { changeRunMode, permitRunModeChange } from "../../../api/runMode";
-import { ConfirmDialog } from "../../../components/dialog/ConfirmDialog";
-import formStyles from "../../../components/form/form.module.css";
+import { ModalDialog } from "../../../components/overlay/ModalDialog";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
 import { AdminPinFields } from "../auth/AdminPinFields";
 import authStyles from "../auth/auth.module.css";
+import styles from "./runMode.module.css";
 
 /** 직원이 고를 수 있는 실행 모드. 넘기기 상태는 넘기기 기능으로만 들어간다(BR-H1). */
 export type ChoosableRunMode = Extract<RunMode, "host" | "remote">;
@@ -47,6 +49,7 @@ export function ChangeRunModeDialog({
   const [staffId, setStaffId] = useState<number | null>(null);
   const [pin, setPin] = useState("");
   const [missing, setMissing] = useState(false);
+  const cancelRef = useRef<HTMLButtonElement>(null);
   const admins = useQuery({
     queryKey: ["loginStaff"],
     queryFn: listLoginStaff,
@@ -74,48 +77,65 @@ export function ChangeRunModeDialog({
 
   const text = TEXTS[target];
   return (
-    <ConfirmDialog
+    <ModalDialog
+      open
       title={text.title}
-      warning={text.warning}
-      confirmLabel="바꾸고 다시 켜기"
-      busyLabel="바꾸는 중…"
       busy={change.isPending}
-      onConfirm={confirm}
-      onCancel={onCancel}
+      initialFocusRef={cancelRef}
+      onClose={onCancel}
+      footer={
+        <>
+          <Button
+            ref={cancelRef}
+            variant="secondary"
+            disabled={change.isPending}
+            onClick={onCancel}
+          >
+            그만두기
+          </Button>
+          <Button
+            variant="dangerSolid"
+            busy={change.isPending}
+            busyLabel="바꾸는 중…"
+            onClick={confirm}
+          >
+            바꾸고 다시 켜기
+          </Button>
+        </>
+      }
     >
-      {needsPin && (
-        <div className={authStyles.stack}>
-          <p className={authStyles.hint}>관리자 PIN이 필요합니다.</p>
-          {admins.isPending ? (
-            <p className={authStyles.hint}>관리자 목록을 불러오는 중…</p>
-          ) : admins.isError ? (
-            <p className={formStyles.formError} role="alert">
-              {admins.error.message}
-            </p>
-          ) : (
-            <AdminPinFields
-              idPrefix="run-mode"
-              admins={admins.data}
-              staffId={staffId}
-              onStaffId={(id) => {
-                setStaffId(id);
-                setMissing(false);
-              }}
-              pin={pin}
-              onPin={(value) => {
-                setPin(value);
-                setMissing(false);
-              }}
-              missing={missing}
-            />
-          )}
-        </div>
-      )}
-      {change.isError && (
-        <p className={formStyles.formError} role="alert">
-          {change.error.message}
-        </p>
-      )}
-    </ConfirmDialog>
+      <div className={authStyles.stack}>
+        <p className={styles.warningText}>{text.warning}</p>
+        {needsPin && (
+          <div className={authStyles.stack}>
+            <p className={authStyles.hint}>관리자 PIN이 필요합니다.</p>
+            {admins.isPending ? (
+              <p className={authStyles.hint}>관리자 목록을 불러오는 중…</p>
+            ) : admins.isError ? (
+              <NoticeBanner tone="error" message={admins.error.message} />
+            ) : (
+              <AdminPinFields
+                idPrefix="run-mode"
+                admins={admins.data}
+                staffId={staffId}
+                onStaffId={(id) => {
+                  setStaffId(id);
+                  setMissing(false);
+                }}
+                pin={pin}
+                onPin={(value) => {
+                  setPin(value);
+                  setMissing(false);
+                }}
+                missing={missing}
+              />
+            )}
+          </div>
+        )}
+        {change.isError && (
+          <NoticeBanner tone="error" message={change.error.message} />
+        )}
+      </div>
+    </ModalDialog>
   );
 }

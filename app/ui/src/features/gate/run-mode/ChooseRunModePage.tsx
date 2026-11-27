@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { chooseRunMode } from "../../../api/runMode";
-import styles from "../../../components/form/form.module.css";
+import { SplitAuthLayout } from "../../../components/shell/SplitAuthLayout";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
 import authStyles from "../auth/auth.module.css";
 import { TakeOverPage } from "../handover/TakeOverPage";
 import type { ChoosableRunMode } from "./ChangeRunModeDialog";
@@ -61,19 +63,21 @@ export function ChooseRunModePage() {
   }
 
   return (
-    <div className={authStyles.page}>
-      <form
-        className={`${styles.form} ${authStyles.card}`}
-        onSubmit={onSubmit}
-        noValidate
-      >
-        <h2 className={styles.title}>배움마루 시작하기</h2>
+    <SplitAuthLayout
+      panelTitle="처음 실행 안내"
+      panelDescription="이 PC가 데이터를 직접 보관할지, 다른 호스트 PC에 접속할지 먼저 정합니다."
+      panelFooter="나중에 실행 모드를 바꾸려면 관리자 PIN이 필요합니다."
+      cardTitle="배움마루 시작하기"
+      cardSubtitle="이 PC를 어떻게 쓸까요?"
+      cardWidth="lg"
+    >
+      <form className={authStyles.form} onSubmit={onSubmit} noValidate>
         <fieldset
-          className={styles.field}
-          aria-invalid={missing}
+          className={authStyles.fieldset}
+          aria-invalid={missing || undefined}
           aria-describedby={missing ? "run-mode-error" : undefined}
         >
-          <legend className={styles.label}>이 PC를 어떻게 쓸까요?</legend>
+          <legend className="visually-hidden">이 PC를 어떻게 쓸까요?</legend>
           <div className={runModeStyles.options}>
             {OPTIONS.map((option) => (
               <label key={option.mode} className={runModeStyles.option}>
@@ -95,29 +99,31 @@ export function ChooseRunModePage() {
             ))}
           </div>
           {missing && (
-            <p id="run-mode-error" className={styles.fieldError}>
+            <p
+              id="run-mode-error"
+              className={authStyles.fieldError}
+              role="alert"
+            >
               하나를 골라 주세요
             </p>
           )}
         </fieldset>
-        <p className={authStyles.hint}>
-          나중에 바꾸려면 관리자 PIN이 필요합니다.
-        </p>
+
         {submit.isError && (
-          <p className={styles.formError} role="alert">
-            {submit.error.message}
-          </p>
+          <NoticeBanner tone="error" message={submit.error.message} />
         )}
-        <div className={styles.actions}>
-          <button
+
+        <div className={authStyles.actions}>
+          <Button
             type="submit"
-            className={styles.submit}
-            disabled={submit.isPending}
+            variant="primary"
+            busy={submit.isPending}
+            busyLabel="준비하는 중…"
           >
             이렇게 시작
-          </button>
+          </Button>
         </div>
       </form>
-    </div>
+    </SplitAuthLayout>
   );
 }
