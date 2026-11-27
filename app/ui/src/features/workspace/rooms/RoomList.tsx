@@ -1,75 +1,108 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { RoomListResponse } from "../../../api/generated/RoomListResponse";
-import tableStyles from "../../../components/table/table.module.css";
+import type { RoomResponse } from "../../../api/generated/RoomResponse";
+import { Card } from "../../../components/surface/Card";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "../../../components/surface/DataTable";
+import { Button } from "../../../components/ui/Button";
 import { floorLabel } from "./floor";
 import { hasSeveralBuildings } from "./roomFormData";
-import styles from "../../../components/layout/listPage.module.css";
+import styles from "./RoomsPage.module.css";
 
 /** {@link RoomList}의 속성. */
 export interface RoomListProps {
   rooms: UseQueryResult<RoomListResponse>;
   /** 고치는 중인 강의실. 그 줄을 강조한다. */
   selectedId: number | null;
+  /** 강의실을 등록하거나 고칠 수 있는지 여부. */
+  canEdit: boolean;
   onSelect: (id: number) => void;
+  onCreate: () => void;
 }
 
-/** 강의실 목록. 건물이 하나뿐이면 건물 열을 숨긴다. 줄을 누르면 그 강의실을 고른다. */
-export function RoomList({ rooms, selectedId, onSelect }: RoomListProps) {
-  const { data, isPending, isError, error } = rooms;
+/** 전체 폭 강의실 표. 건물이 하나뿐이면 건물 열을 숨긴다. */
+export function RoomList({
+  rooms,
+  selectedId,
+  canEdit,
+  onSelect,
+  onCreate,
+}: RoomListProps) {
+  const { data, isPending, isError, error, refetch } = rooms;
+  const rows = data?.items ?? [];
+  const showBuilding = hasSeveralBuildings(rows);
 
-  if (isPending) {
-    return <p className={tableStyles.message}>불러오는 중입니다…</p>;
+  const columns: DataTableColumn<RoomResponse>[] = [];
+  if (showBuilding) {
+    columns.push({
+      key: "building",
+      header: "건물",
+      width: "160px",
+      render: (room) => room.building,
+    });
   }
-  if (isError) {
-    return (
-      <p className={tableStyles.error} role="alert">
-        {error.message}
-      </p>
-    );
+  columns.push(
+    {
+      key: "floor",
+      header: "층",
+      width: "120px",
+      render: (room) => floorLabel(room.floor),
+    },
+    {
+      key: "name",
+      header: "이름",
+      isRowHeader: true,
+      render: (room) => room.name,
+    },
+  );
+  if (canEdit) {
+    columns.push({
+      key: "actions",
+      header: "",
+      width: "96px",
+      align: "right",
+      isAction: true,
+      render: (room) => (
+        <Button size="sm" variant="secondary" onClick={() => onSelect(room.id)}>
+          고치기
+        </Button>
+      ),
+    });
   }
-
-  const showBuilding = hasSeveralBuildings(data.items);
 
   return (
-    <section className={styles.list} aria-label="강의실">
-      <div className={tableStyles.tableWrap}>
-        <table className={tableStyles.table} aria-label="강의실 목록">
-          <thead>
-            <tr>
-              {showBuilding && <th scope="col">건물</th>}
-              <th scope="col">층</th>
-              <th scope="col">이름</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.items.map((room) => (
-              <tr
-                key={room.id}
-                className={tableStyles.row}
-                tabIndex={0}
-                aria-current={room.id === selectedId ? "true" : undefined}
-                onClick={() => onSelect(room.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onSelect(room.id);
-                  }
-                }}
-              >
-                {showBuilding && <td>{room.building}</td>}
-                <td>{floorLabel(room.floor)}</td>
-                <td>{room.name}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {data.items.length === 0 && (
-          <p className={tableStyles.message}>
-            등록된 강의실이 없습니다. 오른쪽 칸에서 등록해 주세요
-          </p>
+    <Card padding="none">
+      <div className={styles.toolbar}>
+        <div className={styles.headingGroup}>
+          <h2 className={styles.title}>강의실 목록</h2>
+          {data && <p className={styles.count}>모두 {rows.length}개</p>}
+        </div>
+        {canEdit && (
+          <Button variant="primary" onClick={onCreate}>
+            강의실 등록
+          </Button>
         )}
       </div>
-      <p className={styles.summary}>모두 {data.items.length}개</p>
-    </section>
+
+      <DataTable
+        caption="강의실 목록"
+        columns={columns}
+        rows={rows}
+        getRowKey={(room) => room.id}
+        selectedKey={selectedId}
+        onRowClick={canEdit ? (room) => onSelect(room.id) : undefined}
+        loading={isPending}
+        loadingText="강의실 목록을 불러오는 중입니다…"
+        error={isError ? error.message : null}
+        onRetry={() => void refetch()}
+        emptyMessage={
+          canEdit
+            ? "등록된 강의실이 없습니다. 오른쪽 위의 강의실 등록 버튼으로 등록해 주세요."
+            : "등록된 강의실이 없습니다."
+        }
+      />
+    </Card>
   );
 }

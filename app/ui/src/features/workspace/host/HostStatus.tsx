@@ -1,31 +1,41 @@
 import { APP_VERSION } from "../../../api/client";
-import { useHostVersion } from "./useHostVersion";
+import {
+  StatusPill,
+  type StatusPillTone,
+} from "../../../components/ui/StatusPill";
 import styles from "./HostStatus.module.css";
+import { useHostVersion } from "./useHostVersion";
 
-/** 앱 버전과 호스트 연결 상태. */
+/** 사이드바 상단: 호스트 연결 상태 꼬리표와 앱·호스트 버전. */
 export function HostStatus() {
   const { data, isPending, isError } = useHostVersion();
 
-  let host: string;
-  let tone: string;
+  let label: string;
+  let tone: StatusPillTone;
+  let versionLine: string;
+
   if (isPending) {
-    host = "호스트 확인 중";
-    tone = styles.muted;
+    label = "호스트 확인 중";
+    tone = "neutral";
+    versionLine = `앱 ${APP_VERSION}`;
   } else if (isError) {
-    host = "호스트에 연결할 수 없습니다";
-    tone = styles.bad;
+    label = "호스트 연결 안 됨";
+    tone = "bad";
+    versionLine = `앱 ${APP_VERSION}`;
   } else if (!data.compatible) {
-    host = `호스트 ${data.hostVersion}: 버전이 맞지 않습니다`;
-    tone = styles.bad;
+    label = "버전 불일치";
+    tone = "bad";
+    versionLine = `앱 ${APP_VERSION} · 호스트 ${data.hostVersion}`;
   } else {
-    host = `호스트 ${data.hostVersion}`;
-    tone = styles.ok;
+    label = "호스트 연결됨";
+    tone = "ok";
+    versionLine = `앱 ${APP_VERSION} · 호스트 ${data.hostVersion}`;
   }
 
   return (
     <div className={styles.status}>
-      <span>앱 {APP_VERSION}</span>
-      <span className={tone}>{host}</span>
+      <StatusPill tone={tone}>{label}</StatusPill>
+      <span className={styles.version}>{versionLine}</span>
     </div>
   );
 }

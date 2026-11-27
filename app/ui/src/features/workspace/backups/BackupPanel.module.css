@@ -2,73 +2,103 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  height: 100%;
-  min-height: 0;
 }
 
-.warning {
-  margin: 0;
-  color: var(--color-bad);
-  font-weight: 700;
-}
-
-.notice {
-  margin: 0;
-  color: var(--color-ok);
-  font-weight: 700;
-}
-
-.second {
+.toolbar {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.heading {
+.headingGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.title {
   margin: 0;
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-text);
 }
 
+.count,
 .muted {
   margin: 0;
-  color: var(--color-text-muted);
-}
-
-.path {
-  margin: 0;
-  word-break: break-all;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+  line-height: 1.5;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  gap: var(--space-2);
+}
+
+.secondBody {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
 }
 
-.actions button {
-  padding: var(--space-1) var(--space-3);
-  font: inherit;
+.secondStatus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
 }
 
-.size {
-  text-align: right;
+.path {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-text);
+  word-break: break-all;
+}
+
+.dangerCard {
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+}
+
+.dangerRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.dangerText {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.dangerTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-danger);
+}
+
+.dialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 .preview {
-  margin: 0 0 var(--space-3);
+  margin: 0;
   padding-left: var(--space-6);
   line-height: 1.6;
-}
-
-.rowAction {
-  text-align: right;
-}
-
-.rowAction button {
-  padding: 0 var(--space-2);
-  font: inherit;
+  color: var(--color-text);
 }

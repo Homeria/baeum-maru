@@ -1,45 +1,70 @@
 import { useState } from "react";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
 import { useCan } from "../../gate/auth/useCan";
-import { ViewOnlyNotice } from "../../gate/auth/ViewOnlyNotice";
 import { MemberEditor } from "./MemberEditor";
 import { MemberForm } from "./MemberForm";
 import { MemberList } from "./MemberList";
-import styles from "../../../components/layout/listPage.module.css";
+import styles from "./MembersPage.module.css";
+
+type MemberDrawerState =
+  null | { mode: "create" } | { mode: "edit"; id: number };
 
 /**
- * 회원 탭. 왼쪽은 찾기와 목록, 오른쪽은 입력 칸.
+ * 회원 탭. 전체 폭 검색·목록 표를 보여 주고, 등록과 정보 고치기는 오른쪽 서랍에서 처리한다.
  *
- * 평소 오른쪽은 새 회원 등록이고, 목록에서 회원을 고르면 그 회원 고치기로 바뀐다.
- * 회원을 바꿀 수 없는 역할(BR-K3)에게는 입력 칸 대신 안내를 보여 준다.
+ * 회원을 바꿀 수 없는 역할(BR-K3)에게는 등록·고치기 동작을 숨긴다.
  */
 export function MembersPage() {
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [drawer, setDrawer] = useState<MemberDrawerState>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const canEdit = useCan("editMembers");
 
-  const select = (id: number) => {
+  const openCreate = () => {
     setNotice(null);
-    setSelectedId(id);
+    setDrawer({ mode: "create" });
   };
 
-  const close = (next?: string) => {
-    setNotice(next ?? null);
-    setSelectedId(null);
+  const openEdit = (id: number) => {
+    if (!canEdit) {
+      return;
+    }
+    setNotice(null);
+    setDrawer({ mode: "edit", id });
   };
+
+  const finish = (nextNotice: string) => {
+    setNotice(nextNotice);
+    setDrawer(null);
+  };
+
+  const closeDrawer = () => {
+    setDrawer(null);
+  };
+
+  const selectedId = drawer?.mode === "edit" ? drawer.id : null;
 
   return (
     <div className={styles.page}>
-      <MemberList selectedId={selectedId} onSelect={select} />
-      <aside className={styles.side}>
-        {!canEdit ? (
-          <ViewOnlyNotice />
-        ) : selectedId === null ? (
-          <MemberForm initialNotice={notice} onClose={close} />
-        ) : (
-          // 다른 회원을 고르면 칸을 새로 만듦
-          <MemberEditor key={selectedId} id={selectedId} onClose={close} />
-        )}
-      </aside>
+      {notice && <NoticeBanner message={notice} />}
+      <MemberList
+        selectedId={selectedId}
+        canEdit={canEdit}
+        onSelect={canEdit ? openEdit : undefined}
+        onCreate={canEdit ? openCreate : undefined}
+      />
+
+      {canEdit && drawer?.mode === "create" && (
+        <MemberForm onSaved={finish} onClose={closeDrawer} />
+      )}
+      {canEdit && drawer?.mode === "edit" && (
+        <MemberEditor
+          key={drawer.id}
+          id={drawer.id}
+          onSaved={finish}
+          onDeleted={finish}
+          onClose={closeDrawer}
+        />
+      )}
     </div>
   );
 }

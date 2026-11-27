@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { approveDevice, listDeviceRequests, rejectDevice } from "./api";
 import type { DeviceRequestResponse } from "../../../api/generated/DeviceRequestResponse";
-import formStyles from "../../../components/form/form.module.css";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
+import { TextField } from "../../../components/ui/TextField";
+import { approveDevice, listDeviceRequests, rejectDevice } from "./api";
 import styles from "./devices.module.css";
 
 /** {@link DeviceRequestList}의 속성. */
@@ -22,20 +24,23 @@ export function DeviceRequestList({
   openCount,
   onDone,
 }: DeviceRequestListProps) {
-  const { data, isPending, isError, error } = useQuery({
+  const { data, isPending, isError, error, refetch } = useQuery({
     // 앱이 알려 준 수가 바뀌면 새로 받는다
     queryKey: ["deviceRequests", openCount],
     queryFn: listDeviceRequests,
   });
 
   if (isPending) {
-    return <p className={styles.muted}>불러오는 중입니다…</p>;
+    return <NoticeBanner message="승인 요청을 불러오는 중입니다…" />;
   }
   if (isError) {
     return (
-      <p className={styles.error} role="alert">
-        {error.message}
-      </p>
+      <NoticeBanner
+        tone="error"
+        message={error.message}
+        actionLabel="다시 해 보기"
+        onAction={() => void refetch()}
+      />
     );
   }
   if (data.items.length === 0) {
@@ -59,7 +64,6 @@ function DeviceRequestItem({
 }) {
   const queryClient = useQueryClient();
   const [pin, setPin] = useState("");
-  const pinId = `device-request-${request.id}-pin`;
 
   const refresh = async () => {
     await Promise.all(
@@ -97,49 +101,45 @@ function DeviceRequestItem({
 
   return (
     <li className={styles.request}>
-      <div>
+      <div className={styles.requestMeta}>
         <p className={styles.requestName}>{request.name}</p>
         <p className={styles.muted}>그 PC 화면의 번호가 같은지 보세요</p>
       </div>
       <p className={styles.code} aria-label="승인 번호">
         {request.code}
       </p>
-      <form className={styles.approve} onSubmit={onSubmit}>
-        <div className={formStyles.field}>
-          <label htmlFor={pinId} className={formStyles.label}>
-            관리자 PIN
-          </label>
-          <input
-            id={pinId}
-            className={`${formStyles.input} ${styles.pin}`}
-            type="password"
-            inputMode="numeric"
-            autoComplete="off"
-            maxLength={8}
-            value={pin}
-            onChange={(event) => setPin(event.target.value)}
-          />
-        </div>
-        <button
+      <form className={styles.approve} onSubmit={onSubmit} noValidate>
+        <TextField
+          label="관리자 PIN"
+          type="password"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={8}
+          value={pin}
+          onChange={(event) => setPin(event.target.value)}
+          className={styles.pinField}
+        />
+        <Button
           type="submit"
-          className={formStyles.submit}
-          disabled={busy || pin === ""}
+          variant="primary"
+          busy={approve.isPending}
+          busyLabel="허락하는 중…"
+          disabled={reject.isPending || pin === ""}
         >
-          {approve.isPending ? "허락하는 중…" : "허락"}
-        </button>
-        <button
-          type="button"
-          className={formStyles.secondary}
+          허락
+        </Button>
+        <Button
+          variant="secondary"
           disabled={busy}
           onClick={() => reject.mutate()}
         >
           거절
-        </button>
+        </Button>
       </form>
       {failure && (
-        <p className={styles.error} role="alert">
-          {failure.message}
-        </p>
+        <div className={styles.requestError}>
+          <NoticeBanner tone="error" message={failure.message} />
+        </div>
       )}
     </li>
   );

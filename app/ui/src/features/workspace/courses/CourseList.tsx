@@ -1,8 +1,14 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { CourseListResponse } from "../../../api/generated/CourseListResponse";
-import styles from "../../../components/layout/listPage.module.css";
-import tableStyles from "../../../components/table/table.module.css";
+import type { CourseResponse } from "../../../api/generated/CourseResponse";
+import { Card } from "../../../components/surface/Card";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "../../../components/surface/DataTable";
+import { Button } from "../../../components/ui/Button";
 import { scheduleSummary } from "./courseFormData";
+import styles from "./CourseList.module.css";
 
 /** {@link CourseList}의 속성. */
 export interface CourseListProps {
@@ -11,82 +17,130 @@ export interface CourseListProps {
   showBuilding: boolean;
   /** 고치는 중인 강좌. 그 줄을 강조한다. */
   selectedId: number | null;
+  /** 강좌를 등록하거나 고칠 수 있는지 여부. */
+  canEdit: boolean;
   onSelect: (id: number) => void;
+  onCreate: () => void;
 }
 
 /**
- * 한 학기의 강좌 목록. 줄을 누르면 그 강좌를 고른다.
+ * 한 학기의 전체 폭 강좌 표.
  *
- * 수업 시간은 `월·수 10:00~11:00`처럼 시각이 같은 요일을 묶어 보여 준다.
+ * 여러 요일·시간대가 있는 수업 시간은 셀 안에서 줄바꿈해 가독성을 높인다.
  */
 export function CourseList({
   courses,
   showBuilding,
   selectedId,
+  canEdit,
   onSelect,
+  onCreate,
 }: CourseListProps) {
-  const { data, isPending, isError, error } = courses;
+  const { data, isPending, isError, error, refetch } = courses;
+  const rows = data?.items ?? [];
 
-  if (isPending) {
-    return <p className={tableStyles.message}>불러오는 중입니다…</p>;
-  }
-  if (isError) {
-    return (
-      <p className={tableStyles.error} role="alert">
-        {error.message}
-      </p>
-    );
+  const columns: DataTableColumn<CourseResponse>[] = [
+    {
+      key: "subjectName",
+      header: "과목",
+      isRowHeader: true,
+      render: (course) => course.subjectName,
+    },
+    {
+      key: "level",
+      header: "수준",
+      width: "96px",
+      render: (course) => course.level ?? "",
+    },
+    {
+      key: "section",
+      header: "반",
+      width: "96px",
+      render: (course) => course.section ?? "",
+    },
+    {
+      key: "capacity",
+      header: "정원",
+      width: "84px",
+      align: "right",
+      render: (course) => `${course.capacity}명`,
+    },
+    {
+      key: "schedules",
+      header: "수업 시간",
+      render: (course) => {
+        const summary = scheduleSummary(course.schedules, showBuilding);
+        const lines = summary.times
+          .split(", ")
+          .filter((line) => line.length > 0);
+        return (
+          <div className={styles.scheduleLines}>
+            {lines.map((line) => (
+              <span key={line} className={styles.scheduleLine}>
+                {line}
+              </span>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      key: "room",
+      header: "강의실",
+      render: (course) => scheduleSummary(course.schedules, showBuilding).room,
+    },
+  ];
+
+  if (canEdit) {
+    columns.push({
+      key: "actions",
+      header: "",
+      width: "96px",
+      align: "right",
+      isAction: true,
+      render: (course) => (
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => onSelect(course.id)}
+        >
+          고치기
+        </Button>
+      ),
+    });
   }
 
   return (
-    <section className={styles.list} aria-label="강좌">
-      <div className={tableStyles.tableWrap}>
-        <table className={tableStyles.table} aria-label="강좌 목록">
-          <thead>
-            <tr>
-              <th scope="col">과목</th>
-              <th scope="col">수준</th>
-              <th scope="col">반</th>
-              <th scope="col">정원</th>
-              <th scope="col">수업 시간</th>
-              <th scope="col">강의실</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.items.map((course) => {
-              const summary = scheduleSummary(course.schedules, showBuilding);
-              return (
-                <tr
-                  key={course.id}
-                  className={tableStyles.row}
-                  tabIndex={0}
-                  aria-current={course.id === selectedId ? "true" : undefined}
-                  onClick={() => onSelect(course.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      onSelect(course.id);
-                    }
-                  }}
-                >
-                  <td>{course.subjectName}</td>
-                  <td>{course.level ?? ""}</td>
-                  <td>{course.section ?? ""}</td>
-                  <td>{course.capacity}명</td>
-                  <td>{summary.times}</td>
-                  <td>{summary.room}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {data.items.length === 0 && (
-          <p className={tableStyles.message}>
-            이 학기에 등록된 강좌가 없습니다. 오른쪽 칸에서 등록해 주세요
-          </p>
+    <Card padding="none">
+      <div className={styles.toolbar}>
+        <div className={styles.headingGroup}>
+          <h2 className={styles.title}>강좌 목록</h2>
+          {data && <p className={styles.count}>모두 {rows.length}개</p>}
+        </div>
+        {canEdit && (
+          <Button variant="primary" onClick={onCreate}>
+            강좌 등록
+          </Button>
         )}
       </div>
-      <p className={styles.summary}>모두 {data.items.length}개</p>
-    </section>
+
+      <DataTable
+        caption="강좌 목록"
+        columns={columns}
+        rows={rows}
+        getRowKey={(course) => course.id}
+        selectedKey={selectedId}
+        onRowClick={canEdit ? (course) => onSelect(course.id) : undefined}
+        loading={isPending}
+        loadingText="강좌 목록을 불러오는 중입니다…"
+        error={isError ? error.message : null}
+        onRetry={() => void refetch()}
+        emptyMessage={
+          canEdit
+            ? "이 학기에 등록된 강좌가 없습니다. 오른쪽 위의 강좌 등록 버튼으로 등록해 주세요."
+            : "이 학기에 등록된 강좌가 없습니다."
+        }
+      />
+    </Card>
   );
 }

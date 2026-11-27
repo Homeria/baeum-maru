@@ -1,62 +1,62 @@
 import { useState } from "react";
-import { useCan } from "../../gate/auth/useCan";
-import { ViewOnlyNotice } from "../../gate/auth/ViewOnlyNotice";
 import { useQuery } from "@tanstack/react-query";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { useCan } from "../../gate/auth/useCan";
 import { listSubjects } from "./api";
-import formStyles from "../../../components/form/form.module.css";
-import styles from "../../../components/layout/listPage.module.css";
 import { SubjectForm } from "./SubjectForm";
 import { SubjectList } from "./SubjectList";
+import styles from "./SubjectsPage.module.css";
+
+type SubjectDrawerState =
+  null | { mode: "create" } | { mode: "edit"; id: number };
 
 /**
- * 과목 목록. 왼쪽은 과목 목록, 오른쪽은 입력 칸.
+ * 과목 목록. 전체 폭 표를 보여 주고, 등록과 고치기는 오른쪽 서랍에서 처리한다.
  *
- * 평소 오른쪽은 새 과목 등록이고, 목록에서 과목을 고르면 그 과목 고치기로 바뀐다.
- * 과목은 칸이 적어 목록에 받은 값으로 바로 고친다.
- * 기초 정보를 바꿀 수 없는 역할(BR-K3)에게는 입력 칸 대신 안내를 보여 준다.
+ * 기초 정보를 바꿀 수 없는 역할(BR-K3)에게는 등록·고치기 버튼을 숨긴다.
  */
 export function SubjectsPage() {
   const subjects = useQuery({ queryKey: ["subjects"], queryFn: listSubjects });
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [drawer, setDrawer] = useState<SubjectDrawerState>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const canEdit = useCan("editReferenceData");
 
+  const selectedId = drawer?.mode === "edit" ? drawer.id : null;
   const selected =
     subjects.data?.items.find((subject) => subject.id === selectedId) ?? null;
 
-  const select = (id: number) => {
-    setNotice(null);
-    setSelectedId(id);
-  };
-
-  const close = (next?: string) => {
-    setNotice(next ?? null);
-    setSelectedId(null);
+  const finish = (nextNotice: string) => {
+    setNotice(nextNotice);
+    setDrawer(null);
   };
 
   return (
     <div className={styles.page}>
+      {notice && <NoticeBanner message={notice} />}
       <SubjectList
         subjects={subjects}
         selectedId={selectedId}
-        onSelect={select}
+        canEdit={canEdit}
+        onSelect={(id) => {
+          setNotice(null);
+          setDrawer({ mode: "edit", id });
+        }}
+        onCreate={() => {
+          setNotice(null);
+          setDrawer({ mode: "create" });
+        }}
       />
-      <aside className={styles.side}>
-        {!canEdit ? (
-          <ViewOnlyNotice />
-        ) : subjects.data ? (
-          // 다른 과목을 고르거나 등록으로 돌아오면 칸을 새로 만듦
-          <SubjectForm
-            key={selected?.id ?? "new"}
-            subjects={subjects.data.items}
-            editing={selected ?? undefined}
-            initialNotice={notice}
-            onClose={close}
-          />
-        ) : (
-          <p className={formStyles.loading}>과목을 불러오는 중입니다…</p>
-        )}
-      </aside>
+
+      {canEdit && drawer !== null && subjects.data && (
+        <SubjectForm
+          key={drawer.mode === "edit" ? drawer.id : "new"}
+          subjects={subjects.data.items}
+          editing={drawer.mode === "edit" ? (selected ?? undefined) : undefined}
+          onSaved={finish}
+          onDeleted={finish}
+          onClose={() => setDrawer(null)}
+        />
+      )}
     </div>
   );
 }

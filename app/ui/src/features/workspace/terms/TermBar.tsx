@@ -1,6 +1,8 @@
 import { useId, useState } from "react";
 import type { TermResponse } from "../../../api/generated/TermResponse";
-import formStyles from "../../../components/form/form.module.css";
+import { Card } from "../../../components/surface/Card";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
 import { termPeriodLabel } from "./termFormData";
 import { TermDialog } from "./TermDialog";
 import styles from "./TermBar.module.css";
@@ -21,9 +23,9 @@ export interface TermBarProps {
 }
 
 /**
- * 강좌 탭 맨 위의 학기 줄. 학기를 고르고, 새 학기를 등록하거나 지금 학기를 고친다.
+ * 화면 맨 위의 학기 막대. 학기를 고르고, 새 학기를 등록하거나 지금 학기를 고친다.
  *
- * 등록과 고치기는 작은 창으로 띄워 아래 강좌 목록 자리를 건드리지 않는다.
+ * 등록과 고치기는 모달 대화상자로 띄워 아래 강좌 목록 자리를 건드리지 않는다.
  */
 export function TermBar({
   terms,
@@ -42,49 +44,49 @@ export function TermBar({
   };
 
   return (
-    <div className={styles.bar}>
-      <label htmlFor={selectId} className={styles.label}>
-        학기
-      </label>
-      <select
-        id={selectId}
-        className={styles.select}
-        value={current.id}
-        onChange={(event) => {
-          onNotice(null);
-          onSelect(Number(event.target.value));
-        }}
-      >
-        {terms.map((term) => (
-          <option key={term.id} value={term.id}>
-            {term.name}
-          </option>
-        ))}
-      </select>
-      <span className={styles.period}>{termPeriodLabel(current)}</span>
-      {canEdit && (
-        <>
-          <button
-            type="button"
-            className={formStyles.secondary}
-            onClick={() => open("edit")}
-          >
-            학기 고치기
-          </button>
-          <button
-            type="button"
-            className={formStyles.secondary}
-            onClick={() => open("new")}
-          >
-            새 학기
-          </button>
-        </>
-      )}
-      {notice && (
-        <p className={formStyles.notice} role="status">
-          {notice}
-        </p>
-      )}
+    <div className={styles.wrap}>
+      <Card>
+        <div className={styles.bar}>
+          <div className={styles.selectorGroup}>
+            <label htmlFor={selectId} className={styles.label}>
+              학기
+            </label>
+            <select
+              id={selectId}
+              className={styles.select}
+              value={current.id}
+              onChange={(event) => {
+                onNotice(null);
+                onSelect(Number(event.target.value));
+              }}
+            >
+              {terms.map((term) => (
+                <option key={term.id} value={term.id}>
+                  {term.name}
+                </option>
+              ))}
+            </select>
+            <span className={styles.period}>{termPeriodLabel(current)}</span>
+          </div>
+
+          {canEdit && (
+            <div className={styles.actions}>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => open("edit")}
+              >
+                학기 고치기
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => open("new")}>
+                새 학기
+              </Button>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {notice && <NoticeBanner message={notice} />}
 
       {dialog && (
         <TermDialog

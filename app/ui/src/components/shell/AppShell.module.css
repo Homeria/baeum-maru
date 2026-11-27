@@ -41,20 +41,42 @@
 }
 
 .collapseButton {
-  min-block-size: var(--row-action-height);
-  padding: 0 var(--space-2);
-  border: 1px solid var(--color-bar-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 36px;
+  block-size: 36px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.24);
   border-radius: var(--radius-control);
   background: transparent;
-  color: #ffffff;
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
+  color: rgba(255, 255, 255, 0.9);
   cursor: pointer;
 }
 
 .collapseButton:hover {
   background: var(--color-bar-hover);
+  color: #ffffff;
+}
+
+.expandButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 36px;
+  block-size: 36px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.expandButton:hover {
+  background: var(--color-bg);
 }
 
 .hostStatus {
@@ -65,29 +87,40 @@
 .nav {
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: var(--space-3) var(--space-2);
+  padding: var(--space-4) var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
 .sectionDivided {
-  padding-block-start: var(--space-3);
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  padding-block-start: var(--space-2);
 }
 
 .sectionLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   margin: 0;
-  padding: 0 var(--space-3);
-  font-size: var(--font-size-sm);
+  padding: 0 var(--space-2);
+  font-size: 0.75rem;
   font-weight: var(--font-weight-bold);
-  color: var(--color-bar-muted);
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.58);
+  user-select: none;
+}
+
+.sectionLabel::after {
+  content: "";
+  flex: 1 1 auto;
+  block-size: 1px;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .navList {
@@ -106,25 +139,28 @@
   gap: var(--space-2);
   inline-size: 100%;
   min-block-size: var(--control-min-height);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-3) 0 var(--space-4);
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   background: transparent;
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.92);
   font-family: inherit;
   font-size: var(--font-size);
-  font-weight: var(--font-weight-regular);
+  font-weight: 500;
   text-align: left;
   cursor: pointer;
 }
 
 .navButton:hover {
   background: var(--color-bar-hover);
+  color: #ffffff;
 }
 
 .navActive {
   background: var(--color-primary);
   border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: inset 3px 0 0 #ffffff;
+  color: #ffffff;
   font-weight: var(--font-weight-bold);
 }
 

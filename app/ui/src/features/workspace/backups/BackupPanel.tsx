@@ -1,6 +1,18 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { pickBackupFile } from "../../../api/appCommands";
+import type { BackupResponse } from "../../../api/generated/BackupResponse";
+import type { RestorePreviewResponse } from "../../../api/generated/RestorePreviewResponse";
+import { pickFolder } from "../../../api/pickFolder";
+import { Card } from "../../../components/surface/Card";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "../../../components/surface/DataTable";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
+import { StatusPill } from "../../../components/ui/StatusPill";
+import { HandoverDialog } from "../../gate/handover/HandoverDialog";
 import {
   createBackup,
   listBackups,
@@ -8,9 +20,6 @@ import {
   setSecondLocation,
   type RestoreSource,
 } from "./api";
-import type { RestorePreviewResponse } from "../../../api/generated/RestorePreviewResponse";
-import { pickFolder } from "../../../api/pickFolder";
-import tableStyles from "../../../components/table/table.module.css";
 import {
   BACKUP_KIND_LABELS,
   formatSize,
@@ -20,7 +29,6 @@ import {
   secondLocationWarning,
 } from "./backupData";
 import styles from "./BackupPanel.module.css";
-import { HandoverDialog } from "../../gate/handover/HandoverDialog";
 import { RestoreDialog } from "./RestoreDialog";
 
 const QUERY_KEY = ["backups"] as const;
@@ -28,8 +36,7 @@ const QUERY_KEY = ["backups"] as const;
 /**
  * 백업 탭(ADR 0011). 관리자에게만 보인다.
  *
- * 백업 목록과 지금 백업, 두 번째 위치, 복원, 호스트 넘기기(BR-H1)를 보여 준다. 두 번째 위치와
- * 복원, 호스트 넘기기는 호스트 PC에서만 한다.
+ * 백업 목록·지금 백업·복원, 두 번째 위치 카드, 분리된 위험 영역(호스트 넘기기, BR-H1)으로 나눈다.
  */
 export function BackupPanel() {
   const queryClient = useQueryClient();
@@ -97,13 +104,16 @@ export function BackupPanel() {
   });
 
   if (isPending) {
-    return <p className={tableStyles.message}>불러오는 중입니다…</p>;
+    return <NoticeBanner message="백업 목록을 불러오는 중입니다…" />;
   }
   if (isError) {
     return (
-      <p className={tableStyles.error} role="alert">
-        {error.message}
-      </p>
+      <NoticeBanner
+        tone="error"
+        message={error.message}
+        actionLabel="다시 해 보기"
+        onAction={() => void refetch()}
+      />
     );
   }
 
@@ -115,166 +125,216 @@ export function BackupPanel() {
     backupNow.isPending || changeSecond.isPending || preview.isPending;
   const failure = backupNow.error ?? changeSecond.error ?? preview.error;
 
-  return (
-    <section className={styles.panel} aria-label="백업">
-      {data.lastRestore !== null && (
-        <p
-          className={data.lastRestore.restored ? styles.notice : styles.warning}
-          role={data.lastRestore.restored ? "status" : "alert"}
+  const columns: DataTableColumn<BackupResponse>[] = [
+    {
+      key: "takenAt",
+      header: "시각",
+      isRowHeader: true,
+      render: (item) => formatTakenAt(item.takenAt),
+    },
+    {
+      key: "kind",
+      header: "종류",
+      render: (item) => kindText(item),
+    },
+    {
+      key: "size",
+      header: "크기",
+      width: "120px",
+      align: "right",
+      render: (item) => formatSize(item.size),
+    },
+  ];
+
+  if (onHost) {
+    columns.push({
+      key: "actions",
+      header: "",
+      width: "96px",
+      align: "right",
+      isAction: true,
+      render: (item) => (
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={busy}
+          aria-label={`${formatTakenAt(item.takenAt)} ${kindText(item)} 백업으로 복원`}
+          onClick={() => {
+            setNotice(null);
+            preview.mutate({ fileName: item.fileName });
+          }}
         >
-          {restoreOutcomeText(data.lastRestore)}
-        </p>
+          복원
+        </Button>
+      ),
+    });
+  }
+
+  return (
+    <div className={styles.panel}>
+      {data.lastRestore !== null && (
+        <NoticeBanner
+          tone={data.lastRestore.restored ? "neutral" : "error"}
+          message={restoreOutcomeText(data.lastRestore)}
+        />
       )}
       {data.lastFailure !== null && (
-        <p className={styles.warning} role="alert">
-          {formatTakenAt(data.lastFailure.at)}{" "}
-          {BACKUP_KIND_LABELS[data.lastFailure.kind]} 백업에 실패했습니다.
-          디스크 공간이 남아 있는지 확인해 주세요
-        </p>
+        <NoticeBanner
+          tone="error"
+          message={`${formatTakenAt(data.lastFailure.at)} ${BACKUP_KIND_LABELS[data.lastFailure.kind]} 백업에 실패했습니다. 디스크 공간이 남아 있는지 확인해 주세요.`}
+        />
       )}
       {secondWarning !== null && (
-        <p className={styles.warning} role="alert">
-          {secondWarning}
-        </p>
+        <NoticeBanner tone="error" message={secondWarning} />
       )}
+      {failure !== null && (
+        <NoticeBanner tone="error" message={failure.message} />
+      )}
+      {failure === null && notice !== null && <NoticeBanner message={notice} />}
 
-      <div className={styles.second}>
-        <h2 className={styles.heading}>두 번째 위치</h2>
-        <p className={styles.muted}>
-          하루 한 번 백업을 다른 디스크나 USB의 폴더에도 한 부 더 둡니다.
-        </p>
-        {second.path === null ? (
-          <p className={styles.path}>꺼져 있음</p>
-        ) : (
-          <>
-            <p className={styles.path}>{second.path}</p>
+      <Card padding="none">
+        <div className={styles.toolbar}>
+          <div className={styles.headingGroup}>
+            <h2 className={styles.title}>백업 목록</h2>
+            <p className={styles.count}>모두 {data.items.length}개</p>
+            {!onHost && (
+              <p className={styles.muted}>
+                복원과 호스트 넘기기는 호스트 PC에서만 할 수 있습니다.
+              </p>
+            )}
+          </div>
+          <div className={styles.actions}>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => void refetch()}
+            >
+              새로 보기
+            </Button>
+            {onHost && (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => {
+                  setNotice(null);
+                  preview.mutate("pick");
+                }}
+              >
+                다른 곳의 백업 파일로 복원
+              </Button>
+            )}
+            <Button
+              variant="primary"
+              busy={backupNow.isPending}
+              busyLabel="백업하는 중…"
+              disabled={changeSecond.isPending || preview.isPending}
+              onClick={() => {
+                setNotice(null);
+                backupNow.mutate();
+              }}
+            >
+              지금 백업
+            </Button>
+          </div>
+        </div>
+
+        <DataTable
+          caption="백업 목록"
+          columns={columns}
+          rows={data.items}
+          getRowKey={(item) => item.fileName}
+          emptyMessage="저장된 백업이 없습니다."
+        />
+      </Card>
+
+      <Card
+        title="두 번째 위치"
+        subtitle="하루 한 번 백업을 다른 디스크나 USB의 폴더에도 한 부 더 둡니다."
+        actions={
+          second.changeable ? (
+            <div className={styles.actions}>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => changeSecond.mutate(true)}
+              >
+                {second.path === null ? "폴더 고르기" : "다른 폴더 고르기"}
+              </Button>
+              {second.path !== null && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => changeSecond.mutate(false)}
+                >
+                  끄기
+                </Button>
+              )}
+            </div>
+          ) : undefined
+        }
+      >
+        <div className={styles.secondBody}>
+          <div className={styles.secondStatus}>
+            <StatusPill
+              tone={
+                second.path === null
+                  ? "neutral"
+                  : second.reachable
+                    ? "ok"
+                    : "bad"
+              }
+            >
+              {second.path === null
+                ? "꺼져 있음"
+                : second.reachable
+                  ? "연결됨"
+                  : "폴더를 찾을 수 없음"}
+            </StatusPill>
+            {second.path !== null && (
+              <p className={styles.path}>{second.path}</p>
+            )}
+          </div>
+          {second.path !== null && (
             <p className={styles.muted}>
               마지막 복사:{" "}
               {second.lastCopiedAt === null
                 ? "없음"
                 : formatTakenAt(second.lastCopiedAt)}
             </p>
-          </>
-        )}
-        {second.changeable ? (
-          <div className={styles.actions}>
-            <button
-              type="button"
+          )}
+          {!second.changeable && (
+            <p className={styles.muted}>호스트 PC에서만 바꿀 수 있습니다.</p>
+          )}
+        </div>
+      </Card>
+
+      {onHost && (
+        <Card className={styles.dangerCard}>
+          <div className={styles.dangerRow}>
+            <div className={styles.dangerText}>
+              <h2 className={styles.dangerTitle}>호스트 넘기기</h2>
+              <p className={styles.muted}>
+                PC를 바꾸거나 다른 PC를 호스트로 쓸 때만 사용합니다. 넘기는 동안
+                다른 PC에서는 배움마루를 쓸 수 없습니다.
+              </p>
+            </div>
+            <Button
+              variant="danger"
               disabled={busy}
-              onClick={() => changeSecond.mutate(true)}
+              onClick={() => {
+                setNotice(null);
+                setHandingOver(true);
+              }}
             >
-              {second.path === null ? "폴더 고르기" : "다른 폴더 고르기"}
-            </button>
-            {second.path !== null && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => changeSecond.mutate(false)}
-              >
-                끄기
-              </button>
-            )}
+              호스트 넘기기
+            </Button>
           </div>
-        ) : (
-          <p className={styles.muted}>호스트 PC에서만 바꿀 수 있습니다</p>
-        )}
-      </div>
-
-      <div className={styles.actions}>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => {
-            setNotice(null);
-            backupNow.mutate();
-          }}
-        >
-          {backupNow.isPending ? "백업하는 중…" : "지금 백업"}
-        </button>
-        {onHost && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              setNotice(null);
-              preview.mutate("pick");
-            }}
-          >
-            다른 곳의 백업 파일로 복원
-          </button>
-        )}
-        {onHost && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              setNotice(null);
-              setHandingOver(true);
-            }}
-          >
-            호스트 넘기기
-          </button>
-        )}
-        <button type="button" onClick={() => void refetch()}>
-          새로 보기
-        </button>
-        {!onHost && (
-          <p className={styles.muted}>
-            복원과 호스트 넘기기는 호스트 PC에서만 할 수 있습니다
-          </p>
-        )}
-        {failure !== null ? (
-          <p className={styles.warning} role="alert">
-            {failure.message}
-          </p>
-        ) : (
-          notice !== null && (
-            <p className={styles.notice} role="status">
-              {notice}
-            </p>
-          )
-        )}
-      </div>
-
-      <div className={tableStyles.tableWrap}>
-        <table className={tableStyles.table} aria-label="백업 목록">
-          <thead>
-            <tr>
-              <th scope="col">시각</th>
-              <th scope="col">종류</th>
-              <th scope="col">크기</th>
-              {onHost && <th scope="col">복원</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {data.items.map((item) => (
-              <tr key={item.fileName}>
-                <td>{formatTakenAt(item.takenAt)}</td>
-                <td>{kindText(item)}</td>
-                <td className={styles.size}>{formatSize(item.size)}</td>
-                {onHost && (
-                  <td className={styles.rowAction}>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      aria-label={`${formatTakenAt(item.takenAt)} ${kindText(item)} 백업으로 복원`}
-                      onClick={() => {
-                        setNotice(null);
-                        preview.mutate({ fileName: item.fileName });
-                      }}
-                    >
-                      복원
-                    </button>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {data.items.length === 0 && (
-          <p className={tableStyles.message}>백업이 없습니다</p>
-        )}
-      </div>
+        </Card>
+      )}
 
       {handingOver && <HandoverDialog onCancel={() => setHandingOver(false)} />}
       {restoring !== null && (
@@ -284,6 +344,6 @@ export function BackupPanel() {
           onCancel={() => setRestoring(null)}
         />
       )}
-    </section>
+    </div>
   );
 }

@@ -1,76 +1,103 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { SubjectListResponse } from "../../../api/generated/SubjectListResponse";
-import styles from "../../../components/layout/listPage.module.css";
-import tableStyles from "../../../components/table/table.module.css";
+import type { SubjectResponse } from "../../../api/generated/SubjectResponse";
+import { Card } from "../../../components/surface/Card";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "../../../components/surface/DataTable";
+import { Button } from "../../../components/ui/Button";
 import { usesCategories } from "./subjectFormData";
+import styles from "./SubjectsPage.module.css";
 
 /** {@link SubjectList}의 속성. */
 export interface SubjectListProps {
   subjects: UseQueryResult<SubjectListResponse>;
   /** 고치는 중인 과목. 그 줄을 강조한다. */
   selectedId: number | null;
+  /** 과목을 등록하거나 고칠 수 있는지 여부. */
+  canEdit: boolean;
   onSelect: (id: number) => void;
+  onCreate: () => void;
 }
 
-/** 과목 목록. 분류를 쓴 과목이 없으면 분류 열을 숨긴다. 줄을 누르면 그 과목을 고른다. */
+/** 전체 폭 과목 표. 분류를 쓴 과목이 없으면 분류 열을 숨긴다. */
 export function SubjectList({
   subjects,
   selectedId,
+  canEdit,
   onSelect,
+  onCreate,
 }: SubjectListProps) {
-  const { data, isPending, isError, error } = subjects;
+  const { data, isPending, isError, error, refetch } = subjects;
+  const rows = data?.items ?? [];
+  const showCategory = usesCategories(rows);
 
-  if (isPending) {
-    return <p className={tableStyles.message}>불러오는 중입니다…</p>;
+  const columns: DataTableColumn<SubjectResponse>[] = [];
+  if (showCategory) {
+    columns.push({
+      key: "category",
+      header: "분류",
+      width: "180px",
+      render: (subject) => subject.category ?? "",
+    });
   }
-  if (isError) {
-    return (
-      <p className={tableStyles.error} role="alert">
-        {error.message}
-      </p>
-    );
+  columns.push({
+    key: "name",
+    header: "이름",
+    isRowHeader: true,
+    render: (subject) => subject.name,
+  });
+  if (canEdit) {
+    columns.push({
+      key: "actions",
+      header: "",
+      width: "96px",
+      align: "right",
+      isAction: true,
+      render: (subject) => (
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => onSelect(subject.id)}
+        >
+          고치기
+        </Button>
+      ),
+    });
   }
-
-  const showCategory = usesCategories(data.items);
 
   return (
-    <section className={styles.list} aria-label="과목">
-      <div className={tableStyles.tableWrap}>
-        <table className={tableStyles.table} aria-label="과목 목록">
-          <thead>
-            <tr>
-              {showCategory && <th scope="col">분류</th>}
-              <th scope="col">이름</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.items.map((subject) => (
-              <tr
-                key={subject.id}
-                className={tableStyles.row}
-                tabIndex={0}
-                aria-current={subject.id === selectedId ? "true" : undefined}
-                onClick={() => onSelect(subject.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onSelect(subject.id);
-                  }
-                }}
-              >
-                {showCategory && <td>{subject.category ?? ""}</td>}
-                <td>{subject.name}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {data.items.length === 0 && (
-          <p className={tableStyles.message}>
-            등록된 과목이 없습니다. 오른쪽 칸에서 등록해 주세요
-          </p>
+    <Card padding="none">
+      <div className={styles.toolbar}>
+        <div className={styles.headingGroup}>
+          <h2 className={styles.title}>과목 목록</h2>
+          {data && <p className={styles.count}>모두 {rows.length}개</p>}
+        </div>
+        {canEdit && (
+          <Button variant="primary" onClick={onCreate}>
+            과목 등록
+          </Button>
         )}
       </div>
-      <p className={styles.summary}>모두 {data.items.length}개</p>
-    </section>
+
+      <DataTable
+        caption="과목 목록"
+        columns={columns}
+        rows={rows}
+        getRowKey={(subject) => subject.id}
+        selectedKey={selectedId}
+        onRowClick={canEdit ? (subject) => onSelect(subject.id) : undefined}
+        loading={isPending}
+        loadingText="과목 목록을 불러오는 중입니다…"
+        error={isError ? error.message : null}
+        onRetry={() => void refetch()}
+        emptyMessage={
+          canEdit
+            ? "등록된 과목이 없습니다. 오른쪽 위의 과목 등록 버튼으로 등록해 주세요."
+            : "등록된 과목이 없습니다."
+        }
+      />
+    </Card>
   );
 }

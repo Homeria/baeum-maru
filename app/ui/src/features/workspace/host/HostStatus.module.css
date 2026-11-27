@@ -1,18 +1,11 @@
 .status {
   display: flex;
-  gap: var(--space-4);
-  color: var(--color-text-muted);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
 }
 
-.muted {
-  color: var(--color-text-muted);
-}
-
-.ok {
-  color: var(--color-ok);
-}
-
-.bad {
-  color: var(--color-bad);
-  font-weight: 700;
+.version {
+  font-size: var(--font-size-sm);
+  color: var(--color-bar-muted);
 }

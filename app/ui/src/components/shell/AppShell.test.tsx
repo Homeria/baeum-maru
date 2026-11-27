@@ -97,14 +97,19 @@ test("메뉴 접기를 누르면 왼쪽 메뉴가 숨겨지고 메뉴 열기 버
     </AppShell>,
   );
 
-  await user.click(screen.getByRole("button", { name: "메뉴 접기" }));
+  const collapseBefore = screen.getByRole("button", { name: "메뉴 접기" });
+  expect(collapseBefore).toHaveAttribute("title", "메뉴 접기");
+  expect(collapseBefore.querySelector("svg")).not.toBeNull();
+  await user.click(collapseBefore);
 
   expect(
     screen.queryByRole("navigation", { name: "업무 메뉴" }),
   ).not.toBeInTheDocument();
 
   const expandButton = screen.getByRole("button", { name: "메뉴 열기" });
+  expect(expandButton).toHaveAttribute("title", "메뉴 열기");
   expect(expandButton).toHaveAttribute("aria-expanded", "false");
+  expect(expandButton.querySelector("svg")).not.toBeNull();
   await waitFor(() => expect(expandButton).toHaveFocus());
 
   await user.click(expandButton);
