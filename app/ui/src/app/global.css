@@ -1,25 +1,102 @@
-/* [ADR 0012]: 색, 글꼴, 간격은 여기에만 정한다 */
+/* [ADR 0012]: 색, 글꼴, 간격, 높이, 상태 토큰은 여기에만 정한다 */
 :root {
-  --color-bg: #ffffff;
-  --color-surface: #f5f6f8;
-  --color-border: #d4d8de;
-  --color-text: #1f2328;
-  --color-text-muted: #59636e;
-  --color-primary: #1f5fbf;
-  /* 추첨 화면에서 우선 배정 신청을 표시하는 옅은 바탕 */
-  --color-priority-bg: #eaf1fb;
-  --color-ok: #1a7f37;
-  --color-bad: #c62828;
+  color-scheme: light;
 
+  /* 바탕·표면·선 (꾸밈 선과 컨트롤 테두리를 분리해 WCAG 1.4.11 3:1 대비 충족) */
+  --color-bg: #ffffff;
+  --color-page: #f3f5f8;
+  --color-surface: #eef1f5;
+  --color-border: #d0d7e1;
+  --color-border-control: #7a8699;
+
+  /* 글자 */
+  --color-text: #1a1f26;
+  --color-text-muted: #4a5565;
+  --color-text-head: #3d4754;
+  --color-placeholder: #5f6b7a;
+
+  /* 주색·상태 */
+  --color-primary: #1a5bc4;
+  --color-primary-hover: #154ba3;
+  --color-primary-active: #103c85;
+  --color-primary-bg: #e7effc;
+  /* 기존 추첨 화면 CSS 모듈 호환 별칭 */
+  --color-priority-bg: var(--color-primary-bg);
+
+  --color-ok: #17773a;
+  --color-ok-bg: #e6f4ea;
+
+  --color-bad: #b3261e;
+  --color-bad-hover: #931f18;
+  --color-bad-active: #781913;
+  --color-bad-bg: #fcebea;
+
+  /* 선발 결과 '연락할 차례' 전용 */
+  --color-turn: #7a4f00;
+  --color-turn-bg: #fff3d6;
+  --color-turn-line: #b7791f;
+  --color-turn-row: #fff8e6;
+
+  /* 상단 머리띠·로그인 좌측 남색 패널 */
+  --color-bar: #1a2b45;
+  --color-bar-hover: #243859;
+  --color-bar-muted: #c5cfdd;
+
+  /* 상호작용·비활성·오버레이 */
+  --color-control-hover: #f3f6fa;
+  --color-control-active: #e4ebf5;
+  --color-disabled-bg: #eef1f5;
+  --color-disabled-text: #5f6b7a;
+  --color-disabled-border: #c5cdd8;
+  --color-scrim: rgba(26, 43, 69, 0.45);
+
+  /* 키보드 초점 표시 (그림자 비의존) */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --focus-ring: var(--focus-ring-width) solid var(--color-primary);
+
+  /* 글자 크기·줄높이·굵기 (14px 미만 금지, 400·700 2종만 사용) */
   --font-family: "Malgun Gothic", "맑은 고딕", system-ui, sans-serif;
+  --font-size-sm: 14px;
   --font-size: 16px;
   --font-size-lg: 18px;
+  --font-size-title: 20px;
+  --font-size-page-title: 22px;
+  --line-height: 1.5;
+  --font-weight-regular: 400;
+  --font-weight-bold: 700;
 
+  /* 간격·모서리·부품 높이 (2단계: 표준 44px / 표·줄 동작 32px) */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  --space-5: 20px;
   --space-6: 24px;
+  --space-7: 32px;
+  --radius-control: 6px;
+  --radius-card: 8px;
+  --radius-pill: 9999px;
+  --control-min-height: 44px;
+  --row-action-height: 32px;
+}
+
+@media (forced-colors: active) {
+  :root {
+    --color-bg: Canvas;
+    --color-page: Canvas;
+    --color-surface: Canvas;
+    --color-border: CanvasText;
+    --color-border-control: ButtonBorder;
+    --color-text: CanvasText;
+    --color-text-muted: CanvasText;
+    --color-text-head: CanvasText;
+    --color-placeholder: GrayText;
+    --color-primary: Highlight;
+    --color-disabled-text: GrayText;
+    --color-disabled-border: GrayText;
+    --focus-ring: var(--focus-ring-width) solid Highlight;
+  }
 }
 
 *,
@@ -40,4 +117,30 @@ body {
   color: var(--color-text);
   font-family: var(--font-family);
   font-size: var(--font-size);
+  line-height: var(--line-height);
+}
+
+:where(
+  a:any-link,
+  button,
+  input,
+  select,
+  textarea,
+  [tabindex]:not([tabindex="-1"])
+):focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* 화면에는 숨기되 보조 기술(화면 읽기 프로그램)에는 노출 */
+.visually-hidden:where(:not(:focus-within, :active)) {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
 }
