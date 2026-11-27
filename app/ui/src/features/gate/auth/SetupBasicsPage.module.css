@@ -1,0 +1,230 @@
+.subStepBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.subStepNav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.subStepPill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-block-size: 36px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.subStepPill:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.subStepPillActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.subStepPillActive:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: #ffffff;
+}
+
+.subStepPillDone {
+  background: var(--color-ok-tint);
+  border-color: var(--color-ok);
+  color: var(--color-ok);
+}
+
+.subStepPillDone:hover {
+  background: var(--color-ok-tint);
+  color: var(--color-ok);
+}
+
+.subStepArrow {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.subStepHint {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.countBadge {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+}
+
+.cardStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.roomForm {
+  display: grid;
+  grid-template-columns:
+    minmax(120px, 0.9fr) minmax(110px, 0.75fr) minmax(200px, 1.8fr)
+    auto;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.subjectForm {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.85fr) minmax(160px, 1.4fr) auto;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.reasonForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+/* TextField/SelectField 라벨 높이에 맞춰 더하기 버튼을 입력 칸 높이와 수평 정렬한다 */
+.addButtonWrap {
+  padding-block-start: calc(var(--font-size-sm) * 1.4 + var(--space-1));
+}
+
+.tableScroll {
+  max-block-size: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+}
+
+.subjectsGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.presetList,
+.customReasonList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.presetRow,
+.customReasonRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-bg);
+}
+
+.presetRowChecked {
+  border-color: var(--color-primary);
+  background: var(--color-primary-tint);
+}
+
+.customReasonMain {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+.customReasonName {
+  font-size: var(--font-size);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.reasonHint {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.footerBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.footerRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.panelTip {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-control);
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.panelTipTitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: #ffffff;
+}
+
+.panelTipText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-bar-muted);
+  line-height: 1.45;
+}
+
+@media (max-width: 1080px) {
+  .subjectsGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .roomForm,
+  .subjectForm {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .addButtonWrap {
+    padding-block-start: 0;
+  }
+}
+
+@media (max-height: 720px) {
+  .tableScroll {
+    max-block-size: 230px;
+  }
+}
