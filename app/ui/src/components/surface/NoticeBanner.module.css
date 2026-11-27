@@ -1,0 +1,37 @@
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.neutral {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.error {
+  background: var(--color-bad-bg);
+  border-color: var(--color-bad);
+  color: var(--color-bad);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size);
+  font-weight: var(--font-weight-bold);
+}
+
+.message {
+  margin: 0;
+  font-size: var(--font-size);
+}
