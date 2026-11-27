@@ -2,7 +2,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  height: 100%;
 }
 
 .courseBar {
@@ -12,51 +11,86 @@
   gap: var(--space-3);
 }
 
+.courseLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
 .courseSelect {
-  min-width: min(28rem, 100%);
+  flex: 1 1 280px;
+  max-width: 560px;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 600;
+}
+
+.courseSelect:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .board {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  flex: 1;
-  min-height: 0;
 }
 
 .boardHeader {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .courseTitle {
   margin: 0;
-  font-size: 1.6rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.metaGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .meta {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-lg);
+  color: var(--color-muted);
+  font-size: var(--font-size-md);
+  font-weight: 600;
 }
 
-/* 신청자 | 당첨자 | 대기자. 신청자들 앞에서 띄우는 화면이라 글자를 크게 */
+/* 신청자 | 당첨자 | 대기자. 신청자들 앞에서 띄우는 화면이라 글자를 넉넉하게 */
 .columns {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-4);
-  flex: 1;
-  min-height: 0;
-  font-size: 1.15rem;
+}
+
+@media (max-width: 960px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .column {
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  min-height: 360px;
+  max-height: 540px;
   border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
 }
 
 .column[data-shuffling="true"] {
@@ -64,23 +98,51 @@
   box-shadow: 0 0 0 2px var(--color-primary);
 }
 
-.columnTitle {
-  margin: 0;
-  padding: var(--space-3);
+.columnHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border);
-  font-size: var(--font-size-lg);
+  background: var(--color-table-head);
 }
 
-.shuffling {
-  color: var(--color-primary);
+.columnWinnerHeader {
+  background: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.columnTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.columnCount {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+.columnNote {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
 }
 
 .entrantList,
 .numberedList {
-  flex: 1;
+  flex: 1 1 auto;
   margin: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
   overflow-y: auto;
+  font-size: 1.05rem;
 }
 
 .entrantList {
@@ -88,45 +150,58 @@
 }
 
 .numberedList {
-  padding-left: calc(var(--space-3) + 2.2em);
+  padding-left: calc(var(--space-4) + 1.8em);
 }
 
-.entrantList li,
-.numberedList li {
-  padding: var(--space-1) 0;
-}
-
-/* 자리 보장 신청(BR-S4). 눈에 거슬리지 않게 옅은 배경과 작은 글자만 */
-.entrantList li.guaranteed,
-.numberedList li.guaranteed {
+.entrantItem {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  margin: 0 calc(-1 * var(--space-2));
-  padding: var(--space-1) var(--space-2);
-  border-radius: 4px;
-  background: var(--color-priority-bg);
+  padding: var(--space-2) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.guaranteedTag {
-  color: var(--color-primary);
-  font-size: 0.8em;
+.numberedItem {
+  padding: var(--space-2) var(--space-1);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.columnNote {
+.entrantItem:last-child,
+.numberedItem:last-child {
+  border-bottom: 0;
+}
+
+/* 자리 보장 신청(BR-S4). 옅은 파란 바탕과 꼬리표만 표시 */
+.guaranteed {
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+}
+
+.emptyColumn {
   margin: 0;
-  padding: var(--space-2) var(--space-3) 0;
-  color: var(--color-text-muted);
-  font-size: 0.9em;
+  padding: var(--space-4);
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
 }
 
 .controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: var(--space-4);
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.controlLeft {
+  flex: 1 1 240px;
+}
+
+.controlActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .drawButton {
@@ -135,18 +210,7 @@
 
 .hint {
   margin: 0;
-  color: var(--color-text-muted);
-}
-
-.empty {
-  margin: 0 auto;
-  color: var(--color-text-muted);
-  text-align: center;
-}
-
-/* 좁은 창에서는 세 목록을 위아래로 */
-@media (width < 720px) {
-  .columns {
-    grid-template-columns: minmax(0, 1fr);
-  }
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
 }
