@@ -1,10 +1,14 @@
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { RoomResponse } from "../../../api/generated/RoomResponse";
-import { createRoom, deleteRoom, updateRoom } from "./api";
-import { DeleteDialog } from "../../../components/dialog/DeleteDialog";
-import styles from "../../../components/form/form.module.css";
 import { NO_FORM_ERRORS } from "../../../components/form/formErrors";
+import { Drawer } from "../../../components/overlay/Drawer";
+import { ModalDialog } from "../../../components/overlay/ModalDialog";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
+import { SelectField } from "../../../components/ui/SelectField";
+import { TextField } from "../../../components/ui/TextField";
+import { createRoom, deleteRoom, updateRoom } from "./api";
 import { FLOORS, floorLabel } from "./floor";
 import {
   buildingNames,
@@ -17,6 +21,7 @@ import {
   type RoomFormErrors,
   type RoomFormValues,
 } from "./roomFormData";
+import styles from "./RoomsPage.module.css";
 
 const BUILDING_LIST_ID = "room-building-names";
 
@@ -26,35 +31,39 @@ export interface RoomFormProps {
   rooms: readonly RoomResponse[];
   /** 고칠 강의실. 없으면 새 강의실 등록. */
   editing?: RoomResponse;
-  /** 처음에 보여 줄 알림. 예: 강의실을 지운 뒤 등록 칸으로 돌아왔을 때 */
-  initialNotice?: string | null;
-  /** 고치기를 끝내고 등록 칸으로 돌아간다. `notice`는 돌아간 칸에 보여 줄 알림. */
-  onClose: (notice?: string) => void;
+  /** 저장이나 등록을 끝낸 뒤 서랍을 닫으며 알림 문구를 넘긴다. */
+  onSaved: (notice: string) => void;
+  /** 강의실을 지운 뒤 서랍을 닫으며 알림 문구를 넘긴다. */
+  onDeleted?: (notice: string) => void;
+  /** 저장하지 않고 서랍을 닫는다. */
+  onClose: () => void;
 }
 
-/**
- * 강의실 입력 칸. 새 강의실 등록과 강의실 고치기를 함께 맡는다.
- *
- * 등록하면 이름만 비운다. 같은 건물, 같은 층의 강의실을 이어서 넣기 쉽게 건물과 층은 남긴다.
- */
+/** 강의실 등록과 고치기를 맡는 오른쪽 편집 서랍. */
 export function RoomForm({
   rooms,
   editing,
-  initialNotice,
+  onSaved,
+  onDeleted,
   onClose,
 }: RoomFormProps) {
+  const formId = useId();
   const queryClient = useQueryClient();
-  const [values, setValues] = useState<RoomFormValues>(() =>
-    editing
-      ? roomFormValuesFrom(editing)
-      : { name: "", building: lastUsedBuilding(rooms), floor: "" },
-  );
+  const initialValues: RoomFormValues = editing
+    ? roomFormValuesFrom(editing)
+    : { name: "", building: lastUsedBuilding(rooms), floor: "" };
+  const [values, setValues] = useState<RoomFormValues>(() => initialValues);
   const [errors, setErrors] = useState<RoomFormErrors>(NO_FORM_ERRORS);
-  const [notice, setNotice] = useState<string | null>(initialNotice ?? null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null);
   const inputs = useRef<
     Partial<Record<RoomField, HTMLInputElement | HTMLSelectElement | null>>
   >({});
+
+  const isDirty =
+    values.name !== initialValues.name ||
+    values.building !== initialValues.building ||
+    values.floor !== initialValues.floor;
 
   const showErrors = (error: unknown) => {
     const next = roomFormErrorsFrom(error);
@@ -66,8 +75,8 @@ export function RoomForm({
   };
 
   const save = useMutation({
-    mutationFn: (values: RoomFormValues) => {
-      const request = toRoomRequest(values);
+    mutationFn: (nextValues: RoomFormValues) => {
+      const request = toRoomRequest(nextValues);
       return editing
         ? updateRoom(editing.id, request).then((room) => room.name)
         : createRoom(request).then(() => request.name.trim());
@@ -75,13 +84,7 @@ export function RoomForm({
     onSuccess: (name) => {
       void queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setErrors(NO_FORM_ERRORS);
-      if (editing) {
-        setNotice(`저장했습니다: ${name}`);
-      } else {
-        setValues((current) => ({ ...current, name: "" }));
-        setNotice(`등록했습니다: ${name}`);
-        inputs.current.name?.focus();
-      }
+      onSaved(editing ? `저장했습니다: ${name}` : `등록했습니다: ${name}`);
     },
     onError: showErrors,
   });
@@ -90,8 +93,8 @@ export function RoomForm({
     mutationFn: deleteRoom,
     onSuccess: () => {
       setConfirmingDelete(false);
-      onClose(`지웠습니다: ${editing?.name ?? ""}`);
       void queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      (onDeleted ?? onSaved)(`지웠습니다: ${editing?.name ?? ""}`);
     },
     onError: (error) => {
       setConfirmingDelete(false);
@@ -103,12 +106,10 @@ export function RoomForm({
 
   const change = (field: RoomField, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
-    // 고치기 시작한 칸의 오류는 지움
     setErrors((current) => ({
       ...current,
       fields: { ...current.fields, [field]: undefined },
     }));
-    setNotice(null);
   };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -116,95 +117,87 @@ export function RoomForm({
     if (busy) {
       return;
     }
-    setNotice(null);
     save.mutate(values);
   };
 
-  /** 칸 이름표와 오류 문구 사이에 입력 부품을 끼운다. */
-  const field = (
-    name: RoomField,
-    label: string,
-    required: boolean,
-    control: (props: {
-      id: string;
-      "aria-invalid": boolean;
-      "aria-describedby": string | undefined;
-    }) => ReactNode,
-  ) => {
-    const id = `room-${name}`;
-    const errorId = `${id}-error`;
-    const error = errors.fields[name];
-    return (
-      <div className={styles.field}>
-        <label htmlFor={id} className={styles.label}>
-          {label}
-          {required && <span className={styles.required}>필수</span>}
-        </label>
-        {control({
-          id,
-          "aria-invalid": error !== undefined,
-          "aria-describedby": error ? errorId : undefined,
-        })}
-        {error && (
-          <p id={errorId} className={styles.fieldError}>
-            {error}
-          </p>
-        )}
-      </div>
-    );
-  };
-
   return (
-    <form className={styles.form} onSubmit={submit} noValidate>
-      <h2 className={styles.title}>
-        {editing ? "강의실 고치기" : "새 강의실 등록"}
-      </h2>
-
-      {field("name", "이름", true, (props) => (
-        <input
-          {...props}
+    <Drawer
+      open
+      title={editing ? "강의실 고치기" : "새 강의실 등록"}
+      subtitle={
+        editing
+          ? `${editing.building} · ${editing.name}`
+          : "강의실 이름과 건물을 입력해 주세요"
+      }
+      isDirty={isDirty}
+      busy={busy}
+      onClose={onClose}
+      cancelLabel="그만두기"
+      footerLeft={
+        editing ? (
+          <Button
+            variant="danger"
+            disabled={busy}
+            onClick={() => setConfirmingDelete(true)}
+          >
+            지우기
+          </Button>
+        ) : undefined
+      }
+      footerRight={
+        <Button
+          type="submit"
+          form={formId}
+          variant="primary"
+          busy={save.isPending}
+          busyLabel={editing ? "저장하는 중…" : "등록하는 중…"}
+          disabled={remove.isPending}
+        >
+          {editing ? "저장" : "등록"}
+        </Button>
+      }
+    >
+      <form id={formId} className={styles.form} onSubmit={submit} noValidate>
+        <TextField
           ref={(element) => {
             inputs.current.name = element;
           }}
-          className={styles.input}
-          type="text"
+          label="이름"
+          required
           autoComplete="off"
           value={values.name}
           onChange={(event) => change("name", event.target.value)}
+          error={errors.fields.name}
         />
-      ))}
 
-      {field("building", "건물", true, (props) => (
-        <>
-          <input
-            {...props}
+        <div>
+          <TextField
             ref={(element) => {
               inputs.current.building = element;
             }}
-            className={styles.input}
-            type="text"
+            label="건물"
+            required
             autoComplete="off"
             list={BUILDING_LIST_ID}
             value={values.building}
             onChange={(event) => change("building", event.target.value)}
+            error={errors.fields.building}
           />
           <datalist id={BUILDING_LIST_ID}>
             {buildingNames(rooms).map((building) => (
               <option key={building} value={building} />
             ))}
           </datalist>
-        </>
-      ))}
+        </div>
 
-      {field("floor", "층", false, (props) => (
-        <select
-          {...props}
+        <SelectField
           ref={(element) => {
             inputs.current.floor = element;
           }}
-          className={styles.input}
+          label="층"
           value={values.floor}
           onChange={(event) => change("floor", event.target.value)}
+          error={errors.fields.floor}
         >
           <option value="">(층 없음)</option>
           {FLOORS.map((floor) => (
@@ -212,60 +205,47 @@ export function RoomForm({
               {floorLabel(floor)}
             </option>
           ))}
-        </select>
-      ))}
+        </SelectField>
 
-      {errors.form && (
-        <p className={styles.formError} role="alert">
-          {errors.form}
-        </p>
-      )}
-      {notice && (
-        <p className={styles.notice} role="status">
-          {notice}
-        </p>
-      )}
+        {errors.form && <NoticeBanner tone="error" message={errors.form} />}
+      </form>
 
-      <div className={styles.actions}>
-        <button type="submit" className={styles.submit} disabled={busy}>
-          {editing
-            ? save.isPending
-              ? "저장하는 중…"
-              : "저장"
-            : save.isPending
-              ? "등록하는 중…"
-              : "등록"}
-        </button>
-        {editing && (
+      <ModalDialog
+        open={Boolean(editing && confirmingDelete)}
+        size="sm"
+        title={`${editing?.name ?? ""} 강의실을 지울까요?`}
+        busy={remove.isPending}
+        initialFocusRef={cancelDeleteRef}
+        onClose={() => setConfirmingDelete(false)}
+        footer={
           <>
-            <button
-              type="button"
-              className={styles.secondary}
-              onClick={() => onClose()}
-              disabled={busy}
+            <Button
+              ref={cancelDeleteRef}
+              variant="secondary"
+              disabled={remove.isPending}
+              onClick={() => setConfirmingDelete(false)}
             >
-              새 강의실 등록으로
-            </button>
-            <button
-              type="button"
-              className={styles.danger}
-              onClick={() => setConfirmingDelete(true)}
-              disabled={busy}
+              그만두기
+            </Button>
+            <Button
+              variant="dangerSolid"
+              busy={remove.isPending}
+              busyLabel="지우는 중…"
+              onClick={() => {
+                if (editing) {
+                  remove.mutate(editing.id);
+                }
+              }}
             >
               지우기
-            </button>
+            </Button>
           </>
-        )}
-      </div>
-
-      {editing && confirmingDelete && (
-        <DeleteDialog
-          title={`${editing.name} 강의실을 지울까요?`}
-          deleting={remove.isPending}
-          onConfirm={() => remove.mutate(editing.id)}
-          onCancel={() => setConfirmingDelete(false)}
-        />
-      )}
-    </form>
+        }
+      >
+        <p className={styles.confirmText}>
+          지우면 되돌릴 수 없습니다. 계속할까요?
+        </p>
+      </ModalDialog>
+    </Drawer>
   );
 }
