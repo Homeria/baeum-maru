@@ -1,6 +1,7 @@
 # [ADR 0012]: 적어 둔 경로가 바뀐 때만 돌린다. 문서만 고치면 돌지 않는다.
 # [ADR 0020]: just check를 작업 셋(화면, 의존성, Rust)으로 나눠 함께 돌리고, 하나가 실패하면 나머지를 멈춘다.
 # [ADR 0024]: PR에서는 바뀐 파일을 보고 필요한 작업만 돌린다. main push는 셋 다 돌린다.
+#             새 취약점 공지는 코드가 안 바뀌어도 생기므로 Rust 의존성 검사는 주 1회 따로 돌린다.
 name: 앱 검사
 
 on:
@@ -24,6 +25,9 @@ on:
       - ".github/ci/**"
       - "!.github/workflows/site-*.yml"
       - "!**/*.md"
+  # 매주 월요일 09:00 (한국 시각). GitHub는 main의 이 파일로 돌린다
+  schedule:
+    - cron: "0 0 * * 1"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -59,7 +63,10 @@ jobs:
           EVENT: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          if [ "$EVENT" = pull_request ] \
+          if [ "$EVENT" = schedule ]; then
+            echo "정해진 시각 실행이라 Rust 의존성만 검사한다"
+            include=$(.github/ci/pick-checks.sh deps)
+          elif [ "$EVENT" = pull_request ] \
             && git fetch --no-tags --depth=1 origin "$BASE_SHA" \
             && git diff --name-only "$BASE_SHA" HEAD > "$RUNNER_TEMP/changed.txt"; then
             echo "바뀐 파일:"

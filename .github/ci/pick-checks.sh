@@ -2,6 +2,7 @@
 # [ADR 0024]: 바뀐 파일 목록을 받아 돌릴 앱 검사 작업을 고른다.
 # 쓰는 법: git diff --name-only 기준 HEAD | pick-checks.sh   (한 줄에 파일 하나)
 #          pick-checks.sh all                                 (셋 다)
+#          pick-checks.sh deps                                (Rust 의존성만)
 # 출력: check.yml 매트릭스의 include에 넣을 JSON 배열 한 줄
 set -euo pipefail
 
@@ -13,6 +14,8 @@ all() { ui=true; rust=true; deps=true; }
 
 if [ "${1:-}" = all ]; then
   all
+elif [ "${1:-}" = deps ]; then
+  deps=true
 else
   while IFS= read -r file; do
     case "$file" in
