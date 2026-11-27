@@ -1,0 +1,229 @@
+.shell {
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  block-size: 100dvh;
+  overflow: hidden;
+  background: var(--color-page);
+}
+
+.collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  block-size: 100%;
+  background: var(--color-bar);
+  color: #ffffff;
+  overflow: hidden;
+}
+
+.sidebarTop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.brandRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.brand {
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.3;
+}
+
+.collapseButton {
+  min-block-size: var(--row-action-height);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-bar-muted);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.collapseButton:hover {
+  background: var(--color-bar-hover);
+}
+
+.hostStatus {
+  font-size: var(--font-size-sm);
+  color: var(--color-bar-muted);
+}
+
+.nav {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sectionDivided {
+  padding-block-start: var(--space-3);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.sectionLabel {
+  margin: 0;
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-bar-muted);
+}
+
+.navList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  inline-size: 100%;
+  min-block-size: var(--control-min-height);
+  padding: 0 var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: var(--font-size);
+  font-weight: var(--font-weight-regular);
+  text-align: left;
+  cursor: pointer;
+}
+
+.navButton:hover {
+  background: var(--color-bar-hover);
+}
+
+.navActive {
+  background: var(--color-primary);
+  border-color: rgba(255, 255, 255, 0.35);
+  font-weight: var(--font-weight-bold);
+}
+
+.navActive:hover {
+  background: var(--color-primary);
+}
+
+.navLabel {
+  min-inline-size: 0;
+}
+
+.navBadge {
+  flex-shrink: 0;
+}
+
+.sidebarFooter {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  min-block-size: 0;
+  block-size: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-block-size: 64px;
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.headerStatus {
+  display: flex;
+  align-items: center;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.main {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+/* 1280×680 작은 화면에서 작업 영역을 최대한 넓힌다 */
+@media (max-height: 720px) {
+  .shell {
+    grid-template-columns: 204px minmax(0, 1fr);
+  }
+
+  .collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebarTop {
+    padding: var(--space-3);
+  }
+
+  .navButton {
+    min-block-size: 38px;
+  }
+
+  .header {
+    min-block-size: 56px;
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .main {
+    padding: var(--space-4);
+  }
+}
