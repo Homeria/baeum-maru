@@ -68,7 +68,7 @@
   block-size: 36px;
   flex-shrink: 0;
   padding: 0;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border-control);
   border-radius: var(--radius-control);
   background: var(--color-surface);
   color: var(--color-text);
@@ -261,5 +261,36 @@
 
   .main {
     padding: var(--space-4);
+  }
+}
+
+/* 반분할 창(1024px 안팎)에서도 본문 폭을 확보한다 */
+@media (max-width: 1120px) {
+  .shell {
+    grid-template-columns: 196px minmax(0, 1fr);
+  }
+
+  .collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* 넓은 데스크톱 모니터(1600×860 이상)에서 사이드바와 머리띠 비율을 한 단계 넓힌다 */
+@media (min-width: 1600px) and (min-height: 860px) {
+  .shell {
+    grid-template-columns: 248px minmax(0, 1fr);
+  }
+
+  .collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .header {
+    min-block-size: 72px;
+    padding: var(--space-4) var(--space-6);
+  }
+
+  .main {
+    padding: var(--space-6);
   }
 }

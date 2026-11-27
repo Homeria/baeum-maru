@@ -23,7 +23,7 @@
 
 .title {
   margin: 0;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size);
   font-weight: 700;
   color: var(--color-text);
 }
@@ -32,7 +32,7 @@
 .muted {
   margin: 0;
   font-size: var(--font-size-sm);
-  color: var(--color-muted);
+  color: var(--color-text-muted);
   line-height: 1.5;
 }
 
@@ -64,8 +64,8 @@
 }
 
 .dangerCard {
-  border-color: var(--color-danger-border);
-  background: var(--color-danger-bg);
+  border-color: var(--color-bad);
+  background: var(--color-bad-bg);
 }
 
 .dangerRow {
@@ -85,9 +85,9 @@
 
 .dangerTitle {
   margin: 0;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size);
   font-weight: 700;
-  color: var(--color-danger);
+  color: var(--color-bad);
 }
 
 .dialogBody {

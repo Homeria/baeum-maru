@@ -20,10 +20,10 @@
 .courseSelect {
   flex: 1 1 280px;
   max-width: 560px;
-  min-height: var(--control-height);
+  min-height: var(--control-min-height);
   padding: 0 var(--space-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
@@ -31,7 +31,7 @@
 }
 
 .courseSelect:focus-visible {
-  outline: 3px solid var(--color-focus);
+  outline: 3px solid var(--color-primary);
   outline-offset: 2px;
 }
 
@@ -64,8 +64,8 @@
 }
 
 .meta {
-  color: var(--color-muted);
-  font-size: var(--font-size-md);
+  color: var(--color-text-muted);
+  font-size: var(--font-size);
   font-weight: 600;
 }
 
@@ -88,7 +88,7 @@
   min-height: 360px;
   max-height: 540px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
   background: var(--color-surface);
   overflow: hidden;
 }
@@ -105,7 +105,7 @@
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-table-head);
+  background: var(--color-surface);
 }
 
 .columnWinnerHeader {
@@ -116,7 +116,7 @@
 
 .columnTitle {
   margin: 0;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size);
   font-weight: 700;
 }
 
@@ -131,7 +131,7 @@
   padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-bg);
-  color: var(--color-muted);
+  color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   line-height: 1.45;
 }
@@ -174,14 +174,14 @@
 
 /* 자리 보장 신청(BR-S4). 옅은 파란 바탕과 꼬리표만 표시 */
 .guaranteed {
-  border-radius: var(--radius-sm);
-  background: var(--color-primary-soft);
+  border-radius: var(--radius-control);
+  background: var(--color-primary-bg);
 }
 
 .emptyColumn {
   margin: 0;
   padding: var(--space-4);
-  color: var(--color-muted);
+  color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
 
@@ -210,7 +210,7 @@
 
 .hint {
   margin: 0;
-  color: var(--color-muted);
+  color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   line-height: 1.5;
 }

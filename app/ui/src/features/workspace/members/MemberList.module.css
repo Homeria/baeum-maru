@@ -23,7 +23,7 @@
 
 .total {
   margin: 0;
-  color: var(--color-muted);
+  color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   white-space: nowrap;
 }
@@ -42,6 +42,6 @@
 }
 
 .pageInfo {
-  color: var(--color-muted);
+  color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
