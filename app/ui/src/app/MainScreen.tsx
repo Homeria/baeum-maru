@@ -1,20 +1,20 @@
 import { useState } from "react";
-import { Tabs, type TabItem } from "../components/Tabs/Tabs";
-import { ApplicationsPage } from "../features/applications/ApplicationsPage";
-import { CoursesPage } from "../features/courses/CoursesPage";
+import { Tabs, type TabItem } from "../components/tabs/Tabs";
+import { ApplicationsPage } from "../features/workspace/applications/ApplicationsPage";
+import { CoursesPage } from "../features/workspace/courses/CoursesPage";
 import type { Session } from "../api/session";
-import { SignedInStaff } from "../features/auth/SignedInStaff";
-import { ConnectionLostBar } from "../features/changes/ConnectionLostBar";
-import { useChangeNotices } from "../features/changes/useChangeNotices";
-import { DeviceRequestNotice } from "../features/devices/DeviceRequestNotice";
-import { HostStatus } from "../features/host/HostStatus";
-import { MembersPage } from "../features/members/MembersPage";
-import { ReferenceDataPage } from "../features/reference-data/ReferenceDataPage";
-import { SelectionPage } from "../features/selection/SelectionPage";
-import { SelectionResultsPage } from "../features/selection-results/SelectionResultsPage";
-import { can } from "../features/auth/roles";
-import { useIsHostPc } from "../features/run-mode/useRunMode";
-import { StaffAdminPage } from "../features/staff/StaffAdminPage";
+import { SignedInStaff } from "../features/gate/auth/SignedInStaff";
+import { ConnectionLostBar } from "../features/workspace/changes/ConnectionLostBar";
+import { useChangeNotices } from "../features/workspace/changes/useChangeNotices";
+import { DeviceRequestNotice } from "../features/workspace/devices/DeviceRequestNotice";
+import { HostStatus } from "../features/workspace/host/HostStatus";
+import { MembersPage } from "../features/workspace/members/MembersPage";
+import { ReferenceDataPage } from "../features/workspace/reference-data/ReferenceDataPage";
+import { SelectionPage } from "../features/workspace/selection/SelectionPage";
+import { SelectionResultsPage } from "../features/workspace/selection-results/SelectionResultsPage";
+import { can } from "../features/gate/auth/roles";
+import { useIsHostPc } from "../features/gate/run-mode/useRunMode";
+import { StaffAdminPage } from "../features/workspace/staff/StaffAdminPage";
 import styles from "./App.module.css";
 
 type MenuKey =

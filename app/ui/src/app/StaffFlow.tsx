@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchSetupStatus } from "../api/setup";
-import { LockScreen } from "../features/auth/LockScreen";
-import { LoginPage } from "../features/auth/LoginPage";
-import { RecoveryCodeNotice } from "../features/auth/RecoveryCodeNotice";
-import { RecoveryPage } from "../features/auth/RecoveryPage";
-import { SetupPage } from "../features/auth/SetupPage";
-import { useIdleLock } from "../features/auth/useIdleLock";
-import { useSession } from "../features/auth/useSession";
-import { RunModeSwitch } from "../features/run-mode/RunModeSwitch";
-import { useRunMode } from "../features/run-mode/useRunMode";
+import { fetchSetupStatus } from "../features/gate/auth/setupApi";
+import { LockScreen } from "../features/gate/auth/LockScreen";
+import { LoginPage } from "../features/gate/auth/LoginPage";
+import { RecoveryCodeNotice } from "../features/gate/auth/RecoveryCodeNotice";
+import { RecoveryPage } from "../features/gate/auth/RecoveryPage";
+import { SetupPage } from "../features/gate/auth/SetupPage";
+import { useIdleLock } from "../features/gate/auth/useIdleLock";
+import { useSession } from "../features/gate/auth/useSession";
+import { RunModeSwitch } from "../features/gate/run-mode/RunModeSwitch";
+import { useRunMode } from "../features/gate/run-mode/useRunMode";
 import formStyles from "../components/form/form.module.css";
 import { MainScreen } from "./MainScreen";
 

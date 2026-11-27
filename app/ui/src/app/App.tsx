@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { startupState } from "../api/startup";
-import { BrokenDbPage } from "../features/broken-db/BrokenDbPage";
-import { StartupProblemPage } from "../features/broken-db/StartupProblemPage";
-import { HandedOverPage } from "../features/handover/HandedOverPage";
-import { HandingOverPage } from "../features/handover/HandingOverPage";
-import { RemoteGate } from "../features/remote/RemoteGate";
-import { ChooseRunModePage } from "../features/run-mode/ChooseRunModePage";
-import { useRunMode } from "../features/run-mode/useRunMode";
+import { startupState } from "../features/gate/broken-db/api";
+import { BrokenDbPage } from "../features/gate/broken-db/BrokenDbPage";
+import { StartupProblemPage } from "../features/gate/broken-db/StartupProblemPage";
+import { HandedOverPage } from "../features/gate/handover/HandedOverPage";
+import { HandingOverPage } from "../features/gate/handover/HandingOverPage";
+import { RemoteGate } from "../features/gate/remote/RemoteGate";
+import { ChooseRunModePage } from "../features/gate/run-mode/ChooseRunModePage";
+import { useRunMode } from "../features/gate/run-mode/useRunMode";
 import formStyles from "../components/form/form.module.css";
 import { StaffFlow } from "./StaffFlow";
 
