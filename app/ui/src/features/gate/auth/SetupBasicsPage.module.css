@@ -20,7 +20,7 @@
   min-block-size: 36px;
   padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border-control);
   background: var(--color-bg);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
@@ -46,13 +46,13 @@
 }
 
 .subStepPillDone {
-  background: var(--color-ok-tint);
+  background: var(--color-ok-bg);
   border-color: var(--color-ok);
   color: var(--color-ok);
 }
 
 .subStepPillDone:hover {
-  background: var(--color-ok-tint);
+  background: var(--color-ok-bg);
   color: var(--color-ok);
 }
 
@@ -145,7 +145,7 @@
 
 .presetRowChecked {
   border-color: var(--color-primary);
-  background: var(--color-primary-tint);
+  background: var(--color-primary-bg);
 }
 
 .customReasonMain {

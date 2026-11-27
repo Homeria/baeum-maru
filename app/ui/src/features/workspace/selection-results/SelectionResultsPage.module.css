@@ -69,7 +69,7 @@
 }
 
 .courseButton[aria-current="true"] {
-  background: var(--color-primary-soft);
+  background: var(--color-primary-bg);
   box-shadow: inset 3px 0 0 var(--color-primary);
 }
 
@@ -87,7 +87,7 @@
 
 .courseButtonMeta {
   font-size: var(--font-size-sm);
-  color: var(--color-muted);
+  color: var(--color-text-muted);
 }
 
 .emptyWrap {
@@ -124,7 +124,7 @@
 }
 
 .meta {
-  color: var(--color-muted);
+  color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   font-weight: 600;
 }
@@ -154,7 +154,7 @@
   min-height: 280px;
   max-height: 540px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
   background: var(--color-surface);
   overflow: hidden;
 }
@@ -166,7 +166,7 @@
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-table-head);
+  background: var(--color-surface);
 }
 
 .columnWinnerHeader {
@@ -177,7 +177,7 @@
 
 .columnTitle {
   margin: 0;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size);
   font-weight: 700;
 }
 
@@ -201,7 +201,7 @@
 .emptyColumn {
   margin: 0;
   padding: var(--space-4);
-  color: var(--color-muted);
+  color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
 
@@ -211,14 +211,14 @@
   gap: var(--space-2);
   padding: var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--color-surface);
 }
 
 /* 연락할 차례(BR-W1). 노란 강조 바탕은 이 상태에만 쓴다 */
 .turn {
   background: var(--color-turn-bg);
-  border-color: var(--color-turn-border);
+  border-color: var(--color-turn-line);
 }
 
 /* 이름 검색과 맞는 줄 */
@@ -236,7 +236,7 @@
 .waitNumber {
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: var(--color-muted);
+  color: var(--color-text-muted);
 }
 
 .name {
@@ -250,7 +250,7 @@
 }
 
 .small {
-  color: var(--color-muted);
+  color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
 
@@ -283,7 +283,7 @@
   gap: var(--space-3);
   margin: 0;
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--color-bg);
   font-size: 1.3rem;
   font-weight: 700;
@@ -291,8 +291,8 @@
 }
 
 .dialogMemberNo {
-  color: var(--color-muted);
-  font-size: var(--font-size-md);
+  color: var(--color-text-muted);
+  font-size: var(--font-size);
   font-weight: 400;
 }
 
@@ -318,7 +318,7 @@
 
 .dialogSectionTitle {
   margin: 0;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size);
   font-weight: 700;
   color: var(--color-text);
 }
@@ -365,6 +365,6 @@
 
 .exportHint {
   margin: 0;
-  color: var(--color-muted);
+  color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }

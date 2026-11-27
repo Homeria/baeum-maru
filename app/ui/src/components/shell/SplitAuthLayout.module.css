@@ -47,7 +47,7 @@
   align-items: center;
   padding: 2px var(--space-3);
   border-radius: var(--radius-pill);
-  background: var(--color-primary-tint);
+  background: var(--color-primary-bg);
   color: var(--color-primary);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
@@ -137,7 +137,7 @@
 
 .stepDescription {
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-normal);
+  font-weight: var(--font-weight-regular);
   color: var(--color-bar-muted);
   line-height: 1.4;
 }

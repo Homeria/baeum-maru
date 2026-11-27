@@ -16,7 +16,7 @@
 
 .title {
   margin: 0;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size);
   font-weight: 700;
   color: var(--color-text);
 }
@@ -24,7 +24,7 @@
 .count {
   margin: 0;
   font-size: var(--font-size-sm);
-  color: var(--color-muted);
+  color: var(--color-text-muted);
 }
 
 .scheduleLines {
