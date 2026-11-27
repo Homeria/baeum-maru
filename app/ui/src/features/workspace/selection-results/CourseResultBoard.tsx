@@ -1,18 +1,22 @@
-import { useId, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ResultMemberResponse } from "../../../api/generated/ResultMemberResponse";
+import {
+  NO_FORM_ERRORS,
+  formErrorsFrom,
+  type FormErrors,
+} from "../../../components/form/formErrors";
+import { Card } from "../../../components/surface/Card";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
+import { SearchInput } from "../../../components/ui/SearchInput";
+import { StatusPill } from "../../../components/ui/StatusPill";
 import {
   correctWithdrawal,
   getCourseResult,
   recordContact,
   withdraw,
 } from "./api";
-import formStyles from "../../../components/form/form.module.css";
-import {
-  NO_FORM_ERRORS,
-  formErrorsFrom,
-  type FormErrors,
-} from "../../../components/form/formErrors";
 import {
   ChangeDialog,
   type ChangeChoice,
@@ -31,18 +35,15 @@ import styles from "./SelectionResultsPage.module.css";
 /** {@link CourseResultBoard}의 속성. */
 export interface CourseResultBoardProps {
   courseId: number;
-  /** 화면 위에 보여 줄 강좌 이름. 예: 요가 초급 */
+  /** 화면 위에 보여 줄 강좌 이름. 예: 서예 초급 1반 */
   courseName: string;
 }
 
 /**
- * 마감한 강좌 하나의 선발 결과. 당첨자, 대기자, 포기 세 칸이다.
+ * 마감한 강좌 하나의 선발 결과 보드. 당첨자(파란 머리줄), 대기자(가장 넓음), 포기 세 칸이다.
  *
- * 대기자 칸은 대기 순번 순서이고, 빈자리가 있으면 연락할 차례인 대기자를 옅은 바탕으로
- * 강조한다(BR-W1). 연락처는 연락할 수 있는 역할에게만 온다(BR-W2).
- * 이름 검색 칸은 전화 온 회원을 찾아 그 줄에 테두리를 두른다.
- *
- * 관리자·직원은 줄마다 포기와 연락 결과 버튼이, 관리자는 포기 칸에 바로잡기 버튼이 있다.
+ * 대기자 칸은 대기 순번 순서이고, 빈자리가 있으면 연락할 차례인 대기자를 노란 바탕과
+ * "연락할 차례" 꼬리표로 강조한다(BR-W1). 연락처는 연락할 수 있는 역할에게만 온다(BR-W2).
  */
 export function CourseResultBoard({
   courseId,
@@ -53,7 +54,6 @@ export function CourseResultBoard({
     queryFn: () => getCourseResult(courseId),
   });
   const [query, setQuery] = useState("");
-  const searchId = useId();
   const queryClient = useQueryClient();
   const [asking, setAsking] = useState<ChangeRequest | null>(null);
   const [errors, setErrors] = useState<FormErrors<"reason">>(NO_FORM_ERRORS);
@@ -92,137 +92,202 @@ export function CourseResultBoard({
   });
 
   if (result.isPending) {
-    return <p className={formStyles.loading}>결과를 불러오는 중입니다…</p>;
+    return <NoticeBanner message="결과를 불러오는 중입니다…" />;
   }
   if (result.isError) {
     return (
-      <p className={formStyles.formError} role="alert">
-        {result.error.message}
-      </p>
+      <NoticeBanner
+        tone="error"
+        message={result.error.message}
+        actionLabel="다시 해 보기"
+        onAction={() => void result.refetch()}
+      />
     );
   }
 
   const data = result.data;
   const matchClass = (matched: boolean) => (matched ? styles.match : "");
-  const button = (label: string, request: ChangeRequest) => (
-    <button
-      type="button"
-      className={styles.entryButton}
-      onClick={() => open(request)}
-    >
-      {label}
-    </button>
-  );
 
   return (
     <section className={styles.board} aria-label={`${courseName} 선발 결과`}>
-      <header className={styles.boardHeader}>
-        <h2 className={styles.courseTitle}>{courseName}</h2>
-        <span className={styles.meta}>
-          정원 {data.capacity}명 · {openSeatsLabel(data.openSeats)}
-        </span>
-        <label htmlFor={searchId} className={formStyles.label}>
-          회원 찾기
-        </label>
-        <input
-          id={searchId}
-          className={`${formStyles.input} ${styles.search}`}
-          type="search"
-          autoComplete="off"
-          placeholder="이름이나 회원번호"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </header>
-      {notice && (
-        <p className={`${formStyles.notice} ${styles.notice}`} role="status">
-          {notice}
-        </p>
-      )}
+      <Card>
+        <div className={styles.boardHeader}>
+          <div className={styles.boardTitleGroup}>
+            <h2 className={styles.courseTitle}>{courseName}</h2>
+            <span className={styles.meta}>정원 {data.capacity}명</span>
+            <StatusPill tone={data.openSeats > 0 ? "primary" : "neutral"}>
+              {openSeatsLabel(data.openSeats)}
+            </StatusPill>
+          </div>
+          <SearchInput
+            label="회원 찾기"
+            hideLabel
+            placeholder="이름이나 회원번호로 찾기"
+            value={query}
+            onChange={setQuery}
+            className={styles.searchInput}
+          />
+        </div>
+      </Card>
+
+      {notice && <NoticeBanner message={notice} />}
 
       <div className={styles.columns}>
-        <Column title="당첨자" count={data.selected.length}>
+        <Column
+          title="당첨자"
+          count={data.selected.length}
+          highlightHeader
+          emptyText="당첨자가 없습니다."
+        >
           {data.selected.map((entry) => (
             <li
               key={entry.member.applicationId}
-              className={`${styles.entry} ${matchClass(matchesQuery(entry.member, query))}`}
+              className={[
+                styles.entry,
+                matchClass(matchesQuery(entry.member, query)),
+              ]
+                .filter(Boolean)
+                .join(" ")}
             >
-              <span className={styles.name}>{memberLabel(entry.member)}</span>
-              {entry.guaranteed && <span className={styles.tag}>우선</span>}
-              {entry.waitlistNumber !== null && (
-                <span className={styles.small}>
-                  대기 {entry.waitlistNumber}번에서 승격
-                </span>
-              )}
+              <div className={styles.entryMain}>
+                <span className={styles.name}>{memberLabel(entry.member)}</span>
+                {entry.guaranteed && (
+                  <StatusPill tone="primary">우선</StatusPill>
+                )}
+                {entry.waitlistNumber !== null && (
+                  <StatusPill tone="ok">
+                    대기 {entry.waitlistNumber}번에서 승격
+                  </StatusPill>
+                )}
+              </div>
               {data.canRecord && (
-                <span className={styles.entryActions}>
-                  {button("포기", {
-                    kind: "withdraw",
-                    member: entry.member,
-                    from: "당첨",
-                  })}
-                </span>
+                <div className={styles.entryActionsEnd}>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() =>
+                      open({
+                        kind: "withdraw",
+                        member: entry.member,
+                        from: "당첨",
+                      })
+                    }
+                  >
+                    포기
+                  </Button>
+                </div>
               )}
             </li>
           ))}
         </Column>
 
-        <Column title="대기자" count={data.waitlisted.length}>
+        <Column
+          title="대기자"
+          count={data.waitlisted.length}
+          emptyText="대기자가 없습니다."
+        >
           {data.waitlisted.map((entry) => (
             <li
               key={entry.member.applicationId}
-              className={`${styles.entry} ${entry.contactTurn ? styles.turn : ""} ${matchClass(matchesQuery(entry.member, query))}`}
+              className={[
+                styles.entry,
+                entry.contactTurn ? styles.turn : "",
+                matchClass(matchesQuery(entry.member, query)),
+              ]
+                .filter(Boolean)
+                .join(" ")}
             >
-              <span className={styles.small}>{entry.waitlistNumber}번</span>
-              <span className={styles.name}>{memberLabel(entry.member)}</span>
-              {entry.phoneNumber !== null && <span>{entry.phoneNumber}</span>}
-              {entry.contactTurn && (
-                <span className={styles.tag}>연락할 차례</span>
-              )}
-              {entry.lastContact !== null && (
-                <span className={styles.small}>
-                  {CONTACT_LABELS[entry.lastContact]}
+              <div className={styles.entryMain}>
+                <span className={styles.waitNumber}>
+                  {entry.waitlistNumber}번
                 </span>
-              )}
+                <span className={styles.name}>{memberLabel(entry.member)}</span>
+                {entry.phoneNumber !== null && (
+                  <span className={styles.phone}>{entry.phoneNumber}</span>
+                )}
+                {entry.contactTurn && (
+                  <StatusPill tone="turn">연락할 차례</StatusPill>
+                )}
+                {entry.lastContact !== null && (
+                  <StatusPill tone="neutral">
+                    {CONTACT_LABELS[entry.lastContact]}
+                  </StatusPill>
+                )}
+              </div>
               {data.canRecord && (
-                <span className={styles.entryActions}>
-                  {button("연락 결과", {
-                    kind: "contact",
-                    member: entry.member,
-                    phoneNumber: entry.phoneNumber,
-                    waitlistNumber: entry.waitlistNumber,
-                  })}
-                  {button("포기", {
-                    kind: "withdraw",
-                    member: entry.member,
-                    from: "대기",
-                  })}
-                </span>
+                <div className={styles.entryActions}>
+                  <Button
+                    size="sm"
+                    variant={entry.contactTurn ? "primary" : "secondary"}
+                    onClick={() =>
+                      open({
+                        kind: "contact",
+                        member: entry.member,
+                        phoneNumber: entry.phoneNumber,
+                        waitlistNumber: entry.waitlistNumber,
+                      })
+                    }
+                  >
+                    연락 결과
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() =>
+                      open({
+                        kind: "withdraw",
+                        member: entry.member,
+                        from: "대기",
+                      })
+                    }
+                  >
+                    포기
+                  </Button>
+                </div>
               )}
             </li>
           ))}
         </Column>
 
-        <Column title="포기" count={data.withdrawn.length}>
+        <Column
+          title="포기"
+          count={data.withdrawn.length}
+          emptyText="포기한 회원이 없습니다."
+        >
           {data.withdrawn.map((entry) => (
             <li
               key={entry.member.applicationId}
-              className={`${styles.entry} ${matchClass(matchesQuery(entry.member, query))}`}
+              className={[
+                styles.entry,
+                matchClass(matchesQuery(entry.member, query)),
+              ]
+                .filter(Boolean)
+                .join(" ")}
             >
-              <span className={styles.name}>{memberLabel(entry.member)}</span>
-              <span className={styles.small}>
-                {WITHDRAWN_FROM_LABELS[entry.withdrawnFrom]}
-                {entry.waitlistNumber !== null &&
-                  ` (대기 ${entry.waitlistNumber}번)`}
-              </span>
-              {data.canCorrect && (
-                <span className={styles.entryActions}>
-                  {button("바로잡기", {
-                    kind: "correct",
-                    member: entry.member,
-                    restoreTo: restoreLabel(entry),
-                  })}
+              <div className={styles.entryMain}>
+                <span className={styles.name}>{memberLabel(entry.member)}</span>
+                <span className={styles.small}>
+                  {WITHDRAWN_FROM_LABELS[entry.withdrawnFrom]}
+                  {entry.waitlistNumber !== null &&
+                    ` (대기 ${entry.waitlistNumber}번)`}
                 </span>
+              </div>
+              {data.canCorrect && (
+                <div className={styles.entryActionsEnd}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() =>
+                      open({
+                        kind: "correct",
+                        member: entry.member,
+                        restoreTo: restoreLabel(entry),
+                      })
+                    }
+                  >
+                    바로잡기
+                  </Button>
+                </div>
               )}
             </li>
           ))}
@@ -284,17 +349,37 @@ const DONE: Record<DoneKey, string> = {
 interface ColumnProps {
   title: string;
   count: number;
+  highlightHeader?: boolean;
+  emptyText: string;
   children: ReactNode;
 }
 
-/** 세 칸 가운데 하나. 제목에 인원을 붙인다. */
-function Column({ title, count, children }: ColumnProps) {
+/** 세 칸 가운데 하나. 제목과 인원을 보여 준다. */
+function Column({
+  title,
+  count,
+  highlightHeader = false,
+  emptyText,
+  children,
+}: ColumnProps) {
   return (
     <section className={styles.column} aria-label={title}>
-      <h3 className={styles.columnTitle}>
-        {title} ({count}명)
-      </h3>
-      <ul className={styles.list}>{children}</ul>
+      <div
+        className={[
+          styles.columnHeader,
+          highlightHeader ? styles.columnWinnerHeader : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <h3 className={styles.columnTitle}>{title}</h3>
+        <span className={styles.columnCount}>{count}명</span>
+      </div>
+      {count === 0 ? (
+        <p className={styles.emptyColumn}>{emptyText}</p>
+      ) : (
+        <ul className={styles.list}>{children}</ul>
+      )}
     </section>
   );
 }
