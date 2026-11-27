@@ -1,7 +1,57 @@
 import { useId, useRef, useState, type ReactNode } from "react";
-import { Button } from "../ui/Button";
 import { BottomAlertStack, type BottomAlertItem } from "./BottomAlertStack";
 import styles from "./AppShell.module.css";
+
+function SidebarToggleIcon({
+  direction,
+}: {
+  direction: "collapse" | "expand";
+}) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+    >
+      <rect
+        x="2.25"
+        y="3.25"
+        width="15.5"
+        height="13.5"
+        rx="2.25"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <line
+        x1="7.25"
+        y1="3.5"
+        x2="7.25"
+        y2="16.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      {direction === "collapse" ? (
+        <path
+          d="M13.25 7.5L10.75 10L13.25 12.5"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : (
+        <path
+          d="M11 7.5L13.5 10L11 12.5"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+    </svg>
+  );
+}
 
 /** 왼쪽 메뉴 항목 하나. */
 export interface AppShellNavItem<K extends string> {
@@ -110,11 +160,13 @@ export function AppShell<K extends string>({
                 ref={collapseButtonRef}
                 type="button"
                 className={styles.collapseButton}
+                aria-label="메뉴 접기"
+                title="메뉴 접기"
                 aria-expanded="true"
                 aria-controls={navId}
                 onClick={() => setCollapsed(true)}
               >
-                메뉴 접기
+                <SidebarToggleIcon direction="collapse" />
               </button>
             </div>
             {hostStatus && (
@@ -175,16 +227,18 @@ export function AppShell<K extends string>({
         <header className={styles.header}>
           <div className={styles.headerLeft}>
             {isCollapsed && (
-              <Button
+              <button
                 ref={expandButtonRef}
-                size="sm"
-                variant="secondary"
+                type="button"
+                className={styles.expandButton}
+                aria-label="메뉴 열기"
+                title="메뉴 열기"
                 aria-expanded="false"
                 aria-controls={navId}
                 onClick={() => setCollapsed(false)}
               >
-                메뉴 열기
-              </Button>
+                <SidebarToggleIcon direction="expand" />
+              </button>
             )}
             <h1 className={styles.pageTitle}>{pageTitle}</h1>
             {headerStatus && (
