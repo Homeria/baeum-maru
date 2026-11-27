@@ -8,8 +8,8 @@ import {
   formErrorsFrom,
   type FormErrors,
 } from "../../components/form/formErrors";
-import authStyles from "../auth/auth.module.css";
-import { pinConfirmError } from "../auth/pinConfirm";
+import authStyles from "../gate/auth/auth.module.css";
+import { pinConfirmError } from "../gate/auth/pinConfirm";
 
 type PinField = "pin" | "pinConfirm";
 

@@ -7,7 +7,7 @@ import type { CourseResponse } from "../../api/generated/CourseResponse";
 import type { PriorityReasonResponse } from "../../api/generated/PriorityReasonResponse";
 import type { RuleViolationResponse } from "../../api/generated/RuleViolationResponse";
 import formStyles from "../../components/form/form.module.css";
-import { useCan } from "../auth/useCan";
+import { useCan } from "../gate/auth/useCan";
 import { courseName } from "../courses/courseFormData";
 import {
   priorityRequests,

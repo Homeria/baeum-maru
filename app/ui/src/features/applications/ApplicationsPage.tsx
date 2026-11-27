@@ -11,13 +11,13 @@ import { listRooms } from "../../api/rooms";
 import { listClosedCourses } from "../../api/selectionResults";
 import { listTerms } from "../../api/terms";
 import formStyles from "../../components/form/form.module.css";
-import { ViewOnlyNotice } from "../auth/ViewOnlyNotice";
+import { ViewOnlyNotice } from "../gate/auth/ViewOnlyNotice";
 import { MemberList } from "../members/MemberList";
 import { hasSeveralBuildings } from "../rooms/roomFormData";
 import { TermBar } from "../terms/TermBar";
 import { currentTerm } from "../terms/termFormData";
 import { todayText } from "../../lib/dates";
-import { useCan } from "../auth/useCan";
+import { useCan } from "../gate/auth/useCan";
 import { countsByCourse, stagesByCourse } from "../courses/courseStatusData";
 import {
   additionalByCourse,

@@ -20,7 +20,7 @@ import {
   secondLocationWarning,
 } from "./backupData";
 import styles from "./BackupPanel.module.css";
-import { HandoverDialog } from "../handover/HandoverDialog";
+import { HandoverDialog } from "../gate/handover/HandoverDialog";
 import { RestoreDialog } from "./RestoreDialog";
 
 const QUERY_KEY = ["backups"] as const;

@@ -14,7 +14,7 @@ import { getMember } from "../../api/members";
 import { ConfirmDialog } from "../../components/dialog/ConfirmDialog";
 import formStyles from "../../components/form/form.module.css";
 import tableStyles from "../../components/table/table.module.css";
-import { useCan } from "../auth/useCan";
+import { useCan } from "../gate/auth/useCan";
 import { courseName, scheduleSummary } from "../courses/courseFormData";
 import { RULE_LABELS, toggleId } from "./applicationsData";
 import { DeleteApplicationDialog } from "./DeleteApplicationDialog";

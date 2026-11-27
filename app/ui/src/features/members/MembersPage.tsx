@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useCan } from "../auth/useCan";
-import { ViewOnlyNotice } from "../auth/ViewOnlyNotice";
+import { useCan } from "../gate/auth/useCan";
+import { ViewOnlyNotice } from "../gate/auth/ViewOnlyNotice";
 import { MemberEditor } from "./MemberEditor";
 import { MemberForm } from "./MemberForm";
 import { MemberList } from "./MemberList";

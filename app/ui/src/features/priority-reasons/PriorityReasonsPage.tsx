@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listPriorityReasons } from "../../api/priorityReasons";
 import formStyles from "../../components/form/form.module.css";
 import styles from "../../components/layout/listPage.module.css";
-import { useCan } from "../auth/useCan";
+import { useCan } from "../gate/auth/useCan";
 import { PriorityReasonForm } from "./PriorityReasonForm";
 import { PriorityReasonList } from "./PriorityReasonList";
 

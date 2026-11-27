@@ -2,7 +2,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import type { StaffListResponse } from "../../api/generated/StaffListResponse";
 import styles from "../../components/layout/listPage.module.css";
 import tableStyles from "../../components/table/table.module.css";
-import { ROLE_LABELS } from "../auth/roles";
+import { ROLE_LABELS } from "../gate/auth/roles";
 import { todayText } from "../../lib/dates";
 import { staffStatusLabel } from "./staffFormData";
 

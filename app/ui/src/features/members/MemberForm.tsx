@@ -2,7 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createMember, deleteMember, updateMember } from "../../api/members";
 import { DeleteDialog } from "../../components/dialog/DeleteDialog";
-import { useCan } from "../auth/useCan";
+import { useCan } from "../gate/auth/useCan";
 import type { Gender } from "../../api/generated/Gender";
 import type { MemberResponse } from "../../api/generated/MemberResponse";
 import {

@@ -5,9 +5,9 @@ import type { StaffResponse } from "../../api/generated/StaffResponse";
 import { createStaff, updateStaff } from "../../api/staff";
 import styles from "../../components/form/form.module.css";
 import { NO_FORM_ERRORS } from "../../components/form/formErrors";
-import authStyles from "../auth/auth.module.css";
-import { pinConfirmError } from "../auth/pinConfirm";
-import { ROLE_LABELS } from "../auth/roles";
+import authStyles from "../gate/auth/auth.module.css";
+import { pinConfirmError } from "../gate/auth/pinConfirm";
+import { ROLE_LABELS } from "../gate/auth/roles";
 import {
   EMPTY_STAFF_FORM,
   ROLE_DESCRIPTIONS,

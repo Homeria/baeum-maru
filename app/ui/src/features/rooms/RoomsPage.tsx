@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useCan } from "../auth/useCan";
-import { ViewOnlyNotice } from "../auth/ViewOnlyNotice";
+import { useCan } from "../gate/auth/useCan";
+import { ViewOnlyNotice } from "../gate/auth/ViewOnlyNotice";
 import { useQuery } from "@tanstack/react-query";
 import { listRooms } from "../../api/rooms";
 import formStyles from "../../components/form/form.module.css";

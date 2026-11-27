@@ -5,7 +5,7 @@ import type { DeviceResponse } from "../../api/generated/DeviceResponse";
 import { ConfirmDialog } from "../../components/dialog/ConfirmDialog";
 import tableStyles from "../../components/table/table.module.css";
 import { formatOccurredAt } from "../access-logs/accessLogData";
-import { useIsHostPc } from "../run-mode/useRunMode";
+import { useIsHostPc } from "../gate/run-mode/useRunMode";
 import { DeviceRequestList } from "./DeviceRequestList";
 import styles from "./devices.module.css";
 import { useOpenRequestCount } from "./useOpenRequestCount";

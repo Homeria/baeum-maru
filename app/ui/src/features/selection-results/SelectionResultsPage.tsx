@@ -5,7 +5,7 @@ import { listClosedCourses } from "../../api/selectionResults";
 import { listTerms } from "../../api/terms";
 import formStyles from "../../components/form/form.module.css";
 import tableStyles from "../../components/table/table.module.css";
-import { useCan } from "../auth/useCan";
+import { useCan } from "../gate/auth/useCan";
 import { courseName } from "../courses/courseFormData";
 import { TermBar } from "../terms/TermBar";
 import { currentTerm } from "../terms/termFormData";
