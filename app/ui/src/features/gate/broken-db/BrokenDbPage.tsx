@@ -1,17 +1,21 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { pickBackupFile } from "../../../api/appCommands";
-import type { RestoreSource } from "../../workspace/backups/api";
 import type { RestorePreviewResponse } from "../../../api/generated/RestorePreviewResponse";
 import type { StartupStateResponse } from "../../../api/generated/StartupStateResponse";
-import { previewBrokenDbBackup, restoreBrokenDb } from "./api";
-import styles from "../../../components/form/form.module.css";
-import authStyles from "../auth/auth.module.css";
+import { SplitAuthLayout } from "../../../components/shell/SplitAuthLayout";
+import { Card } from "../../../components/surface/Card";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
+import { SelectField } from "../../../components/ui/SelectField";
+import type { RestoreSource } from "../../workspace/backups/api";
 import {
   BACKUP_KIND_LABELS,
   formatTakenAt,
   previewLines,
 } from "../../workspace/backups/backupData";
+import authStyles from "../auth/auth.module.css";
+import { previewBrokenDbBackup, restoreBrokenDb } from "./api";
 
 /** {@link BrokenDbPage}의 속성. */
 export interface BrokenDbPageProps {
@@ -79,87 +83,87 @@ export function BrokenDbPage({ startup }: BrokenDbPageProps) {
   const failure = restore.error ?? choose.error;
 
   return (
-    <div className={authStyles.page}>
-      <section className={`${styles.form} ${authStyles.card}`}>
-        <h2 className={styles.title}>데이터 파일이 손상되었습니다</h2>
-        <p className={authStyles.intro}>
-          정전이나 디스크 문제로 데이터 파일을 읽을 수 없습니다. 백업으로
-          되돌리면 다시 쓸 수 있습니다. 손상된 파일은 데이터 폴더에 남겨 둡니다.
-        </p>
-
+    <SplitAuthLayout
+      panelTitle="데이터 복원"
+      panelDescription="백업으로 되돌려도 손상된 기존 파일은 데이터 폴더에 그대로 남겨 둡니다."
+      cardTitle="데이터 파일이 손상되었습니다"
+      cardSubtitle="정전이나 디스크 문제로 데이터 파일을 읽을 수 없습니다. 백업으로 되돌리면 다시 쓸 수 있습니다."
+      cardWidth="lg"
+    >
+      <div className={authStyles.stack}>
         {chosen === null ? (
-          <p className={authStyles.warning} role="alert">
-            쓸 수 있는 백업을 찾지 못했습니다. 두 번째 위치나 USB에 있는 백업
-            파일을 골라 주세요.
-          </p>
+          <NoticeBanner
+            tone="error"
+            message="쓸 수 있는 백업을 찾지 못했습니다. 두 번째 위치나 USB에 있는 백업 파일을 골라 주세요."
+          />
         ) : (
-          <div className={authStyles.stack}>
-            <p className={authStyles.intro}>
-              {chosen.suggested
+          <Card
+            headingLevel={3}
+            title={
+              chosen.suggested
                 ? "가장 최근 정상 백업으로 되돌릴까요?"
-                : "이 백업으로 되돌릴까요?"}
-            </p>
-            <ul className={authStyles.steps}>
-              {previewLines(chosen.preview).map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-            <div className={styles.actions}>
-              <button
-                type="button"
-                className={styles.submit}
-                disabled={busy}
-                onClick={() => restore.mutate(chosen.source)}
-              >
-                {restore.isPending ? "되돌리는 중…" : "되돌리기"}
-              </button>
+                : "이 백업으로 되돌릴까요?"
+            }
+          >
+            <div className={authStyles.stack}>
+              <ul className={authStyles.steps}>
+                {previewLines(chosen.preview).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+              <div className={authStyles.actions}>
+                <Button
+                  variant="primary"
+                  disabled={busy}
+                  busy={restore.isPending}
+                  busyLabel="되돌리는 중…"
+                  onClick={() => restore.mutate(chosen.source)}
+                >
+                  되돌리기
+                </Button>
+              </div>
             </div>
-          </div>
+          </Card>
         )}
 
         {failure !== null && (
-          <p className={styles.formError} role="alert">
-            {failure.message}
-          </p>
+          <NoticeBanner tone="error" message={failure.message} />
         )}
 
         {startup.backups.length > 0 && (
-          <div className={styles.field}>
-            <label htmlFor="broken-db-backup" className={styles.label}>
-              다른 백업 고르기
-            </label>
-            <select
-              id="broken-db-backup"
-              className={styles.input}
-              disabled={busy}
-              value=""
-              onChange={(event) => {
-                if (event.target.value !== "") {
-                  choose.mutate({ fileName: event.target.value });
-                }
-              }}
-            >
-              <option value="">백업 목록에서 고르기</option>
-              {startup.backups.map((backup) => (
-                <option key={backup.fileName} value={backup.fileName}>
-                  {formatTakenAt(backup.takenAt)} ·{" "}
-                  {BACKUP_KIND_LABELS[backup.kind]}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.secondary}
+          <SelectField
+            id="broken-db-backup"
+            label="다른 백업 고르기"
             disabled={busy}
+            value=""
+            onChange={(event) => {
+              if (event.target.value !== "") {
+                choose.mutate({ fileName: event.target.value });
+              }
+            }}
+          >
+            <option value="">백업 목록에서 고르기</option>
+            {startup.backups.map((backup) => (
+              <option key={backup.fileName} value={backup.fileName}>
+                {formatTakenAt(backup.takenAt)} ·{" "}
+                {BACKUP_KIND_LABELS[backup.kind]}
+              </option>
+            ))}
+          </SelectField>
+        )}
+
+        <div className={authStyles.actions}>
+          <Button
+            variant="secondary"
+            disabled={busy}
+            busy={choose.isPending}
+            busyLabel="확인하는 중…"
             onClick={() => choose.mutate("pick")}
           >
             다른 곳의 백업 파일 고르기
-          </button>
+          </Button>
         </div>
-      </section>
-    </div>
+      </div>
+    </SplitAuthLayout>
   );
 }

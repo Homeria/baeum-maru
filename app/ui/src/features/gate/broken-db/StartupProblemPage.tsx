@@ -1,6 +1,6 @@
 import type { StartupStateCode } from "../../../api/generated/StartupStateCode";
-import styles from "../../../components/form/form.module.css";
-import authStyles from "../auth/auth.module.css";
+import { SplitAuthLayout } from "../../../components/shell/SplitAuthLayout";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
 
 /** 복원해도 소용없는 문제의 제목과 안내. */
 const MESSAGES: Record<
@@ -26,13 +26,12 @@ export interface StartupProblemPageProps {
 export function StartupProblemPage({ state }: StartupProblemPageProps) {
   const message = MESSAGES[state];
   return (
-    <div className={authStyles.page}>
-      <section className={`${styles.form} ${authStyles.card}`}>
-        <h2 className={styles.title}>{message.title}</h2>
-        <p className={authStyles.intro} role="alert">
-          {message.body}
-        </p>
-      </section>
-    </div>
+    <SplitAuthLayout
+      panelTitle="시작할 수 없음"
+      panelDescription="데이터 손상을 막기 위해 앱을 열지 않았습니다. 아래 안내를 확인한 뒤 다시 켜 주세요."
+      cardTitle={message.title}
+    >
+      <NoticeBanner tone="error" message={message.body} />
+    </SplitAuthLayout>
   );
 }
