@@ -1,4 +1,36 @@
-/* 수업 시간 줄. 칸이 많아 좁으면 강의실과 빼기는 다음 줄로 넘긴다. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.hint,
+.empty {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+  line-height: 1.45;
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
 .rows {
   display: flex;
   flex-direction: column;
@@ -10,43 +42,54 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2);
+  padding: var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--color-bg);
 }
 
 .rowNumber {
   min-width: 1.5em;
-  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-muted);
   text-align: right;
 }
 
+.control {
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+}
+
+.control:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
 .room {
-  flex: 1;
-  min-width: 8em;
+  flex: 1 1 120px;
+}
+
+.addButton {
+  align-self: flex-start;
 }
 
 .errors {
   margin: 0;
   padding-left: var(--space-4);
-  color: var(--color-bad);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
 }
 
-/* 칸 아래 도움말 */
-.hint,
-.empty {
+.confirmText {
   margin: 0;
-  color: var(--color-text-muted);
-}
-
-/* 숫자 칸 뒤에 단위. 예: [ 20 ] 명 */
-.withUnit {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.number {
-  width: 8em;
+  color: var(--color-text);
+  line-height: 1.5;
 }

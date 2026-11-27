@@ -1,10 +1,12 @@
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useRef, useState, type FormEvent, type RefObject } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { TermResponse } from "../../../api/generated/TermResponse";
-import { createTerm, deleteTerm, updateTerm } from "./api";
-import { DeleteDialog } from "../../../components/dialog/DeleteDialog";
-import styles from "../../../components/form/form.module.css";
 import { NO_FORM_ERRORS } from "../../../components/form/formErrors";
+import { ModalDialog } from "../../../components/overlay/ModalDialog";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
+import { TextField } from "../../../components/ui/TextField";
+import { createTerm, deleteTerm, updateTerm } from "./api";
 import {
   EMPTY_TERM_FORM,
   firstErrorField,
@@ -15,6 +17,7 @@ import {
   type TermFormErrors,
   type TermFormValues,
 } from "./termFormData";
+import styles from "./TermForm.module.css";
 
 /** {@link TermForm}의 속성. */
 export interface TermFormProps {
@@ -26,6 +29,8 @@ export interface TermFormProps {
   onDeleted?: (notice: string) => void;
   /** 그만둔다. 없으면 "그만두기"를 보여 주지 않는다 (학기가 하나도 없을 때). */
   onCancel?: () => void;
+  /** 대화상자 안에서 열릴 때 처음 초점을 둘 이름 칸 참조. */
+  nameInputRef?: RefObject<HTMLInputElement | null>;
 }
 
 /** 학기 입력 칸. 새 학기 등록과 학기 고치기·지우기를 함께 맡는다. */
@@ -34,6 +39,7 @@ export function TermForm({
   onSaved,
   onDeleted,
   onCancel,
+  nameInputRef,
 }: TermFormProps) {
   const queryClient = useQueryClient();
   const [values, setValues] = useState<TermFormValues>(() =>
@@ -41,6 +47,7 @@ export function TermForm({
   );
   const [errors, setErrors] = useState<TermFormErrors>(NO_FORM_ERRORS);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null);
   const inputs = useRef<Partial<Record<TermField, HTMLInputElement | null>>>(
     {},
   );
@@ -55,8 +62,8 @@ export function TermForm({
   };
 
   const save = useMutation({
-    mutationFn: (values: TermFormValues) => {
-      const request = toTermRequest(values);
+    mutationFn: (nextValues: TermFormValues) => {
+      const request = toTermRequest(nextValues);
       return editing
         ? updateTerm(editing.id, request)
         : createTerm(request).then(({ id }) => ({
@@ -88,7 +95,6 @@ export function TermForm({
 
   const change = (field: TermField, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
-    // 고치기 시작한 칸의 오류는 지움
     setErrors((current) => ({
       ...current,
       fields: { ...current.fields, [field]: undefined },
@@ -103,124 +109,116 @@ export function TermForm({
     save.mutate(values);
   };
 
-  /** 칸 이름표와 오류 문구 사이에 입력 부품을 끼운다. */
-  const field = (
-    name: TermField,
-    label: string,
-    control: (props: {
-      id: string;
-      "aria-invalid": boolean;
-      "aria-describedby": string | undefined;
-    }) => ReactNode,
-  ) => {
-    const id = `term-${name}`;
-    const errorId = `${id}-error`;
-    const error = errors.fields[name];
-    return (
-      <div className={styles.field}>
-        <label htmlFor={id} className={styles.label}>
-          {label}
-          <span className={styles.required}>필수</span>
-        </label>
-        {control({
-          id,
-          "aria-invalid": error !== undefined,
-          "aria-describedby": error ? errorId : undefined,
-        })}
-        {error && (
-          <p id={errorId} className={styles.fieldError}>
-            {error}
-          </p>
-        )}
-      </div>
-    );
-  };
-
-  const dateInput = (name: "startsOn" | "endsOn") =>
-    field(name, name === "startsOn" ? "시작일" : "종료일", (props) => (
-      <input
-        {...props}
-        ref={(element) => {
-          inputs.current[name] = element;
-        }}
-        className={styles.input}
-        type="date"
-        value={values[name]}
-        onChange={(event) => change(name, event.target.value)}
-      />
-    ));
-
   return (
     <form className={styles.form} onSubmit={submit} noValidate>
-      <h2 className={styles.title}>
-        {editing ? "학기 고치기" : "새 학기 등록"}
-      </h2>
+      <TextField
+        ref={(element) => {
+          inputs.current.name = element;
+          if (nameInputRef) {
+            nameInputRef.current = element;
+          }
+        }}
+        label="이름"
+        required
+        autoComplete="off"
+        placeholder="예: 2027년 1학기"
+        value={values.name}
+        onChange={(event) => change("name", event.target.value)}
+        error={errors.fields.name}
+      />
 
-      {field("name", "이름", (props) => (
-        <input
-          {...props}
-          ref={(element) => {
-            inputs.current.name = element;
-          }}
-          className={styles.input}
-          type="text"
-          autoComplete="off"
-          placeholder="예: 2027년 1학기"
-          // 창이 뜨면 바로 이름부터 쓰게
-          autoFocus
-          value={values.name}
-          onChange={(event) => change("name", event.target.value)}
-        />
-      ))}
-      {dateInput("startsOn")}
-      {dateInput("endsOn")}
+      <TextField
+        ref={(element) => {
+          inputs.current.startsOn = element;
+        }}
+        label="시작일"
+        type="date"
+        required
+        value={values.startsOn}
+        onChange={(event) => change("startsOn", event.target.value)}
+        error={errors.fields.startsOn}
+      />
 
-      {errors.form && (
-        <p className={styles.formError} role="alert">
-          {errors.form}
-        </p>
-      )}
+      <TextField
+        ref={(element) => {
+          inputs.current.endsOn = element;
+        }}
+        label="종료일"
+        type="date"
+        required
+        value={values.endsOn}
+        onChange={(event) => change("endsOn", event.target.value)}
+        error={errors.fields.endsOn}
+      />
+
+      {errors.form && <NoticeBanner tone="error" message={errors.form} />}
 
       <div className={styles.actions}>
-        <button type="submit" className={styles.submit} disabled={busy}>
-          {editing
-            ? save.isPending
-              ? "저장하는 중…"
-              : "저장"
-            : save.isPending
-              ? "등록하는 중…"
-              : "등록"}
-        </button>
-        {onCancel && (
-          <button
-            type="button"
-            className={styles.secondary}
-            onClick={onCancel}
-            disabled={busy}
+        <div className={styles.actionsLeft}>
+          {editing && (
+            <Button
+              variant="danger"
+              disabled={busy}
+              onClick={() => setConfirmingDelete(true)}
+            >
+              지우기
+            </Button>
+          )}
+        </div>
+        <div className={styles.actionsRight}>
+          {onCancel && (
+            <Button variant="secondary" disabled={busy} onClick={onCancel}>
+              그만두기
+            </Button>
+          )}
+          <Button
+            type="submit"
+            variant="primary"
+            busy={save.isPending}
+            busyLabel={editing ? "저장하는 중…" : "등록하는 중…"}
+            disabled={remove.isPending}
           >
-            그만두기
-          </button>
-        )}
-        {editing && (
-          <button
-            type="button"
-            className={styles.danger}
-            onClick={() => setConfirmingDelete(true)}
-            disabled={busy}
-          >
-            지우기
-          </button>
-        )}
+            {editing ? "저장" : "등록"}
+          </Button>
+        </div>
       </div>
 
-      {editing && confirmingDelete && (
-        <DeleteDialog
-          title={`${editing.name}을(를) 지울까요?`}
-          deleting={remove.isPending}
-          onConfirm={() => remove.mutate(editing.id)}
-          onCancel={() => setConfirmingDelete(false)}
-        />
-      )}
+      <ModalDialog
+        open={Boolean(editing && confirmingDelete)}
+        size="sm"
+        title={`${editing?.name ?? ""}을(를) 지울까요?`}
+        busy={remove.isPending}
+        initialFocusRef={cancelDeleteRef}
+        onClose={() => setConfirmingDelete(false)}
+        footer={
+          <>
+            <Button
+              ref={cancelDeleteRef}
+              variant="secondary"
+              disabled={remove.isPending}
+              onClick={() => setConfirmingDelete(false)}
+            >
+              그만두기
+            </Button>
+            <Button
+              variant="dangerSolid"
+              busy={remove.isPending}
+              busyLabel="지우는 중…"
+              onClick={() => {
+                if (editing) {
+                  remove.mutate(editing.id);
+                }
+              }}
+            >
+              지우기
+            </Button>
+          </>
+        }
+      >
+        <p className={styles.confirmText}>
+          지우면 되돌릴 수 없습니다. 계속할까요?
+        </p>
+      </ModalDialog>
     </form>
   );
 }

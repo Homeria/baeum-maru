@@ -1,0 +1,38 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.headingGroup {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.count {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+
+.scheduleLines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scheduleLine {
+  white-space: nowrap;
+}
