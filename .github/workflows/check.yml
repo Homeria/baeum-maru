@@ -1,6 +1,8 @@
 # [ADR 0012]: 적어 둔 경로가 바뀐 때만 돌린다. 문서만 고치면 돌지 않는다.
 # [ADR 0020]: just check를 작업 셋(화면, 의존성, Rust)으로 나눠 함께 돌리고, 하나가 실패하면 나머지를 멈춘다.
-name: 검사
+# [ADR 0024]: PR에서는 바뀐 파일을 보고 화면·Rust 중 필요한 작업만 돌린다.
+#             main push는 셋 다 돌린다. Rust 의존성 검사는 main에서만 돈다.
+name: 앱 검사
 
 on:
   pull_request:
@@ -10,6 +12,7 @@ on:
       - ".node-version"
       - "justfile"
       - ".github/workflows/**"
+      - ".github/ci/**"
       - "!.github/workflows/site-*.yml"
       - "!**/*.md"
   push:
@@ -19,6 +22,7 @@ on:
       - ".node-version"
       - "justfile"
       - ".github/workflows/**"
+      - ".github/ci/**"
       - "!.github/workflows/site-*.yml"
       - "!**/*.md"
 
@@ -34,26 +38,51 @@ env:
   TAURI_PACKAGES: libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
 jobs:
-  # 검사 셋을 매트릭스로 묶어 함께 돌린다. 하나가 실패하면 나머지는 취소한다(fail-fast).
+  # 바뀐 파일로 돌릴 작업을 고른다. 파일 이름 검사는 저장소 전체를 보므로 여기서 늘 돌린다.
+  changes:
+    name: 바뀐 파일·파일 이름
+    runs-on: ubuntu-24.04
+    outputs:
+      include: ${{ steps.pick.outputs.include }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - run: just check-names
+
+      # PR이 아니거나 바뀐 파일을 읽지 못하면 셋 다 돌린다. 덜 검사하는 쪽으로 틀리지 않게 한다.
+      - name: 돌릴 작업 고르기
+        id: pick
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT" = pull_request ] \
+            && git fetch --no-tags --depth=1 origin "$BASE_SHA" \
+            && git diff --name-only "$BASE_SHA" HEAD > "$RUNNER_TEMP/changed.txt"; then
+            echo "바뀐 파일:"
+            cat "$RUNNER_TEMP/changed.txt"
+            include=$(.github/ci/pick-checks.sh < "$RUNNER_TEMP/changed.txt")
+          else
+            echo "바뀐 파일을 보지 않고 셋 다 돌린다 (이벤트: $EVENT)"
+            include=$(.github/ci/pick-checks.sh all)
+          fi
+          echo "돌릴 작업: $include"
+          echo "include=$include" >> "$GITHUB_OUTPUT"
+
+  # 고른 작업을 매트릭스로 묶어 함께 돌린다. 하나가 실패하면 나머지는 취소한다(fail-fast).
   check:
     name: ${{ matrix.name }}
+    needs: changes
+    if: needs.changes.outputs.include != '[]'
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: true
       matrix:
-        include:
-          - kind: ui
-            name: 화면
-            tools: just
-            recipes: check-names check-ui
-          - kind: deps
-            name: 의존성
-            tools: just,cargo-deny
-            recipes: check-deps
-          - kind: rust
-            name: Rust
-            tools: just
-            recipes: check-rust check-bindings
+        include: ${{ fromJSON(needs.changes.outputs.include) }}
     steps:
       - uses: actions/checkout@v7
 
