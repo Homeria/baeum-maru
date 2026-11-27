@@ -1,6 +1,17 @@
 import { useState } from "react";
-import styles from "../../../components/form/form.module.css";
+import {
+  SplitAuthLayout,
+  type SplitAuthStep,
+} from "../../../components/shell/SplitAuthLayout";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
+import { Checkbox } from "../../../components/ui/Checkbox";
 import authStyles from "./auth.module.css";
+
+const RECOVERY_STEPS: readonly SplitAuthStep[] = [
+  { label: "관리자 계정 만들기", status: "done" },
+  { label: "복구 코드 보관", status: "current" },
+];
 
 /** {@link RecoveryCodeNotice}의 속성. */
 export interface RecoveryCodeNoticeProps {
@@ -20,18 +31,14 @@ export function RecoveryCodeNotice({ code, onDone }: RecoveryCodeNoticeProps) {
   const issuedOn = new Date().toLocaleDateString("ko-KR");
 
   return (
-    <div className={authStyles.page}>
-      <section
-        className={`${styles.form} ${authStyles.card} ${authStyles.sheet}`}
-        aria-labelledby="recovery-code-title"
-      >
-        <h2 id="recovery-code-title" className={styles.title}>
-          배움마루 복구 코드
-        </h2>
-        <p className={authStyles.intro}>
-          관리자가 PIN을 잊었을 때 이 코드로 PIN을 다시 정합니다.
-        </p>
-
+    <SplitAuthLayout
+      panelTitle="처음 설정"
+      panelDescription="관리자가 PIN을 잊었을 때 이 코드로 PIN을 다시 정할 수 있습니다."
+      steps={RECOVERY_STEPS}
+      cardTitle="배움마루 복구 코드"
+      cardSubtitle="관리자가 PIN을 잊었을 때 이 코드로 PIN을 다시 정합니다."
+    >
+      <section className={`${authStyles.stack} ${authStyles.sheet}`}>
         <p className={authStyles.code} aria-label={`복구 코드 ${code}`}>
           {code}
         </p>
@@ -40,44 +47,33 @@ export function RecoveryCodeNotice({ code, onDone }: RecoveryCodeNoticeProps) {
           만든 날: {issuedOn}. 한 번 쓰면 새 코드가 나오고 이 코드는 못 씁니다.
         </p>
         <ol className={`${authStyles.steps} ${authStyles.printOnly}`}>
-          <li>로그인 화면에서 "PIN을 잊었어요"를 누릅니다.</li>
+          <li>로그인 화면에서 &quot;PIN을 잊었어요&quot;를 누릅니다.</li>
           <li>관리자 이름을 고르고 이 코드와 새 PIN을 넣습니다.</li>
         </ol>
 
         <div className={`${authStyles.stack} ${authStyles.noPrint}`}>
-          <p className={authStyles.warning}>
-            이 코드는 지금만 보입니다. 인쇄하거나 적어서 다른 사람이 보지 않는
-            곳(서랍, 금고 등)에 두세요.
-          </p>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.secondary}
-              onClick={() => window.print()}
-            >
+          <NoticeBanner
+            tone="error"
+            title="이 코드는 지금만 보입니다"
+            message="인쇄하거나 적어서 다른 사람이 보지 않는 곳(서랍, 금고 등)에 두세요."
+          />
+
+          <Checkbox
+            label="인쇄하거나 적어 두었습니다"
+            checked={kept}
+            onChange={(event) => setKept(event.target.checked)}
+          />
+
+          <div className={authStyles.actionsBetween}>
+            <Button variant="secondary" onClick={() => window.print()}>
               인쇄
-            </button>
-          </div>
-          <label className={styles.choice}>
-            <input
-              type="checkbox"
-              checked={kept}
-              onChange={(event) => setKept(event.target.checked)}
-            />
-            인쇄하거나 적어 두었습니다
-          </label>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.submit}
-              disabled={!kept}
-              onClick={onDone}
-            >
+            </Button>
+            <Button variant="primary" disabled={!kept} onClick={onDone}>
               다음
-            </button>
+            </Button>
           </div>
         </div>
       </section>
-    </div>
+    </SplitAuthLayout>
   );
 }
