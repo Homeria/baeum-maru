@@ -7,6 +7,7 @@ import { Drawer } from "../../../components/overlay/Drawer";
 import { NoticeBanner } from "../../../components/surface/NoticeBanner";
 import { Button } from "../../../components/ui/Button";
 import { Checkbox } from "../../../components/ui/Checkbox";
+import { DateField } from "../../../components/ui/DateField";
 import { SelectField } from "../../../components/ui/SelectField";
 import { TextField } from "../../../components/ui/TextField";
 import { pinConfirmError } from "../../gate/auth/pinConfirm";
@@ -195,16 +196,16 @@ export function StaffForm({
           ))}
         </SelectField>
 
-        <TextField
+        <DateField
           ref={(element) => {
             inputs.current.validUntil = element;
           }}
           label="유효기간"
-          type="date"
           required={values.role === "temp_staff"}
-          hint="이날까지 로그인할 수 있습니다. 비우면 기한 없음."
+          placeholder="예: 2027-06-30"
+          hint="이날까지 로그인할 수 있습니다. 숫자 8자리 입력, 비우면 기한 없음."
           value={values.validUntil}
-          onChange={(event) => change("validUntil", event.target.value)}
+          onChange={(value) => change("validUntil", value)}
           error={errors.fields.validUntil}
         />
 

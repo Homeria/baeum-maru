@@ -109,6 +109,48 @@
   color: var(--color-text);
 }
 
+.dateWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.dateInputWithPicker {
+  padding-inline-end: 42px;
+}
+
+.datePickerButton {
+  position: absolute;
+  inset-inline-end: var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 32px;
+  min-block-size: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.datePickerButton:hover {
+  background: var(--color-control-hover);
+  color: var(--color-text);
+}
+
+/* showPicker() 팝업 기준 위치를 잡되 키보드 초점과 화면에서는 숨긴다 */
+.datePickerProxy {
+  position: absolute;
+  inset-inline-end: var(--space-1);
+  inset-block-end: 0;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .choiceRow {
   display: flex;
   align-items: flex-start;

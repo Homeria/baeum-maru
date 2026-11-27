@@ -7,6 +7,7 @@ import { Drawer } from "../../../components/overlay/Drawer";
 import { ModalDialog } from "../../../components/overlay/ModalDialog";
 import { NoticeBanner } from "../../../components/surface/NoticeBanner";
 import { Button } from "../../../components/ui/Button";
+import { DateField } from "../../../components/ui/DateField";
 import { Radio } from "../../../components/ui/Radio";
 import { TextField } from "../../../components/ui/TextField";
 import { useCan } from "../../gate/auth/useCan";
@@ -202,15 +203,14 @@ export function MemberForm({
           error={errors.fields.phoneNumber}
         />
 
-        <TextField
+        <DateField
           ref={(element) => {
             inputs.current.birthDate = element;
           }}
           label="생년월일"
-          type="date"
-          autoComplete="off"
+          placeholder="예: 1955-03-15"
           value={values.birthDate}
-          onChange={(event) => change("birthDate", event.target.value)}
+          onChange={(value) => change("birthDate", value)}
           error={errors.fields.birthDate}
         />
 

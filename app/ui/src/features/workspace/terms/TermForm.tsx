@@ -5,6 +5,7 @@ import { NO_FORM_ERRORS } from "../../../components/form/formErrors";
 import { ModalDialog } from "../../../components/overlay/ModalDialog";
 import { NoticeBanner } from "../../../components/surface/NoticeBanner";
 import { Button } from "../../../components/ui/Button";
+import { DateField } from "../../../components/ui/DateField";
 import { TextField } from "../../../components/ui/TextField";
 import { createTerm, deleteTerm, updateTerm } from "./api";
 import {
@@ -127,27 +128,29 @@ export function TermForm({
         error={errors.fields.name}
       />
 
-      <TextField
+      <DateField
         ref={(element) => {
           inputs.current.startsOn = element;
         }}
         label="시작일"
-        type="date"
         required
+        placeholder="예: 2027-03-02"
+        hint="숫자 8자리 입력 (예: 2027-03-02)"
         value={values.startsOn}
-        onChange={(event) => change("startsOn", event.target.value)}
+        onChange={(value) => change("startsOn", value)}
         error={errors.fields.startsOn}
       />
 
-      <TextField
+      <DateField
         ref={(element) => {
           inputs.current.endsOn = element;
         }}
         label="종료일"
-        type="date"
         required
+        placeholder="예: 2027-06-30"
+        hint="숫자 8자리 입력 (예: 2027-06-30)"
         value={values.endsOn}
-        onChange={(event) => change("endsOn", event.target.value)}
+        onChange={(value) => change("endsOn", value)}
         error={errors.fields.endsOn}
       />
 
