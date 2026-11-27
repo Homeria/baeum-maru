@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { abortHandover, handoverFile, saveHandoverFile } from "./api";
-import formStyles from "../../../components/form/form.module.css";
+import { SplitAuthLayout } from "../../../components/shell/SplitAuthLayout";
+import { Card } from "../../../components/surface/Card";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
 import authStyles from "../auth/auth.module.css";
+import { abortHandover, handoverFile, saveHandoverFile } from "./api";
 import { fileLines } from "./handoverData";
 
 /**
@@ -34,67 +37,64 @@ export function HandingOverPage() {
   const failure = save.error ?? abort.error;
 
   return (
-    <div className={authStyles.page}>
-      <section className={`${formStyles.form} ${authStyles.card}`}>
-        <h2 className={formStyles.title}>호스트 넘기기</h2>
-        <p className={authStyles.intro}>
-          다른 PC는 지금 이 PC에 접속할 수 없습니다. 넘기기 파일을 USB 같은 곳에
-          저장한 뒤, 새 호스트 PC에서 [넘겨받은 파일로 호스트 시작]을 눌러
-          주세요.
-        </p>
+    <SplitAuthLayout
+      panelTitle="호스트 넘기기"
+      panelDescription="다른 PC는 지금 이 PC에 접속할 수 없습니다. 넘기기 파일을 USB에 저장해 새 호스트 PC로 옮겨 주세요."
+      cardTitle="호스트 넘기기"
+      cardSubtitle="넘기기 파일을 저장한 뒤 새 호스트 PC에서 [넘겨받은 파일로 호스트 시작]을 눌러 주세요."
+    >
+      <div className={authStyles.stack}>
         {file.isPending && (
-          <p className={authStyles.hint}>넘기기 파일을 확인하는 중…</p>
+          <NoticeBanner message="넘기기 파일을 확인하는 중…" />
         )}
         {file.isError && (
-          <p className={formStyles.formError} role="alert">
-            {file.error.message}
-          </p>
+          <NoticeBanner tone="error" message={file.error.message} />
         )}
         {file.data !== undefined && (
-          <ul className={authStyles.hint} aria-label="넘기기 파일">
-            {fileLines(file.data).map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
+          <Card headingLevel={3} title="넘기기 파일 내용">
+            <ul className={authStyles.steps} aria-label="넘기기 파일">
+              {fileLines(file.data).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </Card>
         )}
+
         {failure !== null ? (
-          <p className={formStyles.formError} role="alert">
-            {failure.message}
-          </p>
+          <NoticeBanner tone="error" message={failure.message} />
         ) : (
-          notice !== null && (
-            <p className={authStyles.hint} role="status">
-              {notice}
-            </p>
-          )
+          notice !== null && <NoticeBanner message={notice} />
         )}
-        <div className={formStyles.actions}>
-          <button
-            type="button"
-            className={formStyles.secondary}
+
+        <div className={authStyles.actionsBetween}>
+          <Button
+            variant="secondary"
             disabled={busy}
+            busy={abort.isPending}
+            busyLabel="돌아가는 중…"
             onClick={() => {
               setNotice(null);
               abort.mutate();
             }}
           >
-            {abort.isPending ? "돌아가는 중…" : "넘기지 않고 돌아가기"}
-          </button>
+            넘기지 않고 돌아가기
+          </Button>
           {file.data !== undefined && (
-            <button
-              type="button"
-              className={formStyles.submit}
+            <Button
+              variant="primary"
               disabled={busy}
+              busy={save.isPending}
+              busyLabel="저장하는 중…"
               onClick={() => {
                 setNotice(null);
                 save.mutate();
               }}
             >
-              {save.isPending ? "저장하는 중…" : "넘기기 파일 저장"}
-            </button>
+              넘기기 파일 저장
+            </Button>
           )}
         </div>
-      </section>
-    </div>
+      </div>
+    </SplitAuthLayout>
   );
 }
