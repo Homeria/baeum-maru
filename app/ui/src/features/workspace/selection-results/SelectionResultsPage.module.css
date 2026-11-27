@@ -2,154 +2,278 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  height: 100%;
 }
 
-/* 왼쪽은 마감한 강좌, 오른쪽은 고른 강좌의 결과 */
+.topRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.termSlot {
+  flex: 1 1 360px;
+}
+
+.exportAction {
+  display: flex;
+  align-items: center;
+  padding-top: var(--space-3);
+}
+
+/* 왼쪽: 세로 스크롤 마감 강좌 목록 / 오른쪽: 고른 강좌의 결과 보드 */
 .content {
   display: grid;
-  grid-template-columns: minmax(16rem, 1fr) minmax(0, 3fr);
-  gap: var(--space-6);
-  flex: 1;
-  min-height: 0;
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
 }
 
-.courses {
+@media (max-width: 1080px) {
+  .content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.courseList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  min-height: 0;
+  max-height: 600px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.hint,
-.empty {
-  margin: var(--space-4);
-  color: var(--color-text-muted);
+.courseItem + .courseItem {
+  border-top: 1px solid var(--color-border);
+}
+
+.courseButton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  inline-size: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.courseButton:hover {
+  background: var(--color-bg);
+}
+
+.courseButton[aria-current="true"] {
+  background: var(--color-primary-soft);
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.courseButtonTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.courseButtonName {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.courseButtonMeta {
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+
+.emptyWrap {
+  padding: var(--space-4);
 }
 
 .board {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  min-height: 0;
+  gap: var(--space-4);
+  min-width: 0;
 }
 
 .boardHeader {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.boardTitleGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
 }
 
 .courseTitle {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--color-text);
 }
 
 .meta {
-  color: var(--color-text-muted);
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
 }
 
-.search {
-  margin-left: auto;
-  min-width: 14rem;
+.searchInput {
+  flex: 0 1 260px;
+  min-width: 200px;
 }
 
-/* 당첨자 | 대기자 | 포기 */
+/* 당첨자 | 대기자(가장 넓게) | 포기 */
 .columns {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr) minmax(0, 0.9fr);
   gap: var(--space-4);
-  flex: 1;
-  min-height: 0;
+  align-items: start;
+}
+
+@media (max-width: 1180px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .column {
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  min-height: 280px;
+  max-height: 540px;
   border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.columnHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-table-head);
+}
+
+.columnWinnerHeader {
+  background: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  color: #ffffff;
 }
 
 .columnTitle {
   margin: 0;
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--color-border);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.columnCount {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  opacity: 0.9;
 }
 
 .list {
-  flex: 1;
+  flex: 1 1 auto;
   margin: 0;
   padding: var(--space-2);
   overflow-y: auto;
   list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.emptyColumn {
+  margin: 0;
+  padding: var(--space-4);
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
 }
 
 .entry {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-3);
-  padding: var(--space-2);
-  border-radius: 4px;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
 }
 
-.entry + .entry {
-  border-top: 1px solid var(--color-border);
-}
-
-/* 연락할 차례(BR-W1). 옅은 바탕으로만 */
+/* 연락할 차례(BR-W1). 노란 강조 바탕은 이 상태에만 쓴다 */
 .turn {
-  background: var(--color-priority-bg);
+  background: var(--color-turn-bg);
+  border-color: var(--color-turn-border);
 }
 
 /* 이름 검색과 맞는 줄 */
 .match {
-  outline: 2px solid var(--color-primary);
-  outline-offset: -2px;
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.entryMain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.waitNumber {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-muted);
 }
 
 .name {
   font-weight: 700;
+  color: var(--color-text);
+}
+
+.phone {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
 }
 
 .small {
-  color: var(--color-text-muted);
-  font-size: 0.9em;
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
 }
 
-.tag {
-  color: var(--color-primary);
-  font-size: 0.85em;
-}
-
-/* 줄 끝의 처리 버튼 */
 .entryActions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-2);
-  margin-left: auto;
 }
 
-.entryButton {
-  padding: var(--space-1) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: var(--color-bg);
-  color: var(--color-text);
-  font: inherit;
-  font-size: 0.9em;
-  cursor: pointer;
+.entryActionsEnd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 
-.entryButton:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-.notice {
-  margin: 0;
+.dialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 /* 창 위쪽의 회원. 전화 받으며 보는 곳이라 크게 */
@@ -157,56 +281,90 @@
   display: flex;
   align-items: baseline;
   gap: var(--space-3);
-  margin: 0 0 var(--space-3);
-  font-size: 1.5rem;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-size: 1.3rem;
   font-weight: 700;
+  color: var(--color-text);
 }
 
 .dialogMemberNo {
-  color: var(--color-text-muted);
-  font-size: 1.1rem;
+  color: var(--color-muted);
+  font-size: var(--font-size-md);
   font-weight: 400;
 }
 
-.dialogField {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin-bottom: var(--space-4);
+.dialogDesc {
+  margin: 0;
+  color: var(--color-text);
+  line-height: 1.55;
 }
 
-/* 학기 줄 옆의 내보내기 */
-.toolbar {
+.dialogSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.dialogSectionDivided {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.dialogSectionTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.dialogButtonRow {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-2);
 }
 
-.exportButton {
-  margin-left: auto;
-}
-
-/* 결과 명단 내보내기 창. 고를 것이 많아 넓게 */
-.exportDialog {
-  width: min(560px, calc(100vw - 32px));
+.dialogButtonRowEnd {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .exportGroup {
-  margin: 0 0 var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
   padding: 0;
-  border: none;
+  border: 0;
+}
+
+.exportLegend {
+  padding: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.exportStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .exportChoices {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space-6);
-  padding: var(--space-2) 0;
+  gap: var(--space-2) var(--space-5);
 }
 
 .exportHint {
   margin: 0;
-  color: var(--color-text-muted);
-  font-size: 0.9em;
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
 }

@@ -1,6 +1,7 @@
-import { useId, useState } from "react";
-import { DeleteDialog } from "../../../components/dialog/DeleteDialog";
-import formStyles from "../../../components/form/form.module.css";
+import { useId, useRef, useState } from "react";
+import { ModalDialog } from "../../../components/overlay/ModalDialog";
+import { Button } from "../../../components/ui/Button";
+import { TextField } from "../../../components/ui/TextField";
 import styles from "./ApplicationsPage.module.css";
 
 /** {@link DeleteApplicationDialog}의 속성. */
@@ -15,7 +16,7 @@ export interface DeleteApplicationDialogProps {
   onCancel: () => void;
 }
 
-/** 신청을 지우기 전에 묻고 사유를 받는다(선택). 호스트가 삭제 기록을 남긴다(BR-D3). */
+/** 신청을 지우기 전에 묻고 사유를 받는 모달 대화상자(선택). 호스트가 삭제 기록을 남긴다(BR-D3). */
 export function DeleteApplicationDialog({
   courseName,
   deleting,
@@ -23,35 +24,60 @@ export function DeleteApplicationDialog({
   onConfirm,
   onCancel,
 }: DeleteApplicationDialogProps) {
-  const reasonId = useId();
+  const formId = useId();
   const [reason, setReason] = useState("");
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <DeleteDialog
+    <ModalDialog
+      open
+      size="sm"
       title={`${courseName} 신청을 지울까요?`}
-      deleting={deleting}
-      onConfirm={() => onConfirm(reason.trim() === "" ? null : reason)}
-      onCancel={onCancel}
+      busy={deleting}
+      initialFocusRef={cancelRef}
+      onClose={onCancel}
+      footer={
+        <>
+          <Button
+            ref={cancelRef}
+            variant="secondary"
+            disabled={deleting}
+            onClick={onCancel}
+          >
+            그만두기
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            variant="dangerSolid"
+            busy={deleting}
+            busyLabel="지우는 중…"
+          >
+            지우기
+          </Button>
+        </>
+      }
     >
-      <div className={styles.deleteReason}>
-        <label htmlFor={reasonId} className={formStyles.label}>
-          사유 (선택)
-        </label>
-        <input
-          id={reasonId}
-          className={formStyles.input}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
+      <form
+        id={formId}
+        className={styles.dialogBody}
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!deleting) {
+            onConfirm(reason.trim() === "" ? null : reason);
+          }
+        }}
+        noValidate
+      >
+        <TextField
+          label="사유 (선택)"
           placeholder="예: 잘못 고름, 회원이 마음을 바꿈"
           maxLength={100}
-          aria-invalid={reasonError ? true : undefined}
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          error={reasonError ?? undefined}
         />
-        {reasonError && (
-          <p className={formStyles.fieldError} role="alert">
-            {reasonError}
-          </p>
-        )}
-      </div>
-    </DeleteDialog>
+      </form>
+    </ModalDialog>
   );
 }

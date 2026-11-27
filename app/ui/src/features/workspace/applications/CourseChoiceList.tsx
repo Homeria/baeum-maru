@@ -1,8 +1,12 @@
 import type { AdditionalOutcomeResponse } from "../../../api/generated/AdditionalOutcomeResponse";
 import type { CourseResponse } from "../../../api/generated/CourseResponse";
 import type { SelectionStageCode } from "../../../api/generated/SelectionStageCode";
-import listStyles from "../../../components/layout/listPage.module.css";
-import tableStyles from "../../../components/table/table.module.css";
+import { Card } from "../../../components/surface/Card";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "../../../components/surface/DataTable";
+import { StatusPill } from "../../../components/ui/StatusPill";
 import { courseName, scheduleSummary } from "../courses/courseFormData";
 import { STAGE_LABELS, countLabel } from "../courses/courseStatusData";
 import { additionalLabel } from "./applicationsData";
@@ -33,7 +37,11 @@ export interface CourseChoiceListProps {
   onToggle: (id: number) => void;
 }
 
-/** 이 학기의 강좌와 신청 인원/정원. 맨 앞의 칸으로 신청할 강좌를 고른다. */
+/**
+ * 이 학기의 강좌와 신청 인원/정원 표.
+ *
+ * 여러 요일·시간대 수업 시간은 셀 안에서 줄바꿈하고, 추가 신청 가능 강좌는 결과를 꼬리표로 보여 준다.
+ */
 export function CourseChoiceList({
   courses,
   counts,
@@ -46,97 +54,134 @@ export function CourseChoiceList({
   termEnded,
   onToggle,
 }: CourseChoiceListProps) {
-  return (
-    <section className={listStyles.list} aria-label="강좌">
-      <div className={tableStyles.tableWrap}>
-        <table className={tableStyles.table} aria-label="신청할 강좌">
-          <thead>
-            <tr>
-              <th scope="col">
-                <span className={styles.visuallyHidden}>고르기</span>
-              </th>
-              <th scope="col">과목</th>
-              <th scope="col">수준</th>
-              <th scope="col">반</th>
-              <th scope="col">수업 시간</th>
-              <th scope="col">강의실</th>
-              <th scope="col">신청/정원</th>
-            </tr>
-          </thead>
-          <tbody>
-            {courses.map((course) => {
-              const summary = scheduleSummary(course.schedules, showBuilding);
-              const applied = appliedIds.has(course.id);
-              const stage = stages.get(course.id) ?? "not_drawn";
-              // 마감한 강좌는 추가 신청으로 받는다. 미리 보기를 아직 못 받았으면 기다린다
-              const preview =
-                stage === "closed" && !termEnded
-                  ? additional.get(course.id)
-                  : undefined;
-              const open = stage === "not_drawn" || preview !== undefined;
-              // 신청했거나, 추첨하고 마감 전이거나, 학기가 끝난 마감 강좌는 고를 수 없다
-              const locked = applied || !open;
-              const previewId = `additional-preview-${course.id}`;
-              const checked = chosen.includes(course.id);
-              return (
-                <tr
-                  key={course.id}
-                  className={
-                    selectable && !locked ? tableStyles.row : undefined
-                  }
-                  aria-current={checked ? "true" : undefined}
-                  onClick={() => {
-                    if (selectable && !locked) {
-                      onToggle(course.id);
-                    }
-                  }}
+  const rowState = (course: CourseResponse) => {
+    const applied = appliedIds.has(course.id);
+    const stage = stages.get(course.id) ?? "not_drawn";
+    // 마감한 강좌는 추가 신청으로 받는다. 미리 보기를 아직 못 받았으면 기다린다
+    const preview =
+      stage === "closed" && !termEnded ? additional.get(course.id) : undefined;
+    const open = stage === "not_drawn" || preview !== undefined;
+    const locked = applied || !open;
+    return { applied, stage, preview, locked };
+  };
+
+  const columns: DataTableColumn<CourseResponse>[] = [
+    {
+      key: "select",
+      header: "",
+      width: "92px",
+      align: "center",
+      isAction: true,
+      render: (course) => {
+        const { applied, stage, preview, locked } = rowState(course);
+        const checked = chosen.includes(course.id);
+        const previewId = `additional-preview-${course.id}`;
+        if (applied) {
+          return <StatusPill tone="primary">신청함</StatusPill>;
+        }
+        if (locked) {
+          return (
+            <StatusPill tone="neutral">
+              {stage === "closed" && termEnded
+                ? "학기 끝남"
+                : STAGE_LABELS[stage]}
+            </StatusPill>
+          );
+        }
+        return (
+          <input
+            type="checkbox"
+            className={styles.courseCheck}
+            checked={checked}
+            disabled={!selectable}
+            aria-label={`${courseName(course)} 고르기`}
+            aria-describedby={preview ? previewId : undefined}
+            onChange={() => onToggle(course.id)}
+          />
+        );
+      },
+    },
+    {
+      key: "course",
+      header: "강좌",
+      isRowHeader: true,
+      render: (course) => courseName(course),
+    },
+    {
+      key: "schedules",
+      header: "수업 시간",
+      render: (course) => {
+        const summary = scheduleSummary(course.schedules, showBuilding);
+        const lines = summary.times
+          .split(", ")
+          .filter((line) => line.length > 0);
+        return (
+          <div className={styles.scheduleLines}>
+            {lines.map((line) => (
+              <span key={line} className={styles.scheduleLine}>
+                {line}
+              </span>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      key: "room",
+      header: "강의실",
+      width: "120px",
+      render: (course) => scheduleSummary(course.schedules, showBuilding).room,
+    },
+    {
+      key: "capacity",
+      header: "신청/정원",
+      width: "160px",
+      align: "right",
+      render: (course) => {
+        const { applied, preview } = rowState(course);
+        const previewId = `additional-preview-${course.id}`;
+        return (
+          <div className={styles.capacityCell}>
+            <span>
+              {countLabel(counts.get(course.id) ?? 0, course.capacity)}
+            </span>
+            {preview && !applied && (
+              <span id={previewId}>
+                <StatusPill
+                  tone={preview.kind === "selected" ? "ok" : "neutral"}
                 >
-                  <td>
-                    {applied ? (
-                      <span className={styles.muted}>신청함</span>
-                    ) : locked ? (
-                      <span className={styles.muted}>
-                        {stage === "closed" && termEnded
-                          ? "학기 끝남"
-                          : STAGE_LABELS[stage]}
-                      </span>
-                    ) : (
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        disabled={!selectable}
-                        aria-label={`${courseName(course)} 고르기`}
-                        aria-describedby={preview ? previewId : undefined}
-                        // 줄을 누르면 고르므로 칸 자체의 누름은 줄에 맡김
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={() => onToggle(course.id)}
-                      />
-                    )}
-                  </td>
-                  <td>{course.subjectName}</td>
-                  <td>{course.level ?? ""}</td>
-                  <td>{course.section ?? ""}</td>
-                  <td>{summary.times}</td>
-                  <td>{summary.room}</td>
-                  <td>
-                    {countLabel(counts.get(course.id) ?? 0, course.capacity)}
-                    {preview && !applied && (
-                      <span id={previewId} className={styles.additionalPreview}>
-                        추가 신청: {additionalLabel(preview)}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {courses.length === 0 && (
-          <p className={tableStyles.message}>
-            이 학기에 등록된 강좌가 없습니다. 강좌 탭에서 먼저 등록해 주세요
-          </p>
-        )}
-      </div>
-    </section>
+                  추가 신청: {additionalLabel(preview)}
+                </StatusPill>
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
+  return (
+    <Card
+      title="신청할 강좌"
+      subtitle={`모두 ${courses.length}개`}
+      padding="none"
+    >
+      <DataTable
+        caption="신청할 강좌"
+        columns={columns}
+        rows={courses}
+        getRowKey={(course) => course.id}
+        onRowClick={
+          selectable
+            ? (course) => {
+                if (!rowState(course).locked) {
+                  onToggle(course.id);
+                }
+              }
+            : undefined
+        }
+        emptyMessage="이 학기에 등록된 강좌가 없습니다. 강좌 탭에서 먼저 등록해 주세요."
+      />
+    </Card>
   );
 }

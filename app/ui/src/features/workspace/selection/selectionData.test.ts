@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import type { CourseLotteryResponse } from "../../../api/generated/CourseLotteryResponse";
 import type { EntrantResponse } from "../../../api/generated/EntrantResponse";
 import {
+  SHUFFLE_INTERVAL_MS,
   drawPool,
   entrantLabel,
   guaranteedOf,
@@ -45,9 +46,9 @@ function lottery(
 }
 
 describe("entrantLabel", () => {
-  test("이름(회원번호)", () => {
+  test("이름 (회원번호)", () => {
     expect(entrantLabel({ memberName: "회원1", memberNo: "12-12345" })).toBe(
-      "회원1(12-12345)",
+      "회원1 (12-12345)",
     );
   });
 });
@@ -69,32 +70,37 @@ describe("resultColumns", () => {
   const ids = (list: readonly EntrantResponse[]) =>
     list.map((entrant) => entrant.applicationId);
 
+  test("섞는 간격은 0.05초(50ms)다", () => {
+    expect(SHUFFLE_INTERVAL_MS).toBe(50);
+  });
+
   test("추첨 전 정원보다 많으면 둘 다 비운다", () => {
-    const result = resultColumns(lottery({}), false);
+    const result = resultColumns(lottery({}), null);
 
     expect(result).toEqual({ selected: [], waitlisted: [] });
   });
 
   test("추첨 전 정원 이하이면 모두 당첨자 칸에 미리 보인다", () => {
-    const result = resultColumns(lottery({ entrants: entrants(2) }), false);
+    const result = resultColumns(lottery({ entrants: entrants(2) }), null);
 
     expect(ids(result.selected)).toEqual([1, 2]);
     expect(result.waitlisted).toEqual([]);
   });
 
-  test("섞는 중에는 둘 다 비운다", () => {
+  test("섞는 중에는 섞인 신청자를 정원만큼 당첨자, 나머지를 대기자에 채운다", () => {
     const drawn = lottery({ stage: "drawn", selectedCount: 2 });
+    const pool = [drawn.entrants[2], drawn.entrants[0], drawn.entrants[1]];
 
-    expect(resultColumns(drawn, true)).toEqual({
-      selected: [],
-      waitlisted: [],
-    });
+    const result = resultColumns(drawn, pool);
+
+    expect(ids(result.selected)).toEqual([3, 1]);
+    expect(ids(result.waitlisted)).toEqual([2]);
   });
 
   test("추첨 뒤에는 뽑힌 순서를 당첨과 대기로 나눈다", () => {
     const result = resultColumns(
       lottery({ stage: "drawn", selectedCount: 2 }),
-      false,
+      null,
     );
 
     expect(ids(result.selected)).toEqual([1, 2]);
@@ -156,14 +162,17 @@ describe("자리 보장(BR-S4, BR-S5)", () => {
     expect(remainingSeats(current)).toBe(2);
   });
 
-  test("추첨 전과 섞는 중에도 자리 보장은 당첨자 칸 맨 위에 있다", () => {
+  test("추첨 전과 섞는 중에도 자리 보장은 당첨자 칸 맨 위에 고정된다", () => {
     const current = lottery({ capacity: 3, entrants: withGuaranteed(5, 1) });
 
-    for (const shuffling of [false, true]) {
-      const { selected, waitlisted } = resultColumns(current, shuffling);
-      expect(selected.map((e) => e.applicationId)).toEqual([1]);
-      expect(waitlisted).toEqual([]);
-    }
+    const before = resultColumns(current, null);
+    expect(before.selected.map((e) => e.applicationId)).toEqual([1]);
+    expect(before.waitlisted).toEqual([]);
+
+    const pool = drawPool(current.entrants).slice().reverse();
+    const during = resultColumns(current, pool);
+    expect(during.selected.map((e) => e.applicationId)).toEqual([1, 5, 4]);
+    expect(during.waitlisted.map((e) => e.applicationId)).toEqual([3, 2]);
   });
 
   test("추첨할 신청이 남은 자리 이하이면 섞지 않고 전원 당첨", () => {
@@ -171,7 +180,7 @@ describe("자리 보장(BR-S4, BR-S5)", () => {
 
     expect(needsShuffle(current)).toBe(false);
     expect(lotteryButtons(current)).toBe("selectAll");
-    expect(resultColumns(current, false).selected).toHaveLength(3);
+    expect(resultColumns(current, null).selected).toHaveLength(3);
   });
 
   test("남은 자리보다 많으면 섞는다", () => {

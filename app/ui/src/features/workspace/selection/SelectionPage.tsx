@@ -1,26 +1,27 @@
 import { useId, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Card } from "../../../components/surface/Card";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
 import {
   listApplicationCounts,
   listCourses,
   listSelections,
 } from "../courses/api";
-import { listTerms } from "../terms/api";
-import formStyles from "../../../components/form/form.module.css";
+import { courseName } from "../courses/courseFormData";
 import {
   STAGE_LABELS,
   countLabel,
   countsByCourse,
   stagesByCourse,
 } from "../courses/courseStatusData";
-import { courseName } from "../courses/courseFormData";
+import { listTerms } from "../terms/api";
 import { TermBar } from "../terms/TermBar";
 import { currentTerm } from "../terms/termFormData";
 import { LotteryBoard } from "./LotteryBoard";
 import styles from "./SelectionPage.module.css";
 
 /**
- * 추첨 탭. 학기와 강좌를 고르면 그 강좌의 추첨 화면이 나온다.
+ * 추첨 탭. 학기와 강좌를 고르면 그 강좌의 3칸 추첨 보드가 나온다.
  *
  * 강좌 목록에는 신청 인원/정원과 선발 단계를 붙여 어느 강좌가 남았는지 보이게 한다.
  * 학기를 바꾸면 고른 강좌를 비운다.
@@ -53,21 +54,21 @@ export function SelectionPage() {
   });
 
   if (terms.isPending) {
-    return <p className={formStyles.loading}>학기를 불러오는 중입니다…</p>;
+    return <NoticeBanner message="학기를 불러오는 중입니다…" />;
   }
   if (terms.isError) {
     return (
-      <p className={formStyles.formError} role="alert">
-        학기를 불러오지 못했습니다. 다시 열어 주세요.
-      </p>
+      <NoticeBanner
+        tone="error"
+        message="학기를 불러오지 못했습니다. 다시 시도해 주세요."
+        actionLabel="다시 해 보기"
+        onAction={() => void terms.refetch()}
+      />
     );
   }
   if (!current) {
     return (
-      <p className={styles.empty}>
-        아직 등록된 학기가 없습니다. 강좌 탭에서 학기와 강좌를 먼저 등록해
-        주세요.
-      </p>
+      <NoticeBanner message="아직 등록된 학기가 없습니다. 강좌 탭에서 학기와 강좌를 먼저 등록해 주세요." />
     );
   }
 
@@ -91,38 +92,51 @@ export function SelectionPage() {
         onNotice={() => undefined}
         canEdit={false}
       />
+
       {failure ? (
-        <p className={formStyles.formError} role="alert">
-          {failure.message}
-        </p>
+        <NoticeBanner
+          tone="error"
+          message={failure.message}
+          actionLabel="다시 해 보기"
+          onAction={() => {
+            void courses.refetch();
+            void counts.refetch();
+            void selections.refetch();
+          }}
+        />
       ) : courses.data && counts.data && selections.data ? (
         <>
-          <div className={styles.courseBar}>
-            <label htmlFor={selectId} className={formStyles.label}>
-              강좌
-            </label>
-            <select
-              id={selectId}
-              className={`${formStyles.input} ${styles.courseSelect}`}
-              value={courseId ?? ""}
-              onChange={(event) =>
-                setCourseId(
-                  event.target.value === "" ? null : Number(event.target.value),
-                )
-              }
-            >
-              <option value="">추첨할 강좌를 골라 주세요</option>
-              {courses.data.items.map((item) => {
-                const count = countMap.get(item.id) ?? 0;
-                const stage = stageMap.get(item.id) ?? "not_drawn";
-                return (
-                  <option key={item.id} value={item.id}>
-                    {`${courseName(item)} · ${countLabel(count, item.capacity)} · ${STAGE_LABELS[stage]}`}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
+          <Card>
+            <div className={styles.courseBar}>
+              <label htmlFor={selectId} className={styles.courseLabel}>
+                강좌
+              </label>
+              <select
+                id={selectId}
+                className={styles.courseSelect}
+                value={courseId ?? ""}
+                onChange={(event) =>
+                  setCourseId(
+                    event.target.value === ""
+                      ? null
+                      : Number(event.target.value),
+                  )
+                }
+              >
+                <option value="">추첨할 강좌를 골라 주세요</option>
+                {courses.data.items.map((item) => {
+                  const count = countMap.get(item.id) ?? 0;
+                  const stage = stageMap.get(item.id) ?? "not_drawn";
+                  return (
+                    <option key={item.id} value={item.id}>
+                      {`${courseName(item)} · ${countLabel(count, item.capacity)} · ${STAGE_LABELS[stage]}`}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          </Card>
+
           {course ? (
             <LotteryBoard
               // 강좌를 바꾸면 섞던 것과 창을 새로 시작
@@ -132,15 +146,17 @@ export function SelectionPage() {
               courseName={courseName(course)}
             />
           ) : (
-            <p className={styles.hint}>
-              {courses.data.items.length === 0
-                ? "이 학기에 등록된 강좌가 없습니다. 강좌 탭에서 먼저 등록해 주세요."
-                : "위에서 강좌를 고르면 신청자, 당첨자, 대기자가 나옵니다."}
-            </p>
+            <NoticeBanner
+              message={
+                courses.data.items.length === 0
+                  ? "이 학기에 등록된 강좌가 없습니다. 강좌 탭에서 먼저 등록해 주세요."
+                  : "위에서 강좌를 고르면 신청자, 당첨자, 대기자가 나옵니다."
+              }
+            />
           )}
         </>
       ) : (
-        <p className={formStyles.loading}>강좌를 불러오는 중입니다…</p>
+        <NoticeBanner message="강좌를 불러오는 중입니다…" />
       )}
     </div>
   );

@@ -16,9 +16,9 @@ export const WITHDRAWN_FROM_LABELS: Record<WithdrawnFromCode, string> = {
   waitlisted: "대기에서 포기",
 };
 
-/** 결과 목록의 한 줄. 예: `회원1(12-12345)` */
+/** 결과 목록의 한 줄. 예: `회원1 (12-12345)` */
 export function memberLabel(member: ResultMemberResponse): string {
-  return `${member.memberName}(${member.memberNo})`;
+  return `${member.memberName} (${member.memberNo})`;
 }
 
 /**

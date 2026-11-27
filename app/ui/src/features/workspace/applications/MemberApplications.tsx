@@ -1,21 +1,23 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { deleteApplication, listApplications, setPriorityReasons } from "./api";
 import { HostError } from "../../../api/client";
 import type { ApplicationResponse } from "../../../api/generated/ApplicationResponse";
 import type { CourseResponse } from "../../../api/generated/CourseResponse";
 import type { PriorityReasonResponse } from "../../../api/generated/PriorityReasonResponse";
 import type { SelectionStageCode } from "../../../api/generated/SelectionStageCode";
-import { getMember } from "../members/api";
-import { ConfirmDialog } from "../../../components/dialog/ConfirmDialog";
-import formStyles from "../../../components/form/form.module.css";
-import tableStyles from "../../../components/table/table.module.css";
+import { ModalDialog } from "../../../components/overlay/ModalDialog";
+import { Card } from "../../../components/surface/Card";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
+import { StatusPill } from "../../../components/ui/StatusPill";
 import { useCan } from "../../gate/auth/useCan";
 import { courseName, scheduleSummary } from "../courses/courseFormData";
+import { getMember } from "../members/api";
+import { deleteApplication, listApplications, setPriorityReasons } from "./api";
 import { RULE_LABELS, toggleId } from "./applicationsData";
+import styles from "./ApplicationsPage.module.css";
 import { DeleteApplicationDialog } from "./DeleteApplicationDialog";
 import { PriorityChoices } from "./PriorityChoices";
-import styles from "./ApplicationsPage.module.css";
 
 /** {@link MemberApplications}의 속성. */
 export interface MemberApplicationsProps {
@@ -36,7 +38,7 @@ interface PendingPriority {
 }
 
 /**
- * 고른 회원이 이 학기에 낸 신청. 접수한 순서이고, 규칙 예외를 받은 신청은 표시한다.
+ * 고른 회원이 이 학기에 낸 신청 카드. 접수한 순서이고, 규칙 예외를 받은 신청은 표시한다.
  *
  * 신청을 받을 수 있는 역할(BR-K3)은 신청마다 지우기 버튼이 있다(BR-D1~D3).
  * 우선 배정을 할 수 있는 역할은 신청마다 사유 체크박스로 붙이고 뗀다(BR-S12, BR-S13).
@@ -66,6 +68,7 @@ export function MemberApplications({
   const [reasonError, setReasonError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const cancelPriorityRef = useRef<HTMLButtonElement>(null);
 
   const nameOf = (courseId: number) => {
     const course = courses.find((candidate) => candidate.id === courseId);
@@ -158,114 +161,149 @@ export function MemberApplications({
       .map((reason) => reason.name)
       .join(", ");
 
+  const title = member.data
+    ? `${member.data.name} (${member.data.memberNo})의 신청`
+    : "고른 회원의 신청";
+
   if (applications.isPending) {
-    return <p className={tableStyles.message}>신청을 불러오는 중입니다…</p>;
+    return (
+      <Card title={title}>
+        <NoticeBanner message="신청을 불러오는 중입니다…" />
+      </Card>
+    );
   }
   if (applications.isError) {
     return (
-      <p className={tableStyles.error} role="alert">
-        {applications.error.message}
-      </p>
+      <Card title={title}>
+        <NoticeBanner
+          tone="error"
+          message={applications.error.message}
+          actionLabel="다시 해 보기"
+          onAction={() => void applications.refetch()}
+        />
+      </Card>
     );
   }
 
   const items = applications.data.items;
-  const title = member.data
-    ? `${member.data.name}(${member.data.memberNo})의 신청`
-    : "고른 회원의 신청";
 
   return (
-    <section className={styles.applications} aria-label="고른 회원의 신청">
-      <h2 className={styles.heading}>
-        {title} · {items.length}건
-      </h2>
-      {notice && (
-        <p className={formStyles.notice} role="status">
-          {notice}
-        </p>
-      )}
-      {error && (
-        <p className={formStyles.formError} role="alert">
-          {error}
-        </p>
-      )}
-      {items.length === 0 ? (
-        <p className={tableStyles.message}>이 학기에 낸 신청이 없습니다</p>
-      ) : (
-        <ul className={styles.applicationList}>
-          {items.map((application) => {
-            const course = courses.find(
-              (candidate) => candidate.id === application.courseId,
-            );
-            return (
-              <li key={application.id} className={styles.application}>
-                <span className={styles.courseName}>
-                  {nameOf(application.courseId)}
-                </span>
-                {course && (
-                  <span className={styles.muted}>
-                    {scheduleSummary(course.schedules, false).times}
-                  </span>
-                )}
-                {application.overriddenRules.length > 0 && (
-                  <span className={styles.override}>
-                    예외:{" "}
-                    {application.overriddenRules
-                      .map((rule) => RULE_LABELS[rule])
-                      .join(", ")}
-                  </span>
-                )}
-                {canAssign && reasons.length > 0 ? (
-                  <PriorityChoices
-                    reasons={reasons}
-                    checked={application.priorityReasonIds}
-                    courseName={nameOf(application.courseId)}
-                    disabled={
-                      changePriority.isPending ||
-                      stages.get(application.courseId) === "closed"
-                    }
-                    onToggle={(reasonId) =>
-                      togglePriority(application, reasonId)
-                    }
-                  />
-                ) : (
-                  application.priorityReasonIds.length > 0 && (
-                    <span className={styles.override}>
-                      우선 배정: {reasonNames(application.priorityReasonIds)}
-                    </span>
-                  )
-                )}
-                {canDelete && (
-                  <button
-                    type="button"
-                    className={`${formStyles.danger} ${styles.deleteButton}`}
-                    onClick={() => {
-                      setNotice(null);
-                      setError(null);
-                      setReasonError(null);
-                      setDeleting(application);
-                    }}
-                  >
-                    지우기
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+    <Card title={`${title} · ${items.length}건`}>
+      <div className={styles.applyDock}>
+        {notice && <NoticeBanner message={notice} />}
+        {error && <NoticeBanner tone="error" message={error} />}
 
-      {pendingPriority && (
-        <ConfirmDialog
-          title={`${nameOf(pendingPriority.application.courseId)}의 우선 배정을 바꿀까요?`}
-          warning="추첨한 강좌입니다. 바꾸면 이 강좌의 추첨이 취소되고 추첨 전으로 돌아갑니다."
-          confirmLabel="바꾸기"
-          busyLabel="바꾸는 중…"
-          busy={changePriority.isPending}
-          onConfirm={() => changePriority.mutate(pendingPriority)}
-          onCancel={() => setPendingPriority(null)}
+        {items.length === 0 ? (
+          <NoticeBanner message="이 학기에 낸 신청이 없습니다." />
+        ) : (
+          <ul className={styles.applicationList}>
+            {items.map((application) => {
+              const course = courses.find(
+                (candidate) => candidate.id === application.courseId,
+              );
+              const name = nameOf(application.courseId);
+              return (
+                <li key={application.id} className={styles.application}>
+                  <div className={styles.applicationHead}>
+                    <div className={styles.applicationMeta}>
+                      <span className={styles.courseName}>{name}</span>
+                      {course && (
+                        <span className={styles.muted}>
+                          {scheduleSummary(course.schedules, false).times}
+                        </span>
+                      )}
+                      {application.overriddenRules.length > 0 && (
+                        <StatusPill tone="neutral">
+                          예외:{" "}
+                          {application.overriddenRules
+                            .map((rule) => RULE_LABELS[rule])
+                            .join(", ")}
+                        </StatusPill>
+                      )}
+                    </div>
+                    {canDelete && (
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => {
+                          setNotice(null);
+                          setError(null);
+                          setReasonError(null);
+                          setDeleting(application);
+                        }}
+                      >
+                        지우기
+                      </Button>
+                    )}
+                  </div>
+
+                  {canAssign && reasons.length > 0 ? (
+                    <PriorityChoices
+                      reasons={reasons}
+                      checked={application.priorityReasonIds}
+                      courseName={name}
+                      disabled={
+                        changePriority.isPending ||
+                        stages.get(application.courseId) === "closed"
+                      }
+                      onToggle={(reasonId) =>
+                        togglePriority(application, reasonId)
+                      }
+                    />
+                  ) : (
+                    application.priorityReasonIds.length > 0 && (
+                      <div>
+                        <StatusPill tone="primary">
+                          우선 배정:{" "}
+                          {reasonNames(application.priorityReasonIds)}
+                        </StatusPill>
+                      </div>
+                    )
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      <ModalDialog
+        open={pendingPriority !== null}
+        size="sm"
+        title={`${pendingPriority ? nameOf(pendingPriority.application.courseId) : ""}의 우선 배정을 바꿀까요?`}
+        busy={changePriority.isPending}
+        initialFocusRef={cancelPriorityRef}
+        onClose={() => setPendingPriority(null)}
+        footer={
+          <>
+            <Button
+              ref={cancelPriorityRef}
+              variant="secondary"
+              disabled={changePriority.isPending}
+              onClick={() => setPendingPriority(null)}
+            >
+              그만두기
+            </Button>
+            <Button
+              variant="dangerSolid"
+              busy={changePriority.isPending}
+              busyLabel="바꾸는 중…"
+              onClick={() => {
+                if (pendingPriority) {
+                  changePriority.mutate(pendingPriority);
+                }
+              }}
+            >
+              바꾸기
+            </Button>
+          </>
+        }
+      >
+        <NoticeBanner
+          tone="error"
+          message="추첨한 강좌입니다. 바꾸면 이 강좌의 추첨이 취소되고 추첨 전으로 돌아갑니다."
         />
-      )}
+      </ModalDialog>
 
       {deleting && (
         <DeleteApplicationDialog
@@ -276,6 +314,6 @@ export function MemberApplications({
           onCancel={() => setDeleting(null)}
         />
       )}
-    </section>
+    </Card>
   );
 }
