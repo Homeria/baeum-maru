@@ -134,6 +134,13 @@ test("강좌를 고르면 강좌명 제목·우선 배정 안내·3칸 목록이
   expect(winners.querySelector("ol")).toBeNull();
 
   await user.click(screen.getByRole("button", { name: "시작" }));
+  const waitlistedDuring = screen.getByRole("region", { name: "대기자" });
+  expect(applicants).not.toHaveAttribute("data-shuffling", "true");
+  expect(winners).toHaveAttribute("data-shuffling", "true");
+  expect(waitlistedDuring).toHaveAttribute("data-shuffling", "true");
+  expect(within(winners).getByText("섞는 중")).toBeInTheDocument();
+  expect(within(waitlistedDuring).getByText("섞는 중")).toBeInTheDocument();
+
   await user.click(screen.getByRole("button", { name: "멈춤" }));
 
   expect(runLottery).toHaveBeenCalledWith(100);

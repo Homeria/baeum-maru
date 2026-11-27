@@ -2,11 +2,11 @@ import type { CourseLotteryResponse } from "../../../api/generated/CourseLottery
 import type { EntrantResponse } from "../../../api/generated/EntrantResponse";
 
 /**
- * 추첨 화면에서 신청자 목록을 섞어 보여 주는 간격(밀리초).
+ * 추첨 화면에서 당첨자·대기자 목록을 섞어 보여 주는 간격(밀리초).
  *
  * 보여 주기만 할 뿐 결과와 상관없다(ADR 0016). 설정 기능이 생기면 옮긴다.
  */
-export const SHUFFLE_INTERVAL_MS = 250;
+export const SHUFFLE_INTERVAL_MS = 50;
 
 /**
  * 추첨 화면의 한 줄. 예: `회원1(12-12345)`
@@ -60,22 +60,27 @@ export function splitResult(
 /**
  * 당첨자·대기자 칸에 보여 줄 것.
  *
- * 자리 보장 신청(BR-S4)은 추첨과 상관없이 당첨이라, 추첨 전과 섞는 중에도 당첨자 칸 맨 위에 둔다.
+ * 자리 보장 신청(BR-S4)은 추첨과 상관없이 당첨이라, 추첨 전과 섞는 중에도 당첨자 칸 맨 위에 고정된다.
  *
- * - 섞는 중: 자리 보장만 보이고 대기자는 비운다 (재추첨 포함).
+ * - 섞는 중(`shuffledPool` 전달): 자리 보장 뒤에 섞인 신청자를 정원만큼 당첨자 칸에, 나머지를 대기자 칸에 보여 준다.
  * - 추첨 전: 추첨할 신청이 남은 자리 이하이면 모두 당첨될 사람이라 당첨자 칸에 미리 보여
  *   준다(BR-S6). 기록은 "전원 당첨"을 눌러야 남는다. 남은 자리보다 많으면 자리 보장만 보인다.
  * - 추첨 뒤: 뽑힌 순서를 당첨과 대기로 나눈다. 호스트가 자리 보장을 맨 앞에 둔다.
  */
 export function resultColumns(
   lottery: CourseLotteryResponse,
-  shuffling: boolean,
+  shuffledPool: readonly EntrantResponse[] | null = null,
 ): {
   selected: readonly EntrantResponse[];
   waitlisted: readonly EntrantResponse[];
 } {
-  if (shuffling) {
-    return { selected: guaranteedOf(lottery.entrants), waitlisted: [] };
+  if (shuffledPool !== null) {
+    const guaranteed = guaranteedOf(lottery.entrants);
+    const seats = remainingSeats(lottery);
+    return {
+      selected: [...guaranteed, ...shuffledPool.slice(0, seats)],
+      waitlisted: shuffledPool.slice(seats),
+    };
   }
   if (lottery.stage === "not_drawn") {
     return needsShuffle(lottery) || overCapacity(lottery)

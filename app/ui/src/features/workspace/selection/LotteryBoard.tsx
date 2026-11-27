@@ -130,15 +130,15 @@ export function LotteryBoard({
   const start = (current: CourseLotteryResponse) => {
     setError(null);
     if (needsShuffle(current)) {
-      setShown(drawPool(current.entrants));
+      setShown(shuffled(drawPool(current.entrants)));
     } else {
       draw.mutate();
     }
   };
-  const applicants = shown ?? drawPool(data.entrants);
+  const applicants = drawPool(data.entrants);
   const guaranteedCount = guaranteedOf(data.entrants).length;
-  // 섞는 동안에는 결과를 비운다 (재추첨 포함)
-  const result = resultColumns(data, shuffling);
+  // 섞는 동안에는 신청자 칸은 고정하고 당첨자·대기자 칸이 실시간으로 섞인다
+  const result = resultColumns(data, shown);
   const buttons = lotteryButtons(data);
 
   return (
@@ -157,7 +157,6 @@ export function LotteryBoard({
         <EntrantColumn
           title="신청자"
           entrants={applicants}
-          shuffling={shuffling}
           note={
             guaranteedCount > 0
               ? `우선 배정 ${guaranteedCount}명은 추첨 없이 당첨자에 있습니다`
@@ -168,12 +167,14 @@ export function LotteryBoard({
         <EntrantColumn
           title="당첨자"
           entrants={result.selected}
+          shuffling={shuffling}
           highlightHeader
           emptyText="아직 당첨자가 없습니다."
         />
         <EntrantColumn
           title="대기자"
           entrants={result.waitlisted}
+          shuffling={shuffling}
           numbered
           emptyText="대기자가 없습니다."
         />
@@ -195,8 +196,8 @@ export function LotteryBoard({
               {buttons === "start" && (
                 <p className={styles.hint}>
                   {shuffling
-                    ? "신청자 순서를 섞는 중입니다. 멈춤을 누르면 결과가 확정됩니다."
-                    : "시작을 누르면 신청자 목록이 섞이고, 멈춤을 누른 순간 추첨이 실행됩니다."}
+                    ? "당첨자와 대기자 순서를 섞는 중입니다. 멈춤을 누르면 결과가 확정됩니다."
+                    : "시작을 누르면 당첨자·대기자 목록이 섞이고, 멈춤을 누른 순간 추첨이 실행됩니다."}
                 </p>
               )}
               {buttons === "selectAll" && (
@@ -214,8 +215,8 @@ export function LotteryBoard({
               )}
               {buttons === "redraw" && shuffling && (
                 <p className={styles.hint}>
-                  신청자 순서를 다시 섞는 중입니다. 멈춤을 누르면 새 결과가
-                  확정됩니다.
+                  당첨자와 대기자 순서를 다시 섞는 중입니다. 멈춤을 누르면 새
+                  결과가 확정됩니다.
                 </p>
               )}
             </div>
@@ -403,7 +404,11 @@ function EntrantColumn({
       >
         <h3 className={styles.columnTitle}>{title}</h3>
         <div className={styles.metaGroup}>
-          {shuffling && <StatusPill tone="primary">섞는 중</StatusPill>}
+          {shuffling && (
+            <StatusPill tone={highlightHeader ? "neutral" : "primary"}>
+              섞는 중
+            </StatusPill>
+          )}
           <span className={styles.columnCount}>{entrants.length}명</span>
         </div>
       </div>
