@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { approvalStatus } from "./approvalApi";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
 import authStyles from "../auth/auth.module.css";
+import { approvalStatus } from "./approvalApi";
 
 /** 승인 상태를 다시 묻는 간격. */
 const CHECK_EVERY_MS = 3 * 1000;
@@ -41,9 +42,7 @@ export function WaitingApproval({ code, onChanged }: WaitingApprovalProps) {
           {code}
         </p>
       )}
-      <p className={authStyles.hint} role="status">
-        승인을 기다리는 중…
-      </p>
+      <NoticeBanner message="승인을 기다리는 중…" />
     </div>
   );
 }

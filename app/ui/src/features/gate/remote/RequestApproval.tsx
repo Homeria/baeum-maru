@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { requestApproval } from "./approvalApi";
-import { saveDeviceRequest } from "./api";
-import formStyles from "../../../components/form/form.module.css";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
+import { TextField } from "../../../components/ui/TextField";
 import authStyles from "../auth/auth.module.css";
+import { saveDeviceRequest } from "./api";
+import { requestApproval } from "./approvalApi";
 
 /** 기기 이름의 가장 긴 글자 수. 호스트의 `DeviceName::MAX_CHARS`와 같다. */
 const MAX_NAME_CHARS = 40;
@@ -37,41 +39,33 @@ export function RequestApproval({
   };
 
   return (
-    <form className={authStyles.stack} onSubmit={onSubmit} noValidate>
+    <form className={authStyles.form} onSubmit={onSubmit} noValidate>
       <p className={authStyles.intro}>
         이 PC는 아직 승인받지 않았습니다. 승인을 요청하면 호스트 PC 화면에 이
         PC의 이름과 번호가 뜹니다.
       </p>
-      <div className={formStyles.field}>
-        <label htmlFor="device-name" className={formStyles.label}>
-          이 PC의 이름
-        </label>
-        <input
-          id="device-name"
-          className={formStyles.input}
-          placeholder="예: 접수 노트북"
-          maxLength={MAX_NAME_CHARS}
-          autoComplete="off"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
-        <p className={authStyles.hint}>
-          관리자가 어느 PC인지 알아볼 수 있게 적어 주세요.
-        </p>
-      </div>
+      <TextField
+        id="device-name"
+        label="이 PC의 이름"
+        hint="관리자가 어느 PC인지 알아볼 수 있게 적어 주세요."
+        placeholder="예: 접수 노트북"
+        maxLength={MAX_NAME_CHARS}
+        autoComplete="off"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+      />
       {submit.isError && (
-        <p className={formStyles.formError} role="alert">
-          {submit.error.message}
-        </p>
+        <NoticeBanner tone="error" message={submit.error.message} />
       )}
-      <div className={formStyles.actions}>
-        <button
+      <div className={authStyles.actions}>
+        <Button
           type="submit"
-          className={formStyles.submit}
-          disabled={submit.isPending}
+          variant="primary"
+          busy={submit.isPending}
+          busyLabel="요청하는 중…"
         >
           승인 요청
-        </button>
+        </Button>
       </div>
     </form>
   );

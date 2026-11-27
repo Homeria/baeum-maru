@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { TakeOverPreviewResponse } from "../../../api/generated/TakeOverPreviewResponse";
-import { pickHandoverFile, previewTakeOver, takeOver } from "./api";
-import formStyles from "../../../components/form/form.module.css";
-import authStyles from "../auth/auth.module.css";
+import { SplitAuthLayout } from "../../../components/shell/SplitAuthLayout";
+import { Card } from "../../../components/surface/Card";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
 import { AdminPinFields } from "../auth/AdminPinFields";
+import authStyles from "../auth/auth.module.css";
+import { pickHandoverFile, previewTakeOver, takeOver } from "./api";
 import { fileLines } from "./handoverData";
 
 /** {@link TakeOverPage}의 속성. */
@@ -54,27 +57,24 @@ export function TakeOverPage({ onBack }: TakeOverPageProps) {
   const failure = pick.error ?? start.error;
 
   return (
-    <div className={authStyles.page}>
-      <section className={`${formStyles.form} ${authStyles.card}`}>
-        <h2 className={formStyles.title}>넘겨받은 파일로 호스트 시작</h2>
-        <p className={authStyles.intro}>
-          옛 호스트 PC에서 [호스트 넘기기]로 저장한 넘기기 파일을 골라 주세요.
-          이 PC가 새 호스트가 되고, 다른 PC들은 새 주소만 넣으면 다시 승인받지
-          않고 이어집니다.
-        </p>
-        <p className={authStyles.hint}>
-          옛 호스트 PC가 넘기지 않은 채 켜져 있으면 호스트가 둘이 되어 접수
-          명단이 갈라집니다. 이 PC에 남은 예전 데이터는 지우지 않고 백업으로
-          남깁니다.
-        </p>
-
+    <SplitAuthLayout
+      panelTitle="호스트 넘겨받기"
+      panelDescription="옛 호스트 PC에서 저장한 넘기기 파일로 이 PC를 새 호스트로 시작합니다. 다른 PC들은 새 주소만 넣으면 다시 승인받지 않고 이어집니다."
+      panelFooter="이 PC에 남은 예전 데이터는 지우지 않고 백업으로 남깁니다."
+      cardTitle="넘겨받은 파일로 호스트 시작"
+      cardSubtitle="옛 호스트 PC가 넘기지 않은 채 켜져 있으면 호스트가 둘이 되어 접수 명단이 갈라집니다."
+      cardWidth="lg"
+    >
+      <div className={authStyles.stack}>
         {picked !== null && (
           <>
-            <ul className={authStyles.hint} aria-label="넘기기 파일">
-              {fileLines(picked.preview).map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
+            <Card headingLevel={3} title="선택한 넘기기 파일">
+              <ul className={authStyles.steps} aria-label="넘기기 파일">
+                {fileLines(picked.preview).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </Card>
             <AdminPinFields
               idPrefix="take-over"
               admins={picked.preview.admins}
@@ -94,51 +94,43 @@ export function TakeOverPage({ onBack }: TakeOverPageProps) {
         )}
 
         {failure !== null && (
-          <p className={formStyles.formError} role="alert">
-            {failure.message}
-          </p>
+          <NoticeBanner tone="error" message={failure.message} />
         )}
-        <div className={formStyles.actions}>
-          <button
-            type="button"
-            className={formStyles.secondary}
-            disabled={busy}
-            onClick={onBack}
-          >
+
+        <div className={authStyles.actionsBetween}>
+          <Button variant="secondary" disabled={busy} onClick={onBack}>
             돌아가기
-          </button>
-          <button
-            type="button"
-            className={
-              picked === null ? formStyles.submit : formStyles.secondary
-            }
-            disabled={busy}
-            onClick={() => pick.mutate()}
-          >
-            {pick.isPending
-              ? "파일을 살펴보는 중…"
-              : picked === null
-                ? "넘기기 파일 고르기"
-                : "다른 파일 고르기"}
-          </button>
-          {picked !== null && (
-            <button
-              type="button"
-              className={formStyles.submit}
+          </Button>
+          <div className={authStyles.actions}>
+            <Button
+              variant={picked === null ? "primary" : "secondary"}
               disabled={busy}
-              onClick={() => {
-                if (staffId === null || pin === "") {
-                  setMissing(true);
-                  return;
-                }
-                start.mutate({ path: picked.path, staffId });
-              }}
+              busy={pick.isPending}
+              busyLabel="파일을 살펴보는 중…"
+              onClick={() => pick.mutate()}
             >
-              {start.isPending ? "시작하는 중…" : "이 파일로 호스트 시작"}
-            </button>
-          )}
+              {picked === null ? "넘기기 파일 고르기" : "다른 파일 고르기"}
+            </Button>
+            {picked !== null && (
+              <Button
+                variant="primary"
+                disabled={busy}
+                busy={start.isPending}
+                busyLabel="시작하는 중…"
+                onClick={() => {
+                  if (staffId === null || pin === "") {
+                    setMissing(true);
+                    return;
+                  }
+                  start.mutate({ path: picked.path, staffId });
+                }}
+              >
+                이 파일로 호스트 시작
+              </Button>
+            )}
+          </div>
         </div>
-      </section>
-    </div>
+      </div>
+    </SplitAuthLayout>
   );
 }

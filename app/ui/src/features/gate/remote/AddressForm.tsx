@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { saveHostAddress } from "./api";
-import formStyles from "../../../components/form/form.module.css";
+import { Button } from "../../../components/ui/Button";
+import { TextField } from "../../../components/ui/TextField";
 import authStyles from "../auth/auth.module.css";
+import { saveHostAddress } from "./api";
 
 /** {@link AddressForm}의 속성. */
 export interface AddressFormProps {
@@ -29,48 +30,40 @@ export function AddressForm({ current, onSaved, onCancel }: AddressFormProps) {
   };
 
   return (
-    <form className={authStyles.stack} onSubmit={onSubmit} noValidate>
+    <form className={authStyles.form} onSubmit={onSubmit} noValidate>
       <p className={authStyles.intro}>
-        호스트 PC의 "직원 관리 &gt; 기기" 탭에 나온 접속 주소를 넣어 주세요.
+        호스트 PC의 &quot;직원 관리 &gt; 기기&quot; 탭에 나온 접속 주소를 넣어
+        주세요.
       </p>
-      <div className={formStyles.field}>
-        <label htmlFor="host-address" className={formStyles.label}>
-          호스트 주소
-        </label>
-        <input
-          id="host-address"
-          className={formStyles.input}
-          placeholder="예: 192.168.0.12"
-          inputMode="decimal"
-          autoComplete="off"
-          value={address}
-          onChange={(event) => setAddress(event.target.value)}
-          aria-invalid={save.isError}
-          aria-describedby={save.isError ? "host-address-error" : undefined}
-        />
-        {save.isError && (
-          <p id="host-address-error" className={formStyles.fieldError}>
-            {save.error.message}
-          </p>
-        )}
-      </div>
-      <div className={formStyles.actions}>
+      <TextField
+        id="host-address"
+        label="호스트 주소"
+        placeholder="예: 192.168.0.12"
+        inputMode="decimal"
+        autoComplete="off"
+        autoFocus
+        value={address}
+        error={save.isError ? save.error.message : undefined}
+        onChange={(event) => setAddress(event.target.value)}
+      />
+      <div className={authStyles.actions}>
         {onCancel && (
-          <button
-            type="button"
-            className={formStyles.secondary}
+          <Button
+            variant="secondary"
+            disabled={save.isPending}
             onClick={onCancel}
           >
             그만두기
-          </button>
+          </Button>
         )}
-        <button
+        <Button
           type="submit"
-          className={formStyles.submit}
-          disabled={save.isPending}
+          variant="primary"
+          busy={save.isPending}
+          busyLabel="연결하는 중…"
         >
           연결
-        </button>
+        </Button>
       </div>
     </form>
   );

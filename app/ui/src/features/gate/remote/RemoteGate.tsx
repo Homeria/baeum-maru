@@ -1,16 +1,18 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { SplitAuthLayout } from "../../../components/shell/SplitAuthLayout";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
+import authStyles from "../auth/auth.module.css";
+import { TakeOverPage } from "../handover/TakeOverPage";
+import { RunModeSwitch } from "../run-mode/RunModeSwitch";
+import { AddressForm } from "./AddressForm";
 import {
   clearDeviceRequest,
   forgetHost,
   rememberApproved,
   remoteSettings,
 } from "./api";
-import formStyles from "../../../components/form/form.module.css";
-import authStyles from "../auth/auth.module.css";
-import { TakeOverPage } from "../handover/TakeOverPage";
-import { RunModeSwitch } from "../run-mode/RunModeSwitch";
-import { AddressForm } from "./AddressForm";
 import { checkConnection } from "./connection";
 import { RequestApproval } from "./RequestApproval";
 import { WaitingApproval } from "./WaitingApproval";
@@ -71,51 +73,47 @@ export function RemoteGate({ leftoverData, children }: RemoteGateProps) {
   }, [ready, approvedOnce, queryClient]);
 
   const page = (body: ReactNode) => (
-    <div className={authStyles.page}>
-      <section className={`${formStyles.form} ${authStyles.card}`}>
-        <h2 className={formStyles.title}>다른 PC에 접속</h2>
-        {notice && (
-          <p className={formStyles.formError} role="alert">
-            {notice}
-          </p>
-        )}
-        {body}
-        {leftoverData && (
-          <p className={authStyles.hint}>
-            이 PC에 이전 데이터가 남아 있습니다. 지우지 않았고, 접속 모드에서는
-            쓰지 않습니다.
-          </p>
-        )}
-        <p className={authStyles.hint}>
-          이 PC를 새 호스트로 쓰려고 넘기기 파일을 받았다면 아래를 눌러 주세요.
-        </p>
-        <div className={formStyles.actions}>
-          <button
-            type="button"
-            className={formStyles.secondary}
-            onClick={() => setTakingOver(true)}
-          >
-            넘겨받은 파일로 호스트 시작
-          </button>
+    <SplitAuthLayout
+      panelTitle="호스트 PC 접속"
+      panelDescription="호스트 PC의 주소를 입력하고 관리자 승인을 받으면 같은 데이터를 함께 쓸 수 있습니다."
+      cardTitle="다른 PC에 접속"
+      cardFooter={
+        <div className={authStyles.stack}>
+          {leftoverData && (
+            <p className={authStyles.hint}>
+              이 PC에 이전 데이터가 남아 있습니다. 지우지 않았고, 접속
+              모드에서는 쓰지 않습니다.
+            </p>
+          )}
+          <div className={authStyles.actionsBetween}>
+            {/* 승인받기 전이면 아직 쓴 데이터가 없어 PIN 없이 되돌린다 */}
+            <RunModeSwitch current="remote" needsPin={approvedOnce} />
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setTakingOver(true)}
+            >
+              넘겨받은 파일로 호스트 시작
+            </Button>
+          </div>
         </div>
-      </section>
-      {/* 승인받기 전이면 아직 쓴 데이터가 없어 PIN 없이 되돌린다 */}
-      <RunModeSwitch current="remote" needsPin={approvedOnce} />
-    </div>
+      }
+    >
+      <div className={authStyles.stack}>
+        {notice && <NoticeBanner tone="error" message={notice} />}
+        {body}
+      </div>
+    </SplitAuthLayout>
   );
 
   if (takingOver) {
     return <TakeOverPage onBack={() => setTakingOver(false)} />;
   }
   if (settings.isPending) {
-    return <p className={formStyles.loading}>앱을 준비하는 중…</p>;
+    return page(<NoticeBanner message="앱을 준비하는 중…" />);
   }
   if (settings.isError) {
-    return page(
-      <p className={formStyles.formError} role="alert">
-        {settings.error.message}
-      </p>,
-    );
+    return page(<NoticeBanner tone="error" message={settings.error.message} />);
   }
   if (address === null || editingAddress) {
     return page(
@@ -131,47 +129,33 @@ export function RemoteGate({ leftoverData, children }: RemoteGateProps) {
     );
   }
   if (connection.isPending) {
-    return <p className={formStyles.loading}>호스트에 연결하는 중…</p>;
+    return page(<NoticeBanner message="호스트에 연결하는 중…" />);
   }
 
   const retry = (
-    <div className={formStyles.actions}>
-      <button
-        type="button"
-        className={formStyles.secondary}
-        onClick={() => setEditingAddress(true)}
-      >
+    <div className={authStyles.actions}>
+      <Button variant="secondary" onClick={() => setEditingAddress(true)}>
         주소 다시 입력
-      </button>
-      <button
-        type="button"
-        className={formStyles.submit}
-        onClick={() => void connection.refetch()}
-      >
+      </Button>
+      <Button variant="primary" onClick={() => void connection.refetch()}>
         다시 시도
-      </button>
+      </Button>
     </div>
   );
 
   // BR-H5: 붙지 않을 호스트에서는 다시 시도해도 같다
   const addressOnly = (
-    <div className={formStyles.actions}>
-      <button
-        type="button"
-        className={formStyles.submit}
-        onClick={() => setEditingAddress(true)}
-      >
+    <div className={authStyles.actions}>
+      <Button variant="primary" onClick={() => setEditingAddress(true)}>
         주소 다시 입력
-      </button>
+      </Button>
     </div>
   );
 
   if (connection.isError) {
     return page(
       <>
-        <p className={formStyles.formError} role="alert">
-          {connection.error.message}
-        </p>
+        <NoticeBanner tone="error" message={connection.error.message} />
         {retry}
       </>,
     );
@@ -180,53 +164,46 @@ export function RemoteGate({ leftoverData, children }: RemoteGateProps) {
     case "unreachable":
       return page(
         <>
-          <p className={authStyles.intro} role="alert">
-            호스트 PC({address})에 연결하지 못했습니다. 호스트 PC가 꺼져 있거나
-            주소가 바뀌었을 수 있습니다.
-          </p>
+          <NoticeBanner
+            tone="error"
+            message={`호스트 PC(${address})에 연결하지 못했습니다. 호스트 PC가 꺼져 있거나 주소가 바뀌었을 수 있습니다.`}
+          />
           {retry}
         </>,
       );
     case "incompatible":
       return page(
         <>
-          <p className={authStyles.intro} role="alert">
-            호스트 PC의 배움마루({connection.data.hostVersion})와 이 PC의 버전이
-            맞지 않습니다. 두 PC를 같은 버전으로 맞춰 주세요.
-          </p>
+          <NoticeBanner
+            tone="error"
+            message={`호스트 PC의 배움마루(${connection.data.hostVersion})와 이 PC의 버전이 맞지 않습니다. 두 PC를 같은 버전으로 맞춰 주세요.`}
+          />
           {retry}
         </>,
       );
     case "olderHost":
       return page(
         <>
-          <p className={authStyles.intro} role="alert">
-            이 주소의 호스트 PC({address})는 다른 PC로 호스트를 넘기기 전의 옛
-            데이터를 갖고 있습니다. 여기에 접수하면 데이터가 둘로 갈라집니다. 새
-            호스트 PC의 주소를 넣어 주세요.
-          </p>
+          <NoticeBanner
+            tone="error"
+            message={`이 주소의 호스트 PC(${address})는 다른 PC로 호스트를 넘기기 전의 옛 데이터를 갖고 있습니다. 여기에 접수하면 데이터가 둘로 갈라집니다. 새 호스트 PC의 주소를 넣어 주세요.`}
+          />
           {addressOnly}
         </>,
       );
     case "otherHost":
       return page(
         <>
-          <p className={authStyles.intro} role="alert">
-            이 주소의 호스트 PC({address})는 이 PC가 쓰던 것과 다른 데이터를
-            갖고 있습니다. 쓰던 호스트 PC의 주소를 넣어 주세요. 호스트 PC를 새로
-            설치했다면 이 호스트에 새로 승인을 요청해 주세요.
-          </p>
-          <div className={formStyles.actions}>
-            <button
-              type="button"
-              className={formStyles.secondary}
-              onClick={() => setEditingAddress(true)}
-            >
+          <NoticeBanner
+            tone="error"
+            message={`이 주소의 호스트 PC(${address})는 이 PC가 쓰던 것과 다른 데이터를 갖고 있습니다. 쓰던 호스트 PC의 주소를 넣어 주세요. 호스트 PC를 새로 설치했다면 이 호스트에 새로 승인을 요청해 주세요.`}
+          />
+          <div className={authStyles.actions}>
+            <Button variant="secondary" onClick={() => setEditingAddress(true)}>
               주소 다시 입력
-            </button>
-            <button
-              type="button"
-              className={formStyles.submit}
+            </Button>
+            <Button
+              variant="primary"
               onClick={() => {
                 setNotice(null);
                 void forgetHost()
@@ -241,7 +218,7 @@ export function RemoteGate({ leftoverData, children }: RemoteGateProps) {
               }}
             >
               이 호스트에 새로 승인 요청
-            </button>
+            </Button>
           </div>
         </>,
       );
@@ -265,19 +242,18 @@ export function RemoteGate({ leftoverData, children }: RemoteGateProps) {
     case "refused":
       return page(
         <>
-          <p className={authStyles.intro} role="alert">
-            {connection.data.reason === "rejected"
-              ? "호스트 PC에서 승인을 거절했습니다."
-              : "5분 안에 승인되지 않았습니다."}
-          </p>
-          <div className={formStyles.actions}>
-            <button
-              type="button"
-              className={formStyles.submit}
-              onClick={() => void reloadSettings()}
-            >
+          <NoticeBanner
+            tone="error"
+            message={
+              connection.data.reason === "rejected"
+                ? "호스트 PC에서 승인을 거절했습니다."
+                : "5분 안에 승인되지 않았습니다."
+            }
+          />
+          <div className={authStyles.actions}>
+            <Button variant="primary" onClick={() => void reloadSettings()}>
               다시 요청
-            </button>
+            </Button>
           </div>
         </>,
       );
