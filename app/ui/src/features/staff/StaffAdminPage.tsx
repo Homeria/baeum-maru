@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Tabs, type TabItem } from "../../components/Tabs/Tabs";
+import { Tabs, type TabItem } from "../../components/tabs/Tabs";
 import { AccessLogList } from "../access-logs/AccessLogList";
 import { BackupPanel } from "../backups/BackupPanel";
 import { DevicePanel } from "../devices/DevicePanel";

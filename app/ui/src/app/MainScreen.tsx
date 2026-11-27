@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Tabs, type TabItem } from "../components/Tabs/Tabs";
+import { Tabs, type TabItem } from "../components/tabs/Tabs";
 import { ApplicationsPage } from "../features/applications/ApplicationsPage";
 import { CoursesPage } from "../features/courses/CoursesPage";
 import type { Session } from "../api/session";

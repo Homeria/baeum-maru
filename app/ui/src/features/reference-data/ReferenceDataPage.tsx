@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Tabs, type TabItem } from "../../components/Tabs/Tabs";
+import { Tabs, type TabItem } from "../../components/tabs/Tabs";
 import { PriorityReasonsPage } from "../priority-reasons/PriorityReasonsPage";
 import { RoomsPage } from "../rooms/RoomsPage";
 import { SubjectsPage } from "../subjects/SubjectsPage";
