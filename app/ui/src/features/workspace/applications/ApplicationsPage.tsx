@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { listApplicationCounts, listApplications } from "./api";
-import { listCourses } from "../courses/api";
-import { listSelections } from "../selection/api";
+import { listApplications } from "./api";
+import {
+  listApplicationCounts,
+  listCourses,
+  listSelections,
+} from "../courses/api";
 import { listPriorityReasons } from "../priority-reasons/api";
 import { listRooms } from "../rooms/api";
 import { listClosedCourses } from "../selection-results/api";

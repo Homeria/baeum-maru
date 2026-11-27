@@ -1,5 +1,4 @@
 import { getJson, postJson, putJson, sendDelete } from "../../../api/client";
-import type { ApplicationCountListResponse } from "../../../api/generated/ApplicationCountListResponse";
 import type { ApplicationListResponse } from "../../../api/generated/ApplicationListResponse";
 import type { DeleteApplicationRequest } from "../../../api/generated/DeleteApplicationRequest";
 import type { SetPriorityReasonsResponse } from "../../../api/generated/SetPriorityReasonsResponse";
@@ -13,15 +12,6 @@ export function listApplications(
 ): Promise<ApplicationListResponse> {
   return getJson<ApplicationListResponse>(
     `/api/terms/${termId}/applications?memberId=${memberId}`,
-  );
-}
-
-/** 이 학기 강좌별 신청 인원을 받는다. 신청이 없는 강좌는 빠진다. */
-export function listApplicationCounts(
-  termId: number,
-): Promise<ApplicationCountListResponse> {
-  return getJson<ApplicationCountListResponse>(
-    `/api/terms/${termId}/application-counts`,
   );
 }
 

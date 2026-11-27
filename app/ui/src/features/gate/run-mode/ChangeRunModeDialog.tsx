@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { listLoginStaff } from "../auth/api";
 import type { RunMode } from "../../../api/generated/RunMode";
-import { changeRunMode, permitRunModeChange } from "./api";
+import { changeRunMode, permitRunModeChange } from "../../../api/runMode";
 import { ConfirmDialog } from "../../../components/dialog/ConfirmDialog";
 import formStyles from "../../../components/form/form.module.css";
 import { AdminPinFields } from "../auth/AdminPinFields";

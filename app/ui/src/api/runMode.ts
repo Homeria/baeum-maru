@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
-import { postNoContent } from "../../../api/client";
-import type { RunMode } from "../../../api/generated/RunMode";
-import type { RunModeResponse } from "../../../api/generated/RunModeResponse";
+import { postNoContent } from "./client";
+import type { RunMode } from "./generated/RunMode";
+import type { RunModeResponse } from "./generated/RunModeResponse";
 
 /**
  * 켤 때 정한 실행 모드(ADR 0021). 아직 고르지 않았으면 `mode`가 `null`이다.

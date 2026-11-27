@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { changeRunMode } from "../run-mode/api";
+import { changeRunMode } from "../../../api/runMode";
 import { ConfirmDialog } from "../../../components/dialog/ConfirmDialog";
 import formStyles from "../../../components/form/form.module.css";
 import authStyles from "../auth/auth.module.css";

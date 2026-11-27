@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { runModeState } from "./api";
+import { runModeState } from "../../../api/runMode";
 
 /** 켤 때 정한 실행 모드(ADR 0021). 켤 때 한 번 정해지고 바뀌지 않는다. */
 export function useRunMode() {

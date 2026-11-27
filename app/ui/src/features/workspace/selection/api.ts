@@ -1,11 +1,5 @@
 import { getJson, postJson, postNoContent } from "../../../api/client";
 import type { CourseLotteryResponse } from "../../../api/generated/CourseLotteryResponse";
-import type { SelectionListResponse } from "../../../api/generated/SelectionListResponse";
-
-/** 이 학기 강좌마다 선발 단계(추첨 전, 추첨함, 마감)를 받는다. 강좌 id 순. */
-export function listSelections(termId: number): Promise<SelectionListResponse> {
-  return getJson<SelectionListResponse>(`/api/terms/${termId}/selections`);
-}
 
 /** 강좌 하나의 추첨 화면(신청자, 결과, 이 PC에서 추첨할 수 있는지)을 받는다. */
 export function getLottery(courseId: number): Promise<CourseLotteryResponse> {

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { chooseRunMode } from "./api";
+import { chooseRunMode } from "../../../api/runMode";
 import styles from "../../../components/form/form.module.css";
 import authStyles from "../auth/auth.module.css";
 import { TakeOverPage } from "../handover/TakeOverPage";

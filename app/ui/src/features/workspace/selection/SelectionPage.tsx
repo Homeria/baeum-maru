@@ -1,8 +1,10 @@
 import { useId, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { listApplicationCounts } from "../applications/api";
-import { listCourses } from "../courses/api";
-import { listSelections } from "./api";
+import {
+  listApplicationCounts,
+  listCourses,
+  listSelections,
+} from "../courses/api";
 import { listTerms } from "../terms/api";
 import formStyles from "../../../components/form/form.module.css";
 import {

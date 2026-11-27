@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { changeRunMode, chooseRunMode } from "./api";
+import { changeRunMode, chooseRunMode } from "./runMode";
 
 const invoke = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
