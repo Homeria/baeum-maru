@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { SplitAuthLayout } from "../components/shell/SplitAuthLayout";
+import { NoticeBanner } from "../components/surface/NoticeBanner";
 import { startupState } from "../features/gate/broken-db/api";
 import { BrokenDbPage } from "../features/gate/broken-db/BrokenDbPage";
 import { StartupProblemPage } from "../features/gate/broken-db/StartupProblemPage";
@@ -7,7 +9,6 @@ import { HandingOverPage } from "../features/gate/handover/HandingOverPage";
 import { RemoteGate } from "../features/gate/remote/RemoteGate";
 import { ChooseRunModePage } from "../features/gate/run-mode/ChooseRunModePage";
 import { useRunMode } from "../features/gate/run-mode/useRunMode";
-import formStyles from "../components/form/form.module.css";
 import { StaffFlow } from "./StaffFlow";
 
 /**
@@ -31,7 +32,15 @@ export function App() {
   });
 
   if (runMode.isPending) {
-    return <p className={formStyles.loading}>앱을 준비하는 중…</p>;
+    return (
+      <SplitAuthLayout
+        panelTitle="앱 준비"
+        panelDescription="실행 환경을 확인하고 있습니다."
+        cardTitle="앱을 준비하는 중"
+      >
+        <NoticeBanner message="앱을 준비하는 중…" />
+      </SplitAuthLayout>
+    );
   }
   if (runMode.data !== undefined && runMode.data.mode === null) {
     return <ChooseRunModePage />;
@@ -50,7 +59,15 @@ export function App() {
     );
   }
   if (startup.isPending) {
-    return <p className={formStyles.loading}>데이터를 확인하는 중…</p>;
+    return (
+      <SplitAuthLayout
+        panelTitle="데이터 확인"
+        panelDescription="저장된 데이터를 안전하게 열 수 있는지 확인하고 있습니다."
+        cardTitle="데이터를 확인하는 중"
+      >
+        <NoticeBanner message="데이터를 확인하는 중…" />
+      </SplitAuthLayout>
+    );
   }
   if (startup.data !== undefined && startup.data.state !== "ready") {
     return startup.data.state === "broken" ? (
