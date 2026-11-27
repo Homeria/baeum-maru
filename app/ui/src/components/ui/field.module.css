@@ -1,0 +1,148 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.label {
+  font-size: var(--font-size);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-bad);
+}
+
+.control {
+  inline-size: 100%;
+  min-block-size: var(--control-min-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+}
+
+.control::placeholder {
+  color: var(--color-placeholder);
+  opacity: 1;
+}
+
+.control[aria-invalid="true"] {
+  border-color: var(--color-bad);
+}
+
+.control:disabled {
+  background: var(--color-disabled-bg);
+  border-color: var(--color-disabled-border);
+  color: var(--color-disabled-text);
+  cursor: not-allowed;
+}
+
+.searchWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  inset-inline-start: var(--space-3);
+  inline-size: 18px;
+  block-size: 18px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  padding-inline-start: 40px;
+  padding-inline-end: 40px;
+}
+
+/* 브라우저 기본 X 버튼 숨기고 일관된 접근성 지우기 버튼을 쓴다 */
+.searchInput::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.clearButton {
+  position: absolute;
+  inset-inline-end: var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 32px;
+  min-block-size: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.clearButton:hover {
+  background: var(--color-control-hover);
+  color: var(--color-text);
+}
+
+.choiceRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-block-size: 32px;
+  padding: 4px 0;
+}
+
+.choiceInput {
+  flex: 0 0 auto;
+  inline-size: 20px;
+  block-size: 20px;
+  margin: 2px 0 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.choiceInput:disabled {
+  cursor: not-allowed;
+}
+
+.choiceText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.choiceLabel {
+  font-size: var(--font-size);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.choiceInput:disabled + .choiceText .choiceLabel {
+  color: var(--color-disabled-text);
+  cursor: not-allowed;
+}
