@@ -1,0 +1,97 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.25;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.md {
+  min-block-size: var(--control-min-height);
+  padding: 0 var(--space-4);
+  font-size: var(--font-size);
+}
+
+.sm {
+  min-block-size: var(--row-action-height);
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.primary.md {
+  font-size: var(--font-size-lg);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.primary:active:not(:disabled) {
+  background: var(--color-primary-active);
+  border-color: var(--color-primary-active);
+}
+
+.secondary {
+  background: var(--color-bg);
+  border-color: var(--color-border-control);
+  color: var(--color-text);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--color-control-hover);
+}
+
+.secondary:active:not(:disabled) {
+  background: var(--color-control-active);
+}
+
+.danger {
+  background: var(--color-bg);
+  border-color: var(--color-bad);
+  color: var(--color-bad);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--color-bad-bg);
+}
+
+.danger:active:not(:disabled) {
+  background: var(--color-bad);
+  color: #ffffff;
+}
+
+.dangerSolid {
+  background: var(--color-bad);
+  border-color: var(--color-bad);
+  color: #ffffff;
+}
+
+.dangerSolid:hover:not(:disabled) {
+  background: var(--color-bad-hover);
+  border-color: var(--color-bad-hover);
+}
+
+.dangerSolid:active:not(:disabled) {
+  background: var(--color-bad-active);
+  border-color: var(--color-bad-active);
+}
+
+.button:disabled {
+  background: var(--color-disabled-bg);
+  border-color: var(--color-disabled-border);
+  color: var(--color-disabled-text);
+  cursor: not-allowed;
+}

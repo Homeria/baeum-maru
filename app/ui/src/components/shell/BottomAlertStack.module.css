@@ -1,0 +1,52 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-block-size: 48px;
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.item:first-child {
+  border-top: none;
+}
+
+.danger {
+  background: var(--color-bad-bg);
+  border-inline-start: 4px solid var(--color-bad);
+  color: var(--color-bad);
+}
+
+.info {
+  background: var(--color-primary-bg);
+  border-inline-start: 4px solid var(--color-primary);
+  color: var(--color-primary);
+}
+
+.neutral {
+  background: var(--color-surface);
+  border-inline-start: 4px solid var(--color-border-control);
+  color: var(--color-text-head);
+}
+
+.message {
+  margin: 0;
+  font-size: var(--font-size);
+  font-weight: var(--font-weight-bold);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}

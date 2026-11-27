@@ -1,0 +1,78 @@
+.scrollRegion {
+  overflow: auto;
+  max-inline-size: 100%;
+  background: var(--color-bg);
+}
+
+.stateBox {
+  padding: var(--space-4);
+}
+
+.table {
+  inline-size: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--color-text);
+  font-size: var(--font-size);
+}
+
+.head {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+}
+
+.th {
+  block-size: 40px;
+  padding: 0 var(--space-3);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-head);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.td {
+  padding: 10px var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  font-weight: var(--font-weight-regular);
+  vertical-align: middle;
+}
+
+.row:last-child .td {
+  border-bottom: none;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover .td {
+  background: var(--color-control-hover);
+}
+
+.selected .td {
+  background: var(--color-primary-bg);
+  font-weight: var(--font-weight-bold);
+}
+
+.turnRow .td {
+  background: var(--color-turn-row);
+}
+
+.actionCell {
+  white-space: nowrap;
+}
+
+.left {
+  text-align: left;
+}
+
+.center {
+  text-align: center;
+}
+
+.right {
+  text-align: right;
+}
