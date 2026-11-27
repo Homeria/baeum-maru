@@ -148,8 +148,8 @@ let count = members.len(); // 회원 수
 - 요청 주소부터 DB까지 거치는 테스트는 그 기능의 `tests/handler.rs`(또는 `tests.rs`의 `mod handler`)에 둔다. 라우터에 요청을 직접 보내므로(`oneshot`) 요청 처리 함수를 공개하지 않아도 된다.
 - 여러 기능의 테스트가 함께 쓰는 도우미는 `#[cfg(test)]`로 묶어 한곳에 둔다. 요청 보내기와 임시 DB 라우터는 `server/test_support.rs`, 더미 데이터 넣기는 `db/test_support.rs`, 임시 DB 열기는 `infra::db::open_temp`. 두 기능에서 같은 도우미가 생기면 옮긴다.
 - crate의 `tests/` 폴더는 공개 API만으로 시험할 수 있을 때 쓴다.
-- 화면 테스트는 Vitest로, 테스트할 파일 옆에 `이름.test.ts`로 둔다. 설명은 한국어 문장으로 쓴다: `test("빈 검색어는 싣지 않는다", …)`
-- 화면은 지금 순수 함수(계산, 변환)만 테스트한다. 버튼을 누르는 화면 동작 테스트는 아직 하지 않는다.
+- 화면 테스트는 Vitest로, 테스트할 파일 옆에 `이름.test.ts` 또는 `이름.test.tsx`로 둔다. 설명은 한국어 문장으로 쓴다: `test("빈 검색어는 싣지 않는다", …)`
+- 화면은 순수 함수(계산, 변환)를 `*.test.ts`로, 공통 부품(`components/`)과 주요 화면 흐름은 DOM 동작 테스트(`*.test.tsx`)로 검증한다. 구현 세부가 아니라 사용자가 보는 역할(`role`), 라벨, 상태 문구와 실제 클릭·키보드 입력 기준으로 검증한다.
 
 ```rust
 #[cfg(test)]
@@ -347,17 +347,28 @@ app/server/src/
 | 폴더 | 소문자 | `components/`, `features/host/` |
 | CSS 클래스 | `camelCase` | `.rowSelected` → `styles.rowSelected` |
 
-- 화면 코드(`app/ui/src/`)의 폴더는 이렇게 나눈다.
+- 화면 코드(`app/ui/src/`)의 폴더는 ADR 0023을 따라 이렇게 나눈다.
 
 | 폴더 | 하는 일 |
 |---|---|
-| `app/` | 첫 화면, 화면 흐름, 전체 CSS |
-| `features/<기능>/` | 기능 하나의 화면 부품과 계산 |
-| `components/` | 여러 기능이 쓰는 화면 부품과 그 CSS |
-| `api/` | 서버와 앱 명령 부르기. `api/generated/`는 ts-rs가 만든다 |
-| `lib/` | 화면도 서버도 모르는 도구(날짜 등). 다른 폴더를 부르지 않는다 |
+| `app/` | 첫 화면, 화면 흐름, 디자인 토큰과 전체 CSS |
+| `features/gate/` | 로그인 전 관문 기능(실행 모드, 접속, 처음 설정, 깨진 DB, 넘기기·넘겨받기, 로그인·잠금) |
+| `features/workspace/` | 로그인 뒤 업무 화면 기능. 기능 폴더마다 자기 `api.ts`와 부품·계산을 함께 둔다 |
+| `components/` | 여러 기능이 쓰는 공통 화면 부품과 그 CSS |
+| `api/` | 공통 요청 도구(client, session, 앱 명령 부르기)와 `api/generated/`(ts-rs 자동 생성) |
+| `lib/` | 화면도 서버도 모르는 순수 도구(날짜 등). 다른 폴더를 부르지 않는다 |
 
-- 기능 폴더끼리 import가 돌지 않게 한다. 두 기능이 같은 것을 쓰면 둘 다 이미 부르는 쪽(예: 강좌별 인원·단계는 `features/courses/`)이나 `lib/`, `components/`로 옮긴다.
+- `components/` 아래는 역할에 따라 네 층으로 나눈다. 상위 층만 하위 층을 부른다(`shell` → `overlay`, `surface`, `ui`).
+
+| 하위 폴더 | 하는 일 | 예 |
+|---|---|---|
+| `ui/` | 가장 작은 기본 부품(상태와 업무를 모른다) | 버튼, 입력 칸, 선택 칸, 검색 칸, 상태 배지 |
+| `surface/` | 정보를 담는 틀과 목록 | 카드, 데이터 표, 빈 상태·오류 배너 |
+| `overlay/` | 화면 위에 뜨는 창과 서랍 | 확인 대화상자, 편집 서랍 |
+| `shell/` | 화면 전체 뼈대 | 앱 껍데기(상단 바·탭), 하단 알림 영역, 로그인 분할 틀 |
+
+- 기능 폴더는 파일이 적으면 평평하게 두고, 커지면 `components/`, `hooks/`, `data/`로 나눈다(ADR 0023).
+- 기능 폴더끼리 import가 돌지 않게 한다. 두 기능이 같은 것을 쓰면 둘 다 이미 부르는 쪽(예: 강좌별 인원·단계는 강좌 기능 폴더)이나 `lib/`, `components/`로 옮긴다.
 - 앱 명령은 `api/appCommands.ts`의 `invokeCommand()`로 부른다. 앱이 보낸 실패 문장을 그대로 `Error`로 던진다.
 
 - 이름 붙은 export만 쓴다. `export default`는 쓰지 않는다. ESLint가 막는다.
