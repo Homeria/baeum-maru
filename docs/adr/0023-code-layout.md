@@ -240,3 +240,10 @@ service 층을 만들기 전에(#96, 2026-11-25) 이렇게 정했다.
 - repository의 하위 파일(`repository/priorities.rs`, `repository/changes.rs`)처럼 service도 `service/priorities.rs`, `service/changes.rs`로 둔다. 그 테스트 파일(`tests/priorities.rs`, `tests/changes.rs`)은 이름을 그대로 둔다. 큰 service 함수의 테스트는 `tests/service.rs`에 둔다.
 - 백업과 넘기기의 본체는 #100에서 `backups/service.rs`·`service/`, `handover/service/`로 옮겼다. 파일과 데이터 폴더를 다루는 코드가 대부분이라 repository로 나누지 않고, 화면 타입은 `dto.rs`로, 테스트는 `tests/`로 뗐다. 실행 모드(`RunMode`)는 응답 모양이 아니라 실행 모드 파일의 값이라 `service/run_mode.rs`에 둔다.
 - 기능의 오류 enum은 #102에서 기능마다 `error.rs`로 모았다. 위의 "오류 enum은 service에 둔다"를 바꾼다. service에 두면 repository가 그 오류를 돌려주지 못해, 오류만 바꾸는 얇은 service 함수가 생겼다(직원 추가). `ApiError`로 바꾸는 `From`은 handler에, domain crate의 오류(`PinRefusal` 등)는 domain에 둔다.
+
+화면 폴더를 정리하며(#112, 2026-11-27) 이렇게 정했다.
+
+- `features/gate/`에는 로그인 전 관문 기능 다섯(`auth`, `run-mode`, `remote`, `broken-db`, `handover`)을, `features/workspace/`에는 로그인 뒤 업무 기능 열여섯(`members`, `terms`, `courses`, `applications`, `selection`, `selection-results`, `subjects`, `rooms`, `priority-reasons`, `reference-data`, `staff`, `access-logs`, `backups`, `devices`, `host`, `changes`)을 둔다.
+- `api/`에는 여러 기능이 함께 쓰는 공통 요청·앱 명령 도구 여덟(`client`, `session`, `appCommands`, `pickFolder`, `saveFile`, `changes`, `version`, `runMode`)과 `generated/`만 남기고, 기능 전용 API는 각 기능 폴더의 `api.ts`(보조 파일은 `setupApi.ts`·`recoveryApi.ts`·`approvalApi.ts`·`rostersApi.ts`)로 옮겼다.
+- 신청과 추첨이 서로 부르던 읽기 API(`listApplicationCounts`, `listSelections`)는 두 기능이 이미 부르는 `workspace/courses/api.ts`로 모아 순환을 없앴다(#105의 `courseStatusData.ts`와 같은 기준). `runMode`도 넘기기·실행 모드·기기·`app/`이 함께 써 `api/runMode.ts`에 두어 `handover` ↔ `run-mode` 순환을 끊었다.
+- 기능 폴더 안은 대부분 파일이 10개 안쪽이고 이어지는 화면 개편에서 부품이 정리되므로 모두 평평하게 둔다.
