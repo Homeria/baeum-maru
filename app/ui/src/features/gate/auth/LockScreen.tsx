@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { logout, unlock } from "./api";
 import type { Session } from "../../../api/session";
-import styles from "../../../components/form/form.module.css";
 import { NO_FORM_ERRORS } from "../../../components/form/formErrors";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
+import { TextField } from "../../../components/ui/TextField";
+import { logout, unlock } from "./api";
 import authStyles from "./auth.module.css";
 import { loginFormErrorsFrom, type LoginFormErrors } from "./loginFormData";
 import { ROLE_LABELS } from "./roles";
@@ -26,10 +28,16 @@ export function LockScreen({ session }: LockScreenProps) {
   const [pin, setPin] = useState("");
   const [errors, setErrors] = useState<LoginFormErrors>(NO_FORM_ERRORS);
   const { name, role } = session.staff;
-  const dialog = useRef<HTMLDialogElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const pinInputRef = useRef<HTMLInputElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
-    dialog.current?.showModal();
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) {
+      dialog.showModal();
+      pinInputRef.current?.focus();
+    }
   }, []);
 
   const open = useMutation({
@@ -41,6 +49,7 @@ export function LockScreen({ session }: LockScreenProps) {
     onError: (error) => {
       setErrors(loginFormErrorsFrom(error));
       setPin("");
+      pinInputRef.current?.focus();
     },
   });
 
@@ -51,79 +60,70 @@ export function LockScreen({ session }: LockScreenProps) {
     }
   };
 
-  const pinError = errors.fields.pin;
+  const dialogAttrs: Record<string, string> = { closedby: "none" };
 
   return (
     <dialog
-      ref={dialog}
+      {...dialogAttrs}
+      ref={dialogRef}
       className={authStyles.lockOverlay}
-      aria-labelledby="lock-title"
+      aria-labelledby={titleId}
       // Esc로 닫히지 않게
       onCancel={(event) => event.preventDefault()}
     >
-      <form className={styles.form} onSubmit={submit} noValidate>
-        <h2 id="lock-title" className={styles.title}>
+      <div className={authStyles.lockHeader}>
+        <h1 id={titleId} className={authStyles.lockTitle}>
           화면이 잠겼습니다
-        </h2>
-        <p className={authStyles.intro}>
-          10분 동안 쓰지 않아 잠갔습니다. <strong>{name}</strong> (
-          {ROLE_LABELS[role]})의 PIN을 넣으면 하던 화면으로 돌아갑니다.
-        </p>
+        </h1>
+      </div>
 
-        <div className={styles.field}>
-          <label htmlFor="lock-pin" className={styles.label}>
-            PIN
-          </label>
-          <input
+      <div className={authStyles.lockBody}>
+        <form className={authStyles.form} onSubmit={submit} noValidate>
+          <p className={authStyles.intro}>
+            10분 동안 쓰지 않아 잠갔습니다. <strong>{name}</strong> (
+            {ROLE_LABELS[role]})의 PIN을 넣으면 하던 화면으로 돌아갑니다.
+          </p>
+
+          <TextField
             id="lock-pin"
-            className={styles.input}
+            ref={pinInputRef}
+            label="PIN"
             type="password"
             inputMode="numeric"
             autoComplete="current-password"
             maxLength={8}
-            autoFocus
             value={pin}
+            error={errors.fields.pin}
             onChange={(event) => {
               setPin(event.target.value);
               setErrors(NO_FORM_ERRORS);
             }}
-            aria-invalid={pinError !== undefined}
-            aria-describedby={pinError ? "lock-pin-error" : undefined}
           />
-          {pinError && (
-            <p id="lock-pin-error" className={styles.fieldError}>
-              {pinError}
-            </p>
-          )}
-        </div>
 
-        {errors.form && (
-          <p className={styles.formError} role="alert">
-            {errors.form}
+          {errors.form && <NoticeBanner tone="error" message={errors.form} />}
+
+          <div className={authStyles.actionsBetween}>
+            <Button
+              variant="secondary"
+              disabled={open.isPending}
+              onClick={() => void logout()}
+            >
+              다른 직원으로 로그인
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              busy={open.isPending}
+              busyLabel="확인하는 중…"
+            >
+              열기
+            </Button>
+          </div>
+          <p className={authStyles.hint}>
+            다른 직원으로 로그인하면 이 화면에서 쓰던 내용은 사라집니다.
           </p>
-        )}
-
-        <div className={styles.actions}>
-          <button
-            type="submit"
-            className={styles.submit}
-            disabled={open.isPending}
-          >
-            {open.isPending ? "확인하는 중…" : "열기"}
-          </button>
-          <button
-            type="button"
-            className={styles.secondary}
-            disabled={open.isPending}
-            onClick={() => void logout()}
-          >
-            다른 직원으로 로그인
-          </button>
-        </div>
-        <p className={authStyles.hint}>
-          다른 직원으로 로그인하면 이 화면에서 쓰던 내용은 사라집니다.
-        </p>
-      </form>
+        </form>
+      </div>
     </dialog>
   );
 }

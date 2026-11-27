@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { SplitAuthLayout } from "../components/shell/SplitAuthLayout";
+import { NoticeBanner } from "../components/surface/NoticeBanner";
 import { fetchSetupStatus } from "../features/gate/auth/setupApi";
 import { LockScreen } from "../features/gate/auth/LockScreen";
 import { LoginPage } from "../features/gate/auth/LoginPage";
@@ -10,7 +12,6 @@ import { useIdleLock } from "../features/gate/auth/useIdleLock";
 import { useSession } from "../features/gate/auth/useSession";
 import { RunModeSwitch } from "../features/gate/run-mode/RunModeSwitch";
 import { useRunMode } from "../features/gate/run-mode/useRunMode";
-import formStyles from "../components/form/form.module.css";
 import { MainScreen } from "./MainScreen";
 
 /**
@@ -41,36 +42,39 @@ export function StaffFlow() {
     );
   }
   if (status.isPending) {
-    return <p className={formStyles.loading}>호스트에 연결하는 중…</p>;
+    return (
+      <SplitAuthLayout
+        panelTitle="호스트 연결"
+        panelDescription="호스트 PC와 연결 상태를 확인하고 있습니다."
+        cardTitle="호스트에 연결하는 중"
+      >
+        <NoticeBanner message="호스트에 연결하는 중…" />
+      </SplitAuthLayout>
+    );
   }
   if (status.isError) {
     return (
-      <div className={formStyles.loading}>
-        <p className={formStyles.formError} role="alert">
-          {status.error.message}
-        </p>
-        <button
-          type="button"
-          className={formStyles.secondary}
-          onClick={() => void status.refetch()}
-        >
-          다시 해 보기
-        </button>
-      </div>
+      <SplitAuthLayout
+        panelTitle="호스트 연결"
+        panelDescription="호스트 PC에 연결할 수 없으면 네트워크나 호스트 실행 상태를 확인해 주세요."
+        cardTitle="호스트에 연결하지 못했습니다"
+      >
+        <NoticeBanner
+          tone="error"
+          message={status.error.message}
+          actionLabel="다시 해 보기"
+          onAction={() => void status.refetch()}
+        />
+      </SplitAuthLayout>
     );
   }
-  // 로그인 전 화면 구석의 실행 모드 바꾸기(ADR 0021). 직원이 없으면 지킬 데이터가 없다
+  // 로그인 전 화면 카드 아래의 실행 모드 바꾸기(ADR 0021). 직원이 없으면 지킬 데이터가 없다
   // 넘기기 상태는 이 화면까지 오지 않는다(BR-H1)
   const modeSwitch = (mode === "host" || mode === "remote") && (
     <RunModeSwitch current={mode} needsPin={!status.data.needed} />
   );
   if (status.data.needed) {
-    return (
-      <>
-        <SetupPage onDone={setRecoveryCode} />
-        {modeSwitch}
-      </>
-    );
+    return <SetupPage onDone={setRecoveryCode} footer={modeSwitch} />;
   }
   if (session === null) {
     if (recovering) {
@@ -85,10 +89,7 @@ export function StaffFlow() {
       );
     }
     return (
-      <>
-        <LoginPage onForgotPin={() => setRecovering(true)} />
-        {modeSwitch}
-      </>
+      <LoginPage onForgotPin={() => setRecovering(true)} footer={modeSwitch} />
     );
   }
   return (

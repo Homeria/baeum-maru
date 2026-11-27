@@ -1,10 +1,14 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { listLoginStaff } from "./api";
-import { recover } from "./recoveryApi";
-import styles from "../../../components/form/form.module.css";
 import { NO_FORM_ERRORS } from "../../../components/form/formErrors";
+import { SplitAuthLayout } from "../../../components/shell/SplitAuthLayout";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
+import { SelectField } from "../../../components/ui/SelectField";
+import { TextField } from "../../../components/ui/TextField";
+import { listLoginStaff } from "./api";
 import authStyles from "./auth.module.css";
+import { recover } from "./recoveryApi";
 import {
   EMPTY_RECOVERY_FORM,
   firstErrorField,
@@ -78,138 +82,114 @@ export function RecoveryPage({ onBack, onDone }: RecoveryPageProps) {
     submit.mutate(request);
   };
 
-  const textField = (
-    field: "code" | "pin" | "pinConfirm",
-    label: string,
-    secret: boolean,
-  ) => {
-    const errorId = `recovery-${field}-error`;
-    const error = errors.fields[field];
-    return (
-      <div className={styles.field}>
-        <label htmlFor={`recovery-${field}`} className={styles.label}>
-          {label}
-        </label>
-        <input
-          id={`recovery-${field}`}
-          ref={(element) => {
-            inputs.current[field] = element;
-          }}
-          className={styles.input}
-          type={secret ? "password" : "text"}
-          inputMode={secret ? "numeric" : undefined}
-          autoComplete={secret ? "new-password" : "off"}
-          maxLength={secret ? 8 : undefined}
-          value={values[field]}
-          onChange={(event) => change(field, event.target.value)}
-          aria-invalid={error !== undefined}
-          aria-describedby={error ? errorId : undefined}
-        />
-        {error && (
-          <p id={errorId} className={styles.fieldError}>
-            {error}
-          </p>
-        )}
-      </div>
-    );
-  };
-
-  const staffError = errors.fields.staffId;
-
   return (
-    <div className={authStyles.page}>
-      <form
-        className={`${styles.form} ${authStyles.card}`}
-        onSubmit={onSubmit}
-        noValidate
-      >
-        <h2 className={styles.title}>PIN을 잊었을 때</h2>
-        <p className={authStyles.intro}>
-          직원과 임시 직원은 관리자에게 PIN을 새로 정해 달라고 부탁해 주세요.
-        </p>
-        <p className={authStyles.intro}>
-          관리자는 처음 설정 때 인쇄해 둔 복구 코드로 PIN을 다시 정합니다. 다시
-          정하면 새 복구 코드가 나오고, 쓴 코드는 더 이상 쓸 수 없습니다.
-        </p>
-
+    <SplitAuthLayout
+      panelTitle="PIN 복구 안내"
+      panelDescription="직원과 임시 직원은 관리자에게 PIN 새로 정하기를 부탁해 주세요. 관리자는 보관해 둔 복구 코드로 새 PIN을 정합니다."
+      cardTitle="PIN을 잊었을 때"
+      cardSubtitle="복구 코드로 새 PIN을 정하면 새 복구 코드가 발급되고, 쓴 코드는 더 이상 쓸 수 없습니다."
+    >
+      <form className={authStyles.form} onSubmit={onSubmit} noValidate>
         {staffList.isError ? (
-          <p className={styles.formError} role="alert">
-            {staffList.error.message}
-          </p>
+          <NoticeBanner tone="error" message={staffList.error.message} />
         ) : (
-          <div className={styles.field}>
-            <label htmlFor="recovery-staffId" className={styles.label}>
-              관리자 이름
-            </label>
-            <select
-              id="recovery-staffId"
-              ref={(element) => {
-                inputs.current.staffId = element;
-              }}
-              className={styles.input}
-              value={values.staffId ?? ""}
-              onChange={(event) =>
-                change(
-                  "staffId",
-                  event.target.value === "" ? null : Number(event.target.value),
-                )
-              }
-              disabled={staffList.isPending}
-              aria-invalid={staffError !== undefined}
-              aria-describedby={
-                staffError ? "recovery-staffId-error" : undefined
-              }
-            >
-              <option value="">
-                {staffList.isPending ? "불러오는 중…" : "골라 주세요"}
-              </option>
-              {staffList.data?.items
-                .filter((item) => item.role === "admin")
-                .map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-            </select>
-            {staffError && (
-              <p id="recovery-staffId-error" className={styles.fieldError}>
-                {staffError}
-              </p>
-            )}
-          </div>
-        )}
-
-        {textField("code", "복구 코드", false)}
-        <p className={authStyles.hint}>
-          예: K7QF-M2XA-9TRE-HW4C. 가운데 줄표는 없어도 됩니다.
-        </p>
-        {textField("pin", "새 PIN (숫자 6~8자리)", true)}
-        {textField("pinConfirm", "새 PIN 한 번 더", true)}
-
-        {errors.form && (
-          <p className={styles.formError} role="alert">
-            {errors.form}
-          </p>
-        )}
-
-        <div className={styles.actions}>
-          <button
-            type="submit"
-            className={styles.submit}
-            disabled={submit.isPending}
+          <SelectField
+            id="recovery-staffId"
+            ref={(element) => {
+              inputs.current.staffId = element;
+            }}
+            label="관리자 이름"
+            required
+            value={values.staffId ?? ""}
+            disabled={staffList.isPending}
+            error={errors.fields.staffId}
+            onChange={(event) =>
+              change(
+                "staffId",
+                event.target.value === "" ? null : Number(event.target.value),
+              )
+            }
           >
-            {submit.isPending ? "확인하는 중…" : "PIN 다시 정하기"}
-          </button>
-          <button
-            type="button"
-            className={styles.secondary}
+            <option value="">
+              {staffList.isPending ? "불러오는 중…" : "골라 주세요"}
+            </option>
+            {staffList.data?.items
+              .filter((item) => item.role === "admin")
+              .map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+          </SelectField>
+        )}
+
+        <TextField
+          id="recovery-code"
+          ref={(element) => {
+            inputs.current.code = element;
+          }}
+          label="복구 코드"
+          required
+          hint="예: K7QF-M2XA-9TRE-HW4C. 가운데 줄표는 없어도 됩니다."
+          type="text"
+          autoComplete="off"
+          value={values.code}
+          error={errors.fields.code}
+          onChange={(event) => change("code", event.target.value)}
+        />
+
+        <TextField
+          id="recovery-pin"
+          ref={(element) => {
+            inputs.current.pin = element;
+          }}
+          label="새 PIN (숫자 6~8자리)"
+          required
+          type="password"
+          inputMode="numeric"
+          autoComplete="new-password"
+          maxLength={8}
+          value={values.pin}
+          error={errors.fields.pin}
+          onChange={(event) => change("pin", event.target.value)}
+        />
+
+        <TextField
+          id="recovery-pinConfirm"
+          ref={(element) => {
+            inputs.current.pinConfirm = element;
+          }}
+          label="새 PIN 한 번 더"
+          required
+          type="password"
+          inputMode="numeric"
+          autoComplete="new-password"
+          maxLength={8}
+          value={values.pinConfirm}
+          error={errors.fields.pinConfirm}
+          onChange={(event) => change("pinConfirm", event.target.value)}
+        />
+
+        {errors.form && <NoticeBanner tone="error" message={errors.form} />}
+
+        <div className={authStyles.actionsBetween}>
+          <Button
+            variant="secondary"
             onClick={onBack}
             disabled={submit.isPending}
           >
             로그인으로 돌아가기
-          </button>
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            busy={submit.isPending}
+            busyLabel="확인하는 중…"
+          >
+            PIN 다시 정하기
+          </Button>
         </div>
       </form>
-    </div>
+    </SplitAuthLayout>
   );
 }
