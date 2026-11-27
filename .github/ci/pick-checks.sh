@@ -2,7 +2,7 @@
 # [ADR 0024]: 바뀐 파일 목록을 받아 돌릴 앱 검사 작업을 고른다.
 # 쓰는 법: git diff --name-only 기준 HEAD | pick-checks.sh   (한 줄에 파일 하나)
 #          pick-checks.sh all                                 (셋 다)
-#          pick-checks.sh deps                                (Rust 의존성만)
+# Rust 의존성 검사는 PR에서 고르지 않는다. main에 머지될 때(all)만 돈다.
 # 출력: check.yml 매트릭스의 include에 넣을 JSON 배열 한 줄
 set -euo pipefail
 
@@ -14,8 +14,6 @@ all() { ui=true; rust=true; deps=true; }
 
 if [ "${1:-}" = all ]; then
   all
-elif [ "${1:-}" = deps ]; then
-  deps=true
 else
   while IFS= read -r file; do
     case "$file" in
@@ -26,14 +24,14 @@ else
       app/ui/src/api/generated/*) ui=true; rust=true ;;
       app/ui/* | .node-version) ui=true ;;
       # 화면도 버전 번호를 workspace Cargo.toml에서 읽는다
-      app/Cargo.toml) all ;;
-      app/Cargo.lock | app/*/Cargo.toml) rust=true; deps=true ;;
-      app/deny.toml) deps=true ;;
+      app/Cargo.toml) ui=true; rust=true ;;
+      app/Cargo.lock | app/*/Cargo.toml) rust=true ;;
+      app/deny.toml) ;;
       app/domain/* | app/server/* | app/launcher/* | app/.cargo/* \
         | app/rust-toolchain.toml | app/clippy.toml) rust=true ;;
-      justfile | .github/workflows/check.yml | .github/ci/*) all ;;
-      # 위에서 나누지 않은 app/ 파일은 어디에 닿는지 모르므로 셋 다 돌린다
-      app/*) all ;;
+      justfile | .github/workflows/check.yml | .github/ci/*) ui=true; rust=true ;;
+      # 위에서 나누지 않은 app/ 파일은 어디에 닿는지 모르므로 화면과 Rust 둘 다 돌린다
+      app/*) ui=true; rust=true ;;
       # 그 밖(다른 워크플로, site/, docs/ 등)은 앱 검사와 상관없다
       *) ;;
     esac
