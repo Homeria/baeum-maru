@@ -26,7 +26,9 @@ export interface DrawerProps {
   onClose: () => void;
   /** 바닥 왼쪽 영역(예: 지우기 버튼). */
   footerLeft?: ReactNode;
-  /** 바닥 오른쪽 영역(예: 그만두기, 저장 버튼). */
+  /** 바닥 오른쪽에 기본 취소 버튼(예: "그만두기")을 둘 때 문구. 누르면 닫기 확인을 거친다. */
+  cancelLabel?: string;
+  /** 바닥 오른쪽 영역(예: 저장 버튼). */
   footerRight?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -60,6 +62,7 @@ export function Drawer({
   busy = false,
   onClose,
   footerLeft,
+  cancelLabel,
   footerRight,
   children,
   className,
@@ -132,7 +135,7 @@ export function Drawer({
   const dialogAttrs: Record<string, string> = {
     closedby: busy || isDirty ? "none" : "closerequest",
   };
-  const hasFooter = Boolean(footerLeft || footerRight);
+  const hasFooter = Boolean(footerLeft || cancelLabel || footerRight);
 
   return (
     <dialog
@@ -169,7 +172,18 @@ export function Drawer({
       {hasFooter && (
         <div className={styles.footer}>
           <div className={styles.footerLeft}>{footerLeft}</div>
-          <div className={styles.footerRight}>{footerRight}</div>
+          <div className={styles.footerRight}>
+            {cancelLabel && (
+              <Button
+                variant="secondary"
+                disabled={busy}
+                onClick={requestClose}
+              >
+                {cancelLabel}
+              </Button>
+            )}
+            {footerRight}
+          </div>
         </div>
       )}
 

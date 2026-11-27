@@ -1,10 +1,16 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createMember, deleteMember, updateMember } from "./api";
-import { DeleteDialog } from "../../../components/dialog/DeleteDialog";
-import { useCan } from "../../gate/auth/useCan";
 import type { Gender } from "../../../api/generated/Gender";
 import type { MemberResponse } from "../../../api/generated/MemberResponse";
+import { NO_FORM_ERRORS } from "../../../components/form/formErrors";
+import { Drawer } from "../../../components/overlay/Drawer";
+import { ModalDialog } from "../../../components/overlay/ModalDialog";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
+import { Radio } from "../../../components/ui/Radio";
+import { TextField } from "../../../components/ui/TextField";
+import { useCan } from "../../gate/auth/useCan";
+import { createMember, deleteMember, updateMember } from "./api";
 import {
   EMPTY_MEMBER_FORM,
   firstErrorField,
@@ -15,8 +21,7 @@ import {
   type MemberFormErrors,
   type MemberFormValues,
 } from "./memberFormData";
-import styles from "../../../components/form/form.module.css";
-import { NO_FORM_ERRORS } from "../../../components/form/formErrors";
+import styles from "./MemberForm.module.css";
 
 const GENDER_OPTIONS: readonly { value: Gender | ""; label: string }[] = [
   { value: "", label: "선택 안 함" },
@@ -28,33 +33,41 @@ const GENDER_OPTIONS: readonly { value: Gender | ""; label: string }[] = [
 export interface MemberFormProps {
   /** 고칠 회원. 없으면 새 회원 등록. */
   editing?: MemberResponse;
-  /** 처음에 보여 줄 알림. 예: 회원을 지운 뒤 등록 칸으로 돌아왔을 때 */
-  initialNotice?: string | null;
-  /** 고치기를 끝내고 등록 칸으로 돌아간다. `notice`는 돌아간 칸에 보여 줄 알림. */
-  onClose: (notice?: string) => void;
+  /** 저장이나 등록을 끝낸 뒤 서랍을 닫으며 보여 줄 알림을 넘긴다. */
+  onSaved: (notice: string) => void;
+  /** 회원을 지운 뒤 서랍을 닫으며 보여 줄 알림을 넘긴다. */
+  onDeleted?: (notice: string) => void;
+  /** 저장하지 않고 서랍을 닫는다. */
+  onClose: () => void;
 }
 
-/**
- * 회원 입력 칸. 새 회원 등록과 회원 정보 고치기를 함께 맡는다.
- *
- * 등록하면 칸을 비우고 다음 사람을 받을 준비를 한다.
- */
+/** 회원 등록과 정보 고치기를 맡는 오른쪽 편집 서랍. */
 export function MemberForm({
   editing,
-  initialNotice,
+  onSaved,
+  onDeleted,
   onClose,
 }: MemberFormProps) {
+  const formId = useId();
   const queryClient = useQueryClient();
-  const [values, setValues] = useState<MemberFormValues>(() =>
-    editing ? memberFormValuesFrom(editing) : EMPTY_MEMBER_FORM,
-  );
+  const initialValues = editing
+    ? memberFormValuesFrom(editing)
+    : EMPTY_MEMBER_FORM;
+  const [values, setValues] = useState<MemberFormValues>(() => initialValues);
   const [errors, setErrors] = useState<MemberFormErrors>(NO_FORM_ERRORS);
-  const [notice, setNotice] = useState<string | null>(initialNotice ?? null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const canDelete = useCan("deleteMembers");
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null);
   const inputs = useRef<Partial<Record<MemberField, HTMLInputElement | null>>>(
     {},
   );
+
+  const isDirty =
+    values.memberNo !== initialValues.memberNo ||
+    values.name !== initialValues.name ||
+    values.phoneNumber !== initialValues.phoneNumber ||
+    values.birthDate !== initialValues.birthDate ||
+    values.gender !== initialValues.gender;
 
   const showErrors = (error: unknown) => {
     const next = memberFormErrorsFrom(error);
@@ -66,8 +79,8 @@ export function MemberForm({
   };
 
   const save = useMutation({
-    mutationFn: (values: MemberFormValues) => {
-      const request = toMemberRequest(values);
+    mutationFn: (nextValues: MemberFormValues) => {
+      const request = toMemberRequest(nextValues);
       return editing
         ? updateMember(editing.id, request).then((member) => member.name)
         : createMember(request).then(() => request.name.trim());
@@ -75,13 +88,9 @@ export function MemberForm({
     onSuccess: (name) => {
       void queryClient.invalidateQueries({ queryKey: ["members"] });
       setErrors(NO_FORM_ERRORS);
-      if (editing) {
-        setNotice(`${name}님 정보를 저장했습니다`);
-      } else {
-        setValues(EMPTY_MEMBER_FORM);
-        setNotice(`${name}님을 등록했습니다`);
-        inputs.current.memberNo?.focus();
-      }
+      onSaved(
+        editing ? `${name}님 정보를 저장했습니다` : `${name}님을 등록했습니다`,
+      );
     },
     onError: showErrors,
   });
@@ -90,9 +99,9 @@ export function MemberForm({
     mutationFn: deleteMember,
     onSuccess: () => {
       setConfirmingDelete(false);
-      onClose(`${editing?.name ?? ""}님을 지웠습니다`);
       // 목록만 새로 고침. 지운 회원 하나 보기를 다시 받으면 404가 남
       void queryClient.invalidateQueries({ queryKey: ["members", "search"] });
+      (onDeleted ?? onSaved)(`${editing?.name ?? ""}님을 지웠습니다`);
     },
     onError: (error) => {
       setConfirmingDelete(false);
@@ -104,12 +113,10 @@ export function MemberForm({
 
   const change = (field: MemberField, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
-    // 고치기 시작한 칸의 오류는 지움
     setErrors((current) => ({
       ...current,
       fields: { ...current.fields, [field]: undefined },
     }));
-    setNotice(null);
   };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -117,63 +124,102 @@ export function MemberForm({
     if (busy) {
       return;
     }
-    setNotice(null);
     save.mutate(values);
   };
 
-  const textField = (
-    field: MemberField,
-    label: string,
-    options: { required?: boolean; type?: string; inputMode?: "tel" } = {},
-  ) => {
-    const errorId = `member-${field}-error`;
-    const error = errors.fields[field];
-    return (
-      <div className={styles.field}>
-        <label htmlFor={`member-${field}`} className={styles.label}>
-          {label}
-          {options.required && <span className={styles.required}>필수</span>}
-        </label>
-        <input
-          id={`member-${field}`}
-          ref={(element) => {
-            inputs.current[field] = element;
-          }}
-          className={styles.input}
-          type={options.type ?? "text"}
-          inputMode={options.inputMode}
-          autoComplete="off"
-          value={values[field]}
-          onChange={(event) => change(field, event.target.value)}
-          aria-invalid={error !== undefined}
-          aria-describedby={error ? errorId : undefined}
-        />
-        {error && (
-          <p id={errorId} className={styles.fieldError}>
-            {error}
-          </p>
-        )}
-      </div>
-    );
-  };
-
   return (
-    <form className={styles.form} onSubmit={submit} noValidate>
-      <h2 className={styles.title}>
-        {editing ? "회원 정보 고치기" : "새 회원 등록"}
-      </h2>
+    <Drawer
+      open
+      title={editing ? "회원 정보 고치기" : "새 회원 등록"}
+      subtitle={
+        editing
+          ? `회원번호 ${editing.memberNo}`
+          : "필수 항목을 입력한 뒤 등록하세요"
+      }
+      isDirty={isDirty}
+      busy={busy}
+      onClose={onClose}
+      cancelLabel="그만두기"
+      footerLeft={
+        editing && canDelete ? (
+          <Button
+            variant="danger"
+            disabled={busy}
+            onClick={() => setConfirmingDelete(true)}
+          >
+            지우기
+          </Button>
+        ) : undefined
+      }
+      footerRight={
+        <Button
+          type="submit"
+          form={formId}
+          variant="primary"
+          busy={save.isPending}
+          busyLabel={editing ? "저장하는 중…" : "등록하는 중…"}
+          disabled={remove.isPending}
+        >
+          {editing ? "저장" : "등록"}
+        </Button>
+      }
+    >
+      <form id={formId} className={styles.form} onSubmit={submit} noValidate>
+        <TextField
+          ref={(element) => {
+            inputs.current.memberNo = element;
+          }}
+          label="회원번호"
+          required
+          autoComplete="off"
+          value={values.memberNo}
+          onChange={(event) => change("memberNo", event.target.value)}
+          error={errors.fields.memberNo}
+        />
 
-      {textField("memberNo", "회원번호", { required: true })}
-      {textField("name", "이름", { required: true })}
-      {textField("phoneNumber", "연락처", { required: true, inputMode: "tel" })}
-      {textField("birthDate", "생년월일", { type: "date" })}
+        <TextField
+          ref={(element) => {
+            inputs.current.name = element;
+          }}
+          label="이름"
+          required
+          autoComplete="off"
+          value={values.name}
+          onChange={(event) => change("name", event.target.value)}
+          error={errors.fields.name}
+        />
 
-      <fieldset className={styles.field}>
-        <legend className={styles.label}>성별</legend>
-        <div className={styles.choices}>
-          {GENDER_OPTIONS.map((option, index) => (
-            <label key={option.value} className={styles.choice}>
-              <input
+        <TextField
+          ref={(element) => {
+            inputs.current.phoneNumber = element;
+          }}
+          label="연락처"
+          required
+          inputMode="tel"
+          autoComplete="off"
+          value={values.phoneNumber}
+          onChange={(event) => change("phoneNumber", event.target.value)}
+          error={errors.fields.phoneNumber}
+        />
+
+        <TextField
+          ref={(element) => {
+            inputs.current.birthDate = element;
+          }}
+          label="생년월일"
+          type="date"
+          autoComplete="off"
+          value={values.birthDate}
+          onChange={(event) => change("birthDate", event.target.value)}
+          error={errors.fields.birthDate}
+        />
+
+        <fieldset className={styles.fieldset}>
+          <legend className={styles.legend}>성별</legend>
+          <div className={styles.choices}>
+            {GENDER_OPTIONS.map((option, index) => (
+              <Radio
+                key={option.value}
                 ref={
                   index === 0
                     ? (element) => {
@@ -181,74 +227,60 @@ export function MemberForm({
                       }
                     : undefined
                 }
-                type="radio"
                 name="member-gender"
                 value={option.value}
+                label={option.label}
                 checked={values.gender === option.value}
                 onChange={() => change("gender", option.value)}
               />
-              {option.label}
-            </label>
-          ))}
-        </div>
-        {errors.fields.gender && (
-          <p className={styles.fieldError}>{errors.fields.gender}</p>
-        )}
-      </fieldset>
+            ))}
+          </div>
+          {errors.fields.gender && (
+            <p className={styles.fieldError} role="alert">
+              {errors.fields.gender}
+            </p>
+          )}
+        </fieldset>
 
-      {errors.form && (
-        <p className={styles.formError} role="alert">
-          {errors.form}
-        </p>
-      )}
-      {notice && (
-        <p className={styles.notice} role="status">
-          {notice}
-        </p>
-      )}
+        {errors.form && <NoticeBanner tone="error" message={errors.form} />}
+      </form>
 
-      <div className={styles.actions}>
-        <button type="submit" className={styles.submit} disabled={busy}>
-          {editing
-            ? save.isPending
-              ? "저장하는 중…"
-              : "저장"
-            : save.isPending
-              ? "등록하는 중…"
-              : "등록"}
-        </button>
-        {editing && (
+      <ModalDialog
+        open={Boolean(editing && confirmingDelete)}
+        size="sm"
+        title={`${editing?.name ?? ""}님을 지울까요?`}
+        busy={remove.isPending}
+        initialFocusRef={cancelDeleteRef}
+        onClose={() => setConfirmingDelete(false)}
+        footer={
           <>
-            <button
-              type="button"
-              className={styles.secondary}
-              onClick={() => onClose()}
-              disabled={busy}
+            <Button
+              ref={cancelDeleteRef}
+              variant="secondary"
+              disabled={remove.isPending}
+              onClick={() => setConfirmingDelete(false)}
             >
-              새 회원 등록으로
-            </button>
-            {canDelete && (
-              <button
-                type="button"
-                className={styles.danger}
-                onClick={() => setConfirmingDelete(true)}
-                disabled={busy}
-              >
-                지우기
-              </button>
-            )}
+              그만두기
+            </Button>
+            <Button
+              variant="dangerSolid"
+              busy={remove.isPending}
+              busyLabel="지우는 중…"
+              onClick={() => {
+                if (editing) {
+                  remove.mutate(editing.id);
+                }
+              }}
+            >
+              지우기
+            </Button>
           </>
-        )}
-      </div>
-
-      {editing && confirmingDelete && (
-        <DeleteDialog
-          title={`${editing.name}님을 지울까요?`}
-          deleting={remove.isPending}
-          onConfirm={() => remove.mutate(editing.id)}
-          onCancel={() => setConfirmingDelete(false)}
-        />
-      )}
-    </form>
+        }
+      >
+        <p className={styles.confirmText}>
+          지우면 되돌릴 수 없습니다. 계속할까요?
+        </p>
+      </ModalDialog>
+    </Drawer>
   );
 }

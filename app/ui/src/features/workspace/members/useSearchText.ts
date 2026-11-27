@@ -28,6 +28,8 @@ export function useSearchText() {
   }, [text]);
 
   return {
+    text,
+    setText,
     query,
     inputProps: {
       value: text,
