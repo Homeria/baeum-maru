@@ -1,5 +1,51 @@
 .staff {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.identity {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.name {
+  font-size: var(--font-size);
+  font-weight: var(--font-weight-bold);
+  color: #ffffff;
+}
+
+.role {
+  font-size: var(--font-size-sm);
+  color: var(--color-bar-muted);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.actionButton {
+  min-block-size: var(--row-action-height);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-bar-muted);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.actionButton:hover:not(:disabled) {
+  background: var(--color-bar-hover);
+}
+
+.actionButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
