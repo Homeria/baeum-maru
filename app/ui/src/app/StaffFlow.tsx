@@ -7,6 +7,7 @@ import { LockScreen } from "../features/gate/auth/LockScreen";
 import { LoginPage } from "../features/gate/auth/LoginPage";
 import { RecoveryCodeNotice } from "../features/gate/auth/RecoveryCodeNotice";
 import { RecoveryPage } from "../features/gate/auth/RecoveryPage";
+import { SetupBasicsPage } from "../features/gate/auth/SetupBasicsPage";
 import { SetupPage } from "../features/gate/auth/SetupPage";
 import { useIdleLock } from "../features/gate/auth/useIdleLock";
 import { useSession } from "../features/gate/auth/useSession";
@@ -25,7 +26,13 @@ export function StaffFlow() {
     queryFn: fetchSetupStatus,
   });
   // 처음 설정이나 복구에서 받은 복구 코드. 안내를 닫을 때까지만 메모리에 둔다
-  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  const [recoveryNotice, setRecoveryNotice] = useState<{
+    code: string;
+    mode: "setup" | "recovery";
+    nextBasics: boolean;
+  } | null>(null);
+  // 처음 설정 3단계(기초 정보 미리 넣기)를 진행 중인지
+  const [settingUpBasics, setSettingUpBasics] = useState(false);
   // 로그인 화면에서 "PIN을 잊었어요"를 눌렀다
   const [recovering, setRecovering] = useState(false);
   const session = useSession();
@@ -33,11 +40,18 @@ export function StaffFlow() {
   const runMode = useRunMode();
   const mode = runMode.data?.mode ?? null;
 
-  if (recoveryCode !== null) {
+  if (recoveryNotice !== null) {
     return (
       <RecoveryCodeNotice
-        code={recoveryCode}
-        onDone={() => setRecoveryCode(null)}
+        code={recoveryNotice.code}
+        mode={recoveryNotice.mode}
+        onDone={() => {
+          const goBasics = recoveryNotice.nextBasics;
+          setRecoveryNotice(null);
+          if (goBasics) {
+            setSettingUpBasics(true);
+          }
+        }}
       />
     );
   }
@@ -74,7 +88,18 @@ export function StaffFlow() {
     <RunModeSwitch current={mode} needsPin={!status.data.needed} />
   );
   if (status.data.needed) {
-    return <SetupPage onDone={setRecoveryCode} footer={modeSwitch} />;
+    return (
+      <SetupPage
+        onDone={({ recoveryCode, autoSignedIn }) =>
+          setRecoveryNotice({
+            code: recoveryCode,
+            mode: "setup",
+            nextBasics: autoSignedIn,
+          })
+        }
+        footer={modeSwitch}
+      />
+    );
   }
   if (session === null) {
     if (recovering) {
@@ -83,13 +108,21 @@ export function StaffFlow() {
           onBack={() => setRecovering(false)}
           onDone={(code) => {
             setRecovering(false);
-            setRecoveryCode(code);
+            setRecoveryNotice({ code, mode: "recovery", nextBasics: false });
           }}
         />
       );
     }
     return (
       <LoginPage onForgotPin={() => setRecovering(true)} footer={modeSwitch} />
+    );
+  }
+  if (settingUpBasics) {
+    return (
+      <>
+        <SetupBasicsPage onDone={() => setSettingUpBasics(false)} />
+        {session.locked && <LockScreen session={session} />}
+      </>
     );
   }
   return (

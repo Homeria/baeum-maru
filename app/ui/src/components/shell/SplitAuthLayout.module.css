@@ -41,6 +41,18 @@
   margin-block: auto;
 }
 
+.panelBadge {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
 .panelTitle {
   margin: 0;
   font-size: var(--font-size-title);
@@ -69,7 +81,7 @@
 
 .stepItem {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-3);
   font-size: var(--font-size);
 }
@@ -112,7 +124,21 @@
   color: var(--color-bar-muted);
 }
 
+.stepText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
 .stepLabel {
+  line-height: 1.4;
+}
+
+.stepDescription {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-bar-muted);
   line-height: 1.4;
 }
 
@@ -127,6 +153,19 @@
   justify-content: center;
   padding: var(--space-6);
   overflow-y: auto;
+}
+
+.mainFrameless {
+  align-items: flex-start;
+}
+
+.workspace {
+  inline-size: 100%;
+  max-inline-size: 920px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-inline: auto;
 }
 
 .card {

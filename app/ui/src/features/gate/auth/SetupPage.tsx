@@ -9,6 +9,7 @@ import {
 import { NoticeBanner } from "../../../components/surface/NoticeBanner";
 import { Button } from "../../../components/ui/Button";
 import { TextField } from "../../../components/ui/TextField";
+import { listLoginStaff, login } from "./api";
 import authStyles from "./auth.module.css";
 import { setup } from "./setupApi";
 import {
@@ -25,12 +26,21 @@ import {
 const SETUP_STEPS: readonly SplitAuthStep[] = [
   { label: "관리자 계정 만들기", status: "current" },
   { label: "복구 코드 보관", status: "upcoming" },
+  { label: "기초 정보 미리 넣기", status: "upcoming" },
 ];
+
+/** 처음 설정 1단계를 마친 결과. */
+export interface SetupDoneResult {
+  /** 한 번만 받는 복구 코드. */
+  recoveryCode: string;
+  /** 방금 만든 관리자로 자동 로그인까지 성공했는지. */
+  autoSignedIn: boolean;
+}
 
 /** {@link SetupPage}의 속성. */
 export interface SetupPageProps {
-  /** 관리자를 만들었다. `recoveryCode`는 한 번만 받는 복구 코드. */
-  onDone: (recoveryCode: string) => void;
+  /** 관리자를 만들었다. */
+  onDone: (result: SetupDoneResult) => void;
   /** 카드 아래쪽에 둘 보조 영역(예: 실행 모드 바꾸기). */
   footer?: ReactNode;
 }
@@ -53,11 +63,29 @@ export function SetupPage({ onDone, footer }: SetupPageProps) {
   };
 
   const save = useMutation({
-    mutationFn: (formValues: SetupFormValues) =>
-      setup(toSetupRequest(formValues)),
-    onSuccess: ({ recoveryCode }) => {
+    mutationFn: async (
+      formValues: SetupFormValues,
+    ): Promise<SetupDoneResult> => {
+      const request = toSetupRequest(formValues);
+      const { recoveryCode } = await setup(request);
+      try {
+        const { items } = await listLoginStaff();
+        const created =
+          items.find((staff) => staff.name === request.name.trim()) ??
+          (items.length === 1 ? items[0] : undefined);
+        if (!created) {
+          return { recoveryCode, autoSignedIn: false };
+        }
+        await login({ staffId: created.id, pin: request.pin });
+        return { recoveryCode, autoSignedIn: true };
+      } catch {
+        // 복구 코드는 절대 잃어버리지 않고, 자동 로그인만 실패하면 2단계 뒤 로그인 화면으로 넘긴다
+        return { recoveryCode, autoSignedIn: false };
+      }
+    },
+    onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: ["setupStatus"] });
-      onDone(recoveryCode);
+      onDone(result);
     },
     onError: (error) => {
       showErrors(setupFormErrorsFrom(error));
@@ -92,7 +120,7 @@ export function SetupPage({ onDone, footer }: SetupPageProps) {
   return (
     <SplitAuthLayout
       panelTitle="처음 설정"
-      panelDescription="관리자 계정을 만들고, PIN을 잊었을 때 쓸 복구 코드를 보관합니다."
+      panelDescription="관리자 계정과 복구 코드를 만든 뒤, 원하면 강의실·과목 같은 기초 정보를 미리 넣습니다."
       steps={SETUP_STEPS}
       cardTitle="배움마루 처음 설정"
       cardSubtitle="처음 쓰는 것이라 관리자 계정을 먼저 만듭니다. 관리자는 직원 계정을 만들고 관리합니다."
