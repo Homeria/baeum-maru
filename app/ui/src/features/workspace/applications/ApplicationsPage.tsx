@@ -1,24 +1,24 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { listApplications } from "./api";
+import { Card } from "../../../components/surface/Card";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { todayText } from "../../../lib/dates";
+import { useCan } from "../../gate/auth/useCan";
 import {
   listApplicationCounts,
   listCourses,
   listSelections,
 } from "../courses/api";
+import { countsByCourse, stagesByCourse } from "../courses/courseStatusData";
+import { MemberList } from "../members/MemberList";
 import { listPriorityReasons } from "../priority-reasons/api";
 import { listRooms } from "../rooms/api";
+import { hasSeveralBuildings } from "../rooms/roomFormData";
 import { listClosedCourses } from "../selection-results/api";
 import { listTerms } from "../terms/api";
-import formStyles from "../../../components/form/form.module.css";
-import { ViewOnlyNotice } from "../../gate/auth/ViewOnlyNotice";
-import { MemberList } from "../members/MemberList";
-import { hasSeveralBuildings } from "../rooms/roomFormData";
 import { TermBar } from "../terms/TermBar";
 import { currentTerm } from "../terms/termFormData";
-import { todayText } from "../../../lib/dates";
-import { useCan } from "../../gate/auth/useCan";
-import { countsByCourse, stagesByCourse } from "../courses/courseStatusData";
+import { listApplications } from "./api";
 import {
   additionalByCourse,
   isTermEnded,
@@ -26,20 +26,18 @@ import {
   togglePriority,
   type ChosenPriorities,
 } from "./applicationsData";
+import styles from "./ApplicationsPage.module.css";
 import { ApplyBar } from "./ApplyBar";
 import { CourseChoiceList } from "./CourseChoiceList";
 import { MemberApplications } from "./MemberApplications";
-import styles from "./ApplicationsPage.module.css";
 
 /**
  * 신청 탭. 맨 위에서 학기를 고르고, 왼쪽에서 회원을 찾아 고르면 그 회원의 신청이 보인다.
- * 오른쪽은 그 학기의 강좌와 신청 인원/정원이다. 강좌를 골라 한 번에 신청한다.
+ * 오른쪽은 그 학기의 강좌와 신청 인원/정원 표, 그리고 아래 신청 막대다.
  *
  * 선발 마감한 강좌는 학기 종료일까지 추가 신청으로 고른다(BR-X1). 고르기 전에 바로 당첨인지
- * 대기 몇 번째인지 보여 준다(BR-X2).
- *
- * 학기나 회원을 바꾸면 고른 강좌를 비운다. 학기 등록·고치기는 강좌 탭에서 한다.
- * 신청을 받을 수 없는 역할(BR-K3)은 강좌를 고를 수 없다.
+ * 대기 몇 번째인지 꼬리표로 보여 준다(BR-X2).
+ * 신청을 받을 수 없는 역할(BR-K3)에게는 강좌 선택·신청 막대를 숨긴다.
  */
 export function ApplicationsPage() {
   const terms = useQuery({ queryKey: ["terms"], queryFn: listTerms });
@@ -89,21 +87,21 @@ export function ApplicationsPage() {
   });
 
   if (terms.isPending) {
-    return <p className={formStyles.loading}>학기를 불러오는 중입니다…</p>;
+    return <NoticeBanner message="학기를 불러오는 중입니다…" />;
   }
   if (terms.isError) {
     return (
-      <p className={formStyles.formError} role="alert">
-        학기를 불러오지 못했습니다. 다시 열어 주세요.
-      </p>
+      <NoticeBanner
+        tone="error"
+        message="학기를 불러오지 못했습니다. 다시 시도해 주세요."
+        actionLabel="다시 해 보기"
+        onAction={() => void terms.refetch()}
+      />
     );
   }
   if (!current) {
     return (
-      <p className={styles.empty}>
-        아직 등록된 학기가 없습니다. 강좌 탭에서 학기와 강좌를 먼저 등록해
-        주세요.
-      </p>
+      <NoticeBanner message="아직 등록된 학기가 없습니다. 강좌 탭에서 학기와 강좌를 먼저 등록해 주세요." />
     );
   }
 
@@ -135,6 +133,7 @@ export function ApplicationsPage() {
         onNotice={() => undefined}
         canEdit={false}
       />
+
       <div className={styles.content}>
         <div className={styles.memberSide}>
           <MemberList
@@ -144,10 +143,11 @@ export function ApplicationsPage() {
               clearChoices();
             }}
           />
+
           {memberId === null ? (
-            <p className={styles.hint}>
-              신청을 받을 회원을 목록에서 골라 주세요.
-            </p>
+            <Card title="고른 회원의 신청">
+              <NoticeBanner message="신청을 받을 회원을 위 목록에서 골라 주세요." />
+            </Card>
           ) : courses.data ? (
             <MemberApplications
               termId={current.id}
@@ -158,57 +158,62 @@ export function ApplicationsPage() {
             />
           ) : null}
         </div>
-        {courses.isError ? (
-          <p className={formStyles.formError} role="alert">
-            {courses.error.message}
-          </p>
-        ) : courses.data && counts.data ? (
-          <div className={styles.courseSide}>
-            <CourseChoiceList
-              courses={courses.data.items}
-              counts={countsByCourse(counts.data.items)}
-              showBuilding={showBuilding}
-              selectable={canTake && memberId !== null}
-              chosen={chosen}
-              appliedIds={appliedIds}
-              stages={stages}
-              additional={additional}
-              termEnded={termEnded}
-              onToggle={(id) => {
-                setChosen((prev) => toggleChoice(prev, id));
-                // 빼는 강좌의 사유도 지운다. 다시 고르면 처음부터
-                setPriorities((prev) => {
-                  const next = new Map(prev);
-                  next.delete(id);
-                  return next;
-                });
-              }}
+
+        <div className={styles.courseSide}>
+          {courses.isError ? (
+            <NoticeBanner
+              tone="error"
+              message={courses.error.message}
+              actionLabel="다시 해 보기"
+              onAction={() => void courses.refetch()}
             />
-            {canTake ? (
-              <ApplyBar
-                // 학기·회원이 바뀌면 알림과 창을 새로 시작
-                key={`${current.id}-${memberId ?? "none"}`}
-                termId={current.id}
-                memberId={memberId}
-                chosen={chosen}
+          ) : courses.data && counts.data ? (
+            <>
+              <CourseChoiceList
                 courses={courses.data.items}
-                reasons={reasonItems}
-                priorities={priorities}
-                onTogglePriority={(courseId, reasonId) =>
-                  setPriorities((prev) =>
-                    togglePriority(prev, courseId, reasonId),
-                  )
-                }
+                counts={countsByCourse(counts.data.items)}
+                showBuilding={showBuilding}
+                selectable={canTake && memberId !== null}
+                chosen={chosen}
+                appliedIds={appliedIds}
+                stages={stages}
                 additional={additional}
-                onSubmitted={clearChoices}
+                termEnded={termEnded}
+                onToggle={(id) => {
+                  setChosen((prev) => toggleChoice(prev, id));
+                  // 빼는 강좌의 사유도 지운다. 다시 고르면 처음부터
+                  setPriorities((prev) => {
+                    const next = new Map(prev);
+                    next.delete(id);
+                    return next;
+                  });
+                }}
               />
-            ) : (
-              <ViewOnlyNotice />
-            )}
-          </div>
-        ) : (
-          <p className={formStyles.loading}>강좌를 불러오는 중입니다…</p>
-        )}
+
+              {canTake && (
+                <ApplyBar
+                  // 학기·회원이 바뀌면 알림과 창을 새로 시작
+                  key={`${current.id}-${memberId ?? "none"}`}
+                  termId={current.id}
+                  memberId={memberId}
+                  chosen={chosen}
+                  courses={courses.data.items}
+                  reasons={reasonItems}
+                  priorities={priorities}
+                  onTogglePriority={(courseId, reasonId) =>
+                    setPriorities((prev) =>
+                      togglePriority(prev, courseId, reasonId),
+                    )
+                  }
+                  additional={additional}
+                  onSubmitted={clearChoices}
+                />
+              )}
+            </>
+          ) : (
+            <NoticeBanner message="강좌를 불러오는 중입니다…" />
+          )}
+        </div>
       </div>
     </div>
   );

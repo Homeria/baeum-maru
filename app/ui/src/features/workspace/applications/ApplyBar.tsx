@@ -1,22 +1,24 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { submitApplications } from "./api";
 import { HostError } from "../../../api/client";
 import type { AdditionalOutcomeResponse } from "../../../api/generated/AdditionalOutcomeResponse";
 import type { CourseResponse } from "../../../api/generated/CourseResponse";
 import type { PriorityReasonResponse } from "../../../api/generated/PriorityReasonResponse";
 import type { RuleViolationResponse } from "../../../api/generated/RuleViolationResponse";
-import formStyles from "../../../components/form/form.module.css";
+import { Card } from "../../../components/surface/Card";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
 import { useCan } from "../../gate/auth/useCan";
 import { courseName } from "../courses/courseFormData";
+import { submitApplications } from "./api";
 import {
   priorityRequests,
   submittedNotice,
   type ChosenPriorities,
 } from "./applicationsData";
+import styles from "./ApplicationsPage.module.css";
 import { PriorityChoices } from "./PriorityChoices";
 import { RuleViolationDialog } from "./RuleViolationDialog";
-import styles from "./ApplicationsPage.module.css";
 
 /** {@link ApplyBar}의 속성. */
 export interface ApplyBarProps {
@@ -38,7 +40,7 @@ export interface ApplyBarProps {
 }
 
 /**
- * 강좌 목록 아래의 신청 줄. 고른 강좌를 한 번에 신청한다(접수).
+ * 강좌 목록 아래의 신청 막대 카드. 고른 강좌를 한 번에 신청한다(접수).
  *
  * 규칙을 어기면 창을 띄워 어긴 규칙을 보여 주고, 사유를 받으면 그대로 다시 신청한다.
  * 사유 목록이 있고 우선 배정을 할 수 있는 역할이면, 고른 강좌마다 사유 체크박스를 붙인다(BR-S12).
@@ -124,76 +126,81 @@ export function ApplyBar({
     canAssign && reasons.length > 0 && priorityCourseIds.length > 0;
 
   return (
-    <>
-      {showPriorities && (
-        <ul
-          className={styles.chosenPriorities}
-          aria-label="고른 강좌의 우선 배정"
-        >
-          {priorityCourseIds.map((courseId) => {
-            const course = courses.find(
-              (candidate) => candidate.id === courseId,
-            );
-            const name = course ? courseName(course) : "지워진 강좌";
-            return (
-              <li key={courseId} className={styles.chosenPriority}>
-                <span className={styles.courseName}>{name}</span>
-                <PriorityChoices
-                  reasons={reasons}
-                  checked={priorities.get(courseId) ?? []}
-                  courseName={name}
-                  disabled={submit.isPending}
-                  onToggle={(reasonId) => onTogglePriority(courseId, reasonId)}
-                />
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      <div className={styles.applyBar}>
-        {error && (
-          <p className={formStyles.formError} role="alert">
-            {error}
-          </p>
+    <Card>
+      <div className={styles.applyDock}>
+        {showPriorities && (
+          <ul
+            className={styles.chosenPriorities}
+            aria-label="고른 강좌의 우선 배정"
+          >
+            {priorityCourseIds.map((courseId) => {
+              const course = courses.find(
+                (candidate) => candidate.id === courseId,
+              );
+              const name = course ? courseName(course) : "지워진 강좌";
+              return (
+                <li key={courseId} className={styles.chosenPriority}>
+                  <span className={styles.courseName}>{name}</span>
+                  <PriorityChoices
+                    reasons={reasons}
+                    checked={priorities.get(courseId) ?? []}
+                    courseName={name}
+                    disabled={submit.isPending}
+                    onToggle={(reasonId) =>
+                      onTogglePriority(courseId, reasonId)
+                    }
+                  />
+                </li>
+              );
+            })}
+          </ul>
         )}
-        {notice && count === 0 && (
-          <div className={formStyles.notice} role="status">
-            {notice.map((line) => (
-              <p key={line} className={styles.noticeLine}>
-                {line}
-              </p>
-            ))}
-          </div>
-        )}
-        <button
-          type="button"
-          className={formStyles.submit}
-          disabled={memberId === null || count === 0 || submit.isPending}
-          onClick={() => {
-            setNotice(null);
-            setError(null);
-            submit.mutate({ overrideReason: null, previews: additional });
-          }}
-        >
-          {submit.isPending && violations === null
-            ? "신청하는 중…"
-            : `${count}건 신청하기`}
-        </button>
 
-        {violations && (
-          <RuleViolationDialog
-            violations={violations}
-            courses={courses}
-            canOverride={canOverride}
-            saving={submit.isPending}
-            reasonError={reasonError}
-            onOverride={(reason) =>
-              submit.mutate({ overrideReason: reason, previews: additional })
-            }
-            onCancel={() => setViolations(null)}
-          />
-        )}
+        <div className={styles.applyBar}>
+          <div className={styles.applyStatus}>
+            {error && <NoticeBanner tone="error" message={error} />}
+            {!error && notice && count === 0 && (
+              <NoticeBanner message={notice.join(" / ")} />
+            )}
+            {!error && (!notice || count > 0) && (
+              <span className={styles.muted}>
+                {memberId === null
+                  ? "왼쪽에서 회원을 먼저 골라 주세요."
+                  : count === 0
+                    ? "신청할 강좌를 체크해 주세요."
+                    : `${count}개 강좌를 골랐습니다.`}
+              </span>
+            )}
+          </div>
+          <Button
+            variant="primary"
+            busy={submit.isPending && violations === null}
+            busyLabel="신청하는 중…"
+            disabled={memberId === null || count === 0 || submit.isPending}
+            onClick={() => {
+              setNotice(null);
+              setError(null);
+              submit.mutate({ overrideReason: null, previews: additional });
+            }}
+          >
+            {`${count}건 신청하기`}
+          </Button>
+        </div>
       </div>
-    </>
+
+      {violations && (
+        <RuleViolationDialog
+          violations={violations}
+          courses={courses}
+          canOverride={canOverride}
+          saving={submit.isPending}
+          reasonError={reasonError}
+          onOverride={(reason) =>
+            submit.mutate({ overrideReason: reason, previews: additional })
+          }
+          onCancel={() => setViolations(null)}
+        />
+      )}
+    </Card>
   );
 }

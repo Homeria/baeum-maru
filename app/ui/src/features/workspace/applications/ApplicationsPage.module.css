@@ -2,173 +2,184 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  height: 100%;
 }
 
-/* 왼쪽은 회원 찾기와 고른 회원의 신청, 오른쪽은 강좌 */
+/* 왼쪽: 회원 찾기 + 고른 회원의 신청 / 오른쪽: 강좌 선택 표 + 신청 막대 */
 .content {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--space-6);
-  flex: 1;
-  min-height: 0;
+  grid-template-columns: minmax(340px, 0.92fr) minmax(0, 1.08fr);
+  gap: var(--space-5);
+  align-items: start;
 }
 
-.memberSide {
+@media (max-width: 1080px) {
+  .content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.memberSide,
+.courseSide {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  min-height: 0;
+  min-width: 0;
 }
 
-/* 회원 목록이 남는 자리를 쓰고, 신청 칸은 내용만큼 (너무 길면 스크롤) */
-.memberSide > :first-child {
-  flex: 1;
-}
-
-.applications {
+.scheduleLines {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  max-height: 40%;
-  min-height: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  gap: 2px;
 }
 
-.heading {
-  margin: 0;
-  font-size: var(--font-size-lg);
+.scheduleLine {
+  white-space: nowrap;
+}
+
+.courseCheck {
+  inline-size: 20px;
+  block-size: 20px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.courseCheck:disabled {
+  cursor: not-allowed;
+}
+
+.capacityCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
 }
 
 .applicationList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
-  overflow-y: auto;
   list-style: none;
 }
 
 .application {
   display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+
+.applicationHead {
+  display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-3);
-  padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--color-border);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.applicationMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .courseName {
   font-weight: 700;
+  color: var(--color-text);
 }
 
 .muted {
-  color: var(--color-text-muted);
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
 }
 
-/* 신청 결과 알림의 한 줄 */
-.noticeLine {
-  margin: 0;
-}
-
-/* 마감한 강좌의 추가 신청 미리 보기. 신청/정원 아래 줄 */
-.additionalPreview {
-  display: block;
-  color: var(--color-text-muted);
-  font-size: 0.9em;
-}
-
-.override {
-  color: var(--color-text-muted);
-  font-size: 0.9em;
-}
-
-.hint {
-  margin: var(--space-4);
-  color: var(--color-text-muted);
-}
-
-.empty {
-  margin: 0 auto;
-  color: var(--color-text-muted);
-  text-align: center;
-}
-
-/* 강좌 목록과 그 아래 신청 줄 */
-.courseSide {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  min-height: 0;
-}
-
-.courseSide > :first-child {
-  flex: 1;
-}
-
-.applyBar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-4);
-}
-
-/* 화면에는 안 보이고 화면 읽기 프로그램만 읽음 */
-.visuallyHidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.deleteButton {
-  margin-left: auto;
-}
-
-.deleteReason {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-}
-
-/* 신청 하나에 붙이는 우선 배정 사유. 여러 개면 줄을 바꿔 이어 간다 */
 .priorityChoices {
-  display: inline-flex;
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1) var(--space-3);
+  gap: var(--space-2) var(--space-3);
 }
 
 .priorityLabel {
-  color: var(--color-text-muted);
-  font-size: 0.9em;
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
 }
 
 .priorityChoice {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
   cursor: pointer;
 }
 
-/* 신청 줄 위, 고른 강좌마다 우선 배정 칸 */
+.priorityChoice input {
+  inline-size: 18px;
+  block-size: 18px;
+  accent-color: var(--color-primary);
+}
+
+.applyDock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 .chosenPriorities {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   margin: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  padding: 0;
   list-style: none;
 }
 
 .chosenPriority {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+
+.applyBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-3);
+}
+
+.applyStatus {
+  flex: 1 1 220px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.dialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.violations {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--color-danger);
+  font-weight: 600;
+  line-height: 1.5;
 }
