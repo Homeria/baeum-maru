@@ -25,7 +25,10 @@ export function StaffFlow() {
     queryFn: fetchSetupStatus,
   });
   // 처음 설정이나 복구에서 받은 복구 코드. 안내를 닫을 때까지만 메모리에 둔다
-  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  const [recoveryNotice, setRecoveryNotice] = useState<{
+    code: string;
+    mode: "setup" | "recovery";
+  } | null>(null);
   // 로그인 화면에서 "PIN을 잊었어요"를 눌렀다
   const [recovering, setRecovering] = useState(false);
   const session = useSession();
@@ -33,11 +36,12 @@ export function StaffFlow() {
   const runMode = useRunMode();
   const mode = runMode.data?.mode ?? null;
 
-  if (recoveryCode !== null) {
+  if (recoveryNotice !== null) {
     return (
       <RecoveryCodeNotice
-        code={recoveryCode}
-        onDone={() => setRecoveryCode(null)}
+        code={recoveryNotice.code}
+        mode={recoveryNotice.mode}
+        onDone={() => setRecoveryNotice(null)}
       />
     );
   }
@@ -74,7 +78,14 @@ export function StaffFlow() {
     <RunModeSwitch current={mode} needsPin={!status.data.needed} />
   );
   if (status.data.needed) {
-    return <SetupPage onDone={setRecoveryCode} footer={modeSwitch} />;
+    return (
+      <SetupPage
+        onDone={({ recoveryCode }) =>
+          setRecoveryNotice({ code: recoveryCode, mode: "setup" })
+        }
+        footer={modeSwitch}
+      />
+    );
   }
   if (session === null) {
     if (recovering) {
@@ -83,7 +94,7 @@ export function StaffFlow() {
           onBack={() => setRecovering(false)}
           onDone={(code) => {
             setRecovering(false);
-            setRecoveryCode(code);
+            setRecoveryNotice({ code, mode: "recovery" });
           }}
         />
       );

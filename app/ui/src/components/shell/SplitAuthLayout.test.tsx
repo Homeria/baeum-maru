@@ -42,3 +42,37 @@ test("좌측 안내 패널, 진행 단계(aria-current=step), 우측 메인 카�
     within(main).getByText("안전한 곳에 보관해 주세요."),
   ).toBeInTheDocument();
 });
+
+test("frameless 모드는 패널 꼬리표·단계 설명과 넓은 작업 영역을 렌더링한다", () => {
+  render(
+    <SplitAuthLayout
+      panelBadge="선택 단계"
+      panelTitle="기관의 기초 정보를 미리 넣어 둡니다"
+      steps={[
+        {
+          label: "관리자 계정 만들기",
+          description: "관리자 계정을 만들었습니다.",
+          status: "done",
+        },
+        {
+          label: "기초 정보 미리 넣기",
+          description: "강의실과 과목을 넣습니다.",
+          status: "current",
+        },
+      ]}
+      frameless
+    >
+      <section aria-label="강의실">강의실 카드</section>
+    </SplitAuthLayout>,
+  );
+
+  expect(screen.getByText("선택 단계")).toBeInTheDocument();
+  expect(
+    screen.getByRole("heading", {
+      level: 1,
+      name: "기관의 기초 정보를 미리 넣어 둡니다",
+    }),
+  ).toBeInTheDocument();
+  expect(screen.getByText("관리자 계정을 만들었습니다.")).toBeInTheDocument();
+  expect(screen.getByRole("region", { name: "강의실" })).toBeInTheDocument();
+});

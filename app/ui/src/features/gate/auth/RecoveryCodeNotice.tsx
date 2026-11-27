@@ -8,15 +8,23 @@ import { Button } from "../../../components/ui/Button";
 import { Checkbox } from "../../../components/ui/Checkbox";
 import authStyles from "./auth.module.css";
 
-const RECOVERY_STEPS: readonly SplitAuthStep[] = [
+const SETUP_RECOVERY_STEPS: readonly SplitAuthStep[] = [
   { label: "관리자 계정 만들기", status: "done" },
   { label: "복구 코드 보관", status: "current" },
+  { label: "기초 정보 미리 넣기", status: "upcoming" },
+];
+
+const PIN_RECOVERY_STEPS: readonly SplitAuthStep[] = [
+  { label: "복구 코드로 PIN 다시 정하기", status: "done" },
+  { label: "새 복구 코드 보관", status: "current" },
 ];
 
 /** {@link RecoveryCodeNotice}의 속성. */
 export interface RecoveryCodeNoticeProps {
   /** 4자씩 끊은 복구 코드. 예: `K7QF-M2XA-9TRE-HW4C` */
   code: string;
+  /** 처음 설정 중인지, PIN 복구 중인지. 기본값은 `"setup"`. */
+  mode?: "setup" | "recovery";
   /** 직원이 적어 두었다고 확인했다. */
   onDone: () => void;
 }
@@ -26,15 +34,20 @@ export interface RecoveryCodeNoticeProps {
  *
  * 코드는 다시 볼 수 없어서, 적어 두었다고 확인해야 다음으로 넘어간다.
  */
-export function RecoveryCodeNotice({ code, onDone }: RecoveryCodeNoticeProps) {
+export function RecoveryCodeNotice({
+  code,
+  mode = "setup",
+  onDone,
+}: RecoveryCodeNoticeProps) {
   const [kept, setKept] = useState(false);
   const issuedOn = new Date().toLocaleDateString("ko-KR");
+  const isSetup = mode === "setup";
 
   return (
     <SplitAuthLayout
-      panelTitle="처음 설정"
+      panelTitle={isSetup ? "처음 설정" : "PIN 복구"}
       panelDescription="관리자가 PIN을 잊었을 때 이 코드로 PIN을 다시 정할 수 있습니다."
-      steps={RECOVERY_STEPS}
+      steps={isSetup ? SETUP_RECOVERY_STEPS : PIN_RECOVERY_STEPS}
       cardTitle="배움마루 복구 코드"
       cardSubtitle="관리자가 PIN을 잊었을 때 이 코드로 PIN을 다시 정합니다."
     >
