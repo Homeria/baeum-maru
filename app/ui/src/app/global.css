@@ -81,6 +81,34 @@
   --row-action-height: 32px;
 }
 
+/* 낮은 노트북 화면(1280×640~1366×768, 1920×1080 150% 배율 등)에서 한 화면에 안 잘리게 여백·높이를 줄인다 */
+@media (max-height: 720px) {
+  :root {
+    --space-5: 16px;
+    --space-6: 20px;
+    --space-7: 24px;
+    --control-min-height: 40px;
+    --row-action-height: 30px;
+  }
+}
+
+/* 넓은 데스크톱 모니터(1920×1080 100%, 2560×1600 150% 등)에서만 이중 확대 없이 한 단계 키운다 */
+@media (min-width: 1600px) and (min-height: 860px) {
+  :root {
+    --font-size-sm: 15px;
+    --font-size: 17px;
+    --font-size-lg: 19px;
+    --font-size-title: 22px;
+    --font-size-page-title: 24px;
+    --space-4: 18px;
+    --space-5: 22px;
+    --space-6: 28px;
+    --space-7: 36px;
+    --control-min-height: 48px;
+    --row-action-height: 36px;
+  }
+}
+
 @media (forced-colors: active) {
   :root {
     --color-bg: Canvas;

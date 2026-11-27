@@ -239,3 +239,29 @@
     margin-block-end: var(--space-4);
   }
 }
+
+/* 반분할 창(1024px 안팎)에서 좌측 안내 패널 폭을 줄여 카드 공간을 지킨다 */
+@media (max-width: 1120px) {
+  .layout {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+}
+
+/* 넓은 데스크톱 모니터(1600×860 이상)에서 좌측 패널과 카드·작업 폭을 여유 있게 넓힌다 */
+@media (min-width: 1600px) and (min-height: 860px) {
+  .layout {
+    grid-template-columns: 400px minmax(0, 1fr);
+  }
+
+  .cardMd {
+    max-inline-size: 560px;
+  }
+
+  .cardLg {
+    max-inline-size: 740px;
+  }
+
+  .workspace {
+    max-inline-size: 1060px;
+  }
+}
