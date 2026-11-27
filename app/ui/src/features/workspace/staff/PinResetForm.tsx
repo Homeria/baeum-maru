@@ -1,43 +1,46 @@
-import { useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { StaffResponse } from "../../../api/generated/StaffResponse";
-import { resetStaffPin } from "./api";
-import styles from "../../../components/form/form.module.css";
 import {
   NO_FORM_ERRORS,
   formErrorsFrom,
   type FormErrors,
 } from "../../../components/form/formErrors";
-import authStyles from "../../gate/auth/auth.module.css";
+import { ModalDialog } from "../../../components/overlay/ModalDialog";
+import { NoticeBanner } from "../../../components/surface/NoticeBanner";
+import { Button } from "../../../components/ui/Button";
+import { TextField } from "../../../components/ui/TextField";
 import { pinConfirmError } from "../../gate/auth/pinConfirm";
+import { resetStaffPin } from "./api";
+import styles from "./StaffPage.module.css";
 
 type PinField = "pin" | "pinConfirm";
 
 /** {@link PinResetForm}의 속성. */
 export interface PinResetFormProps {
   staff: StaffResponse;
+  onSaved: (notice: string) => void;
+  onClose: () => void;
 }
 
 /**
- * PIN 초기화 (BR-K10): 직원이 PIN을 잊었을 때 관리자가 새로 정해 준다.
+ * PIN 초기화 대화상자(BR-K10): 직원이 PIN을 잊었거나 잠겼을 때 관리자가 새로 정해 준다.
  *
  * 계정이 잠겼어도 새로 정하면 풀린다. 관리자 자신의 PIN도 여기서 바꾼다.
  */
-export function PinResetForm({ staff }: PinResetFormProps) {
+export function PinResetForm({ staff, onSaved, onClose }: PinResetFormProps) {
+  const formId = useId();
   const queryClient = useQueryClient();
   const [pin, setPin] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
   const [errors, setErrors] = useState<FormErrors<PinField>>(NO_FORM_ERRORS);
-  const [notice, setNotice] = useState<string | null>(null);
+  const pinInputRef = useRef<HTMLInputElement>(null);
 
   const reset = useMutation({
-    mutationFn: (pin: string) => resetStaffPin(staff.id, pin),
+    mutationFn: (nextPin: string) => resetStaffPin(staff.id, nextPin),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["staff"] });
-      setPin("");
-      setPinConfirm("");
-      setErrors(NO_FORM_ERRORS);
-      setNotice(
+      onSaved(
         `${staff.name}의 PIN을 새로 정했습니다. 잠겨 있었다면 풀렸습니다.`,
       );
     },
@@ -51,7 +54,6 @@ export function PinResetForm({ staff }: PinResetFormProps) {
     if (reset.isPending) {
       return;
     }
-    setNotice(null);
     const mismatch = pinConfirmError(pin, pinConfirm);
     if (mismatch) {
       setErrors({ fields: { pinConfirm: mismatch }, form: null });
@@ -60,25 +62,47 @@ export function PinResetForm({ staff }: PinResetFormProps) {
     reset.mutate(pin);
   };
 
-  const pinError = errors.fields.pin;
-  const confirmError = errors.fields.pinConfirm;
   const minimum = staff.role === "admin" ? "6~8자리" : "4~8자리";
 
   return (
-    <form className={styles.form} onSubmit={submit} noValidate>
-      <h2 className={styles.title}>PIN 새로 정하기</h2>
-      <p className={authStyles.hint}>
-        {staff.name}이(가) PIN을 잊었거나 계정이 잠겼을 때 씁니다. 숫자{" "}
-        {minimum}.
-      </p>
+    <ModalDialog
+      open
+      size="sm"
+      title="PIN 새로 정하기"
+      busy={reset.isPending}
+      initialFocusRef={pinInputRef}
+      onClose={onClose}
+      footer={
+        <>
+          <Button
+            variant="secondary"
+            disabled={reset.isPending}
+            onClick={onClose}
+          >
+            그만두기
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            variant="primary"
+            busy={reset.isPending}
+            busyLabel="정하는 중…"
+          >
+            PIN 새로 정하기
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} className={styles.form} onSubmit={submit} noValidate>
+        <p className={styles.hint}>
+          {staff.name}이(가) PIN을 잊었거나 계정이 잠겼을 때 씁니다. 숫자{" "}
+          {minimum}.
+        </p>
 
-      <div className={styles.field}>
-        <label htmlFor="reset-pin" className={styles.label}>
-          새 PIN
-        </label>
-        <input
-          id="reset-pin"
-          className={styles.input}
+        <TextField
+          ref={pinInputRef}
+          label="새 PIN"
+          required
           type="password"
           inputMode="numeric"
           autoComplete="new-password"
@@ -87,25 +111,13 @@ export function PinResetForm({ staff }: PinResetFormProps) {
           onChange={(event) => {
             setPin(event.target.value);
             setErrors(NO_FORM_ERRORS);
-            setNotice(null);
           }}
-          aria-invalid={pinError !== undefined}
-          aria-describedby={pinError ? "reset-pin-error" : undefined}
+          error={errors.fields.pin}
         />
-        {pinError && (
-          <p id="reset-pin-error" className={styles.fieldError}>
-            {pinError}
-          </p>
-        )}
-      </div>
 
-      <div className={styles.field}>
-        <label htmlFor="reset-pin-confirm" className={styles.label}>
-          새 PIN 한 번 더
-        </label>
-        <input
-          id="reset-pin-confirm"
-          className={styles.input}
+        <TextField
+          label="새 PIN 한 번 더"
+          required
           type="password"
           inputMode="numeric"
           autoComplete="new-password"
@@ -114,40 +126,12 @@ export function PinResetForm({ staff }: PinResetFormProps) {
           onChange={(event) => {
             setPinConfirm(event.target.value);
             setErrors(NO_FORM_ERRORS);
-            setNotice(null);
           }}
-          aria-invalid={confirmError !== undefined}
-          aria-describedby={
-            confirmError ? "reset-pin-confirm-error" : undefined
-          }
+          error={errors.fields.pinConfirm}
         />
-        {confirmError && (
-          <p id="reset-pin-confirm-error" className={styles.fieldError}>
-            {confirmError}
-          </p>
-        )}
-      </div>
 
-      {errors.form && (
-        <p className={styles.formError} role="alert">
-          {errors.form}
-        </p>
-      )}
-      {notice && (
-        <p className={styles.notice} role="status">
-          {notice}
-        </p>
-      )}
-
-      <div className={styles.actions}>
-        <button
-          type="submit"
-          className={styles.secondary}
-          disabled={reset.isPending}
-        >
-          {reset.isPending ? "정하는 중…" : "PIN 새로 정하기"}
-        </button>
-      </div>
-    </form>
+        {errors.form && <NoticeBanner tone="error" message={errors.form} />}
+      </form>
+    </ModalDialog>
   );
 }
