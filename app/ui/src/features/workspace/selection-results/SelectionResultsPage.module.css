@@ -302,6 +302,39 @@
   line-height: 1.55;
 }
 
+.dialogSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.dialogSectionDivided {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.dialogSectionTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.dialogButtonRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dialogButtonRowEnd {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .exportGroup {
   display: flex;
   flex-direction: column;

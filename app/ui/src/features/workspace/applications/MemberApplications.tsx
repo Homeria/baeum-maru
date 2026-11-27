@@ -162,7 +162,7 @@ export function MemberApplications({
       .join(", ");
 
   const title = member.data
-    ? `${member.data.name}(${member.data.memberNo})의 신청`
+    ? `${member.data.name} (${member.data.memberNo})의 신청`
     : "고른 회원의 신청";
 
   if (applications.isPending) {

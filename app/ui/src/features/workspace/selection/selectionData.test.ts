@@ -46,9 +46,9 @@ function lottery(
 }
 
 describe("entrantLabel", () => {
-  test("이름(회원번호)", () => {
+  test("이름 (회원번호)", () => {
     expect(entrantLabel({ memberName: "회원1", memberNo: "12-12345" })).toBe(
-      "회원1(12-12345)",
+      "회원1 (12-12345)",
     );
   });
 });

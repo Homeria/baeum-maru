@@ -5,6 +5,7 @@ import { ModalDialog } from "../../../components/overlay/ModalDialog";
 import { NoticeBanner } from "../../../components/surface/NoticeBanner";
 import { Button } from "../../../components/ui/Button";
 import { TextField } from "../../../components/ui/TextField";
+import { formatPhoneNumber } from "../members/formatPhoneNumber";
 import styles from "./SelectionResultsPage.module.css";
 
 /** 선발 결과에서 할 일. 고른 회원과 함께 창을 연다. */
@@ -44,10 +45,10 @@ export interface ChangeDialogProps {
 }
 
 /**
- * 포기, 대기자 연락 결과, 잘못 처리 바로잡기 모달 대화상자.
+ * 포기, 대기자 연락·포기 처리, 잘못 처리 바로잡기 모달 대화상자.
  *
- * 전화를 받으며 쓰는 창이라 누구의 일인지 이름과 회원번호를 크게 보여 준다.
- * 처음 초점은 안전한 "그만두기" 버튼에 둔다.
+ * 대기자 창은 승격 연락 결과(BR-W2~W5)와 연락 전 본인 요청 포기(BR-C3)를 한 창 안에서
+ * 구역으로 나누어, 목록 오클릭을 막으면서도 두 기록 경로를 모두 보존한다.
  */
 export function ChangeDialog({
   request,
@@ -98,23 +99,6 @@ export function ChangeDialog({
               포기로 바꾸기
             </Button>
           )}
-          {request.kind === "contact" &&
-            CONTACT_BUTTONS.map(({ result, label }) => (
-              <Button
-                key={result}
-                variant={
-                  result === "accepted"
-                    ? "primary"
-                    : result === "declined"
-                      ? "danger"
-                      : "secondary"
-                }
-                disabled={busy || (result === "accepted" && openSeats === 0)}
-                onClick={() => onChoose({ kind: "contact", result })}
-              >
-                {label}
-              </Button>
-            ))}
           {request.kind === "correct" && (
             <Button
               variant="primary"
@@ -163,14 +147,82 @@ export function ChangeDialog({
         )}
 
         {request.kind === "contact" && (
-          <p className={styles.dialogDesc}>
-            대기 {request.waitlistNumber}번
-            {request.phoneNumber !== null && ` · ${request.phoneNumber}`}
-            <br />
-            {openSeats === 0
-              ? "지금은 빈자리가 없어 수락을 남길 수 없습니다."
-              : `빈자리 ${openSeats}. 수락하면 당첨이 됩니다.`}
-          </p>
+          <>
+            <section
+              className={styles.dialogSection}
+              aria-label="승격 연락 결과"
+            >
+              <h3 className={styles.dialogSectionTitle}>승격 연락 결과</h3>
+              <p className={styles.dialogDesc}>
+                대기 {request.waitlistNumber}번
+                {request.phoneNumber !== null &&
+                  ` · ${formatPhoneNumber(request.phoneNumber)}`}
+                <br />
+                {openSeats === 0
+                  ? "지금은 빈자리가 없어 수락을 남길 수 없습니다. 거절하면 연락 기록과 함께 포기로 바뀝니다."
+                  : `빈자리 ${openSeats}. 수락하면 당첨이 되고, 거절하면 연락 기록과 함께 포기로 바뀝니다.`}
+              </p>
+              <div className={styles.dialogButtonRow}>
+                {CONTACT_BUTTONS.map(({ result, label }) => (
+                  <Button
+                    key={result}
+                    variant={
+                      result === "accepted"
+                        ? "primary"
+                        : result === "declined"
+                          ? "danger"
+                          : "secondary"
+                    }
+                    disabled={
+                      busy || (result === "accepted" && openSeats === 0)
+                    }
+                    onClick={() => onChoose({ kind: "contact", result })}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </section>
+
+            <section
+              className={styles.dialogSectionDivided}
+              aria-label="본인 요청 포기"
+            >
+              <h3 className={styles.dialogSectionTitle}>
+                본인 요청 포기 (연락 전 취소)
+              </h3>
+              <p className={styles.dialogDesc}>
+                대기자가 먼저 포기를 알려 온 경우 연락 기록 없이 포기로
+                바꿉니다.
+              </p>
+              <TextField
+                label="사유 (선택)"
+                placeholder="예: 본인 전화, 건강 문제"
+                maxLength={100}
+                value={reason}
+                onChange={(event) => {
+                  setReason(event.target.value);
+                  setBlankReason(false);
+                }}
+                error={shownReasonError ?? undefined}
+              />
+              <div className={styles.dialogButtonRowEnd}>
+                <Button
+                  variant="danger"
+                  busy={busy}
+                  busyLabel="바꾸는 중…"
+                  onClick={() =>
+                    onChoose({
+                      kind: "withdraw",
+                      reason: reason.trim() === "" ? null : reason,
+                    })
+                  }
+                >
+                  포기로 바꾸기
+                </Button>
+              </div>
+            </section>
+          </>
         )}
 
         {request.kind === "correct" && (
@@ -202,7 +254,7 @@ export function ChangeDialog({
 
 const TITLES: Record<ChangeRequest["kind"], string> = {
   withdraw: "포기로 바꿀까요?",
-  contact: "연락한 결과를 남깁니다",
+  contact: "대기자 연락·포기 처리",
   correct: "잘못 처리한 포기를 바로잡을까요?",
 };
 
@@ -210,6 +262,6 @@ const TITLES: Record<ChangeRequest["kind"], string> = {
 const CONTACT_BUTTONS: readonly { result: ContactResultCode; label: string }[] =
   [
     { result: "unreachable", label: "연락 안 됨" },
-    { result: "declined", label: "거절 (포기)" },
+    { result: "declined", label: "거절" },
     { result: "accepted", label: "수락 (당첨)" },
   ];

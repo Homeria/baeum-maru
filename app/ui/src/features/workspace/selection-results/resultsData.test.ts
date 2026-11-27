@@ -29,8 +29,8 @@ describe("matchesQuery", () => {
 });
 
 describe("글자", () => {
-  test("회원은 이름(회원번호)", () => {
-    expect(memberLabel(member)).toBe("김 회원(12-00034)");
+  test("회원은 이름 (회원번호)", () => {
+    expect(memberLabel(member)).toBe("김 회원 (12-00034)");
   });
 
   test("빈자리가 없으면 없다고 쓴다", () => {

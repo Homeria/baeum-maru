@@ -76,7 +76,7 @@ const SAMPLE_RESULT: CourseResultResponse = {
   waitlisted: [
     {
       member: { applicationId: 2, memberName: "이대기", memberNo: "M002" },
-      phoneNumber: "010-2222-3333",
+      phoneNumber: "01022223333",
       waitlistNumber: 1,
       lastContact: null,
       contactTurn: true,
@@ -131,7 +131,7 @@ beforeEach(() => {
   vi.mocked(saveFile).mockResolvedValue("/tmp/roster.xlsx");
 });
 
-test("마감 강좌를 고르면 연락할 차례를 강조하고 연락 결과 수락을 기록한다", async () => {
+test("마감 강좌를 고르면 연락할 차례를 강조하고 대기자 연락·포기 창에서 수락과 본인 포기를 기록한다", async () => {
   const user = userEvent.setup();
   renderPage("admin");
 
@@ -142,11 +142,15 @@ test("마감 강좌를 고르면 연락할 차례를 강조하고 연락 결과 
   const waitlisted = await screen.findByRole("region", { name: "대기자" });
   expect(within(waitlisted).getByText("연락할 차례")).toBeInTheDocument();
   expect(within(waitlisted).getByText("010-2222-3333")).toBeInTheDocument();
+  expect(
+    within(waitlisted).queryByRole("button", { name: "포기" }),
+  ).not.toBeInTheDocument();
 
   await user.click(
-    within(waitlisted).getByRole("button", { name: "연락 결과" }),
+    within(waitlisted).getByRole("button", { name: "연락·포기" }),
   );
-  const dialog = screen.getByRole("dialog", { name: "연락한 결과를 남깁니다" });
+  const dialog = screen.getByRole("dialog", { name: "대기자 연락·포기 처리" });
+  expect(within(dialog).getByText(/010-2222-3333/)).toBeInTheDocument();
   expect(
     within(dialog).getByRole("button", { name: "그만두기" }),
   ).toHaveFocus();
@@ -156,6 +160,21 @@ test("마감 강좌를 고르면 연락할 차례를 강조하고 연락 결과 
   expect(
     await screen.findByText("이대기 님이 수락해 당첨으로 바꿨습니다."),
   ).toBeInTheDocument();
+
+  await user.click(
+    within(waitlisted).getByRole("button", { name: "연락·포기" }),
+  );
+  const withdrawDialog = screen.getByRole("dialog", {
+    name: "대기자 연락·포기 처리",
+  });
+  await user.type(
+    within(withdrawDialog).getByLabelText("사유 (선택)"),
+    "본인 전화",
+  );
+  await user.click(
+    within(withdrawDialog).getByRole("button", { name: "포기로 바꾸기" }),
+  );
+  expect(withdraw).toHaveBeenCalledWith(2, "본인 전화");
 });
 
 test("포기와 관리자 전용 바로잡기 대화상자가 사유 검증과 함께 동작한다", async () => {
@@ -203,7 +222,7 @@ test("결과 명단 내보내기 창은 조회 전용에게 원본 명단을 숨
   ).toBeInTheDocument();
 });
 
-test("기록·바로잡기 권한이 없으면 포기·연락 결과·바로잡기 버튼을 숨긴다", async () => {
+test("기록·바로잡기 권한이 없으면 포기·연락·포기·바로잡기 버튼을 숨긴다", async () => {
   const user = userEvent.setup();
   vi.mocked(getCourseResult).mockResolvedValue({
     ...SAMPLE_RESULT,
@@ -215,9 +234,9 @@ test("기록·바로잡기 권한이 없으면 포기·연락 결과·바로잡�
   await user.click(
     await screen.findByRole("button", { name: /서예 초급 1반/ }),
   );
-  expect(await screen.findByText("김당첨(M001)")).toBeInTheDocument();
+  expect(await screen.findByText("김당첨 (M001)")).toBeInTheDocument();
   expect(
-    screen.queryByRole("button", { name: "연락 결과" }),
+    screen.queryByRole("button", { name: "연락·포기" }),
   ).not.toBeInTheDocument();
   expect(
     screen.queryByRole("button", { name: "포기" }),

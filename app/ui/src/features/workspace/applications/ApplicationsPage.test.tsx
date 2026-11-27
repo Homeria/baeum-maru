@@ -304,7 +304,7 @@ test("조회 전용 역할에게는 신청 막대와 신청 지우기 버튼을 
 
   await user.click(await screen.findByText("홍길동"));
   expect(
-    await screen.findByText("홍길동(M001)의 신청 · 1건"),
+    await screen.findByText("홍길동 (M001)의 신청 · 1건"),
   ).toBeInTheDocument();
   expect(
     screen.queryByRole("button", { name: /신청하기/ }),

@@ -9,14 +9,14 @@ import type { EntrantResponse } from "../../../api/generated/EntrantResponse";
 export const SHUFFLE_INTERVAL_MS = 50;
 
 /**
- * 추첨 화면의 한 줄. 예: `회원1(12-12345)`
+ * 추첨 화면의 한 줄. 예: `회원1 (12-12345)`
  *
  * 이름 옆에 붙일 정보는 지금 회원번호로 정해 두었다. 설정 기능이 생기면 고를 수 있게 한다.
  */
 export function entrantLabel(
   entrant: Pick<EntrantResponse, "memberName" | "memberNo">,
 ): string {
-  return `${entrant.memberName}(${entrant.memberNo})`;
+  return `${entrant.memberName} (${entrant.memberNo})`;
 }
 
 /** 자리 보장 신청(BR-S4). 호스트가 늘 맨 앞에 둔다. */

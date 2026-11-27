@@ -11,6 +11,7 @@ import { NoticeBanner } from "../../../components/surface/NoticeBanner";
 import { Button } from "../../../components/ui/Button";
 import { SearchInput } from "../../../components/ui/SearchInput";
 import { StatusPill } from "../../../components/ui/StatusPill";
+import { formatPhoneNumber } from "../members/formatPhoneNumber";
 import {
   correctWithdrawal,
   getCourseResult,
@@ -203,7 +204,9 @@ export function CourseResultBoard({
                 </span>
                 <span className={styles.name}>{memberLabel(entry.member)}</span>
                 {entry.phoneNumber !== null && (
-                  <span className={styles.phone}>{entry.phoneNumber}</span>
+                  <span className={styles.phone}>
+                    {formatPhoneNumber(entry.phoneNumber)}
+                  </span>
                 )}
                 {entry.contactTurn && (
                   <StatusPill tone="turn">연락할 차례</StatusPill>
@@ -215,7 +218,7 @@ export function CourseResultBoard({
                 )}
               </div>
               {data.canRecord && (
-                <div className={styles.entryActions}>
+                <div className={styles.entryActionsEnd}>
                   <Button
                     size="sm"
                     variant={entry.contactTurn ? "primary" : "secondary"}
@@ -228,20 +231,7 @@ export function CourseResultBoard({
                       })
                     }
                   >
-                    연락 결과
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() =>
-                      open({
-                        kind: "withdraw",
-                        member: entry.member,
-                        from: "대기",
-                      })
-                    }
-                  >
-                    포기
+                    연락·포기
                   </Button>
                 </div>
               )}

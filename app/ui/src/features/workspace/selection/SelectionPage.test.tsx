@@ -129,7 +129,7 @@ test("강좌를 고르면 강좌명 제목·우선 배정 안내·3칸 목록이
   ).toBeInTheDocument();
 
   const winners = screen.getByRole("region", { name: "당첨자" });
-  expect(within(winners).getByText("김반장(M001)")).toBeInTheDocument();
+  expect(within(winners).getByText("김반장 (M001)")).toBeInTheDocument();
   expect(within(winners).getByText("우선")).toBeInTheDocument();
   expect(winners.querySelector("ol")).toBeNull();
 
@@ -147,7 +147,7 @@ test("강좌를 고르면 강좌명 제목·우선 배정 안내·3칸 목록이
 
   const waitlisted = screen.getByRole("region", { name: "대기자" });
   expect(waitlisted.querySelector("ol")).not.toBeNull();
-  expect(within(waitlisted).getByText("박대기(M003)")).toBeInTheDocument();
+  expect(within(waitlisted).getByText("박대기 (M003)")).toBeInTheDocument();
 });
 
 test("추첨 뒤 선발 마감과 다시 추첨 확인 대화상자가 동작한다", async () => {
