@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { RestoreSource } from "../../../api/backups";
+import type { RestoreSource } from "../../workspace/backups/api";
 import type { RestorePreviewResponse } from "../../../api/generated/RestorePreviewResponse";
 import type { RestoreRequest } from "../../../api/generated/RestoreRequest";
 import type { StartupStateResponse } from "../../../api/generated/StartupStateResponse";

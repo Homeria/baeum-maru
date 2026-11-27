@@ -4,17 +4,17 @@ import { ApplicationsPage } from "../features/workspace/applications/Application
 import { CoursesPage } from "../features/workspace/courses/CoursesPage";
 import type { Session } from "../api/session";
 import { SignedInStaff } from "../features/gate/auth/SignedInStaff";
-import { ConnectionLostBar } from "../features/changes/ConnectionLostBar";
-import { useChangeNotices } from "../features/changes/useChangeNotices";
-import { DeviceRequestNotice } from "../features/devices/DeviceRequestNotice";
-import { HostStatus } from "../features/host/HostStatus";
+import { ConnectionLostBar } from "../features/workspace/changes/ConnectionLostBar";
+import { useChangeNotices } from "../features/workspace/changes/useChangeNotices";
+import { DeviceRequestNotice } from "../features/workspace/devices/DeviceRequestNotice";
+import { HostStatus } from "../features/workspace/host/HostStatus";
 import { MembersPage } from "../features/workspace/members/MembersPage";
-import { ReferenceDataPage } from "../features/reference-data/ReferenceDataPage";
+import { ReferenceDataPage } from "../features/workspace/reference-data/ReferenceDataPage";
 import { SelectionPage } from "../features/workspace/selection/SelectionPage";
 import { SelectionResultsPage } from "../features/workspace/selection-results/SelectionResultsPage";
 import { can } from "../features/gate/auth/roles";
 import { useIsHostPc } from "../features/gate/run-mode/useRunMode";
-import { StaffAdminPage } from "../features/staff/StaffAdminPage";
+import { StaffAdminPage } from "../features/workspace/staff/StaffAdminPage";
 import styles from "./App.module.css";
 
 type MenuKey =

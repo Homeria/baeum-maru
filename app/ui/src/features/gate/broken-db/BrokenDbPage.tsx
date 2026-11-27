@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { pickBackupFile } from "../../../api/appCommands";
-import type { RestoreSource } from "../../../api/backups";
+import type { RestoreSource } from "../../workspace/backups/api";
 import type { RestorePreviewResponse } from "../../../api/generated/RestorePreviewResponse";
 import type { StartupStateResponse } from "../../../api/generated/StartupStateResponse";
 import { previewBrokenDbBackup, restoreBrokenDb } from "./api";
@@ -11,7 +11,7 @@ import {
   BACKUP_KIND_LABELS,
   formatTakenAt,
   previewLines,
-} from "../../backups/backupData";
+} from "../../workspace/backups/backupData";
 
 /** {@link BrokenDbPage}의 속성. */
 export interface BrokenDbPageProps {
