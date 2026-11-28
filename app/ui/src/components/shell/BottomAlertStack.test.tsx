@@ -47,7 +47,7 @@ test("위험 알림은 alert, 정보·일반 알림은 status 영역에 표시�
     {
       id: "device",
       tone: "info",
-      message: "새 기기 승인 요청 1건이 있습니다.",
+      message: "승인을 기다리는 기기가 1대 있습니다.",
       actionLabel: "확인하기",
       onAction: onCheck,
       onDismiss,
@@ -65,7 +65,9 @@ test("위험 알림은 alert, 정보·일반 알림은 status 영역에 표시�
     "호스트 연결이 끊겼습니다.",
   );
   const statusRegion = screen.getByRole("status");
-  expect(statusRegion).toHaveTextContent("새 기기 승인 요청 1건이 있습니다.");
+  expect(statusRegion).toHaveTextContent(
+    "승인을 기다리는 기기가 1대 있습니다.",
+  );
   expect(statusRegion).toHaveTextContent("보기 전용 PC입니다.");
 
   await user.click(screen.getByRole("button", { name: "확인하기" }));

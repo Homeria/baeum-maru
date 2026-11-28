@@ -87,10 +87,10 @@ test("관리자 메뉴·연결 끊김·기기 승인 요청 하단 알림을 표
   expect(screen.getByText("호스트 연결됨")).toBeInTheDocument();
 
   expect(screen.getByRole("alert")).toHaveTextContent(
-    "호스트와 연결이 끊겼습니다",
+    "그동안 다른 PC가 바꾼 내용은 화면에 보이지 않습니다",
   );
   expect(screen.getByRole("status")).toHaveTextContent(
-    "새 기기 승인 요청 2건이 있습니다",
+    "승인을 기다리는 기기가 2대 있습니다",
   );
 
   await user.click(screen.getByRole("button", { name: "확인하기" }));
