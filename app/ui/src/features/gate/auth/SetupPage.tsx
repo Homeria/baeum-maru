@@ -53,6 +53,8 @@ export function SetupPage({ onDone, footer }: SetupPageProps) {
   const inputs = useRef<Partial<Record<SetupField, HTMLInputElement | null>>>(
     {},
   );
+  // PIN이 React Query mutation variables에 남지 않도록 호출 직후 비우는 ref로 전달한다
+  const pendingValuesRef = useRef<SetupFormValues | null>(null);
 
   const showErrors = (next: SetupFormErrors) => {
     setErrors(next);
@@ -63,9 +65,12 @@ export function SetupPage({ onDone, footer }: SetupPageProps) {
   };
 
   const save = useMutation({
-    mutationFn: async (
-      formValues: SetupFormValues,
-    ): Promise<SetupDoneResult> => {
+    mutationFn: async (): Promise<SetupDoneResult> => {
+      const formValues = pendingValuesRef.current;
+      pendingValuesRef.current = null;
+      if (formValues === null) {
+        throw new Error("제출할 설정 값이 없습니다.");
+      }
       const request = toSetupRequest(formValues);
       const { recoveryCode } = await setup(request);
       try {
@@ -84,6 +89,7 @@ export function SetupPage({ onDone, footer }: SetupPageProps) {
       }
     },
     onSuccess: (result) => {
+      setValues(EMPTY_SETUP_FORM);
       void queryClient.invalidateQueries({ queryKey: ["setupStatus"] });
       onDone(result);
     },
@@ -114,7 +120,8 @@ export function SetupPage({ onDone, footer }: SetupPageProps) {
       showErrors(mismatch);
       return;
     }
-    save.mutate(values);
+    pendingValuesRef.current = values;
+    save.mutate();
   };
 
   return (

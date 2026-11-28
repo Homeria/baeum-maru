@@ -7,7 +7,7 @@ import { LockScreen } from "../features/gate/auth/LockScreen";
 import { LoginPage } from "../features/gate/auth/LoginPage";
 import { RecoveryCodeNotice } from "../features/gate/auth/RecoveryCodeNotice";
 import { RecoveryPage } from "../features/gate/auth/RecoveryPage";
-import { SetupBasicsPage } from "../features/gate/auth/SetupBasicsPage";
+import { SetupBasicsPage } from "../features/gate/setup-basics/SetupBasicsPage";
 import { SetupPage } from "../features/gate/auth/SetupPage";
 import { useIdleLock } from "../features/gate/auth/useIdleLock";
 import { useSession } from "../features/gate/auth/useSession";
