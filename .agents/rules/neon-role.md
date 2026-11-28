@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # Antigravity(Neon)가 맡은 역할
 
 공통 규칙은 저장소 맨 위 `AGENTS.md`를 따른다.
