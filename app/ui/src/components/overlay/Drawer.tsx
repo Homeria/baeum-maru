@@ -1,13 +1,7 @@
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type PointerEvent,
-  type ReactNode,
-} from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 import { Button } from "../ui/Button";
 import { ModalDialog } from "./ModalDialog";
+import { useModalDialog } from "./useModalDialog";
 import styles from "./Drawer.module.css";
 
 /** {@link Drawer}의 속성. */
@@ -34,20 +28,6 @@ export interface DrawerProps {
   className?: string;
 }
 
-function isOutsideRect(
-  dialog: HTMLDialogElement,
-  clientX: number,
-  clientY: number,
-): boolean {
-  const rect = dialog.getBoundingClientRect();
-  return (
-    clientX < rect.left ||
-    clientX > rect.right ||
-    clientY < rect.top ||
-    clientY > rect.bottom
-  );
-}
-
 /**
  * 화면 오른쪽에서 열리는 모달 편집 서랍.
  *
@@ -67,27 +47,9 @@ export function Drawer({
   children,
   className,
 }: DrawerProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const keepEditingRef = useRef<HTMLButtonElement>(null);
-  const pressedOutsideRef = useRef(false);
   const [confirmingClose, setConfirmingClose] = useState(false);
   const titleId = useId();
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) {
-      return;
-    }
-    if (open && !dialog.open) {
-      dialog.showModal();
-    } else if (!open && dialog.open) {
-      dialog.close();
-    }
-  }, [open]);
-
-  if (!open) {
-    return null;
-  }
 
   function requestClose() {
     if (busy) {
@@ -100,35 +62,14 @@ export function Drawer({
     onClose();
   }
 
-  function handlePointerDown(event: PointerEvent<HTMLDialogElement>) {
-    const dialog = dialogRef.current;
-    if (!dialog || busy || confirmingClose || event.target !== dialog) {
-      pressedOutsideRef.current = false;
-      return;
-    }
-    pressedOutsideRef.current = isOutsideRect(
-      dialog,
-      event.clientX,
-      event.clientY,
-    );
-  }
+  const { dialogRef, handlePointerDown, handlePointerUp } = useModalDialog({
+    open,
+    allowOutsideDismiss: !busy && !confirmingClose,
+    onOutsideDismiss: requestClose,
+  });
 
-  function handlePointerUp(event: PointerEvent<HTMLDialogElement>) {
-    const dialog = dialogRef.current;
-    const wasOutside = pressedOutsideRef.current;
-    pressedOutsideRef.current = false;
-    if (
-      !dialog ||
-      busy ||
-      confirmingClose ||
-      !wasOutside ||
-      event.target !== dialog
-    ) {
-      return;
-    }
-    if (isOutsideRect(dialog, event.clientX, event.clientY)) {
-      requestClose();
-    }
+  if (!open) {
+    return null;
   }
 
   // 닫기 확인 가드가 일관되게 돌도록 바깥 클릭은 pointerdown/pointerup으로 제어한다

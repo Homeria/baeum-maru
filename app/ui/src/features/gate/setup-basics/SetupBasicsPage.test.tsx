@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
 import type { PriorityReasonResponse } from "../../../api/generated/PriorityReasonResponse";
@@ -18,10 +18,10 @@ import {
   deleteSubject,
   listSubjects,
 } from "../../workspace/subjects/api";
+import { listLoginStaff, login } from "../auth/api";
+import { recover } from "../auth/recoveryApi";
+import { fetchSetupStatus, setup } from "../auth/setupApi";
 import { useRunMode } from "../run-mode/useRunMode";
-import { listLoginStaff, login } from "./api";
-import { recover } from "./recoveryApi";
-import { fetchSetupStatus, setup } from "./setupApi";
 import { SetupBasicsPage } from "./SetupBasicsPage";
 
 vi.mock("../../workspace/rooms/api", () => ({
@@ -42,17 +42,17 @@ vi.mock("../../workspace/priority-reasons/api", () => ({
   deletePriorityReason: vi.fn(),
 }));
 
-vi.mock("./setupApi", () => ({
+vi.mock("../auth/setupApi", () => ({
   fetchSetupStatus: vi.fn(),
   setup: vi.fn(),
 }));
 
-vi.mock("./api", () => ({
+vi.mock("../auth/api", () => ({
   listLoginStaff: vi.fn(),
   login: vi.fn(),
 }));
 
-vi.mock("./recoveryApi", () => ({
+vi.mock("../auth/recoveryApi", () => ({
   recover: vi.fn(),
 }));
 
@@ -167,7 +167,7 @@ test("강의실 단계는 건물·층 마지막 값을 유지하며 연속 입�
   expect(screen.queryByText("1강의실")).not.toBeInTheDocument();
 });
 
-test("과목·우선 배정 단계는 추천 4개 체크·해제와 직접 추가, 과목 연속 입력을 처리한다", async () => {
+test("과목·우선 배정 단계는 지난 학기 반장 추천 체크박스와 직접 추가, 과목 연속 입력을 처리한다", async () => {
   const user = userEvent.setup();
   const onDone = vi.fn();
 
@@ -177,36 +177,22 @@ test("과목·우선 배정 단계는 추천 4개 체크·해제와 직접 추�
     screen.getByRole("button", { name: "다음: 과목 · 우선 배정" }),
   );
 
-  // 추천 우선 배정 사유 4개 순서 확인 ("직전 학기 반장"이 맨 위)
-  const presetList = await screen.findByRole("list", {
-    name: "추천 우선 배정 사유",
+  // 비민감 항목인 "지난 학기 반장" 1개만 추천 체크박스로 두고 민감 사유는 기본 추천하지 않는다
+  const leaderCheckbox = await screen.findByRole("checkbox", {
+    name: "지난 학기 반장",
   });
-  const presetCheckboxes = within(presetList).getAllByRole("checkbox");
+  expect(screen.getAllByRole("checkbox")).toHaveLength(1);
   expect(
-    presetCheckboxes.map((item) => item.getAttribute("aria-label") ?? ""),
-  ).toHaveLength(4);
-  expect(
-    within(presetList)
-      .getAllByRole("listitem")
-      .map((li) => li.textContent),
-  ).toEqual([
-    "직전 학기 반장자리 보장",
-    "보훈자리 보장",
-    "장애자리 보장",
-    "기초생활수급자자리 보장",
-  ]);
+    screen.getByText(/기관 개인정보 안내·동의 절차를 확인한 뒤 직접 추가/),
+  ).toBeInTheDocument();
 
-  // 추천 사유 체크 -> 등록, 해제 -> 삭제
-  const leaderCheckbox = within(presetList).getByRole("checkbox", {
-    name: "직전 학기 반장",
-  });
   await user.click(leaderCheckbox);
   expect(createPriorityReason).toHaveBeenCalledWith({
-    name: "직전 학기 반장",
+    name: "지난 학기 반장",
     method: "guaranteed",
   });
   expect(
-    await within(presetList).findByRole("checkbox", { name: "직전 학기 반장" }),
+    await screen.findByRole("checkbox", { name: "지난 학기 반장" }),
   ).toBeChecked();
 
   await user.click(leaderCheckbox);

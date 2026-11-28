@@ -32,44 +32,60 @@ export interface BottomAlertStackProps {
  * 화면 맨 아래에 차곡차곡 쌓이는 상태 알림 띠.
  *
  * 작업 영역을 덮지 않고 위로 밀어 올려 하단 주 버튼(신청하기 등)을 가리지 않는다.
+ * 화면 읽기 프로그램이 새 알림을 놓치지 않도록 빈 상태에서도 `alert`·`status` 라이브 영역을 유지한다.
  */
 export function BottomAlertStack({ items, className }: BottomAlertStackProps) {
-  if (items.length === 0) {
-    return null;
-  }
+  const urgentItems = items.filter((item) => item.tone === "danger");
+  const politeItems = items.filter((item) => item.tone !== "danger");
 
   return (
     <div
-      className={[styles.stack, className].filter(Boolean).join(" ")}
+      role="region"
       aria-label="상태 알림"
+      className={[
+        styles.stack,
+        items.length === 0 ? styles.empty : "",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
-      {items.map((item) => (
-        <div
-          key={item.id}
-          role={item.tone === "danger" ? "alert" : "status"}
-          className={[styles.item, styles[item.tone]].join(" ")}
-        >
-          <p className={styles.message}>{item.message}</p>
-          {(item.actionLabel || item.onDismiss) && (
-            <div className={styles.actions}>
-              {item.actionLabel && item.onAction && (
-                <Button
-                  size="sm"
-                  variant={item.tone === "info" ? "primary" : "secondary"}
-                  onClick={item.onAction}
-                >
-                  {item.actionLabel}
-                </Button>
-              )}
-              {item.onDismiss && (
-                <Button size="sm" variant="secondary" onClick={item.onDismiss}>
-                  {item.dismissLabel ?? "닫기"}
-                </Button>
-              )}
-            </div>
+      <div role="alert" aria-atomic="false" className={styles.group}>
+        {urgentItems.map((item) => (
+          <AlertRow key={item.id} item={item} />
+        ))}
+      </div>
+      <div role="status" aria-atomic="false" className={styles.group}>
+        {politeItems.map((item) => (
+          <AlertRow key={item.id} item={item} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AlertRow({ item }: { item: BottomAlertItem }) {
+  return (
+    <div className={[styles.item, styles[item.tone]].join(" ")}>
+      <p className={styles.message}>{item.message}</p>
+      {(item.actionLabel || item.onDismiss) && (
+        <div className={styles.actions}>
+          {item.actionLabel && item.onAction && (
+            <Button
+              size="sm"
+              variant={item.tone === "info" ? "primary" : "secondary"}
+              onClick={item.onAction}
+            >
+              {item.actionLabel}
+            </Button>
+          )}
+          {item.onDismiss && (
+            <Button size="sm" variant="secondary" onClick={item.onDismiss}>
+              {item.dismissLabel ?? "닫기"}
+            </Button>
           )}
         </div>
-      ))}
+      )}
     </div>
   );
 }
