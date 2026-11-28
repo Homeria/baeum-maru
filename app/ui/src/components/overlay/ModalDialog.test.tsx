@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
@@ -87,4 +87,57 @@ test("lightDismiss가 참이면 바깥 영역 클릭으로 닫히고 안쪽 클�
   fireEvent.pointerDown(dialog, { clientX: 20, clientY: 20 });
   fireEvent.pointerUp(dialog, { clientX: 20, clientY: 20 });
   expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+function FocusRestoreHarness({ unmountOnClose }: { unmountOnClose: boolean }) {
+  const [open, setOpen] = useState(false);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  return (
+    <>
+      <Button onClick={() => setOpen(true)}>열기</Button>
+      {(!unmountOnClose || open) && (
+        <ModalDialog
+          open={open}
+          title="확인"
+          initialFocusRef={cancelRef}
+          onClose={() => setOpen(false)}
+          footer={
+            <Button ref={cancelRef} onClick={() => setOpen(false)}>
+              닫기
+            </Button>
+          }
+        >
+          <p>본문</p>
+        </ModalDialog>
+      )}
+    </>
+  );
+}
+
+test("버튼으로 연 모달을 Esc나 닫기로 닫으면 원래 버튼으로 초점이 돌아온다", async () => {
+  const user = userEvent.setup();
+  render(<FocusRestoreHarness unmountOnClose={false} />);
+
+  const trigger = screen.getByRole("button", { name: "열기" });
+  await user.click(trigger);
+  expect(screen.getByRole("button", { name: "닫기" })).toHaveFocus();
+
+  const dialog = screen.getByRole("dialog", { name: "확인" });
+  fireEvent(dialog, new Event("cancel", { cancelable: true }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(trigger).toHaveFocus();
+
+  await user.click(trigger);
+  await user.click(screen.getByRole("button", { name: "닫기" }));
+  expect(trigger).toHaveFocus();
+});
+
+test("조건부 언마운트로 모달이 사라져도 원래 버튼으로 초점이 돌아온다", async () => {
+  const user = userEvent.setup();
+  render(<FocusRestoreHarness unmountOnClose />);
+
+  const trigger = screen.getByRole("button", { name: "열기" });
+  await user.click(trigger);
+  await user.click(screen.getByRole("button", { name: "닫기" }));
+  expect(trigger).toHaveFocus();
 });

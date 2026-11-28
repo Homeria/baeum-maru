@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
@@ -99,4 +100,43 @@ test("busy가 참이면 닫기 버튼과 Esc가 모두 막힌다", async () => {
   expect(
     screen.queryByRole("dialog", { name: "저장하지 않은 내용이 있습니다" }),
   ).not.toBeInTheDocument();
+});
+
+function DrawerFocusHarness({ isDirty }: { isDirty: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button onClick={() => setOpen(true)}>고치기</Button>
+      <Drawer
+        open={open}
+        isDirty={isDirty}
+        title="회원 고치기"
+        onClose={() => setOpen(false)}
+      >
+        <p>편집 폼</p>
+      </Drawer>
+    </>
+  );
+}
+
+test("서랍을 닫거나 바뀐 내용 확인 창을 거쳐 버리고 닫으면 원래 버튼으로 초점이 돌아온다", async () => {
+  const user = userEvent.setup();
+  const { rerender } = render(<DrawerFocusHarness isDirty={false} />);
+
+  const trigger = screen.getByRole("button", { name: "고치기" });
+  await user.click(trigger);
+  await user.click(screen.getByRole("button", { name: "닫기" }));
+  expect(trigger).toHaveFocus();
+
+  rerender(<DrawerFocusHarness isDirty />);
+  await user.click(trigger);
+  await user.click(screen.getByRole("button", { name: "닫기" }));
+  expect(screen.getByRole("button", { name: "계속 편집" })).toHaveFocus();
+
+  await user.click(screen.getByRole("button", { name: "계속 편집" }));
+  expect(screen.getByRole("button", { name: "닫기" })).toHaveFocus();
+
+  await user.click(screen.getByRole("button", { name: "닫기" }));
+  await user.click(screen.getByRole("button", { name: "버리고 닫기" }));
+  expect(trigger).toHaveFocus();
 });

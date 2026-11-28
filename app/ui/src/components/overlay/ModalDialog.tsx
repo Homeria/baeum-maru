@@ -1,11 +1,5 @@
-import {
-  useEffect,
-  useId,
-  useRef,
-  type PointerEvent,
-  type ReactNode,
-  type RefObject,
-} from "react";
+import { useId, type ReactNode, type RefObject } from "react";
+import { useModalDialog } from "./useModalDialog";
 import styles from "./ModalDialog.module.css";
 
 /** {@link ModalDialog}의 속성. */
@@ -30,24 +24,10 @@ export interface ModalDialogProps {
   className?: string;
 }
 
-function isOutsideRect(
-  dialog: HTMLDialogElement,
-  clientX: number,
-  clientY: number,
-): boolean {
-  const rect = dialog.getBoundingClientRect();
-  return (
-    clientX < rect.left ||
-    clientX > rect.right ||
-    clientY < rect.top ||
-    clientY > rect.bottom
-  );
-}
-
 /**
  * 네이티브 `<dialog>`의 `showModal()`로 띄우는 공통 모달 대화상자.
  *
- * 브라우저가 뒤쪽 화면 비활성(`inert`), 포커스 가둠, 닫힌 뒤 원래 버튼으로 포커스 복귀를 처리한다.
+ * 열릴 때 뒤쪽 화면 비활성(`inert`)과 포커스 가둠을 제공하고, 닫히거나 언마운트될 때 원래 버튼으로 초점을 돌려준다.
  */
 export function ModalDialog({
   open,
@@ -61,22 +41,19 @@ export function ModalDialog({
   children,
   className,
 }: ModalDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const pressedOutsideRef = useRef(false);
   const titleId = useId();
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) {
-      return;
-    }
-    if (open && !dialog.open) {
-      dialog.showModal();
-      initialFocusRef?.current?.focus();
-    } else if (!open && dialog.open) {
-      dialog.close();
-    }
-  }, [open, initialFocusRef]);
+  const {
+    dialogRef,
+    isClosingProgrammatically,
+    handlePointerDown,
+    handlePointerUp,
+  } = useModalDialog({
+    open,
+    allowOutsideDismiss: lightDismiss && !busy,
+    deferToNativeClosedBy: true,
+    initialFocusRef,
+    onOutsideDismiss: onClose,
+  });
 
   if (!open) {
     return null;
@@ -84,41 +61,6 @@ export function ModalDialog({
 
   const closedby = busy ? "none" : lightDismiss ? "any" : "closerequest";
   const dialogAttrs: Record<string, string> = { closedby };
-
-  function handlePointerDown(event: PointerEvent<HTMLDialogElement>) {
-    const dialog = dialogRef.current;
-    if (!dialog || !lightDismiss || busy || event.target !== dialog) {
-      pressedOutsideRef.current = false;
-      return;
-    }
-    // 텍스트 드래그가 바깥에서 끝나 닫히는 실수를 막으려고 눌렀을 때와 뗐을 때 모두 바깥인지 본다
-    pressedOutsideRef.current = isOutsideRect(
-      dialog,
-      event.clientX,
-      event.clientY,
-    );
-  }
-
-  function handlePointerUp(event: PointerEvent<HTMLDialogElement>) {
-    const dialog = dialogRef.current;
-    const wasOutside = pressedOutsideRef.current;
-    pressedOutsideRef.current = false;
-    if (
-      !dialog ||
-      !lightDismiss ||
-      busy ||
-      !wasOutside ||
-      event.target !== dialog
-    ) {
-      return;
-    }
-    if ("closedBy" in HTMLDialogElement.prototype) {
-      return;
-    }
-    if (isOutsideRect(dialog, event.clientX, event.clientY)) {
-      onClose();
-    }
-  }
 
   return (
     <dialog
@@ -138,7 +80,7 @@ export function ModalDialog({
         if (dialogRef.current) {
           dialogRef.current.returnValue = "";
         }
-        if (open && !busy) {
+        if (open && !busy && !isClosingProgrammatically()) {
           onClose();
         }
       }}
