@@ -124,7 +124,7 @@ export function MainScreen({ session }: MainScreenProps) {
       id: "connection-lost",
       tone: "danger",
       message:
-        "호스트와 연결이 끊겼습니다. 다시 연결하는 중입니다. 새로 입력은 잠시 기다려 주세요.",
+        "호스트와 연결이 끊겼습니다. 다시 연결하는 중입니다. 그동안 다른 PC가 바꾼 내용은 화면에 보이지 않습니다.",
     });
   }
   if (
@@ -135,7 +135,7 @@ export function MainScreen({ session }: MainScreenProps) {
     alerts.push({
       id: "device-requests",
       tone: "info",
-      message: `새 기기 승인 요청 ${openRequests}건이 있습니다.`,
+      message: `승인을 기다리는 기기가 ${openRequests}대 있습니다.`,
       actionLabel: "확인하기",
       onAction: () => {
         setMenu("staff");
