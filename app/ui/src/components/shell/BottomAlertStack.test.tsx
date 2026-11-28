@@ -3,13 +3,37 @@ import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import { BottomAlertStack, type BottomAlertItem } from "./BottomAlertStack";
 
-test("알림이 없으면 아무것도 렌더링하지 않는다", () => {
-  const { container } = render(<BottomAlertStack items={[]} />);
+test("알림이 비어 있어도 alert·status 라이브 영역을 유지하고 새 알림이 들어오면 반영한다", () => {
+  const { rerender } = render(<BottomAlertStack items={[]} />);
 
-  expect(container).toBeEmptyDOMElement();
+  expect(screen.getByRole("region", { name: "상태 알림" })).toBeInTheDocument();
+  const alertRegion = screen.getByRole("alert");
+  const statusRegion = screen.getByRole("status");
+  expect(alertRegion).toBeEmptyDOMElement();
+  expect(statusRegion).toBeEmptyDOMElement();
+
+  rerender(
+    <BottomAlertStack
+      items={[
+        {
+          id: "conn",
+          tone: "danger",
+          message: "호스트 연결이 끊겼습니다.",
+        },
+        {
+          id: "view-only",
+          tone: "neutral",
+          message: "보기 전용 PC입니다.",
+        },
+      ]}
+    />,
+  );
+
+  expect(alertRegion).toHaveTextContent("호스트 연결이 끊겼습니다.");
+  expect(statusRegion).toHaveTextContent("보기 전용 PC입니다.");
 });
 
-test("위험 알림은 alert, 정보·일반 알림은 status 역할로 표시하고 동작·닫기 버튼을 연결한다", async () => {
+test("위험 알림은 alert, 정보·일반 알림은 status 영역에 표시하고 동작·닫기 버튼을 연결한다", async () => {
   const user = userEvent.setup();
   const onCheck = vi.fn();
   const onDismiss = vi.fn();
@@ -40,10 +64,9 @@ test("위험 알림은 alert, 정보·일반 알림은 status 역할로 표시�
   expect(screen.getByRole("alert")).toHaveTextContent(
     "호스트 연결이 끊겼습니다.",
   );
-  const statuses = screen.getAllByRole("status");
-  expect(statuses).toHaveLength(2);
-  expect(statuses[0]).toHaveTextContent("새 기기 승인 요청 1건이 있습니다.");
-  expect(statuses[1]).toHaveTextContent("보기 전용 PC입니다.");
+  const statusRegion = screen.getByRole("status");
+  expect(statusRegion).toHaveTextContent("새 기기 승인 요청 1건이 있습니다.");
+  expect(statusRegion).toHaveTextContent("보기 전용 PC입니다.");
 
   await user.click(screen.getByRole("button", { name: "확인하기" }));
   expect(onCheck).toHaveBeenCalledTimes(1);
